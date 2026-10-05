@@ -2,6 +2,10 @@
 
 Implemented email-link sign-in, account identity and available balance, a light/dark preference, balance history, admin mapping review and balance adjustments with a required reason. The approved Week 3 import is already live in Supabase; the frontend remains local until deployment approval.
 
+Latest reviewed edits: natural sentence case for explanatory copy, new sign-in headline, Season 3 • Week 5 with a public central period function, connected check, full names, no temporary account setup note, and profile-menu navigation. All 12 exact display names were supplied and saved by owner request. The public period function advances the label Tuesdays at 8 AM Eastern, including daylight saving changes, and caps at Week 18. Operational weekly jobs are still pending and must use the same period when implemented.
+
+Admin is organized into category rows based on Sleeper's commissioner settings navigation pattern. Users manages existing names/mappings/balances. Tickets and Betting Logs read the actual historical records; they do not offer unreviewed correction or resettlement actions. Other categories are explicit upcoming destinations. Local review category links work while account/balance form controls remain disabled.
+
 Only confirmed email identities matching approved memberships can load league data. Supabase may create an authentication identity for another email, but that identity receives no league access. Email reassignment is intentionally separate from ordinary name edits. Roster 8 is Nelson / nellyknowsball only; Cooper is the only admin.
 
 The account balance is read from the imported wallet. Historical opening entries, settlements and replenishments are displayed alongside later admin adjustments. Admin balance adjustments do not alter ticket profit or leaderboard betting statistics.

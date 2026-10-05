@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
+import { AdminHub } from "./components/AdminHub";
 const leagueAvatar =
   "https://sleepercdn.com/avatars/bac95664e269132b2a43e889f980a3e2";
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -20,6 +21,23 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
   );
 }
 function SignIn() {
+  const [period, setPeriod] = useState({ league_season: 3, week: 5 });
+  useEffect(() => {
+    let active = true;
+    const update = async () => {
+      if (!supabase) return;
+      const { data, error } = await supabase.rpc("sportsbook_period", {
+        p_league: "13121261-5398-4391-8240-000000000003",
+      });
+      if (active && !error && data?.[0]) setPeriod(data[0]);
+    };
+    void update();
+    const timer = setInterval(update, 60000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
   const [email, setEmail] = useState(""),
     [sent, setSent] = useState(false),
     [busy, setBusy] = useState(false),
@@ -56,20 +74,19 @@ function SignIn() {
   return (
     <main className="signin-layout">
       <section className="league-intro">
-        <div className="season">Season 3</div>
+        <div className="season">
+          Season {period.league_season} • Week {period.week}
+        </div>
         <h1>
-          Your League.
+          Fake Football.
           <br />
-          Your Rivalries.
+          Fake Betting
         </h1>
-        <p>
-          Welcome To Goldy Fantasy Sportsbook. All The Competition, All Pretend.
-        </p>
+        <p>Welcome to your Fantasy Sportsbook.</p>
         <div className="league-signature">
           <Avatar src={leagueAvatar} name="Goldy" />
           <div>
             <strong>Goldy Plays Pretend With Men</strong>
-            <span>12 Teams · One League</span>
           </div>
         </div>
       </section>
@@ -77,15 +94,15 @@ function SignIn() {
         <span className="entry-icon" aria-hidden="true">
           ↗
         </span>
-        <h2>{sent ? "Check Your Email" : "Welcome Back"}</h2>
+        <h2>{sent ? "Check Your Email" : "Welcome"}</h2>
         <p>
           {sent ? (
             <>
-              Your Sign-In Link Was Requested For <strong>{email}</strong>. Open
-              It To Access Your Account.
+              Your sign-in link was requested for <strong>{email}</strong>. Open
+              it to access your account.
             </>
           ) : (
-            "Enter Your Approved League Email To Receive A Sign-In Link."
+            "Enter your approved league email to receive a sign-in link."
           )}
         </p>
         <form onSubmit={submit}>
@@ -128,10 +145,10 @@ function SignIn() {
           </button>
         )}
         <div className="signin-help">
-          <strong>No Password. No Verification Code.</strong>
+          <strong>No password. No verification code.</strong>
           <p>
-            The Link Is Single-Use And Expires. Check Spam If It Does Not
-            Arrive. You Can Stay Signed In On Your Device.
+            The link is single-use and expires. Check spam if it does not
+            arrive. You can stay signed in on your device.
           </p>
         </div>
       </section>
@@ -148,6 +165,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
         before: e.previous_balance,
         after: e.new_balance,
         date: e.created_at,
+        kind: e.kind,
       })),
     ...data.ledger
       .filter((e) => e.team_id === team.id)
@@ -157,6 +175,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
         before: e.balance_before,
         after: e.balance_after,
         date: e.created_at,
+        kind: e.kind,
       })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
@@ -166,7 +185,16 @@ function History({ data, team }: { data: AccountData; team: Team }) {
         entries.map((e) => (
           <div className="history-entry" key={e.id}>
             <div>
-              <strong>{e.reason}</strong>
+              <strong>
+                {{
+                  weekly_replenishment: "Weekly Replenishment",
+                  historical_opening: "Opening Balance",
+                  settlement: "Ticket Settlement",
+                  opening_balance: "Opening Balance",
+                  admin_adjustment: "Balance Adjustment",
+                }[e.kind] ?? "Balance Change"}
+              </strong>
+              <p className="history-reason">{e.reason}</p>
               <span>
                 {new Date(e.date).toLocaleString("en-US", {
                   timeZone: "America/New_York",
@@ -185,7 +213,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
           </div>
         ))
       ) : (
-        <p>No Balance Changes Yet.</p>
+        <p>No balance changes yet.</p>
       )}
     </section>
   );
@@ -211,14 +239,16 @@ export function Account({
             <p>{team.team_name}</p>
             <span>
               {team.wins}–{team.losses}
-              {team.ties ? `–${team.ties}` : ""} · Sleeper Connected
+              {team.ties ? `–${team.ties}` : ""} · Sleeper Connected{" "}
+              <span className="connected-check" aria-label="Connected">
+                ☑
+              </span>
             </span>
           </div>
         </div>
         <div className="balance-highlight">
           <span>Current Balance</span>
           <strong>{money(balance)}</strong>
-          <small>Virtual Currency</small>
         </div>
         <dl className="account-details">
           <div>
@@ -236,10 +266,6 @@ export function Account({
             </dd>
           </div>
         </dl>
-        <p className="account-note">
-          Week 3 Bets Are Settled And Your Balance Is Ready. Bet History And The
-          Leaderboard Will Appear With The Sportsbook Screens.
-        </p>
       </section>
       <History data={data} team={team} />
     </main>
@@ -290,8 +316,8 @@ function TeamAdmin({
       if (r.error) throw r.error;
       setFeedback(
         member
-          ? "Owner Name Saved."
-          : "Account Mapping Approved. No Email Was Sent.",
+          ? "Owner name saved."
+          : "Account mapping approved. No email was sent.",
       );
     });
   }
@@ -309,7 +335,7 @@ function TeamAdmin({
       request.current = crypto.randomUUID();
       setAmount("");
       setReason("");
-      setFeedback("Balance Updated. Leaderboard Betting Profit Is Unchanged.");
+      setFeedback("Balance updated. Leaderboard betting profit is unchanged.");
     });
   }
   return (
@@ -318,16 +344,14 @@ function TeamAdmin({
         <Avatar src={team.avatar_url} name={team.team_name} />
         <div>
           <h2>{team.team_name}</h2>
-          <p>
-            Roster {team.roster_id} · {team.sportsbook_owner_name}
-          </p>
+          <p>{team.sportsbook_owner_name}</p>
         </div>
       </div>
       {team.co_owner_names.length > 0 && (
         <p className="shared-notice">
-          Shared Sleeper Team. Only{" "}
-          <strong>{team.sportsbook_owner_name}</strong> Is Approved For This
-          Sportsbook Account.
+          Shared Sleeper team. Only{" "}
+          <strong>{team.sportsbook_owner_name}</strong> is approved for this
+          sportsbook account.
         </p>
       )}
       <form onSubmit={mapping}>
@@ -352,7 +376,7 @@ function TeamAdmin({
         />
         {member && (
           <p className="field-note">
-            Email Reassignment Requires A Separate Review.
+            Email reassignment requires a separate review.
           </p>
         )}
         <button className="secondary" disabled={busy}>
@@ -391,15 +415,15 @@ function TeamAdmin({
           maxLength={500}
           required
           disabled={busy}
-          placeholder="Explain Why This Balance Is Changing"
+          placeholder="Explain why this balance is changing"
           onChange={(e) => {
             setReason(e.target.value);
             request.current = crypto.randomUUID();
           }}
         />
         <p className="field-note">
-          Saves The Previous Balance, New Balance, And Your Reason. Adjustments
-          Do Not Count As Betting Profit.
+          Saves the previous balance, new balance, and your reason. Adjustments
+          do not count as betting profit.
         </p>
         <button className="primary" disabled={busy}>
           {busy ? "Saving…" : "Save Balance"}
@@ -419,7 +443,7 @@ function TeamAdmin({
     </section>
   );
 }
-export function Admin({
+function UsersAdmin({
   data,
   leagueId,
   refresh,
@@ -432,10 +456,10 @@ export function Admin({
     [selected, setSelected] = useState(teams[0]?.id);
   const team = teams.find((t) => t.id === selected) ?? teams[0];
   return (
-    <main className="admin-layout">
+    <section className="admin-layout">
       <div className="page-heading">
-        <h1>League Admin</h1>
-        <p>Manage Accounts And Balances For Your League.</p>
+        <h1>Users</h1>
+        <p>Manage names, account mappings, and balances for your league.</p>
       </div>
       <div className="admin-columns">
         <aside aria-label="League Teams" className="team-list">
@@ -464,10 +488,34 @@ export function Admin({
           <TeamAdmin key={team.id} data={data} team={team} refresh={refresh} />
         )}
       </div>
-    </main>
+    </section>
+  );
+}
+export function Admin({
+  data,
+  leagueId,
+  refresh,
+  initialCategory,
+  reviewMode = false,
+}: {
+  data: AccountData;
+  leagueId: string;
+  refresh: () => Promise<void>;
+  initialCategory?: string;
+  reviewMode?: boolean;
+}) {
+  return (
+    <AdminHub
+      data={data}
+      leagueId={leagueId}
+      initialCategory={initialCategory}
+      reviewMode={reviewMode}
+      users={<UsersAdmin data={data} leagueId={leagueId} refresh={refresh} />}
+    />
   );
 }
 export default function App() {
+  const profileMenu = useRef<HTMLDetailsElement>(null);
   const [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(!supabase),
     [data, setData] = useState<AccountData | null>(null),
@@ -581,16 +629,51 @@ export default function App() {
           </button>
           {session && (
             <>
-              <div className="profile">
-                <Avatar
-                  src={team?.avatar_url ?? null}
-                  name={member?.display_name ?? "Member"}
-                />
-                <span>{member?.display_name ?? "Account"}</span>
-              </div>
-              <button className="text-button" onClick={signOut}>
-                Sign Out
-              </button>
+              <details
+                className="profile-menu"
+                ref={profileMenu}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") e.currentTarget.open = false;
+                }}
+              >
+                <summary className="profile" aria-label="Open Account Options">
+                  <Avatar
+                    src={team?.avatar_url ?? null}
+                    name={member?.display_name ?? "Member"}
+                  />
+                  <span>{member?.display_name ?? "Account"}</span>
+                  <span aria-hidden="true">⌄</span>
+                </summary>
+                <div className="profile-options">
+                  <button
+                    onClick={() => {
+                      setPage("account");
+                      if (profileMenu.current) profileMenu.current.open = false;
+                    }}
+                  >
+                    Account
+                  </button>
+                  {member?.role === "admin" && (
+                    <button
+                      onClick={() => {
+                        setPage("admin");
+                        if (profileMenu.current)
+                          profileMenu.current.open = false;
+                      }}
+                    >
+                      Admin
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (profileMenu.current) profileMenu.current.open = false;
+                      void signOut();
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </details>
             </>
           )}
         </div>
@@ -610,22 +693,8 @@ export default function App() {
         </>
       ) : (
         <>
-          {data && member && (
+          {data && member && data.leagues.length > 1 && (
             <nav className="account-nav" aria-label="Account Navigation">
-              <button
-                aria-current={page === "account" ? "page" : undefined}
-                onClick={() => setPage("account")}
-              >
-                Account
-              </button>
-              {member.role === "admin" && (
-                <button
-                  aria-current={page === "admin" ? "page" : undefined}
-                  onClick={() => setPage("admin")}
-                >
-                  Admin
-                </button>
-              )}
               {data.leagues.length > 1 && (
                 <select
                   aria-label="League"
@@ -676,8 +745,8 @@ export default function App() {
               <h1>Membership Pending</h1>
               <p>{session.user.email}</p>
               <p>
-                Ask Cooper To Approve This Email For Your Sleeper Team, Then
-                Refresh Your Account.
+                Ask Cooper to approve this email for your Sleeper team, then
+                refresh your account.
               </p>
               <button
                 className="primary"
@@ -692,7 +761,7 @@ export default function App() {
           )}
         </>
       )}
-      <footer>Goldy Fantasy Sportsbook · Virtual Currency Only</footer>
+      <footer>Goldy Fantasy Sportsbook</footer>
     </div>
   );
 }

@@ -57,6 +57,31 @@ export interface AccountData {
   wallets: Wallet[];
   events: Event[];
   ledger: Ledger[];
+  tickets?: Ticket[];
+  legs?: TicketLeg[];
+}
+export interface Ticket {
+  id: string;
+  league_id: string;
+  team_id: string;
+  legacy_ticket_id: string | null;
+  placement_week: number;
+  market_week: number;
+  placed_at: string;
+  settled_at: string | null;
+  stake: number | string;
+  accepted_combined_odds: number;
+  actual_payout: number | string;
+  status: string;
+}
+export interface TicketLeg {
+  id: string;
+  ticket_id: string;
+  leg_number: number;
+  selection: string;
+  market_type: string;
+  matchup: string | null;
+  status: string;
 }
 export async function loadAccounts(): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
@@ -72,6 +97,16 @@ export async function loadAccounts(): Promise<AccountData> {
       .select("*")
       .order("created_at", { ascending: false }),
     supabase
+      .from("tickets")
+      .select(
+        "id,league_id,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,actual_payout,status",
+      )
+      .order("placed_at", { ascending: false }),
+    supabase
+      .from("ticket_legs")
+      .select("id,ticket_id,leg_number,selection,market_type,matchup,status")
+      .order("leg_number"),
+    supabase
       .from("wallet_ledger")
       .select("*")
       .order("created_at", { ascending: false }),
@@ -83,7 +118,9 @@ export async function loadAccounts(): Promise<AccountData> {
     memberships: results[2].data as Membership[],
     wallets: results[3].data as Wallet[],
     events: results[4].data as Event[],
-    ledger: results[5].data as Ledger[],
+    ledger: results[7].data as Ledger[],
+    tickets: results[5].data as Ticket[],
+    legs: results[6].data as TicketLeg[],
   };
 }
 export const money = (value: number | string | null | undefined) =>
