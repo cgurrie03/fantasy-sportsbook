@@ -6,10 +6,10 @@ Updated October 5, 2026. Owner authorized service setup; free tiers only.
 | --- | --- |
 | coopergurrie.com | Purchase confirmed |
 | Local React/Vite/TypeScript | Scaffolded |
-| GitHub private repository | Created as cgurrie03/fantasy-sportsbook; local origin configured; code not pushed yet |
+| GitHub private repository | Created as cgurrie03/fantasy-sportsbook; local commit 712bf7b ready; push blocked by sandbox credential-helper process error |
 | Vercel Hobby account/project | Account/workspace Cooper Gurrie Projects created on Hobby; fantasy-sportsbook repository visible for import; deployment pending |
 | Supabase free project | Created and healthy: fantasy-sportsbook, us-east-1; public app settings saved in ignored .env.local |
-| Resend / sending domain | coopergurrie.com added in us-east-1; verification in progress |
+| Resend / sending domain | coopergurrie.com verified in us-east-1; ready for sender sportsbook@coopergurrie.com |
 | DNS / custom SMTP | Three required Resend DNS records approved and saved in Spaceship; custom SMTP not configured |
 | Import, live emails, deployment | Separate approval gates |
 
@@ -30,7 +30,9 @@ Supabase setup defaults: Data API enabled, automatic table exposure disabled, au
 
 Supabase dashboard: https://supabase.com/dashboard/project/bmvjcdgxwxqalaohpsnw. Project URL: https://bmvjcdgxwxqalaohpsnw.supabase.co. Local app has the browser-safe publishable key; database password and server secret keys have not been copied.
 
-Resend domain ID: 336b7c17-318a-4985-a719-960aa13334db. Saved DNS records (30-minute TTL): TXT resend._domainkey with Resend's public DKIM key; CNAME rsend to rsend.forge.rmta.net; CNAME send to send.forge.rmta.net. No receiving-email or website-routing records were added. Owner approved these three records at action time. Resend status was Pending immediately after submission; verification is not yet confirmed.
+Resend domain ID: 336b7c17-318a-4985-a719-960aa13334db. Saved DNS records (30-minute TTL): TXT resend._domainkey with Resend's public DKIM key; CNAME rsend to rsend.forge.rmta.net; CNAME send to send.forge.rmta.net. No receiving-email or website-routing records were added. Owner approved these three records at action time. Resend status Verified confirmed in dashboard on October 5, 2026.
+
+Repository-local commit author approved by owner: Cooper Gurrie <cooper.gurrie@gmail.com>. First foundation commit created locally; direct upload attempt failed when sandbox prevented Git's credential helper shell from starting. No credentials requested or copied. Owner can perform the initial git push in their own PowerShell session.
 
 ## Official References
 
