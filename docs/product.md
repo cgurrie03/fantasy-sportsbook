@@ -41,7 +41,7 @@ GOTW: closest absolute spread where both teams are above .500; closest overall f
 
 ## Accounts, Emails And History
 
-Proposed admin: cooper.gurrie@gmail.com. Owner approves account/team mappings. Sender: Goldy Fantasy Sportsbook. Required opening, reminder, confirmation and recap/results emails; retain logs. Preserve historical tickets, review migration first, never re-debit imported stakes or resend old confirmations.
+Approved admin: cooper.gurrie@gmail.com. All 12 Google Sheet email/team mappings were reviewed and approved October 5, 2026; Roster 8 is Nelson / nellyknowsball only. Week 3 was imported and settled: 19 tickets, 60 legs, 6 won, 13 lost. Opening balances total $1,517.40 after $400 in approved replenishments; net betting profit is -$82.60 and excludes replenishments. Sender: Goldy Fantasy Sportsbook. Required opening, reminder, confirmation and recap/results emails; retain logs. Never re-debit imported stakes or resend old confirmations.
 
 Leaderboard: net betting profit, available balance, then bets placed; retain richer version-1 metrics. Historical season and final results must be verified before import.
 

@@ -1,1 +1,574 @@
-.setup-page{max-width:680px;margin:0 auto;padding:80px 24px}.league-mark{display:grid;place-items:center;width:56px;height:56px;border-radius:14px;background:#f4c857;color:#172438;font-size:28px;font-weight:800;margin-bottom:32px}.eyebrow{color:#f4c857;font-weight:600}h1{font-size:clamp(28px,5vw,44px);line-height:1.15;text-wrap:balance}.setup-note{margin-top:36px;color:#b3bfce}
+.app-shell {
+  max-width: 1280px;
+  margin: auto;
+  padding: 0 32px;
+}
+.masthead {
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.brand,
+.account-tools,
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand strong {
+  display: block;
+  font-size: 18px;
+}
+.brand span:not(.avatar) {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--surface2);
+  color: var(--gold);
+  border-radius: 50%;
+  overflow: hidden;
+  font-weight: 700;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.theme-toggle {
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 40px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 22px;
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px;
+}
+.text-button:hover {
+  color: var(--text);
+}
+.profile {
+  font-size: 13px;
+}
+.profile .avatar {
+  width: 34px;
+  height: 34px;
+}
+.primary,
+.secondary {
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-weight: 700;
+}
+.primary {
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  color: var(--navy);
+}
+.primary:hover:not(:disabled) {
+  background: #ffdb80;
+}
+.secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.signin-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  align-items: center;
+  gap: 80px;
+  max-width: 1050px;
+  margin: 80px auto 90px;
+}
+.league-intro h1 {
+  font-size: clamp(40px, 4.8vw, 64px);
+  line-height: 1.12;
+  letter-spacing: -2px;
+  margin: 20px 0 24px;
+}
+.season {
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+}
+:root[data-theme="light"] .season {
+  color: #77550a;
+}
+.league-intro p {
+  max-width: 360px;
+  font-size: 17px;
+}
+.league-signature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 38px;
+}
+.league-signature strong {
+  display: block;
+  font-size: 14px;
+}
+.league-signature span:not(.avatar) {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+}
+.signin-card {
+  background: var(--surface);
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.entry-icon {
+  font-size: 26px;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 24px;
+}
+.signin-card h2 {
+  font-size: 26px;
+  margin-bottom: 12px;
+}
+.signin-card p {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.signin-card form .primary {
+  margin-top: 18px;
+  width: 100%;
+}
+.signin-help {
+  border-top: 1px solid var(--border);
+  margin-top: 28px;
+  padding-top: 20px;
+}
+.signin-help strong {
+  font-size: 12px;
+}
+.signin-help p {
+  font-size: 12px;
+  margin-bottom: 0;
+}
+.feedback {
+  font-size: 14px;
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.error {
+  color: var(--error);
+}
+.success {
+  color: var(--success);
+}
+.account-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0;
+}
+.account-nav button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 8px 16px;
+}
+.account-nav button[aria-current="page"] {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--gold);
+}
+:root[data-theme="light"] .account-nav button[aria-current="page"] {
+  color: var(--navy);
+  border-color: #d5ae42;
+  background: #fff3cd;
+}
+.account-nav select {
+  max-width: 250px;
+  margin-left: auto;
+}
+.account-layout {
+  max-width: 760px;
+  margin: 24px auto 60px;
+}
+.account-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid var(--border);
+}
+.identity {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.identity .avatar {
+  height: 88px;
+  width: 88px;
+}
+.identity h1 {
+  font-size: 32px;
+  margin: 6px 0;
+}
+.identity p {
+  margin: 0 0 5px;
+}
+.identity div > span:last-child {
+  font-size: 13px;
+  color: var(--muted);
+}
+.balance-highlight {
+  margin: 30px 0;
+  padding: 24px;
+  background: var(--surface2);
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+}
+.balance-highlight > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.balance-highlight strong {
+  font-size: 38px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+:root[data-theme="light"] .balance-highlight strong {
+  color: var(--navy);
+}
+.balance-highlight small {
+  color: var(--muted);
+}
+.account-details {
+  margin: 0;
+}
+.account-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+}
+.account-details dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+.account-details dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.account-note {
+  font-size: 13px;
+  margin: 24px 0 0;
+}
+.history {
+  margin-top: 28px;
+}
+.history h3 {
+  font-size: 16px;
+}
+.history-entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.history-entry div {
+  max-width: 70%;
+}
+.history-entry strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.history-entry span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.history-entry div span {
+  display: block;
+  margin-top: 5px;
+}
+.history-amount {
+  text-align: right;
+  flex-shrink: 0;
+}
+.history-amount strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.page-heading {
+  margin: 20px 0 24px;
+}
+.page-heading h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.page-heading p {
+  font-size: 14px;
+}
+.admin-columns {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(350px, 1.2fr);
+  gap: 32px;
+  align-items: start;
+}
+.admin-layout {
+  max-width: 1060px;
+  margin: 0 auto 60px;
+}
+.team-list {
+  display: grid;
+  gap: 6px;
+}
+.team-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.team-list button.selected {
+  border-color: var(--gold);
+  background: var(--surface);
+}
+.team-list button:hover {
+  background: var(--surface2);
+}
+.team-list button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.team-list strong {
+  display: block;
+  font-size: 13px;
+}
+.team-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.mapping-state {
+  font-size: 10px;
+  color: var(--success);
+}
+.admin-detail {
+  background: var(--surface);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.compact {
+  gap: 14px;
+}
+.compact .avatar {
+  height: 52px;
+  width: 52px;
+}
+.compact h2 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+.compact p {
+  font-size: 12px;
+  margin: 0;
+}
+.admin-detail form {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.admin-detail h3 {
+  font-size: 16px;
+  margin: 0;
+}
+.admin-detail form button {
+  margin-top: 18px;
+}
+.field-note,
+.shared-notice {
+  font-size: 12px;
+}
+.shared-notice {
+  background: var(--surface2);
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+.balance-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.balance-heading strong {
+  font-size: 14px;
+}
+.balance-heading span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.empty {
+  max-width: 600px;
+  margin: 80px auto;
+  text-align: center;
+  min-height: 180px;
+}
+.empty h1 {
+  font-size: 28px;
+}
+.empty p {
+  overflow-wrap: anywhere;
+}
+footer {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+@media (max-width: 760px) {
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
+  .brand { flex: 1; min-width: 0; }
+  .brand > div { min-width: 0; }
+  .account-tools { flex-shrink: 0; }
+  .app-shell {
+    padding: 0 16px;
+  }
+  .masthead {
+    min-height: 88px;
+    gap: 12px;
+  }
+  .brand {
+    gap: 9px;
+  }
+  .brand strong {
+    font-size: 13px;
+    max-width: 190px;
+    line-height: 1.4;
+  }
+  .brand .avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .brand span:not(.avatar) {
+    font-size: 11px;
+  }
+  .account-tools {
+    gap: 5px;
+  }
+  .profile > span:not(.avatar) {
+    display: none;
+  }
+  .account-tools > .text-button {
+    font-size: 11px;
+    padding: 5px;
+  }
+  .theme-toggle {
+    width: 36px;
+    min-height: 36px;
+    font-size: 20px;
+  }
+  .signin-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin: 28px auto 36px;
+    max-width: 480px;
+  }
+  .league-intro h1 {
+    font-size: 34px;
+    letter-spacing: -1.5px;
+    margin: 14px 0 18px;
+  }
+  .league-intro p {
+    font-size: 15px;
+  }
+  .league-signature {
+    display: none;
+  }
+  .signin-card {
+    padding: 24px;
+  }
+  .entry-icon {
+    display: none;
+  }
+  .account-card {
+    padding: 22px;
+  }
+  .identity {
+    gap: 14px;
+  }
+  .identity .avatar {
+    width: 64px;
+    height: 64px;
+  }
+  .identity h1 {
+    font-size: 26px;
+  }
+  .identity p {
+    font-size: 14px;
+  }
+  .account-details > div {
+    gap: 12px;
+  }
+  .account-details dd {
+    max-width: 65%;
+    font-size: 12px;
+  }
+  .balance-highlight {
+    padding: 20px;
+  }
+  .admin-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .team-list {
+    max-height: 290px;
+    overflow: auto;
+    scrollbar-width: none;
+  }
+  .team-list::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-detail {
+    padding: 22px;
+  }
+  .history-entry div {
+    max-width: 65%;
+  }
+  .page-heading {
+    margin-top: 16px;
+  }
+  .account-nav {
+    padding: 14px 0;
+  }
+  .account-nav button {
+    padding: 8px 12px;
+  }
+}

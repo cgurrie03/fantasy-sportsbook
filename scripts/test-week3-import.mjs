@@ -1,0 +1,23 @@
+import fs from 'node:fs'
+import assert from 'node:assert/strict'
+import {PGlite} from '@electric-sql/pglite'
+const db=new PGlite()
+await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;")
+const sql=['202610050001_accounts.sql','202610050002_league_seed.sql','202610050003_week3_import.sql'].map(name=>fs.readFileSync(new URL('../supabase/migrations/'+name,import.meta.url),'utf8')).join('\n')
+await db.exec(sql)
+const rows=async sql=>(await db.query(sql)).rows
+assert.equal((await rows('select count(*)::int n from public.league_memberships'))[0].n,12)
+assert.equal((await rows('select sum(balance) n from public.wallets'))[0].n,'1517.40')
+assert.equal((await rows('select sum(net_profit) n from public.tickets'))[0].n,'-82.60')
+assert.equal((await rows("select sum(amount) n from public.wallet_ledger where kind='weekly_replenishment'"))[0].n,'400.00')
+assert.equal((await rows("select count(*)::int n from public.tickets where status='OPEN'"))[0].n,0)
+assert.equal((await rows('select count(*)::int n from public.ticket_legs'))[0].n,60)
+const id='00000000-0000-0000-0000-000000000001'
+await db.exec(`insert into auth.users values('${id}','cooper.gurrie@gmail.com',now()); set role authenticated; set request.jwt.claim.sub='${id}'; select public.claim_memberships();`)
+const leaderboard=await rows("select * from public.league_leaderboard('13121261-5398-4391-8240-000000000003')")
+assert.equal(leaderboard.length,12); assert.equal(leaderboard[0].net_profit,'159.00'); assert.equal(leaderboard[0].bets_won,3)
+await db.exec('reset role;')
+await assert.rejects(()=>db.exec(sql)); await db.exec('rollback;')
+assert.equal((await rows('select sum(balance) n from public.wallets'))[0].n,'1517.40')
+await db.close()
+console.log('Passed: 12 mappings, settled ticket and leg totals, exact balances, preserved leaderboard profit, replenishments excluded, and duplicate replay cannot credit balances twice.')
