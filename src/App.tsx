@@ -7,6 +7,7 @@ import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
 import { AdminHub } from "./components/AdminHub";
 import { ThemeIcon } from "./components/ThemeIcon";
+import { buildBalanceHistory } from "./lib/balanceHistory";
 const leagueAvatar =
   "https://sleepercdn.com/avatars/bac95664e269132b2a43e889f980a3e2";
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -157,59 +158,45 @@ function SignIn() {
   );
 }
 function History({ data, team }: { data: AccountData; team: Team }) {
-  const entries = [
-    ...data.events
-      .filter((e) => e.team_id === team.id)
-      .map((e) => ({
-        id: e.id,
-        reason: e.reason,
-        before: e.previous_balance,
-        after: e.new_balance,
-        date: e.created_at,
-        kind: e.kind,
-      })),
-    ...data.ledger
-      .filter((e) => e.team_id === team.id)
-      .map((e) => ({
-        id: e.id,
-        reason: e.reason,
-        before: e.balance_before,
-        after: e.balance_after,
-        date: e.created_at,
-        kind: e.kind,
-      })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  const entries = buildBalanceHistory(data, team.id);
   return (
     <section className="history">
       <h3>Balance History</h3>
+      {entries.some((e) => e.imported) && (
+        <p className="history-note">
+          Winning payouts include your returned wager. Imported settlements show
+          the import date; their original settlement times were not recorded.
+        </p>
+      )}
       {entries.length ? (
         entries.map((e) => (
           <div className="history-entry" key={e.id}>
             <div>
-              <strong>
-                {{
-                  weekly_replenishment: "Weekly Replenishment",
-                  historical_opening: "Opening Balance",
-                  settlement: "Ticket Settlement",
-                  opening_balance: "Opening Balance",
-                  admin_adjustment: "Balance Adjustment",
-                }[e.kind] ?? "Balance Change"}
-              </strong>
+              <strong>{e.title}</strong>
               <p className="history-reason">{e.reason}</p>
               <span>
-                {new Date(e.date).toLocaleString("en-US", {
-                  timeZone: "America/New_York",
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}{" "}
-                Eastern
+                {e.imported
+                  ? "Imported " +
+                    new Date(e.date).toLocaleDateString("en-US", {
+                      timeZone: "America/New_York",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : new Date(e.date).toLocaleString("en-US", {
+                      timeZone: "America/New_York",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }) + " Eastern"}
               </span>
             </div>
             <span className="history-amount">
-              {e.before == null ? "Opening Balance" : money(e.before) + " →"}
-              <strong>{money(e.after)}</strong>
+              <strong className={e.amount > 0 ? "won" : ""}>
+                {e.amount > 0 ? "+" : "−"}
+                {money(Math.abs(e.amount))}
+              </strong>
             </span>
           </div>
         ))

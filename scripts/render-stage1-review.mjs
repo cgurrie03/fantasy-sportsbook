@@ -99,17 +99,50 @@ try {
         status: l.result,
       })),
     ),
-    ledger: [
-      {
-        id: "sample-history",
-        team_id: "review-1",
-        reason: "Week 3 Winning Tickets",
-        balance_before: 0,
-        balance_after: 259,
-        created_at: "2026-10-05T23:00:00Z",
-        kind: "settlement",
-      },
-    ],
+    ledger: approved.mappings.flatMap((m) => {
+      let balance = m.sheet_balance_cents / 100;
+      const teamId = "review-" + m.roster_id;
+      const base = {
+        team_id: teamId,
+        created_at: approved.prepared_at,
+        source_batch: "sheet-week3-2026-v1",
+      };
+      const rows = [
+        {
+          ...base,
+          id: "opening-" + teamId,
+          reason: "Imported sheet balance",
+          balance_before: null,
+          balance_after: balance,
+          kind: "historical_opening",
+        },
+      ];
+      for (const t of approved.tickets.filter(
+        (t) => t.legacy_user_id === m.legacy_user_id,
+      )) {
+        const before = balance;
+        balance += t.payout_cents / 100;
+        rows.push({
+          ...base,
+          id: "settlement-" + t.legacy_ticket_id,
+          ticket_id: t.legacy_ticket_id,
+          reason: "Week 3 " + t.result + " ticket " + t.legacy_ticket_id,
+          balance_before: before,
+          balance_after: balance,
+          kind: "settlement",
+        });
+      }
+      if (m.proposed_replenishment_cents > 0)
+        rows.push({
+          ...base,
+          id: "replenishment-" + teamId,
+          reason: "Approved Week 3 catch-up replenishment",
+          balance_before: balance,
+          balance_after: m.proposed_week5_balance_cents / 100,
+          kind: "weekly_replenishment",
+        });
+      return rows;
+    }),
   };
   for (const [view, element] of [
     [

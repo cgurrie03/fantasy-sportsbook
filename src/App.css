@@ -1123,3 +1123,14 @@ footer {
   margin: 8px auto 0;
   text-align: center;
 }
+
+.history-note {
+  max-width: 640px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.history-amount strong.won {
+  color: var(--success);
+}

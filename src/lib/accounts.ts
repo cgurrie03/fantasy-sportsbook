@@ -43,6 +43,8 @@ export interface Event {
 }
 export interface Ledger {
   id: string;
+  ticket_id?: string | null;
+  source_batch?: string | null;
   team_id: string;
   reason: string;
   balance_before: number | string | null;

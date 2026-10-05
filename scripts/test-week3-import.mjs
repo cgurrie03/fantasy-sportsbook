@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import {PGlite} from '@electric-sql/pglite'
+import {buildBalanceHistory} from '../src/lib/balanceHistory.ts'
 const db=new PGlite()
 await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;")
 const sql=['202610050001_accounts.sql','202610050002_league_seed.sql','202610050003_week3_import.sql'].map(name=>fs.readFileSync(new URL('../supabase/migrations/'+name,import.meta.url),'utf8')).join('\n')
@@ -24,6 +25,19 @@ const id='00000000-0000-0000-0000-000000000001'
 await db.exec(`insert into auth.users values('${id}','cooper.gurrie@gmail.com',now()); set role authenticated; set request.jwt.claim.sub='${id}'; select public.claim_memberships();`)
 const leaderboard=await rows("select * from public.league_leaderboard('13121261-5398-4391-8240-000000000003')")
 assert.equal(leaderboard.length,12); assert.equal(leaderboard[0].net_profit,'159.00'); assert.equal(leaderboard[0].bets_won,3)
+const teamId=(await rows('select id from public.teams where roster_id=1'))[0].id
+const historyData={events:await rows('select * from public.balance_events'),ledger:await rows('select * from public.wallet_ledger'),tickets:await rows('select * from public.tickets')}
+const history=buildBalanceHistory(historyData,teamId)
+assert.equal(history.length,8)
+assert.equal(history.filter(e=>e.title==='Ticket Placed').length,5)
+assert.equal(history.filter(e=>e.title==='Ticket Won').length,3)
+assert.equal(history.reduce((sum,e)=>sum+Math.round(e.amount*100),0),15900)
+assert.equal(history.some(e=>e.amount===0),false)
+assert.equal(history[0].reason,'Week 3 · W3-FQLUZM')
+assert.equal(history.at(-1).reason,'Week 3 · W3-7KZSJ5')
+assert.deepEqual(buildBalanceHistory({...historyData,ledger:[...historyData.ledger].reverse(),tickets:[...historyData.tickets].reverse()},teamId),history)
+assert.equal(history.filter(e=>e.title==='Ticket Won').every(e=>e.imported),true)
+assert.equal(history.filter(e=>e.title==='Ticket Placed').every(e=>!e.imported && new Date(e.date).toISOString().startsWith('2026-09-25')),true)
 await db.exec('reset role;')
 await assert.rejects(()=>db.exec(sql)); await db.exec('rollback;')
 assert.equal((await rows('select sum(balance) n from public.wallets'))[0].n,'1517.40')
