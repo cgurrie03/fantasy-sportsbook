@@ -197,6 +197,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
                 {e.amount > 0 ? "+" : "−"}
                 {money(Math.abs(e.amount))}
               </strong>
+              <small>Balance: {money(e.balanceAfter)}</small>
             </span>
           </div>
         ))

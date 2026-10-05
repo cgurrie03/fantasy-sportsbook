@@ -23,3 +23,5 @@ Remaining live validation after deployment approval: deliver a sign-in email to 
 Home betting screens, ticket placement, bet history and leaderboard screens follow Stage 1. The currently live website still displays the setup placeholder.
 
 Import scripts require preserved source snapshots in ../outputs. They are one-time migration preparation tools, not automatic deployment tasks. The accounts and Week 3 migrations have already been applied; do not rerun them against the live database. Ledger and ticket source uniqueness plus an initialized-wallet guard prevent repeat settlement credits.
+
+Each balance movement also shows the available balance immediately after that event. Saved ledger/admin snapshots anchor the calculation; original wager balances are reconstructed backward in integer cents, without altering wallets or adding ledger entries. The import regression verifies Cooper’s balances: $80, $60, $50, $25, $0 after wagers, then $131.60, $168, and $259 after winning payouts.

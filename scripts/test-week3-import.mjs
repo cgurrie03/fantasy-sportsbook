@@ -26,9 +26,10 @@ await db.exec(`insert into auth.users values('${id}','cooper.gurrie@gmail.com',n
 const leaderboard=await rows("select * from public.league_leaderboard('13121261-5398-4391-8240-000000000003')")
 assert.equal(leaderboard.length,12); assert.equal(leaderboard[0].net_profit,'159.00'); assert.equal(leaderboard[0].bets_won,3)
 const teamId=(await rows('select id from public.teams where roster_id=1'))[0].id
-const historyData={events:await rows('select * from public.balance_events'),ledger:await rows('select * from public.wallet_ledger'),tickets:await rows('select * from public.tickets')}
+const historyData={wallets:await rows('select * from public.wallets'),events:await rows('select * from public.balance_events'),ledger:await rows('select * from public.wallet_ledger'),tickets:await rows('select * from public.tickets')}
 const history=buildBalanceHistory(historyData,teamId)
 assert.equal(history.length,8)
+assert.deepEqual(history.map(e=>e.balanceAfter),[259,168,131.6,0,25,50,60,80])
 assert.equal(history.filter(e=>e.title==='Ticket Placed').length,5)
 assert.equal(history.filter(e=>e.title==='Ticket Won').length,3)
 assert.equal(history.reduce((sum,e)=>sum+Math.round(e.amount*100),0),15900)

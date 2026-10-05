@@ -1134,3 +1134,11 @@ footer {
 .history-amount strong.won {
   color: var(--success);
 }
+
+.history-amount small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}

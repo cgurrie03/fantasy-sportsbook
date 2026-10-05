@@ -11,6 +11,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
         t.market_week +
         " · " +
         (t.legacy_ticket_id ?? t.id.slice(0, 8)),
+      recordedBalance: null as number | null,
       amount: -Number(t.stake),
       date: t.placed_at,
       imported: false,
@@ -23,6 +24,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
         id: e.id,
         title: "Balance Adjustment",
         reason: e.reason,
+        recordedBalance: Number(e.new_balance),
         amount: Number(e.new_balance) - Number(e.previous_balance ?? 0),
         date: e.created_at,
         imported: false,
@@ -47,6 +49,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
               " · " +
               (ticket.legacy_ticket_id ?? ticket.id.slice(0, 8))
             : e.reason,
+          recordedBalance: Number(e.balance_after),
           amount: Number(e.balance_after) - Number(e.balance_before ?? 0),
           date: e.created_at,
           imported: Boolean(e.source_batch),
@@ -56,11 +59,25 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
       }),
   ].filter((e) => e.amount !== 0);
   // Import settlements share a timestamp; use ticket placement order as a stable tie-breaker.
-  return entries.sort(
+  const ordered = entries.sort(
     (a, b) =>
       Date.parse(b.date) - Date.parse(a.date) ||
       b.phase - a.phase ||
       b.placed - a.placed ||
       a.id.localeCompare(b.id),
   );
+  const currentBalance = data.wallets?.find(
+    (w) => w.team_id === teamId,
+  )?.balance;
+  let balanceCents: number | null =
+    currentBalance == null ? null : Math.round(Number(currentBalance) * 100);
+  return ordered.map((entry) => {
+    // Recorded snapshots anchor the ledger; replay changes backward for wagers
+    // whose stakes were deducted in the original spreadsheet before import.
+    if (entry.recordedBalance != null)
+      balanceCents = Math.round(entry.recordedBalance * 100);
+    const balanceAfter = balanceCents == null ? null : balanceCents / 100;
+    if (balanceCents != null) balanceCents -= Math.round(entry.amount * 100);
+    return { ...entry, balanceAfter };
+  });
 }
