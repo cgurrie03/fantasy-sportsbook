@@ -80,7 +80,7 @@ function SignIn() {
         <h1>
           Fake Football.
           <br />
-          Fake Betting
+          Fake Betting.
         </h1>
         <p>Welcome to your Fantasy Sportsbook.</p>
         <div className="league-signature">
@@ -241,7 +241,18 @@ export function Account({
               {team.wins}–{team.losses}
               {team.ties ? `–${team.ties}` : ""} · Sleeper Connected{" "}
               <span className="connected-check" aria-label="Connected">
-                ☑
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="m8 12 3 3 5-6" />
+                </svg>
               </span>
             </span>
           </div>

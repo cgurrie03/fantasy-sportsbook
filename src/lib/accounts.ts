@@ -71,6 +71,8 @@ export interface Ticket {
   settled_at: string | null;
   stake: number | string;
   accepted_combined_odds: number;
+  ticket_type?: string;
+  accepted_potential_payout?: number | string;
   actual_payout: number | string;
   status: string;
 }
@@ -99,7 +101,7 @@ export async function loadAccounts(): Promise<AccountData> {
     supabase
       .from("tickets")
       .select(
-        "id,league_id,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,actual_payout,status",
+        "id,league_id,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,ticket_type,accepted_potential_payout,actual_payout,status",
       )
       .order("placed_at", { ascending: false }),
     supabase

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToString } from "react-dom/server";
 import { createServer } from "vite";
 import { displayNames } from "./display-names.mjs";
 const read = (name) =>
@@ -71,6 +71,12 @@ try {
       actual_payout: t.payout_cents / 100,
       status: t.result,
       accepted_combined_odds: t.accepted_combined_odds,
+      ticket_type: "parlay",
+      accepted_potential_payout:
+        (t.stake_cents / 100) *
+        (t.accepted_combined_odds > 0
+          ? 1 + t.accepted_combined_odds / 100
+          : 1 + 100 / Math.abs(t.accepted_combined_odds)),
     })),
     legs: approved.tickets.flatMap((t) =>
       t.legs.map((l, i) => ({
@@ -138,8 +144,28 @@ try {
       }),
     ]),
   ]) {
-    const markup = renderToStaticMarkup(element);
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stage 1 ${view} Layout Review</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"></head><body><div class="app-shell"><header class="masthead"><div class="brand"><div><strong>Goldy Plays Pretend With Men</strong><span>Fantasy Sportsbook</span></div></div><div class="profile"><span class="avatar">C</span>Cooper Gurrie</div></header><nav class="account-nav"><a href="/stage1-account-review.html">Account</a><a href="/stage1-admin-review.html">Admin</a></nav><p>Local Layout Review · Controls Are Disabled · No Sign-In Or Balance Changes</p><fieldset disabled style="border:0;margin:0;padding:0;min-width:0">${markup}</fieldset></div></body></html>`;
+    const markup = renderToString(element);
+    const category = view.startsWith("admin-") ? view.slice(6) : "";
+    const disabled = view === "account" || category === "users";
+    const payload = JSON.stringify({
+      data,
+      leagueId,
+      view,
+      category,
+    }).replaceAll("<", "\\u003c");
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stage 1 ${view} Layout Review</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"></head><body><div class="app-shell"><header class="masthead"><div class="brand"><div><strong>Goldy Plays Pretend With Men</strong><span>Fantasy Sportsbook</span></div></div><div class="account-tools"><button class="theme-toggle" id="review-theme" aria-label="Switch to light mode">☀</button><div class="profile"><span class="avatar">C</span>Cooper Gurrie</div></div></header><nav class="account-nav"><a href="/stage1-account-review.html">Account</a><a href="/stage1-admin-review.html">Admin</a></nav><p class="result-count">Local layout review · Account changes disabled</p><fieldset ${disabled ? "disabled" : ""} style="border:0;margin:0;padding:0;min-width:0"><div id="review-root">${markup}</div></fieldset></div><script type="application/json" id="review-data">${payload}</script><script>
+      const themeButton = document.getElementById('review-theme');
+      function applyTheme(light) { document.documentElement.dataset.theme = light ? 'light' : 'dark'; themeButton.textContent = light ? '☾' : '☀'; themeButton.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode'); localStorage.setItem('goldy-theme', light ? 'light' : 'dark'); }
+      applyTheme(localStorage.getItem('goldy-theme') === 'light');
+      themeButton.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme !== 'light'));
+    </script><script type="module">
+      import React from 'react';
+      import { hydrateRoot } from 'react-dom/client';
+      import { Account, Admin } from '/src/App.tsx';
+      const {data, leagueId, view, category} = JSON.parse(document.getElementById('review-data').textContent);
+      const element = view === 'account' ? React.createElement(Account, {data,member:data.memberships[0],team:data.teams[0]}) : React.createElement(Admin, {data,leagueId,reviewMode:true,initialCategory:category,refresh:async () => {throw new Error('Review only');}});
+      hydrateRoot(document.getElementById('review-root'), element);
+    </script></body></html>`;
     fs.writeFileSync(
       new URL("../stage1-" + view + "-review.html", import.meta.url),
       html,
