@@ -272,49 +272,7 @@ export function TicketHistory({
                   </summary>
                   <div className="ticket-body">
                     {legs.map((l) => (
-                      <div
-                        className={"history-leg " + l.status.toLowerCase()}
-                        key={l.id}
-                      >
-                        <span
-                          className="leg-mark"
-                          aria-label={`Leg ${l.leg_number} ${title(l.status)}`}
-                        >
-                          {l.status === "WON" || l.status === "LOST" ? (
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d={
-                                  l.status === "LOST"
-                                    ? "m6 6 12 12M18 6 6 18"
-                                    : "m5 12 4 4 10-10"
-                                }
-                              />
-                            </svg>
-                          ) : (
-                            l.leg_number
-                          )}
-                        </span>
-                        <div>
-                          <strong>{l.selection}</strong>
-                          {l.matchup && (
-                            <small className="leg-matchup">
-                              {l.matchup.replace(/\bvs\.?\s/gi, "vs. ")}
-                            </small>
-                          )}
-                          <small>
-                            {l.market_type} · {title(l.status)}
-                          </small>
-                          <small className="leg-actual">{legResult(l)}</small>
-                        </div>
-                      </div>
+                      <TicketLegDetails key={l.id} leg={l} />
                     ))}
                     <div className="ticket-foot">
                       <span>
@@ -440,6 +398,49 @@ function BettingLogTable({
         </tbody>
       </table>
       {!entries.length && <p>No betting records yet.</p>}
+    </div>
+  );
+}
+
+export function TicketLegDetails({ leg: l }: { leg: TicketLeg }) {
+  return (
+    <div className={"history-leg " + l.status.toLowerCase()} key={l.id}>
+      <span
+        className="leg-mark"
+        aria-label={`Leg ${l.leg_number} ${title(l.status)}`}
+      >
+        {l.status === "WON" || l.status === "LOST" ? (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d={
+                l.status === "LOST" ? "m6 6 12 12M18 6 6 18" : "m5 12 4 4 10-10"
+              }
+            />
+          </svg>
+        ) : (
+          l.leg_number
+        )}
+      </span>
+      <div>
+        <strong>{l.selection}</strong>
+        {l.matchup && (
+          <small className="leg-matchup">
+            {l.matchup.replace(/\bvs\.?\s/gi, "vs. ")}
+          </small>
+        )}
+        <small>
+          {l.market_type} · {title(l.status)}
+        </small>
+        <small className="leg-actual">{legResult(l)}</small>
+      </div>
     </div>
   );
 }
