@@ -6,6 +6,7 @@ import { loadAccounts, money, errorMessage } from "./lib/accounts";
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
 import { AdminHub } from "./components/AdminHub";
+import { ThemeIcon } from "./components/ThemeIcon";
 const leagueAvatar =
   "https://sleepercdn.com/avatars/bac95664e269132b2a43e889f980a3e2";
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -134,7 +135,7 @@ function SignIn() {
         )}
         {sent && (
           <button
-            className="text-button"
+            className="text-button alternate-email"
             onClick={() => {
               setSent(false);
               setEmail("");
@@ -636,7 +637,7 @@ export default function App() {
             title={light ? "Use Dark Mode" : "Use Light Mode"}
             onClick={() => setLight(!light)}
           >
-            {light ? "☾" : "☀"}
+            <ThemeIcon light={light} />
           </button>
           {session && (
             <>

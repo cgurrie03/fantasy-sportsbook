@@ -17,6 +17,15 @@ const server = await createServer({
 });
 try {
   const { Account, Admin } = await server.ssrLoadModule("/src/App.tsx");
+  const { ThemeIcon } = await server.ssrLoadModule(
+    "/src/components/ThemeIcon.tsx",
+  );
+  const sunIcon = renderToString(
+    React.createElement(ThemeIcon, { light: false }),
+  );
+  const moonIcon = renderToString(
+    React.createElement(ThemeIcon, { light: true }),
+  );
   const leagueId = "review-league";
   const teams = source.rosters.map((r) => {
     const user = source.users.find((u) => u.user_id === r.owner_id),
@@ -154,9 +163,9 @@ try {
       view,
       category,
     }).replaceAll("<", "\\u003c");
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stage 1 ${view} Layout Review</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"></head><body><div class="app-shell"><header class="masthead"><div class="brand"><div><strong>Goldy Plays Pretend With Men</strong><span>Fantasy Sportsbook</span></div></div><div class="account-tools"><button class="theme-toggle" id="review-theme" aria-label="Switch to light mode">☀</button><div class="profile"><span class="avatar">C</span>Cooper Gurrie</div></div></header><nav class="account-nav"><a href="/stage1-account-review.html">Account</a><a href="/stage1-admin-review.html">Admin</a></nav><p class="result-count">Local layout review · Account changes disabled</p><fieldset ${disabled ? "disabled" : ""} style="border:0;margin:0;padding:0;min-width:0"><div id="review-root">${markup}</div></fieldset></div><script type="application/json" id="review-data">${payload}</script><script>
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stage 1 ${view} Layout Review</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"></head><body><div class="app-shell"><header class="masthead"><div class="brand"><div><strong>Goldy Plays Pretend With Men</strong><span>Fantasy Sportsbook</span></div></div><div class="account-tools"><button class="theme-toggle" id="review-theme" aria-label="Switch to light mode">${sunIcon}</button><div class="profile"><span class="avatar">C</span>Cooper Gurrie</div></div></header><nav class="account-nav"><a href="/stage1-account-review.html">Account</a><a href="/stage1-admin-review.html">Admin</a></nav><p class="result-count">Local layout review · Account changes disabled</p><fieldset ${disabled ? "disabled" : ""} style="border:0;margin:0;padding:0;min-width:0"><div id="review-root">${markup}</div></fieldset></div><script type="application/json" id="review-data">${payload}</script><script>
       const themeButton = document.getElementById('review-theme');
-      function applyTheme(light) { document.documentElement.dataset.theme = light ? 'light' : 'dark'; themeButton.textContent = light ? '☾' : '☀'; themeButton.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode'); localStorage.setItem('goldy-theme', light ? 'light' : 'dark'); }
+      function applyTheme(light) { document.documentElement.dataset.theme = light ? 'light' : 'dark'; themeButton.innerHTML = light ? ${JSON.stringify(moonIcon)} : ${JSON.stringify(sunIcon)}; themeButton.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode'); localStorage.setItem('goldy-theme', light ? 'light' : 'dark'); }
       applyTheme(localStorage.getItem('goldy-theme') === 'light');
       themeButton.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme !== 'light'));
     </script><script type="module">

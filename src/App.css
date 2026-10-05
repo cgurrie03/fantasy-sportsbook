@@ -1107,3 +1107,19 @@ footer {
   color: var(--text);
   font-weight: 500;
 }
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+}
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+.signin-card .alternate-email {
+  display: block;
+  margin: 8px auto 0;
+  text-align: center;
+}
