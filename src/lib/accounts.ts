@@ -82,6 +82,7 @@ export interface TicketLeg {
   leg_number: number;
   selection: string;
   market_type: string;
+  actual_value?: number | string | null;
   matchup: string | null;
   status: string;
 }
@@ -106,7 +107,9 @@ export async function loadAccounts(): Promise<AccountData> {
       .order("placed_at", { ascending: false }),
     supabase
       .from("ticket_legs")
-      .select("id,ticket_id,leg_number,selection,market_type,matchup,status")
+      .select(
+        "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value",
+      )
       .order("leg_number"),
     supabase
       .from("wallet_ledger")

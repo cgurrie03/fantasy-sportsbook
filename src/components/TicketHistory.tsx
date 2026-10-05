@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { AccountData, Ticket } from "../lib/accounts";
+import type { ReactNode } from "react";
+import type { AccountData, Ticket, TicketLeg } from "../lib/accounts";
 import { money } from "../lib/accounts";
 
 export function Chevron({ left = false }: { left?: boolean }) {
@@ -31,14 +32,16 @@ const odds = (value: number) => (value > 0 ? "+" + value : String(value));
 const decimalOdds = (value: number) =>
   value > 0 ? 1 + value / 100 : 1 + 100 / Math.abs(value);
 
-export function TicketHistory({
-  data,
+function TicketFilters({
   tickets,
   owner,
+  children,
+  id,
 }: {
-  data: AccountData;
   tickets: Ticket[];
   owner: (id: string) => string;
+  children: (filtered: Ticket[]) => ReactNode;
+  id: string;
 }) {
   const [status, setStatus] = useState("All"),
     [expanded, setExpanded] = useState(false),
@@ -88,7 +91,7 @@ export function TicketHistory({
           className="filter-toggle"
           aria-label="Show or hide filters"
           aria-expanded={expanded}
-          aria-controls="admin-ticket-filters"
+          aria-controls={id}
           onClick={() => setExpanded(!expanded)}
         >
           <svg
@@ -114,11 +117,7 @@ export function TicketHistory({
           </button>
         ))}
       </div>
-      <div
-        className="ticket-controls"
-        id="admin-ticket-filters"
-        hidden={!expanded}
-      >
+      <div className="ticket-controls" id={id} hidden={!expanded}>
         <label>
           Week Placed
           <select value={week} onChange={(e) => setWeek(e.target.value)}>
@@ -174,121 +173,172 @@ export function TicketHistory({
         {filtered.length} {filtered.length === 1 ? "Ticket" : "Tickets"} · Times
         shown in Eastern
       </p>
-      <div className="ticket-list">
-        {filtered.map((t) => {
-          const legs = (data.legs ?? [])
-            .filter((l) => l.ticket_id === t.id)
-            .sort((a, b) => a.leg_number - b.leg_number);
-          return (
-            <details key={t.id} className="history-ticket">
-              <summary>
-                <div className="ticket-top">
-                  <div className="ticket-owner">
-                    <strong>{owner(t.team_id)}</strong>
-                    <small>
-                      {
-                        data.teams.find((team) => team.id === t.team_id)
-                          ?.team_name
-                      }
-                    </small>
-                  </div>
-                  <div className="ticket-labels">
-                    <strong className={t.status.toLowerCase()}>
-                      {title(t.status)}
-                    </strong>
-                    <span className="ticket-chevron">
-                      <Chevron />
-                    </span>
-                  </div>
-                </div>
-                <p className="ticket-meta">
-                  {t.ticket_type === "future"
-                    ? "Future Bet"
-                    : `${legs.length} Pick Parlay`}{" "}
-                  · Week {t.market_week} · {ticketDate(t.placed_at)}
-                </p>
-                <div className="ticket-values">
-                  <div>
-                    <small>Wager</small>
-                    <strong>{money(t.stake)}</strong>
-                  </div>
-                  <div>
-                    <small>Odds</small>
-                    <strong>{odds(t.accepted_combined_odds)}</strong>
-                  </div>
-                  <div>
-                    <small>
-                      {t.status === "OPEN" ? "Potential Payout" : "Payout"}
-                    </small>
-                    <strong className={t.status.toLowerCase()}>
-                      {money(
-                        t.status === "OPEN"
-                          ? (t.accepted_potential_payout ?? 0)
-                          : t.actual_payout,
-                      )}
-                    </strong>
-                  </div>
-                </div>
-              </summary>
-              <div className="ticket-body">
-                {legs.map((l) => (
-                  <div
-                    className={"history-leg " + l.status.toLowerCase()}
-                    key={l.id}
-                  >
-                    <span
-                      className="leg-mark"
-                      aria-label={`Leg ${l.leg_number} ${title(l.status)}`}
-                    >
-                      {l.status === "WON" || l.status === "LOST" ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="m5 12 4 4 10-10" />
-                        </svg>
-                      ) : (
-                        l.leg_number
-                      )}
-                    </span>
-                    <div>
-                      <strong>{l.selection}</strong>
-                      {l.matchup && (
-                        <small className="leg-matchup">
-                          {l.matchup.replace(/\bvs\.?\s/gi, "vs. ")}
-                        </small>
-                      )}
-                      <small>
-                        {l.market_type} · {title(l.status)}
-                      </small>
-                    </div>
-                  </div>
-                ))}
-                <div className="ticket-foot">
-                  <span>Bet ID: {t.legacy_ticket_id ?? t.id.slice(0, 8)}</span>
-                  <span>
-                    {t.settled_at
-                      ? "Settled: " + ticketDate(t.settled_at)
-                      : "Awaiting results"}
-                  </span>
-                </div>
-                <p className={"ticket-meta " + t.status.toLowerCase()}>
-                  {t.status !== "OPEN" &&
-                    "Net Profit: " +
-                      money(Number(t.actual_payout) - Number(t.stake))}
-                </p>
-              </div>
-            </details>
-          );
-        })}
-      </div>
+      {children(filtered)}
       {!filtered.length && <p>No tickets match these filters.</p>}
     </>
+  );
+}
+
+const legResult = (leg: TicketLeg) => {
+  if (leg.actual_value == null)
+    return leg.status === "OPEN"
+      ? "Awaiting result"
+      : "Actual result unavailable";
+  const value = Number(leg.actual_value);
+  const points = (n: number) =>
+    n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (leg.market_type === "Spread" || leg.market_type === "Moneyline")
+    return value === 0
+      ? "Result: Tied"
+      : "Result: " +
+          (value > 0 ? "Won by " : "Lost by ") +
+          points(Math.abs(value)) +
+          " points";
+  return (
+    (leg.market_type.includes("Over") || leg.market_type.includes("Under")
+      ? "Actual Total: "
+      : "Actual Score: ") + points(value)
+  );
+};
+
+export function TicketHistory({
+  data,
+  tickets,
+  owner,
+}: {
+  data: AccountData;
+  tickets: Ticket[];
+  owner: (id: string) => string;
+}) {
+  return (
+    <TicketFilters tickets={tickets} owner={owner} id="admin-ticket-filters">
+      {(visible) => (
+        <>
+          <div className="ticket-list">
+            {visible.map((t) => {
+              const legs = (data.legs ?? [])
+                .filter((l) => l.ticket_id === t.id)
+                .sort((a, b) => a.leg_number - b.leg_number);
+              return (
+                <details key={t.id} className="history-ticket">
+                  <summary>
+                    <div className="ticket-top">
+                      <div className="ticket-owner">
+                        <strong>{owner(t.team_id)}</strong>
+                        <small>
+                          {
+                            data.teams.find((team) => team.id === t.team_id)
+                              ?.team_name
+                          }
+                        </small>
+                      </div>
+                      <div className="ticket-labels">
+                        <strong className={t.status.toLowerCase()}>
+                          {title(t.status)}
+                        </strong>
+                        <span className="ticket-chevron">
+                          <Chevron />
+                        </span>
+                      </div>
+                    </div>
+                    <p className="ticket-meta">
+                      {t.ticket_type === "future"
+                        ? "Future Bet"
+                        : `${legs.length} Pick Parlay`}{" "}
+                      · Week {t.market_week} · {ticketDate(t.placed_at)}
+                    </p>
+                    <div className="ticket-values">
+                      <div>
+                        <small>Wager</small>
+                        <strong>{money(t.stake)}</strong>
+                      </div>
+                      <div>
+                        <small>Odds</small>
+                        <strong>{odds(t.accepted_combined_odds)}</strong>
+                      </div>
+                      <div>
+                        <small>
+                          {t.status === "OPEN" ? "Potential Payout" : "Payout"}
+                        </small>
+                        <strong className={t.status.toLowerCase()}>
+                          {money(
+                            t.status === "OPEN"
+                              ? (t.accepted_potential_payout ?? 0)
+                              : t.actual_payout,
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </summary>
+                  <div className="ticket-body">
+                    {legs.map((l) => (
+                      <div
+                        className={"history-leg " + l.status.toLowerCase()}
+                        key={l.id}
+                      >
+                        <span
+                          className="leg-mark"
+                          aria-label={`Leg ${l.leg_number} ${title(l.status)}`}
+                        >
+                          {l.status === "WON" || l.status === "LOST" ? (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d={
+                                  l.status === "LOST"
+                                    ? "m6 6 12 12M18 6 6 18"
+                                    : "m5 12 4 4 10-10"
+                                }
+                              />
+                            </svg>
+                          ) : (
+                            l.leg_number
+                          )}
+                        </span>
+                        <div>
+                          <strong>{l.selection}</strong>
+                          {l.matchup && (
+                            <small className="leg-matchup">
+                              {l.matchup.replace(/\bvs\.?\s/gi, "vs. ")}
+                            </small>
+                          )}
+                          <small>
+                            {l.market_type} · {title(l.status)}
+                          </small>
+                          <small className="leg-actual">{legResult(l)}</small>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="ticket-foot">
+                      <span>
+                        Bet ID: {t.legacy_ticket_id ?? t.id.slice(0, 8)}
+                      </span>
+                      <span>
+                        {t.settled_at
+                          ? "Settled: " + ticketDate(t.settled_at)
+                          : "Awaiting results"}
+                      </span>
+                    </div>
+                    <p className={"ticket-meta " + t.status.toLowerCase()}>
+                      {t.status !== "OPEN" &&
+                        "Net Profit: " +
+                          money(Number(t.actual_payout) - Number(t.stake))}
+                    </p>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </TicketFilters>
   );
 }
 
@@ -299,8 +349,22 @@ export function BettingLogs({
   tickets: Ticket[];
   owner: (id: string) => string;
 }) {
-  const entries = tickets
-    .flatMap((t) => [
+  return (
+    <TicketFilters tickets={tickets} owner={owner} id="admin-log-filters">
+      {(visible) => <BettingLogTable tickets={visible} owner={owner} />}
+    </TicketFilters>
+  );
+}
+
+function BettingLogTable({
+  tickets,
+  owner,
+}: {
+  tickets: Ticket[];
+  owner: (id: string) => string;
+}) {
+  const entries = tickets.flatMap((t) =>
+    [
       {
         ticket: t,
         key: t.id + "placed",
@@ -321,18 +385,21 @@ export function BettingLogs({
             },
           ]
         : []),
-    ])
-    .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
+    ].sort((a, b) => Date.parse(b.time) - Date.parse(a.time)),
+  );
   return (
     <div className="betting-logs">
       <table>
-        <caption>{entries.length} Records · All times Eastern</caption>
+        <caption>
+          {entries.length} Records · All times Eastern · Placement and
+          settlement records for matching tickets
+        </caption>
         <thead>
           <tr>
             <th>Date & Time</th>
             <th>Bettor</th>
             <th>Event / Ticket</th>
-            <th>Amount / Result</th>
+            <th className="log-amount">Amount / Result</th>
           </tr>
         </thead>
         <tbody>

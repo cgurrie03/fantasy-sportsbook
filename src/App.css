@@ -1060,7 +1060,7 @@ footer {
   white-space: nowrap;
 }
 .betting-logs .log-amount {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 .betting-logs small.won {
@@ -1095,4 +1095,15 @@ footer {
   .ticket-status-tabs .filter-toggle {
     width: 44px;
   }
+}
+
+.back-link {
+  justify-content: center;
+  line-height: 1;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+.history-leg .leg-actual {
+  color: var(--text);
+  font-weight: 500;
 }

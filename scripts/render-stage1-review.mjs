@@ -85,6 +85,7 @@ try {
         leg_number: i + 1,
         selection: l.selection,
         market_type: l.type,
+        actual_value: l.actual_value,
         matchup: l.matchup,
         status: l.result,
       })),
