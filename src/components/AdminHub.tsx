@@ -30,7 +30,7 @@ const categories = [
     group: "Markets",
     title: "Lines & Markets",
     description: "Adjust odds and totals; publish or close markets.",
-    status: "Upcoming",
+    status: "Generate Lines",
   },
   {
     id: "promos",

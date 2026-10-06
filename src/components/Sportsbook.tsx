@@ -28,7 +28,7 @@ export function Sportsbook({data,member,refresh,review}: {data: AccountData; mem
  function quote(m:Market|undefined,short?:string){if(!m)return <span className="quote-empty">—</span>;const selected=picks.some(p=>p.id===m.id);return <button type="button" className={`market-quote${selected?" selected":""}${m.boost_pct?" boosted":""}`} aria-pressed={selected} disabled={!accepting&&!review||busy} onClick={()=>toggle(m)}><strong>{short??m.label}</strong><span>{m.boost_pct>0&&<del>{formatOdds(m.odds)}</del>} {formatOdds(americanPrice(selectionPrice(m)))}</span></button>;}
  const selectionGroups=[...new Set(picks.map(p=>p.matchup_key??p.subject))];
  return <main className="sportsbook">
-  <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">{["Home","My Bets","All Bets","Leaderboard","Season Futures"].map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>setTab(t)}>{t}</button>)}</nav>
+  <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">{["Home","My Bets","All Bets","Leaderboard"].map(t=><button key={t} aria-current={tab===t?"page":undefined} onClick={()=>setTab(t)}>{t}</button>)}</nav>
   {notice&&<p className="feedback" role="status">{notice}</p>}
   {review&&<p className="review-notice">Design Review · Illustrative markets. Betting and email delivery are disabled.</p>}
   {tab==="Home"&&<>

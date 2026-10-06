@@ -595,7 +595,7 @@ footer {
 .profile-menu summary::-webkit-details-marker {
   display: none;
 }
-.profile-box{padding:8px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);display:flex;align-items:center;gap:10px}.profile-copy{display:grid;gap:3px}.profile-copy strong{font-size:14px}.profile-copy small{font-size:11px;color:var(--muted);font-weight:500}.leaderboard-subtitle{font-style:italic}
+.profile-box{padding:9px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);display:flex;align-items:center;gap:11px}.profile-copy{display:grid;gap:3px}.profile-copy strong{font-size:16px}.profile-copy small{font-size:12px;color:var(--muted);font-weight:500}.leaderboard-subtitle{font-style:italic}
 .profile-options {
   position: absolute;
   right: 0;
@@ -686,6 +686,7 @@ footer {
 .category-status.upcoming {
   color: var(--muted);
 }
+.category-status.ready{color:var(--success)}
 .back-link {
   display: inline-flex;
   align-items: center;
