@@ -17,7 +17,8 @@ export function Sportsbook({data,member,refresh,review}: {data: AccountData; mem
  const groups=[...new Set(markets.filter(m=>m.kind==="spread").map(m=>m.matchup_key))].filter((id):id is string=>!!id).map(id=>markets.filter(m=>m.matchup_key===id));
  const record=(t:Team|undefined)=>t?`${t.wins}–${t.losses}${t.ties?"–"+t.ties:""}`:"—";
  const winningRate=(g:Market[])=>{const teams=[team(g[0].home_team_id),team(g[0].away_team_id)];return teams.reduce((s,t)=>s+(t?.wins??0),0)/Math.max(1,teams.reduce((s,t)=>s+(t?.wins??0)+(t?.losses??0)+(t?.ties??0),0));};
- groups.sort((a,b)=>winningRate(b)-winningRate(a)||Number(b[0].home_projection)+Number(b[0].away_projection)-Number(a[0].home_projection)-Number(a[0].away_projection));
+ const spreadSize=(g:Market[])=>Math.min(...g.filter(m=>m.kind==="spread").map(m=>Math.abs(Number(m.line??0))),999);
+ groups.sort((a,b)=>{const aRate=winningRate(a),bRate=winningRate(b),aOver=aRate>.5,bOver=bRate>.5;if(aOver!==bOver)return aOver?-1:1;return spreadSize(a)-spreadSize(b)||bRate-aRate||Number(b[0].home_projection)+Number(b[0].away_projection)-Number(a[0].home_projection)-Number(a[0].away_projection);});
  const name=(m:Market)=>m.home_team_id&&m.away_team_id?`${team(m.home_team_id)?.team_name} vs. ${team(m.away_team_id)?.team_name}${m.featured?" • "+m.featured:""}`:m.subject;
  const accepting=!!board&&board.status==="published"&&clock>=Date.parse(board.opens_at)&&clock<Date.parse(board.closes_at);
  useEffect(()=>{if(review)return;let active=true;setLoading(true);Promise.all([loadMarketBoard(member.league_id),supabase?.rpc("league_leaderboard",{p_league:member.league_id})]).then(([r,s])=>{if(!active)return;setBoard(r.board);setMarkets(r.markets);setWeek(r.week);if(s?.error)throw s.error;setStandings(s?.data??[]);}).catch(e=>{if(active)setError(errorMessage(e));}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[member.league_id,review,data.tickets]);
