@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test:accounts": "node scripts/test-accounts.mjs",
     "test:import": "node scripts/test-week3-import.mjs",
+    "test:lines": "node scripts/test-line-model.mjs",
     "format": "prettier --write src scripts"
   },
   "dependencies": {

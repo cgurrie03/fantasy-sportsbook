@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const { data: user, error: userError } = await userClient.auth.getUser();
   if (userError || !user.user) return json({ error: "Your sign-in session has expired." }, 401);
   let body: { board_id?: unknown; revision?: unknown; picks?: unknown; stake?: unknown; request_id?: unknown };
-  try { body = await request.json(); } catch { return json({ error: "The bet request was invalid." }, 400); }
+  try { body = await request.json() as typeof body; } catch { return json({ error: "The bet request was invalid." }, 400); }
   if (!body.board_id || !Number.isInteger(body.revision) || !Array.isArray(body.picks) || !body.picks.every(v => typeof v === "string") || !Number.isFinite(Number(body.stake)) || typeof body.request_id !== "string")
     return json({ error: "The bet request was incomplete." }, 400);
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });

@@ -1,0 +1,117 @@
+{
+  "generated_at": "2026-10-06T02:40:21.607Z",
+  "season": 2026,
+  "week": 5,
+  "status": "Review Only — Not Published",
+  "method": "League-scored weekly projections; optimal legal starting lineup; capped historical adjustment; all current-season history; Sleeper injuries; 6000 independent team-score simulations",
+  "teams": [
+    {
+      "roster_id": 1,
+      "mean": 122.22677999999998,
+      "sd": 23.14022471800998,
+      "available_starters": 11,
+      "team": "The 20 Year Rebuild",
+      "high_scorer_odds": 11243,
+      "low_scorer_odds": 698
+    },
+    {
+      "roster_id": 2,
+      "mean": 135.93313,
+      "sd": 21.322354466615547,
+      "available_starters": 11,
+      "team": "Puka’s rehab facility",
+      "high_scorer_odds": 3935,
+      "low_scorer_odds": 2447
+    },
+    {
+      "roster_id": 3,
+      "mean": 126.79237,
+      "sd": 20.04209819355249,
+      "available_starters": 11,
+      "team": "Kis Emeka",
+      "high_scorer_odds": 12970,
+      "low_scorer_odds": 1407
+    },
+    {
+      "roster_id": 4,
+      "mean": 127.70161999999999,
+      "sd": 35.55543840258478,
+      "available_starters": 10,
+      "team": "Nelson is fat and phat",
+      "high_scorer_odds": 1608,
+      "low_scorer_odds": 463
+    },
+    {
+      "roster_id": 5,
+      "mean": 152.69743000000003,
+      "sd": 15.589940132448653,
+      "available_starters": 11,
+      "team": "Malik’s Magic Magnum",
+      "high_scorer_odds": 1516,
+      "low_scorer_odds": 60020
+    },
+    {
+      "roster_id": 6,
+      "mean": 145.26028999999997,
+      "sd": 36.420684141478354,
+      "available_starters": 11,
+      "team": "earkin",
+      "high_scorer_odds": 616,
+      "low_scorer_odds": 1227
+    },
+    {
+      "roster_id": 7,
+      "mean": 156.78235999999998,
+      "sd": 34.48010247471238,
+      "available_starters": 11,
+      "team": "Hellbean",
+      "high_scorer_odds": 381,
+      "low_scorer_odds": 2384
+    },
+    {
+      "roster_id": 8,
+      "mean": 154.39936999999998,
+      "sd": 43.473722331235145,
+      "available_starters": 11,
+      "team": "Roster 8",
+      "high_scorer_odds": 297,
+      "low_scorer_odds": 1204
+    },
+    {
+      "roster_id": 9,
+      "mean": 136.7114,
+      "sd": 21.261692469478216,
+      "available_starters": 11,
+      "team": "Team “the boy n shit”",
+      "high_scorer_odds": 3611,
+      "low_scorer_odds": 3015
+    },
+    {
+      "roster_id": 10,
+      "mean": 125.2227,
+      "sd": 33.936721507338724,
+      "available_starters": 10,
+      "team": "freelance yush",
+      "high_scorer_odds": 2160,
+      "low_scorer_odds": 463
+    },
+    {
+      "roster_id": 11,
+      "mean": 154.71769,
+      "sd": 29.57374962135621,
+      "available_starters": 11,
+      "team": "Thank you josh allen ",
+      "high_scorer_odds": 501,
+      "low_scorer_odds": 4489
+    },
+    {
+      "roster_id": 12,
+      "mean": 115.67689000000001,
+      "sd": 18.676934081017333,
+      "available_starters": 11,
+      "team": "Roster 12",
+      "high_scorer_odds": 75050,
+      "low_scorer_odds": 501
+    }
+  ]
+}
