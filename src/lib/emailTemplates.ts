@@ -55,27 +55,27 @@ export function renderEmail(content: EmailContent) {
     content.stories
       ?.map(
         (s) =>
-          `<div style="margin:16px 0;padding:18px;background:#f3f6fb;border-left:4px solid #f3c85f;border-radius:10px"><h2 style="font-size:17px;margin:0 0 9px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#42516a;margin:0">${escape(s.text)}</p></div>`,
+          `<div style="margin:16px 0;padding:18px;background:#f3f6fb;border-left:4px solid #f3c85f;border-radius:10px"><h2 style="font-size:17px;margin:0 0 9px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#42516a;margin:0">${escape(s.text).replace(/\n/g, "<br>")}</p></div>`,
       )
       .join("") ?? "";
   const featured =
     content.featured
       ?.map(
         (f) =>
-          `<table role="presentation" style="width:100%;margin-top:22px;border-spacing:0;border:1px solid #e5be53;border-radius:12px;overflow:hidden;background:#102038;color:#fff"><tr><td colspan="2" style="padding:15px 16px;background:#f3c85f;color:#14233c"><strong style="font-size:17px">${f.title === "Game of the Week" ? "★" : ""} ${escape(f.title)}</strong><div style="font-weight:800;font-size:12px;letter-spacing:1px;margin-top:7px">25% PROFIT BOOST</div></td></tr><tr>${f.teams
+          `<table role="presentation" style="width:100%;margin-top:14px;border-spacing:0;border:1px solid #e5be53;border-radius:12px;overflow:hidden;background:#102038;color:#fff"><tr><td colspan="2" style="padding:10px 12px;background:#f3c85f;color:#14233c"><strong style="font-size:17px">${f.title === "Game of the Week" ? "★" : ""} ${escape(f.title)}</strong><div style="font-weight:800;font-size:12px;letter-spacing:1px;margin-top:4px">25% PROFIT BOOST</div></td></tr><tr>${f.teams
             .map((t) => {
               const avatar =
                 t.avatarUrl &&
                 /^https:\/\/sleepercdn\.com\/avatars\/[a-zA-Z0-9]+$/.test(
                   t.avatarUrl,
                 )
-                  ? `<img src="${escape(t.avatarUrl)}" alt="${escape(t.name)} profile picture" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;margin:0 auto 12px;border:2px solid #f3c85f">`
-                  : `<div style="width:48px;height:48px;line-height:48px;background:#263b58;border-radius:50%;margin:0 auto 12px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
-              return `<td style="width:50%;padding:20px 12px 16px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.4;min-height:40px">${escape(t.name)}</div>${t.record ? `<div style="font-size:12px;color:#cbd6e9;margin-top:5px">${escape(t.record)}</div>` : ""}<p style="color:#cbd6e9;font-size:12px;margin:12px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:12px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:8px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:23px">${escape(t.boostedOdds)}</strong></div></td>`;
+                  ? `<img src="${escape(t.avatarUrl)}" alt="${escape(t.name)} profile picture" width="36" height="36" style="display:block;width:36px;height:36px;border-radius:50%;margin:0 auto 6px;border:2px solid #f3c85f">`
+                  : `<div style="width:36px;height:36px;line-height:36px;background:#263b58;border-radius:50%;margin:0 auto 6px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
+              return `<td style="width:50%;padding:12px 10px 10px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.3">${escape(t.name)}</div>${t.record ? `<div style="font-size:12px;color:#cbd6e9;margin-top:5px">${escape(t.record)}</div>` : ""}<p style="color:#cbd6e9;font-size:12px;margin:7px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:8px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:4px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:20px">${escape(t.boostedOdds)}</strong></div></td>`;
             })
             .join(
               "",
-            )}</tr><tr><td colspan="2" style="padding:0 16px 18px;text-align:center"><div style="padding:12px;border-radius:9px;background:#263b58;font-size:13px">Match Total <strong>${escape(f.total)}</strong>${f.boostedOver ? `<div style="margin-top:10px;color:#ffe08a;font-weight:bold;font-size:15px">⚡ Boosted Over ${escape(f.total)} · ${escape(f.boostedOver)}</div>` : ""}</div></td></tr></table>`,
+            )}</tr><tr><td colspan="2" style="padding:0 12px 10px;text-align:center"><div style="padding:8px;border-radius:9px;background:#263b58;font-size:13px">Match Total <strong>${escape(f.total)}</strong>${f.boostedOver ? `<div style="margin-top:5px;color:#ffe08a;font-weight:bold;font-size:15px">⚡ Boosted Over ${escape(f.total)} · ${escape(f.boostedOver)}</div>` : ""}</div></td></tr></table>`,
       )
       .join("") ?? "";
   const groups = new Map<string, NonNullable<EmailContent["legs"]>>();
@@ -96,14 +96,14 @@ export function openingWeekStories(
   const largest = matchups.filter(m => Number.isFinite(m.spread))
     .sort((a, b) => Math.abs(b.spread) - Math.abs(a.spread) || a.home.localeCompare(b.home))[0];
   const list = (rows: typeof ranked) => rows.map((t, i) =>
-    `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`).join(" • ");
+    `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`).join("\n");
   return [
     ...(largest ? [{title: "🚨 Largest Spread · Prove The Board Wrong",
       text: `${largest.home} vs. ${largest.away}: ${Math.abs(largest.spread).toFixed(1)} points separate the sides on paper. The underdog has a ready-made receipt if this one goes sideways.`}] : []),
     ...(ranked.length ? [{title: "🔥 Top 3 Projected Scorers · Bring The Firepower",
-      text: list(ranked.slice(0, 3)) + ". Big projections, bigger expectations. Let's see who actually delivers."},
+      text: list(ranked.slice(0, 3)) + "\n\nBig projections, bigger expectations. Let's see who actually delivers."},
       {title: "🧊 Bottom 3 Projected Scorers · Bulletin Board Material",
-      text: list([...ranked].reverse().slice(0, 3)) + ". The projections have spoken. A breakout week would make this email age beautifully."}] : []),
+      text: list([...ranked].reverse().slice(0, 3)) + "\n\nThe projections have spoken. A breakout week would make this email age beautifully."}] : []),
   ];
 }
 export function sampleEmail(kind: EmailKind): EmailContent {
