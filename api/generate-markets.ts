@@ -7,6 +7,7 @@ const SLEEPER_LEAGUE_ID = "1312126153980391424";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  try {
   const url = process.env.SUPABASE_URL, serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!url || !serviceKey || !token) return json({ error: "Market generation is not configured." }, 401);
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
           const starters = row.starters?.length ? row.starters : prior?.starters ?? [];
           starters.forEach((playerId, index) => {
             const info = players[playerId]; if (!info || !info.position || excluded.has(info.position)) return;
-            const name = info.full_name ?? [info.first_name, info.last_name].filter(Boolean).join(" ") || `Player ${playerId}`;
+            const name = info.full_name ?? ([info.first_name, info.last_name].filter(Boolean).join(" ") || `Player ${playerId}`);
             const priorPoints = Number(prior?.starters_points?.[index] ?? row.starters_points?.[index] ?? 10);
             const projection = roundHalf(Math.max(0.5, priorPoints || 10));
             const marketKey = `${matchupKey}:player_points:${playerId}`;
@@ -81,4 +82,5 @@ export async function POST(request: Request) {
     }
     return json({ week: input.week, quotes, generated_at: new Date().toISOString(), projection_method: "Sleeper recent matchup blend" });
   } catch (error) { return json({ error: error instanceof Error ? error.message : "Sleeper market generation failed." }, 502); }
+  } catch (error) { return json({ error: error instanceof Error ? error.message : "Market generation failed before the request could be completed." }, 500); }
 }
