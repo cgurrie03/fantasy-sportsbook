@@ -24,6 +24,7 @@ export interface EmailContent {
     title: string;
     teams: {
       name: string;
+      record?: string;
       avatarUrl?: string;
       spread: string;
       originalOdds: string;
@@ -70,7 +71,7 @@ export function renderEmail(content: EmailContent) {
                 )
                   ? `<img src="${escape(t.avatarUrl)}" alt="${escape(t.name)} profile picture" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;margin:0 auto 12px;border:2px solid #f3c85f">`
                   : `<div style="width:48px;height:48px;line-height:48px;background:#263b58;border-radius:50%;margin:0 auto 12px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
-              return `<td style="width:50%;padding:20px 12px 16px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.4;min-height:40px">${escape(t.name)}</div><p style="color:#cbd6e9;font-size:12px;margin:12px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:12px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:8px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:23px">${escape(t.boostedOdds)}</strong></div></td>`;
+              return `<td style="width:50%;padding:20px 12px 16px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.4;min-height:40px">${escape(t.name)}</div>${t.record ? `<div style="font-size:12px;color:#cbd6e9;margin-top:5px">${escape(t.record)}</div>` : ""}<p style="color:#cbd6e9;font-size:12px;margin:12px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:12px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:8px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:23px">${escape(t.boostedOdds)}</strong></div></td>`;
             })
             .join(
               "",
@@ -84,6 +85,26 @@ export function renderEmail(content: EmailContent) {
     ? `<h2 style="font-size:16px;margin:24px 0 16px"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#f3c85f;color:#14233c;margin-right:8px">${content.legs.length}</span> Bet Slip</h2>${[...groups].map(([matchup, picks]) => `<p style="font-size:14px;font-weight:bold;margin:16px 0 8px">${escape(matchup)}</p>${picks.map((p) => `<div style="margin:8px 0 12px 16px;padding-left:10px"><strong style="font-size:14px">${escape(p.selection)}</strong><p style="font-size:12px;color:#52617a;margin:4px 0">${escape(p.type)} · Open</p></div>`).join("")}`).join("")}`
     : "";
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">G</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">Goldy Fantasy Sportsbook</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
+}
+// Use the published board snapshot so email highlights agree with accepted markets.
+export function openingWeekStories(
+  teams: { id: string; name: string; projected: number }[],
+  matchups: { home: string; away: string; spread: number }[],
+): NonNullable<EmailContent["stories"]> {
+  const ranked = teams.filter(t => Number.isFinite(t.projected))
+    .sort((a, b) => b.projected - a.projected || a.name.localeCompare(b.name));
+  const largest = matchups.filter(m => Number.isFinite(m.spread))
+    .sort((a, b) => Math.abs(b.spread) - Math.abs(a.spread) || a.home.localeCompare(b.home))[0];
+  const list = (rows: typeof ranked) => rows.map((t, i) =>
+    `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`).join(" • ");
+  return [
+    ...(largest ? [{title: "🚨 Largest Spread · Prove The Board Wrong",
+      text: `${largest.home} vs. ${largest.away}: ${Math.abs(largest.spread).toFixed(1)} points separate the sides on paper. The underdog has a ready-made receipt if this one goes sideways.`}] : []),
+    ...(ranked.length ? [{title: "🔥 Top 3 Projected Scorers · Bring The Firepower",
+      text: list(ranked.slice(0, 3)) + ". Big projections, bigger expectations. Let's see who actually delivers."},
+      {title: "🧊 Bottom 3 Projected Scorers · Bulletin Board Material",
+      text: list([...ranked].reverse().slice(0, 3)) + ". The projections have spoken. A breakout week would make this email age beautifully."}] : []),
+  ];
 }
 export function sampleEmail(kind: EmailKind): EmailContent {
   const common = {
@@ -106,12 +127,24 @@ export function sampleEmail(kind: EmailKind): EmailContent {
           ["Betting closes", "Thu, Oct 8 • 8 PM"],
           ["Your balance", "$100.00"],
         ],
+        stories: openingWeekStories(
+          [
+            {id: "a", name: "Example Team A", projected: 149.5},
+            {id: "b", name: "Example Team B", projected: 142},
+            {id: "c", name: "Example Team C", projected: 138.5},
+            {id: "d", name: "Example Team D", projected: 117},
+            {id: "e", name: "Example Team E", projected: 109.5},
+            {id: "f", name: "Example Team F", projected: 101},
+          ],
+          [{home: "Example Team A", away: "Example Team F", spread: -24.5}],
+        ),
         featured: [
           {
             title: "Game of the Week",
             teams: [
               {
                 name: "Kis Emeka",
+                record: "2–1",
                 avatarUrl:
                   "https://sleepercdn.com/avatars/b3338675f635c2c1f42b469621d38ec6",
                 spread: "+3.5",
@@ -120,6 +153,7 @@ export function sampleEmail(kind: EmailKind): EmailContent {
               },
               {
                 name: "Team ‘the boy n shit’",
+                record: "2–1",
                 avatarUrl:
                   "https://sleepercdn.com/avatars/81a7aefdb286765459b31f06c75536f6",
                 spread: "-3.5",
@@ -134,6 +168,7 @@ export function sampleEmail(kind: EmailKind): EmailContent {
             teams: [
               {
                 name: "Hellbean",
+                record: "0–3",
                 avatarUrl:
                   "https://sleepercdn.com/avatars/b3338675f635c2c1f42b469621d38ec6",
                 spread: "+6.5",
@@ -142,6 +177,7 @@ export function sampleEmail(kind: EmailKind): EmailContent {
               },
               {
                 name: "earkin",
+                record: "0–3",
                 avatarUrl:
                   "https://sleepercdn.com/avatars/e7af4deab0289b4f5505646424895246",
                 spread: "-6.5",
