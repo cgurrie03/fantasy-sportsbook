@@ -210,7 +210,7 @@ export function WeeklySchedule({
       day: "Tuesday",
       time: "settlement",
       description: "Confirm final results and settle resolved weekly tickets",
-      who: "—",
+      who: "Automated Process",
     },
     {
       key: "recheck",
@@ -225,21 +225,21 @@ export function WeeklySchedule({
       day: "Tuesday",
       time: "replenishment",
       description: "Replenish eligible balances and advance the week",
-      who: "—",
+      who: "Automated Process",
     },
     {
       key: "generation",
       day: "Tuesday",
       time: "generation",
       description: "Generate upcoming lines and featured matchups",
-      who: "—",
+      who: "Automated Process",
     },
     {
       key: "refresh",
       day: "Wednesday",
       time: "refresh",
       description: "Refresh projections, injuries, and generated lines",
-      who: "—",
+      who: "Automated Process",
     },
     {
       key: "opening",
@@ -264,7 +264,7 @@ export function WeeklySchedule({
       day: "Thursday",
       time: "cutoff",
       description: "Close static weekly betting",
-      who: "—",
+      who: "Automated Process",
     },
     {
       key: "recap",

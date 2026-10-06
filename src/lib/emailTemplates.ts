@@ -20,7 +20,18 @@ export interface EmailContent {
   paragraphs: string[];
   details: [string, string][];
   legs?: { matchup: string; selection: string; type: string }[];
-  featured?: { title: string; matchup: string; lines: string[] }[];
+  featured?: {
+    title: string;
+    teams: {
+      name: string;
+      avatarUrl?: string;
+      spread: string;
+      originalOdds: string;
+      boostedOdds: string;
+    }[];
+    total: string;
+    boostedOver?: string;
+  }[];
   stories?: { title: string; text: string }[];
   compactDetails?: boolean;
   button: string;
@@ -43,14 +54,27 @@ export function renderEmail(content: EmailContent) {
     content.stories
       ?.map(
         (s) =>
-          `<h2 style="font-size:17px;margin:24px 0 8px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#42516a;margin:0">${escape(s.text)}</p>`,
+          `<div style="margin:16px 0;padding:18px;background:#f3f6fb;border-left:4px solid #f3c85f;border-radius:10px"><h2 style="font-size:17px;margin:0 0 9px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#42516a;margin:0">${escape(s.text)}</p></div>`,
       )
       .join("") ?? "";
   const featured =
     content.featured
       ?.map(
         (f) =>
-          `<div style="margin-top:20px;padding:18px;background:#f3f6fb;border-radius:10px"><p style="font-size:13px;font-weight:bold;color:#775600;margin:0 0 8px">${escape(f.title)} · 25% PROFIT BOOST</p><h2 style="font-size:16px;margin:0 0 12px">${escape(f.matchup)}</h2>${f.lines.map((l) => `<p style="font-size:13px;margin:7px 0">${escape(l)}</p>`).join("")}</div>`,
+          `<table role="presentation" style="width:100%;margin-top:22px;border-spacing:0;border:1px solid #e5be53;border-radius:12px;overflow:hidden;background:#102038;color:#fff"><tr><td colspan="2" style="padding:15px 16px;background:#f3c85f;color:#14233c"><strong style="font-size:17px">${f.title === "Game of the Week" ? "★" : ""} ${escape(f.title)}</strong><div style="font-weight:800;font-size:12px;letter-spacing:1px;margin-top:7px">25% PROFIT BOOST</div></td></tr><tr>${f.teams
+            .map((t) => {
+              const avatar =
+                t.avatarUrl &&
+                /^https:\/\/sleepercdn\.com\/avatars\/[a-zA-Z0-9]+$/.test(
+                  t.avatarUrl,
+                )
+                  ? `<img src="${escape(t.avatarUrl)}" alt="${escape(t.name)} profile picture" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:50%;margin:0 auto 12px;border:2px solid #f3c85f">`
+                  : `<div style="width:48px;height:48px;line-height:48px;background:#263b58;border-radius:50%;margin:0 auto 12px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
+              return `<td style="width:50%;padding:20px 12px 16px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.4;min-height:40px">${escape(t.name)}</div><p style="color:#cbd6e9;font-size:12px;margin:12px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:12px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:8px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:23px">${escape(t.boostedOdds)}</strong></div></td>`;
+            })
+            .join(
+              "",
+            )}</tr><tr><td colspan="2" style="padding:0 16px 18px;text-align:center"><div style="padding:12px;border-radius:9px;background:#263b58;font-size:13px">Match Total <strong>${escape(f.total)}</strong>${f.boostedOver ? `<div style="margin-top:10px;color:#ffe08a;font-weight:bold;font-size:15px">⚡ Boosted Over ${escape(f.total)} · ${escape(f.boostedOver)}</div>` : ""}</div></td></tr></table>`,
       )
       .join("") ?? "";
   const groups = new Map<string, NonNullable<EmailContent["legs"]>>();
@@ -85,21 +109,48 @@ export function sampleEmail(kind: EmailKind): EmailContent {
         featured: [
           {
             title: "Game of the Week",
-            matchup: "Kis Emeka vs. Team ‘the boy n shit’",
-            lines: [
-              "Kis Emeka +3.5 • Team ‘the boy n shit’ -3.5",
-              "Match Total: 270.5",
-              "Boosted Moneyline: Kis Emeka +175 • Team ‘the boy n shit’ -105",
+            teams: [
+              {
+                name: "Kis Emeka",
+                avatarUrl:
+                  "https://sleepercdn.com/avatars/b3338675f635c2c1f42b469621d38ec6",
+                spread: "+3.5",
+                originalOdds: "+140",
+                boostedOdds: "+175",
+              },
+              {
+                name: "Team ‘the boy n shit’",
+                avatarUrl:
+                  "https://sleepercdn.com/avatars/81a7aefdb286765459b31f06c75536f6",
+                spread: "-3.5",
+                originalOdds: "-160",
+                boostedOdds: "-128",
+              },
             ],
+            total: "270.5",
           },
           {
             title: "Tank Bowl",
-            matchup: "Example Team C vs. Example Team D",
-            lines: [
-              "Example Team C +6.5 • Example Team D -6.5",
-              "Match Total: 245.5 • Match Over Profit Boosted",
-              "Boosted Moneyline: Example Team C +250 • Example Team D -160",
+            teams: [
+              {
+                name: "Hellbean",
+                avatarUrl:
+                  "https://sleepercdn.com/avatars/b3338675f635c2c1f42b469621d38ec6",
+                spread: "+6.5",
+                originalOdds: "+200",
+                boostedOdds: "+250",
+              },
+              {
+                name: "earkin",
+                avatarUrl:
+                  "https://sleepercdn.com/avatars/e7af4deab0289b4f5505646424895246",
+                spread: "-6.5",
+                originalOdds: "-200",
+                boostedOdds: "-160",
+              },
             ],
+            total: "245.5",
+            boostedOver: "+114",
           },
         ],
         button: "View This Week's Markets",
@@ -157,24 +208,24 @@ export function sampleEmail(kind: EmailKind): EmailContent {
         subject: "Week 5 League Roundup · Goldy Fantasy Sportsbook",
         heading: "Week 5: The League Roundup",
         paragraphs: [
-          "Close calls, underdog wins, and one very popular line. Here's what happened across the league, followed by your personal results.",
+          "The scores are final. The receipts are ready. 🍿 Here's your league roundup — bragging rights first, your personal results below.",
         ],
         stories: [
           {
-            title: "Worst Beat · Half A Point Hurts",
-            text: "Example Team A's -3.5 spread missed by just 0.5 points. Four tickets had that pick — a tough finish for everyone who backed it.",
+            title: "💔 Worst Beat · Half A Point Hurts",
+            text: "Example Team A's -3.5 spread missed by just 0.5 points. Four tickets had that pick. Half a point. A whole lot of pain. Somewhere, someone is still refreshing Sleeper.",
           },
           {
-            title: "Biggest Upset · The Underdog Delivered",
-            text: "Example Team C won outright as a +200 underdog. Three bettors called it; the favorite never pulled away.",
+            title: "🚨 Biggest Upset · The Underdog Delivered",
+            text: "Example Team C won outright as a +200 underdog. Three bettors called it; the underdog believers get the receipts and the bragging rights.",
           },
           {
-            title: "Most Bet Line · Everyone Had An Opinion",
-            text: "Over 275.5 in Example Team A vs. Example Team B appeared on seven tickets, with $90 in total ticket stakes behind it.",
+            title: "🧲 Most Bet Line · Everyone Had An Opinion",
+            text: "Over 275.5 in Example Team A vs. Example Team B appeared on seven tickets, with $90 in total ticket stakes behind it. Apparently the group chat agreed on something for once.",
           },
           {
-            title: "Biggest Winner · A Week To Remember",
-            text: "Example Member led the league with +$85 in net betting profit, finishing with two winning tickets.",
+            title: "👑 Biggest Winner · A Week To Remember",
+            text: "Example Member led the league with +$85 in net betting profit, finishing with two winning tickets. Fake money, very real permission to be insufferable this week.",
           },
         ],
         compactDetails: true,
