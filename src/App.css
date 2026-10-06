@@ -20,12 +20,12 @@
 }
 .brand strong {
   display: block;
-  font-size: 18px;
+  font-size: 20px;
 }
 .brand span:not(.avatar) {
   display: block;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 4px;
 }
 .avatar {
@@ -45,6 +45,7 @@
   height: 100%;
   object-fit: cover;
 }
+.brand .avatar{width:54px;height:54px}
 .theme-toggle {
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -66,8 +67,8 @@
   font-size: 13px;
 }
 .profile .avatar {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
 }
 .primary,
 .secondary {
@@ -594,7 +595,7 @@ footer {
 .profile-menu summary::-webkit-details-marker {
   display: none;
 }
-.profile-box{padding:6px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);display:flex;align-items:center;gap:8px}.profile-copy{display:grid;gap:2px}.profile-copy small{font-size:10px;color:var(--muted);font-weight:500}.leaderboard-subtitle{font-style:italic}
+.profile-box{padding:8px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2);display:flex;align-items:center;gap:10px}.profile-copy{display:grid;gap:3px}.profile-copy strong{font-size:14px}.profile-copy small{font-size:11px;color:var(--muted);font-weight:500}.leaderboard-subtitle{font-style:italic}
 .profile-options {
   position: absolute;
   right: 0;

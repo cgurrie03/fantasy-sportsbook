@@ -540,6 +540,13 @@ export default function App() {
     }
   }, [light]);
   useEffect(() => {
+    const closeProfile = (event: MouseEvent) => {
+      if (profileMenu.current && !profileMenu.current.contains(event.target as Node)) profileMenu.current.open = false;
+    };
+    document.addEventListener("click", closeProfile);
+    return () => document.removeEventListener("click", closeProfile);
+  }, []);
+  useEffect(() => {
     if (!supabase) return;
     let active = true;
     supabase.auth.getSession().then(({ data, error }) => {
