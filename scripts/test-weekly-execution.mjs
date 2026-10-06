@@ -189,14 +189,151 @@ try {
     await db.exec("reset role;");
   }
   await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
-  const times={settlement:"00:30",recheck:"07:00",replenishment:"08:00",generation:"08:30",refresh:"07:30",cutoff:"20:00"};
-  const saveTimes=(values)=>rows("select public.configure_weekly_schedule_v2($1,false,true,true,true,'08:00','19:00','08:15',$2::jsonb)",[league,JSON.stringify(values)]);
+  const times = {
+    settlement: "00:30",
+    recheck: "07:00",
+    replenishment: "08:00",
+    generation: "08:30",
+    refresh: "07:30",
+    cutoff: "20:00",
+  };
+  const saveTimes = (values) =>
+    rows(
+      "select public.configure_weekly_schedule_v2($1,false,true,true,true,'08:00','19:00','08:15',$2::jsonb)",
+      [league, JSON.stringify(values)],
+    );
   await saveTimes(times);
-  assert.deepEqual((await rows("select job_times from public.weekly_schedule where league_id=$1",[league]))[0].job_times,times);
-  await assert.rejects(()=>saveTimes({...times,settlement:"25:00"}));
-  assert.equal((await rows("select automation_enabled from public.weekly_schedule where league_id=$1",[league]))[0].automation_enabled,false);
+  assert.deepEqual(
+    (
+      await rows(
+        "select job_times from public.weekly_schedule where league_id=$1",
+        [league],
+      )
+    )[0].job_times,
+    times,
+  );
+  await assert.rejects(() => saveTimes({ ...times, settlement: "25:00" }));
+  assert.equal(
+    (
+      await rows(
+        "select automation_enabled from public.weekly_schedule where league_id=$1",
+        [league],
+      )
+    )[0].automation_enabled,
+    false,
+  );
   await assert.rejects(() =>
     rows("select public.replenish_weekly_balances($1,2025,6)", [league]),
+  );
+
+  await db.exec("reset role;");
+  const voidId = (
+    await rows(
+      "insert into public.tickets(league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values($1,$2,3,2026,5,5,now(),100,10,20,'OPEN',0) returning id",
+      [league, team],
+    )
+  )[0].id;
+  await rows(
+    "insert into public.ticket_legs(ticket_id,leg_number,selection,market_type,accepted_odds,status,result_evidence) values($1,1,'A','Spread',100,'OPEN','test')",
+    [voidId],
+  );
+  const voidBefore = Number(
+    (
+      await rows("select balance from public.wallets where team_id=$1", [team])
+    )[0].balance,
+  );
+  await db.exec(
+    "set role authenticated;set request.jwt.claim.sub='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';",
+  );
+  await assert.rejects(
+    () => rows("select public.void_sportsbook_ticket($1,'test')", [voidId]),
+    /Only the league admin/,
+  );
+  await db.exec(`set request.jwt.claim.sub='${admin}';`);
+  await assert.rejects(
+    () => rows("select public.void_sportsbook_ticket($1,'')", [voidId]),
+    /reason/,
+  );
+  const voidIt = () =>
+    rows(
+      "select public.void_sportsbook_ticket($1,'Admin cancellation') result",
+      [voidId],
+    );
+  assert.equal((await voidIt())[0].result.refund, 10);
+  assert.equal((await voidIt())[0].result.duplicate, true);
+  assert.equal(
+    Number(
+      (
+        await rows("select balance from public.wallets where team_id=$1", [
+          team,
+        ])
+      )[0].balance,
+    ),
+    voidBefore + 10,
+  );
+  assert.equal(
+    (
+      await rows("select status,net_profit from public.tickets where id=$1", [
+        voidId,
+      ])
+    )[0].status,
+    "VOIDED",
+  );
+  assert.equal(
+    Number(
+      (
+        await rows("select net_profit from public.tickets where id=$1", [
+          voidId,
+        ])
+      )[0].net_profit,
+    ),
+    0,
+  );
+  assert.equal(
+    Number(
+      (
+        await rows(
+          "select count(*) n from public.wallet_ledger where ticket_id=$1 and kind='void_refund'",
+          [voidId],
+        )
+      )[0].n,
+    ),
+    1,
+  );
+  assert.equal(
+    Number(
+      (
+        await rows(
+          "select count(*) n from public.ticket_legs where ticket_id=$1 and status='VOIDED'",
+          [voidId],
+        )
+      )[0].n,
+    ),
+    1,
+  );
+  await assert.rejects(
+    () => rows("select public.void_sportsbook_ticket($1,'test')", [ticket]),
+    /Only open/,
+  );
+  await db.exec("reset role;");
+  const lockBoard = (
+    await rows(
+      "insert into public.sportsbook_boards(league_id,market_week,nfl_season,league_season,opens_at,closes_at) values($1,18,2026,3,now(),now()+interval '1 day') returning id",
+      [league],
+    )
+  )[0].id;
+  const quoteId = "99999999-9999-4999-8999-999999999999";
+  await rows(
+    "insert into public.sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,metadata) values($1,$2,'locked','moneyline','A','A','home',100,'{\"lineup_locked\":true}')",
+    [quoteId, lockBoard],
+  );
+  await assert.rejects(
+    () =>
+      rows(
+        "insert into public.ticket_legs(ticket_id,leg_number,market_quote_id,selection,market_type,accepted_odds,status,result_evidence) values($1,2,$2,'A','Moneyline',100,'OPEN','test')",
+        [voidId, quoteId],
+      ),
+    /market is locked/,
   );
   await db.exec("reset role;set role anon;");
   await assert.rejects(settle);

@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase";
+import { errorMessage } from "../lib/accounts";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type { AccountData, Ticket, TicketLeg } from "../lib/accounts";
@@ -107,7 +109,7 @@ function TicketFilters({
             <circle cx="16" cy="17" r="2" />
           </svg>
         </button>
-        {["All", "Open", "Settled", "Won", "Lost"].map((s) => (
+        {["All", "Open", "Settled", "Won", "Lost", "Voided"].map((s) => (
           <button
             key={s}
             aria-pressed={status === s}
@@ -180,6 +182,7 @@ function TicketFilters({
 }
 
 const legResult = (leg: TicketLeg) => {
+  if (leg.status === "VOIDED") return "Wager refunded";
   if (leg.actual_value == null)
     return leg.status === "OPEN"
       ? "Awaiting result"
@@ -194,24 +197,99 @@ const legResult = (leg: TicketLeg) => {
           (value > 0 ? "Won by " : "Lost by ") +
           points(Math.abs(value)) +
           " points";
-  if (leg.market_type.includes("Weekly High") || leg.market_type.includes("Weekly Low"))
+  if (
+    leg.market_type.includes("Weekly High") ||
+    leg.market_type.includes("Weekly Low")
+  )
     return "Actual Winner: " + leg.selection + " · " + points(value);
-  return (leg.market_type.includes("Over") || leg.market_type.includes("Under") ? "Actual Total: " : "Actual Score: ") + points(value);
+  return (
+    (leg.market_type.includes("Over") || leg.market_type.includes("Under")
+      ? "Actual Total: "
+      : "Actual Score: ") + points(value)
+  );
 };
 
 export function TicketHistory({
   data,
   tickets,
   owner,
+  canVoid = false,
+  onChanged,
 }: {
   data: AccountData;
+  canVoid?: boolean;
+  onChanged?: () => Promise<void>;
   tickets: Ticket[];
   owner: (id: string) => string;
 }) {
+  const [voiding, setVoiding] = useState<Ticket | null>(null);
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  async function cancelTicket() {
+    if (!voiding || !reason.trim() || saving || !supabase) return;
+    setSaving(true);
+    setFeedback("");
+    try {
+      const result = await supabase.rpc("void_sportsbook_ticket", {
+        p_ticket: voiding.id,
+        p_reason: reason.trim(),
+      });
+      if (result.error) throw result.error;
+      setVoiding(null);
+      setReason("");
+      await onChanged?.();
+      setFeedback("Ticket voided. The wager has been refunded.");
+    } catch (e) {
+      setFeedback(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <TicketFilters tickets={tickets} owner={owner} id="admin-ticket-filters">
       {(visible) => (
         <>
+          {feedback && (
+            <p className="feedback" role="status">
+              {feedback}
+            </p>
+          )}
+          {voiding && (
+            <section
+              className="void-confirmation"
+              role="region"
+              aria-label="Confirm ticket cancellation"
+            >
+              <h2>Void Ticket</h2>
+              <p>
+                Refund {money(voiding.stake)} to {owner(voiding.team_id)} and
+                preserve this ticket as Voided.
+              </p>
+              <label>
+                Cancellation Reason
+                <input
+                  value={reason}
+                  maxLength={500}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </label>
+              <button
+                className="primary"
+                disabled={saving || !reason.trim()}
+                onClick={cancelTicket}
+              >
+                {saving ? "Voiding…" : "Void & Refund"}
+              </button>
+              <button
+                className="secondary"
+                disabled={saving}
+                onClick={() => setVoiding(null)}
+              >
+                Keep Ticket
+              </button>
+            </section>
+          )}
           <div className="ticket-list">
             {visible.map((t) => {
               const legs = (data.legs ?? [])
@@ -256,7 +334,11 @@ export function TicketHistory({
                       </div>
                       <div>
                         <small>
-                          {t.status === "OPEN" ? "Potential Payout" : "Payout"}
+                          {t.status === "OPEN"
+                            ? "Potential Payout"
+                            : t.status === "VOIDED"
+                              ? "Refund"
+                              : "Payout"}
                         </small>
                         <strong className={t.status.toLowerCase()}>
                           {money(
@@ -269,6 +351,19 @@ export function TicketHistory({
                     </div>
                   </summary>
                   <div className="ticket-body">
+                    {canVoid && t.status === "OPEN" && (
+                      <button
+                        className="void-ticket"
+                        disabled={saving}
+                        onClick={() => {
+                          setVoiding(t);
+                          setReason("");
+                          setFeedback("");
+                        }}
+                      >
+                        ⊘ Void Ticket
+                      </button>
+                    )}
                     {legs.map((l) => (
                       <TicketLegDetails key={l.id} leg={l} />
                     ))}
@@ -335,7 +430,7 @@ function BettingLogTable({
               ticket: t,
               key: t.id + "settled",
               time: t.settled_at,
-              event: "Bet Settled",
+              event: t.status === "VOIDED" ? "Bet Voided" : "Bet Settled",
               amount: t.actual_payout,
               result: title(t.status),
             },

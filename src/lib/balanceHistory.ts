@@ -3,21 +3,26 @@ import type { AccountData } from "./accounts";
 export function buildBalanceHistory(data: AccountData, teamId: string) {
   const tickets = (data.tickets ?? []).filter((t) => t.team_id === teamId);
   const entries = [
-    ...tickets.filter(t => !data.ledger.some(e => e.ticket_id === t.id && e.kind === "wager")).map((t) => ({
-      id: "wager-" + t.id,
-      title: "Ticket Placed",
-      reason:
-        "Week " +
-        t.market_week +
-        " · " +
-        (t.legacy_ticket_id ?? t.id.slice(0, 8)),
-      recordedBalance: null as number | null,
-      amount: -Number(t.stake),
-      date: t.placed_at,
-      imported: false,
-      phase: 0,
-      placed: Date.parse(t.placed_at),
-    })),
+    ...tickets
+      .filter(
+        (t) =>
+          !data.ledger.some((e) => e.ticket_id === t.id && e.kind === "wager"),
+      )
+      .map((t) => ({
+        id: "wager-" + t.id,
+        title: "Ticket Placed",
+        reason:
+          "Week " +
+          t.market_week +
+          " · " +
+          (t.legacy_ticket_id ?? t.id.slice(0, 8)),
+        recordedBalance: null as number | null,
+        amount: -Number(t.stake),
+        date: t.placed_at,
+        imported: false,
+        phase: 0,
+        placed: Date.parse(t.placed_at),
+      })),
     ...data.events
       .filter((e) => e.team_id === teamId && e.kind !== "opening_balance")
       .map((e) => ({
@@ -38,11 +43,15 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
         return {
           id: e.id,
           title:
-            e.kind === "wager" ? "Ticket Placed" : e.kind === "weekly_replenishment"
-              ? "Weekly Replenishment"
-              : ticket?.status === "PUSH"
-                ? "Wager Returned"
-                : "Ticket Won",
+            e.kind === "void_refund"
+              ? "Ticket Voided · Refund"
+              : e.kind === "wager"
+                ? "Ticket Placed"
+                : e.kind === "weekly_replenishment"
+                  ? "Weekly Replenishment"
+                  : ticket?.status === "PUSH"
+                    ? "Wager Returned"
+                    : "Ticket Won",
           reason: ticket
             ? "Week " +
               ticket.market_week +

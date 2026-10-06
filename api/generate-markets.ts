@@ -26,27 +26,30 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     const url = process.env.SUPABASE_URL,
-      publicKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      publicKey =
+        process.env.SUPABASE_ANON_KEY ??
+        process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     const token = request.headers
       .get("authorization")
       ?.replace(/^Bearer\s+/i, "");
     if (!url || !publicKey || !token)
       return json({ error: "Market generation is not configured." }, 401);
-    const userClient = createClient(
-      url,
-      publicKey,
-      {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      },
-    );
+    const userClient = createClient(url, publicKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
     const { data: auth } = await userClient.auth.getUser();
     if (!auth.user)
       return json({ error: "Sign in again before generating markets." }, 401);
     // Keep the membership mapping in sync with the verified email before checking admin access.
     const claim = await userClient.rpc("claim_memberships");
     if (claim.error)
-      return json({ error: `Account mapping could not be verified: ${claim.error.message}` }, 503);
+      return json(
+        {
+          error: `Account mapping could not be verified: ${claim.error.message}`,
+        },
+        503,
+      );
     let input: {
       league_id?: string;
       week?: number;
@@ -76,7 +79,12 @@ export async function POST(request: Request) {
       .eq("user_id", auth.user.id)
       .maybeSingle();
     if (membershipError)
-      return json({ error: `Admin access could not be verified: ${membershipError.message}` }, 503);
+      return json(
+        {
+          error: `Admin access could not be verified: ${membershipError.message}`,
+        },
+        503,
+      );
     if (member?.role !== "admin")
       return json(
         { error: "Only the league admin can generate markets." },
@@ -168,10 +176,6 @@ export async function POST(request: Request) {
         league.roster_positions,
         true,
       );
-      if (!lineup.length)
-        throw new Error(
-          `No available projected starters for ${team.team_name}.`,
-        );
       const mean = roundHalf(
         lineup.reduce((total, player) => total + player.expected, 0),
       );
@@ -184,8 +188,9 @@ export async function POST(request: Request) {
         mean,
         sd: deviation(scores, mean),
         unfilled_slots:
-          league.roster_positions.filter((p) => p !== "BN").length -
-          lineup.length,
+          league.roster_positions.filter(
+            (p) => !["BN", "IR", "TAXI"].includes(p),
+          ).length - lineup.length,
       };
     });
     const quotes: Market[] = [],
@@ -251,6 +256,19 @@ export async function POST(request: Request) {
               ? subject
               : `${subject} ${kind === "spread" ? `${line > 0 ? "+" : ""}${line}` : `${side === "over" ? "Over" : "Under"} ${line}`}`,
           ...extra,
+          metadata: {
+            ...context.metadata,
+            ...(extra as { metadata?: Market["metadata"] }).metadata,
+            lineup_locked:
+              kind === "moneyline" || kind === "match_total"
+                ? home.unfilled_slots > 0 || away.unfilled_slots > 0
+                : kind === "team_total" &&
+                  (teamId === home.id
+                    ? home.unfilled_slots > 0
+                    : away.unfilled_slots > 0),
+            lock_reason:
+              "A complete lineup with positive projections is unavailable. Regenerate lines after roster or projection coverage is corrected.",
+          },
         });
       if (category === "Matchups") {
         const spread = roundHalf(away.mean - home.mean),
@@ -359,8 +377,13 @@ export async function POST(request: Request) {
     }
     if (category === "Weekly Specials") {
       const topSix = ["weekly_high", "weekly_low"].flatMap((kind) =>
-        quotes.filter((q) => q.kind === kind)
-          .sort((a, b) => Number(b.metadata.simulated_probability) - Number(a.metadata.simulated_probability))
+        quotes
+          .filter((q) => q.kind === kind)
+          .sort(
+            (a, b) =>
+              Number(b.metadata.simulated_probability) -
+              Number(a.metadata.simulated_probability),
+          )
           .slice(0, 6),
       );
       quotes.splice(0, quotes.length, ...topSix);

@@ -76,12 +76,14 @@ export function AdminHub({
   users,
   initialCategory,
   reviewMode,
+  refresh,
 }: {
   data: AccountData;
   leagueId: string;
   users: ReactNode;
   initialCategory?: string;
   reviewMode: boolean;
+  refresh?: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState(initialCategory ?? "");
   const category = categories.find((c) => c.id === selected);
@@ -113,7 +115,21 @@ export function AdminHub({
                 <p>{category.description}</p>
               </div>
               {selected === "tickets" ? (
-                <TicketHistory data={data} tickets={tickets} owner={owner} />
+                <TicketHistory
+                  data={data}
+                  tickets={tickets}
+                  owner={owner}
+                  canVoid={
+                    !reviewMode &&
+                    data.memberships.some(
+                      (m) =>
+                        m.league_id === leagueId &&
+                        m.role === "admin" &&
+                        m.user_id,
+                    )
+                  }
+                  onChanged={refresh}
+                />
               ) : selected === "logs" ? (
                 <BettingLogs tickets={tickets} owner={owner} />
               ) : selected === "lines" || selected === "promos" ? (

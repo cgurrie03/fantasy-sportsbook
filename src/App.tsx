@@ -509,6 +509,7 @@ export function Admin({
     <AdminHub
       data={data}
       leagueId={leagueId}
+      refresh={refresh}
       initialCategory={initialCategory}
       reviewMode={reviewMode}
       users={<UsersAdmin data={data} leagueId={leagueId} refresh={refresh} />}
@@ -522,7 +523,7 @@ export default function App() {
     [data, setData] = useState<AccountData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
-    [page, setPage] = useState<"home" | "account" | "admin">("account"),
+    [page, setPage] = useState<"home" | "account" | "admin">("home"),
     [leagueId, setLeagueId] = useState("");
   const [light, setLight] = useState(() => {
     try {
@@ -541,7 +542,11 @@ export default function App() {
   }, [light]);
   useEffect(() => {
     const closeProfile = (event: MouseEvent) => {
-      if (profileMenu.current && !profileMenu.current.contains(event.target as Node)) profileMenu.current.open = false;
+      if (
+        profileMenu.current &&
+        !profileMenu.current.contains(event.target as Node)
+      )
+        profileMenu.current.open = false;
     };
     document.addEventListener("click", closeProfile);
     return () => document.removeEventListener("click", closeProfile);
@@ -644,12 +649,27 @@ export default function App() {
                   if (e.key === "Escape") e.currentTarget.open = false;
                 }}
               >
-                <summary className="profile profile-box" aria-label="Open Account Options">
+                <summary
+                  className="profile profile-box"
+                  aria-label="Open Account Options"
+                >
                   <Avatar
                     src={team?.avatar_url ?? null}
                     name={member?.display_name ?? "Member"}
                   />
-                  <span className="profile-copy"><strong>{member?.display_name ?? "Account"}</strong><small>Balance: {money(Number(data?.wallets.find(w => w.team_id === member?.team_id)?.balance ?? 0))}</small></span>
+                  <span className="profile-copy">
+                    <strong>{member?.display_name ?? "Account"}</strong>
+                    <small>
+                      Balance:{" "}
+                      {money(
+                        Number(
+                          data?.wallets.find(
+                            (w) => w.team_id === member?.team_id,
+                          )?.balance ?? 0,
+                        ),
+                      )}
+                    </small>
+                  </span>
                 </summary>
                 <div className="profile-options">
                   <button

@@ -135,7 +135,7 @@ export function Sportsbook({
     else if (!open && dialog.current?.open) dialog.current.close();
   }, [open]);
   function toggle(m: Market) {
-    if (busy) return;
+    if (busy || m.metadata.lineup_locked) return;
     setNotice("");
     if (picks.some((p) => p.id === m.id)) {
       setPicks(picks.filter((p) => p.id !== m.id));
@@ -188,22 +188,50 @@ export function Sportsbook({
       <button
         type="button"
         className={`market-quote${selected ? " selected" : ""}${m.boost_pct ? " boosted" : ""}`}
+        title={
+          m.metadata.lineup_locked ? String(m.metadata.lock_reason) : undefined
+        }
+        aria-label={
+          m.metadata.lineup_locked
+            ? `${m.label}: Locked — incomplete projected lineup`
+            : undefined
+        }
         aria-pressed={selected}
-        disabled={(!accepting && !review) || busy}
+        disabled={
+          Boolean(m.metadata.lineup_locked) || (!accepting && !review) || busy
+        }
         onClick={() => toggle(m)}
       >
-        <strong>{short ?? m.label}</strong>
-        {(m.kind === "moneyline" ||
-          m.kind === "weekly_high" ||
-          m.kind === "weekly_low" ||
-          m.boost_pct > 0) && (
-          <span>
-            {m.boost_pct > 0 && m.kind === "moneyline" && (
-              <del>{formatOdds(m.odds)}</del>
-            )}{" "}
-            {formatOdds(americanPrice(selectionPrice(m)))}
-          </span>
+        {m.metadata.lineup_locked ? (
+          <>
+            <svg
+              className="market-lock"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <rect x="5" y="10" width="14" height="11" rx="3" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+            <span>Locked</span>
+          </>
+        ) : (
+          <strong>{short ?? m.label}</strong>
         )}
+        {!m.metadata.lineup_locked &&
+          (m.kind === "moneyline" ||
+            m.kind === "weekly_high" ||
+            m.kind === "weekly_low" ||
+            m.boost_pct > 0) && (
+            <span>
+              {m.boost_pct > 0 && m.kind === "moneyline" && (
+                <del>{formatOdds(m.odds)}</del>
+              )}{" "}
+              {formatOdds(americanPrice(selectionPrice(m)))}
+            </span>
+          )}
       </button>
     );
   }
@@ -260,7 +288,9 @@ export function Sportsbook({
           <div className="board-heading">
             <div>
               <h1>
-                SEASON {board?.league_season ?? 3} • WEEK {week}
+                <span>SEASON {board?.league_season ?? 3}</span>
+                <span className="season-divider"> • </span>
+                <span>WEEK {week}</span>
               </h1>
             </div>
             <div className="board-window">
@@ -273,25 +303,29 @@ export function Sportsbook({
                         ? "Betting Open"
                         : "Betting Closed"}
                   </strong>
-                  <span>
-                    {new Date(board.opens_at).toLocaleString("en-US", {
-                      timeZone: "America/New_York",
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}{" "}
-                    –{" "}
-                    {new Date(board.closes_at).toLocaleString("en-US", {
-                      timeZone: "America/New_York",
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}{" "}
-                    Eastern
+                  <span className="board-dates">
+                    <span className="board-date">
+                      {new Date(board.opens_at).toLocaleString("en-US", {
+                        timeZone: "America/New_York",
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}{" "}
+                    </span>
+                    <span className="board-date-divider">– </span>
+                    <span className="board-date">
+                      {new Date(board.closes_at).toLocaleString("en-US", {
+                        timeZone: "America/New_York",
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}{" "}
+                      Eastern
+                    </span>
                   </span>
                 </>
               ) : (
@@ -343,10 +377,20 @@ export function Sportsbook({
                         {first.featured && (
                           <div className="featured-strip">
                             <strong>
-                              {first.featured === "Game of the Week" ? "★" : (
-                                <svg className="tank-icon" viewBox="0 0 32 24" aria-hidden="true" fill="currentColor">
+                              {first.featured === "Game of the Week" ? (
+                                "★"
+                              ) : (
+                                <svg
+                                  className="tank-icon"
+                                  viewBox="0 0 32 24"
+                                  aria-hidden="true"
+                                  fill="currentColor"
+                                >
                                   <path d="M12 4h9v3h10v3H21l-2 3H8l3-3V6h1zM6 13h19l4 5-3 5H5l-4-5z" />
-                                  <path d="M7 17h17v3H7z" fill="var(--tank-track-color, #edca69)" />
+                                  <path
+                                    d="M7 17h17v3H7z"
+                                    fill="var(--tank-track-color, #edca69)"
+                                  />
                                 </svg>
                               )}{" "}
                               {first.featured}
@@ -597,6 +641,8 @@ export function Sportsbook({
                   t.team_id === member.team_id),
             )}
             owner={owner}
+            canVoid={member.role === "admin" && !review}
+            onChanged={refresh}
           />
         </>
       )}
