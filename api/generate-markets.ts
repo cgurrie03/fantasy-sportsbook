@@ -24,8 +24,9 @@ export async function POST(request: Request) {
   const member = memberById ?? memberByEmail;
   const primaryAdmin = auth.user.email?.toLowerCase() === "cooper.gurrie@gmail.com";
   if (!primaryAdmin && member?.role !== "admin") return json({ error: "Only the league admin can generate markets." }, 403);
-  const { data: teams, error: teamError } = await client.from("teams").select("id,roster_id,team_name,wins,losses,ties").eq("league_id", input.league_id).order("roster_id");
-  if (teamError || !teams?.length) return json({ error: "League teams are unavailable." }, 400);
+  const { data: teams, error: teamError } = await userClient.from("teams").select("id,roster_id,team_name,wins,losses,ties").eq("league_id", input.league_id).order("roster_id");
+  if (teamError) return json({ error: `League teams could not be loaded: ${teamError.message}` }, 400);
+  if (!teams?.length) return json({ error: "League teams could not be loaded for this league." }, 400);
   const sleeper = async (path: string) => { const response = await fetch(`https://api.sleeper.app/v1/${path}`); if (!response.ok) throw new Error(`Sleeper returned ${response.status}.`); return response.json(); };
   try {
     const matchups = await sleeper(`league/${input.league_id}/matchups/${input.week}`) as Array<{ matchup_id?: number; roster_id: number; points?: number; starters_points?: number[] }>;
