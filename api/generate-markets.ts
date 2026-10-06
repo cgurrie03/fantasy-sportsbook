@@ -4,7 +4,7 @@ import {
   candidates,
   deviation,
   highLowProbabilities,
-} from "./_lib/line-model.ts";
+} from "./_lib/line-model.js";
 import type { History, Projection } from "./_lib/line-model.ts";
 import type { Market } from "../src/lib/markets.ts";
 

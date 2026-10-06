@@ -33,7 +33,9 @@ Use America/New_York, including daylight saving.
 5. Wednesday 8 AM: publish and send opening email.
 6. Thursday 7 PM: reminder.
 7. Thursday 8 PM: close all static weekly markets.
-8. Following Tuesday: results/leaderboard/balance recap; exact time remains to be confirmed.
+8. Following Tuesday 8:15 AM: results/leaderboard/balance recap after replenishment.
+
+Wednesday 8 AM publication is automatic unless the admin pauses it. Regeneration recalculates the selected category from current data; accepted tickets retain their original selections and prices. Scheduled execution is the next implementation stage; this schedule is approved but not yet running.
 
 ## Featured Markets
 

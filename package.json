@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && node scripts/test-api-runtime.mjs && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test:accounts": "node scripts/test-accounts.mjs",
     "test:import": "node scripts/test-week3-import.mjs",
     "test:lines": "node scripts/test-line-model.mjs",
+    "test:api": "node scripts/test-api-runtime.mjs",
     "format": "prettier --write src scripts"
   },
   "dependencies": {

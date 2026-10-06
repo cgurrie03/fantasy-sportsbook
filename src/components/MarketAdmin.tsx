@@ -137,6 +137,10 @@ export function MarketAdmin({
     board.status === "published" &&
     now >= Date.parse(board.opens_at) &&
     now < Date.parse(board.closes_at);
+  const categoryKinds = category === "Matchups"
+    ? ["spread", "moneyline", "match_total", "team_total"]
+    : category === "Player Points" ? ["player_points"] : ["weekly_high", "weekly_low"];
+  const hasGeneratedLines = markets.some((m) => categoryKinds.includes(m.kind));
 
   async function generate() {
     if (review || busy) return;
@@ -461,7 +465,7 @@ export function MarketAdmin({
                 onClick={() => void generate()}
                 disabled={busy}
               >
-                Generate Lines
+                {hasGeneratedLines ? "Recalculate Lines" : "Generate Lines"}
               </button>
               <button
                 className="primary"
@@ -509,8 +513,8 @@ export function MarketAdmin({
               </label>
             </div>
             <p className="muted">
-              Generate Lines prepares the board from Sleeper data. Review the
-              generated markets before publishing.
+              Recalculate using the latest Sleeper data at any time. Only the selected betting type is replaced;
+              accepted tickets keep their original picks and odds. Review the updated markets before publishing.
             </p>
             {category === "Matchups" && (
               <div className="market-admin-preview">
