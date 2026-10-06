@@ -209,8 +209,7 @@ export async function POST(request: Request) {
               db
                 .from("sportsbook_markets")
                 .select("*")
-                .eq("board_id", board.id)
-                .eq("active", true),
+                .eq("board_id", board.id),
             )
           : [];
         const kinds =
@@ -221,7 +220,7 @@ export async function POST(request: Request) {
               : ["weekly_high", "weekly_low"];
         const featured = new Map(
           existing
-            .filter((m: any) => m.featured)
+            .filter((m: any) => m.active && m.featured)
             .map((m: any) => [m.matchup_key, m.featured]),
         );
         const generated = result.quotes.map((q: any) => {
@@ -242,7 +241,7 @@ export async function POST(request: Request) {
           return { ...q, id: prior?.id ?? q.id };
         });
         const quotes = [
-          ...existing.filter((q: any) => !kinds.includes(q.kind)),
+          ...existing.filter((q: any) => q.active && !kinds.includes(q.kind)),
           ...generated,
         ];
         const window = boardWindow(
