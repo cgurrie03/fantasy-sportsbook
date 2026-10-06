@@ -167,3 +167,10 @@ export function highLowProbabilities(
     low: low.map((n) => n / (trials + teams.length)),
   };
 }
+
+// Half-point spreads prevent an accidental pick'em from rounding a narrow projection gap.
+export function matchupSpread(home: number, away: number) {
+  const difference = away - home;
+  const magnitude = Math.max(0.5, Math.round(Math.abs(difference) * 2) / 2);
+  return difference < 0 ? -magnitude : magnitude;
+}

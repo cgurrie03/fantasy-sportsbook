@@ -250,6 +250,7 @@ export function TicketHistory({
     <TicketFilters tickets={tickets} owner={owner} id="admin-ticket-filters">
       {(visible) => (
         <>
+          {canVoid && !tickets.some(t=>t.status==="OPEN") && <p className="history-note">No open tickets to cancel. Void Ticket appears inside an expanded open ticket; settled tickets are preserved.</p>}
           {feedback && (
             <p className="feedback" role="status">
               {feedback}

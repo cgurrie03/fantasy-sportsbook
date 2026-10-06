@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import {
   bestLineup,
+  matchupSpread,
   candidates,
   deviation,
   highLowProbabilities,
@@ -260,7 +261,9 @@ export async function POST(request: Request) {
             ...context.metadata,
             ...(extra as { metadata?: Market["metadata"] }).metadata,
             lineup_locked:
-              kind === "moneyline" || kind === "match_total"
+              kind === "spread" ||
+              kind === "moneyline" ||
+              kind === "match_total"
                 ? home.unfilled_slots > 0 || away.unfilled_slots > 0
                 : kind === "team_total" &&
                   (teamId === home.id
@@ -271,7 +274,7 @@ export async function POST(request: Request) {
           },
         });
       if (category === "Matchups") {
-        const spread = roundHalf(away.mean - home.mean),
+        const spread = matchupSpread(home.mean, away.mean),
           total = roundHalf(home.mean + away.mean);
         const probability = Math.min(
           0.95,

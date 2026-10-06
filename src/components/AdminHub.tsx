@@ -44,9 +44,8 @@ const categories = [
     id: "approvals",
     group: "Operations",
     title: "Approvals",
-    description:
-      "Review featured games, unclear results, and proposed changes.",
-    status: "Upcoming",
+    description: "Review unresolved tickets and held replenishments.",
+    status: "Review Results",
   },
   {
     id: "schedule",
@@ -134,8 +133,12 @@ export function AdminHub({
                 <BettingLogs tickets={tickets} owner={owner} />
               ) : selected === "lines" || selected === "promos" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
-              ) : selected === "schedule" ? (
-                <WeeklySchedule leagueId={leagueId} reviewMode={reviewMode} />
+              ) : selected === "schedule" || selected === "approvals" ? (
+                <WeeklySchedule
+                  leagueId={leagueId}
+                  reviewMode={reviewMode}
+                  onApplied={refresh}
+                />
               ) : (
                 <section className="upcoming-panel">
                   <strong>Upcoming Tools</strong>

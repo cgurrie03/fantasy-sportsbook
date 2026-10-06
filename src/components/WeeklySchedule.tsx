@@ -36,20 +36,39 @@ const defaults: Settings = {
 interface Preview {
   week: number;
   mode: string;
+  replenishment_due?: boolean;
+  balances?: {
+    team_id: string;
+    name: string;
+    current: number;
+    eligible: boolean;
+    reason: string;
+    target: number | null;
+  }[];
   tickets: {
     ticket_id: string;
     market_week: number;
     pending: boolean;
-    legs: { id: string; status: string; evidence: string }[];
+    final?: boolean;
+    projected_payout?: number | null;
+    legs: {
+      id: string;
+      selection?: string;
+      status: string;
+      evidence: string;
+      actual_value?: number | null;
+    }[];
   }[];
   note: string;
 }
 export function WeeklySchedule({
   leagueId,
   reviewMode = false,
+  onApplied,
 }: {
   leagueId: string;
   reviewMode?: boolean;
+  onApplied?: () => Promise<void>;
 }) {
   const [settings, setSettings] = useState(defaults),
     [notice, setNotice] = useState(""),
@@ -59,6 +78,10 @@ export function WeeklySchedule({
   const [runs, setRuns] = useState<
     { id: string; operation: string; market_week: number; created_at: string }[]
   >([]);
+  const [confirmApply, setConfirmApply] = useState(false);
+  const [overrides, setOverrides] = useState<
+    Record<string, { status: string; actual_value: string; evidence: string }>
+  >({});
   const [emailKind, setEmailKind] = useState<EmailKind>("opening");
   const email = sampleEmail(emailKind);
   function emailButton(kind: EmailKind) {
@@ -141,7 +164,7 @@ export function WeeklySchedule({
       setBusy(false);
     }
   }
-  async function review() {
+  async function review(apply = false) {
     if (reviewMode) {
       setPreview({
         week: 5,
@@ -174,7 +197,19 @@ export function WeeklySchedule({
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ league_id: leagueId }),
+        body: JSON.stringify({
+          league_id: leagueId,
+          apply,
+          overrides: Object.entries(overrides)
+            .filter(([, o]) => o.status)
+            .map(([id, o]) => ({
+              id,
+              status: o.status,
+              actual_value:
+                o.actual_value.trim() === "" ? null : Number(o.actual_value),
+              evidence: o.evidence,
+            })),
+        }),
       });
       const text = await r.text();
       let result;
@@ -187,8 +222,22 @@ export function WeeklySchedule({
       }
       if (!r.ok) throw new Error(result.error);
       setPreview(result as Preview);
+      setConfirmApply(false);
+      if (apply) {
+        setOverrides({});
+        await onApplied?.();
+        const logs = await supabase!
+          .from("weekly_execution_runs")
+          .select("id,operation,market_week,created_at")
+          .eq("league_id", leagueId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (!logs.error) setRuns(logs.data ?? []);
+      }
       setNotice(
-        "Preview complete. No tickets, balances, or emails were changed.",
+        apply
+          ? "Execution completed. Ticket results, balances, and leaderboard are refreshed."
+          : "Preview complete. No tickets, balances, or emails were changed.",
       );
     } catch (e) {
       setNotice(errorMessage(e));
@@ -403,6 +452,139 @@ export function WeeklySchedule({
           </tbody>
         </table>
       </div>
+      {preview && !reviewMode && (
+        <section className="execution-review">
+          <h2>
+            {preview.mode === "applied"
+              ? "Execution Results"
+              : "Review Before Applying"}
+          </h2>
+          {preview.balances?.map((b) => (
+            <p key={b.team_id}>
+              <strong>{b.name}</strong> · Balance: ${b.current.toFixed(2)}
+              {b.eligible && b.target !== null
+                ? ` → ${b.target.toFixed(2)}`
+                : ""}
+              <br />
+              <small>{b.reason}</small>
+            </p>
+          ))}
+          <button
+            disabled={busy || !ready}
+            onClick={() => setConfirmApply(true)}
+          >
+            Apply Settlement & Eligible Replenishment
+          </button>
+          {confirmApply && (
+            <div role="region" aria-label="Confirm weekly execution">
+              <p>
+                Save confirmed results, pay resolved tickets once, and replenish
+                eligible balances. Unresolved weekly tickets stay open and hold
+                that user's replenishment. No emails will be sent.
+              </p>
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={() => void review(true)}
+              >
+                Confirm & Apply
+              </button>
+              <button disabled={busy} onClick={() => setConfirmApply(false)}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+      {preview && (
+        <section>
+          <h2>Execution Preview · Week {preview.week}</h2>
+          <p>{preview.note}</p>
+          {preview.tickets.length === 0 ? (
+            <p>No open weekly tickets need settlement.</p>
+          ) : (
+            preview.tickets.map((t) => (
+              <details key={t.ticket_id}>
+                <summary>
+                  Week {t.market_week} · {t.ticket_id.slice(0, 8)} ·{" "}
+                  {t.pending
+                    ? t.final
+                      ? "Needs Review"
+                      : "Awaiting Final Results"
+                    : "Ready To Settle"}
+                </summary>
+                {t.legs.map((l) => (
+                  <p key={l.id}>
+                    <strong>{l.selection ?? "Leg"} · {l.status}</strong> · {l.evidence}
+                  </p>
+                ))}
+                {t.final &&
+                  t.legs
+                    .filter((l) => l.status === "OPEN")
+                    .map((l) => {
+                      const o = overrides[l.id] ?? {
+                        status: "",
+                        actual_value: "",
+                        evidence: "",
+                      };
+                      const update = (key: string, value: string) => {
+                        setOverrides({
+                          ...overrides,
+                          [l.id]: { ...o, [key]: value },
+                        });
+                        setConfirmApply(false);
+                      };
+                      return (
+                        <fieldset key={l.id}>
+                          <legend>
+                            Review Unresolved Leg · {l.selection ?? l.id.slice(0, 8)}
+                          </legend>
+                          <label>
+                            Confirmed Result
+                            <select
+                              value={o.status}
+                              onChange={(e) => update("status", e.target.value)}
+                            >
+                              <option value="">Keep Pending</option>
+                              <option value="WON">Won</option>
+                              <option value="LOST">Lost</option>
+                              <option value="PUSH">Push / Did Not Play</option>
+                            </select>
+                          </label>
+                          <label>
+                            Actual Score Or Margin
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={o.actual_value}
+                              onChange={(e) =>
+                                update("actual_value", e.target.value)
+                              }
+                            />
+                          </label>
+                          <label>
+                            Result Evidence
+                            <input
+                              maxLength={500}
+                              value={o.evidence}
+                              onChange={(e) =>
+                                update("evidence", e.target.value)
+                              }
+                              placeholder="Verified source or reason for this result"
+                            />
+                          </label>
+                          <small>
+                            For a confirmed inactive player, choose Push and
+                            enter 0. Preview again to review this decision.
+                          </small>
+                        </fieldset>
+                      );
+                    })}
+              </details>
+            ))
+          )}
+        </section>
+      )}
       <section id="email-template-preview" className="email-template-preview">
         <div className="email-preview-heading">
           <h2>Email Templates</h2>
@@ -445,29 +627,6 @@ export function WeeklySchedule({
           srcDoc={renderEmail(email)}
         />
       </section>
-      {preview && (
-        <section>
-          <h2>Execution Preview · Week {preview.week}</h2>
-          <p>{preview.note}</p>
-          {preview.tickets.length === 0 ? (
-            <p>No open weekly tickets need settlement.</p>
-          ) : (
-            preview.tickets.map((t) => (
-              <details key={t.ticket_id}>
-                <summary>
-                  Week {t.market_week} · {t.ticket_id.slice(0, 8)} ·{" "}
-                  {t.pending ? "Needs Review" : "Ready To Settle"}
-                </summary>
-                {t.legs.map((l) => (
-                  <p key={l.id}>
-                    <strong>{l.status}</strong> · {l.evidence}
-                  </p>
-                ))}
-              </details>
-            ))
-          )}
-        </section>
-      )}
       <h2>Execution History</h2>
       {runs.length ? (
         runs.map((r) => (

@@ -495,8 +495,8 @@ footer {
   .account-tools {
     gap: 5px;
   }
-  .profile > span:not(.avatar) {
-    display: none;
+  .profile > .profile-copy {
+    display: grid;
   }
   .account-tools > .text-button {
     font-size: 11px;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { writeFile, mkdir } from "node:fs/promises";
 import {
   bestLineup,
+  matchupSpread,
   candidates,
   score,
   highLowProbabilities,
@@ -48,13 +49,30 @@ const rows = [
   },
 ];
 assert.equal(candidates(rows, { rec: 1 }, [])[0].expected, 0);
-const preferred = bestLineup([
-  { ...player("higher-projection", ["WR"], 15), projection: 20 },
-  { ...player("higher-adjustment", ["WR"], 19), projection: 18 },
-  { ...player("inactive", ["WR"], 0), projection: 30 },
-], ["WR"]);
+const preferred = bestLineup(
+  [
+    { ...player("higher-projection", ["WR"], 15), projection: 20 },
+    { ...player("higher-adjustment", ["WR"], 19), projection: 18 },
+    { ...player("inactive", ["WR"], 0), projection: 30 },
+  ],
+  ["WR"],
+);
 assert.equal(preferred[0].id, "higher-projection");
-assert.equal(candidates([{...rows[0],player_id:"bye",date:undefined,stats:{gp:0,rec:10}}], {rec:1}, []).length,0);
+assert.equal(
+  candidates(
+    [
+      {
+        ...rows[0],
+        player_id: "bye",
+        date: undefined,
+        stats: { gp: 0, rec: 10 },
+      },
+    ],
+    { rec: 1 },
+    [],
+  ).length,
+  0,
+);
 const probabilities = highLowProbabilities([
   { mean: 200, sd: 15 },
   { mean: 80, sd: 15 },
@@ -164,3 +182,7 @@ if (process.argv.includes("--live")) {
     console.log("Saved weekly high/low scorer preview for review.");
   }
 }
+
+assert.equal(matchupSpread(100, 100), 0.5);
+assert.equal(matchupSpread(100.1, 100), -0.5);
+assert.equal(matchupSpread(100, 108), 8);

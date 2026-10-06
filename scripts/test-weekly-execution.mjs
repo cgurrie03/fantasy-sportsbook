@@ -42,6 +42,7 @@ assert.equal(
     .status,
   "OPEN",
 );
+assert.equal(settleLeg(leg("player_points", "over", 5, { player_id: "invalid" }), {...final, players: {invalid: {played: true, points: NaN}}}).status, "OPEN");
 assert.equal(settleLeg(leg("weekly_high"), final).status, "WON");
 assert.equal(
   settleLeg(leg("weekly_high"), {

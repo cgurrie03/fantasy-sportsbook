@@ -104,6 +104,8 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
     default:
       return pending("This market needs a settlement rule.");
   }
+  if (!Number.isFinite(actual) || !Number.isFinite(difference))
+    return pending("Result value is unconfirmed.");
   return {
     id: leg.id,
     status:

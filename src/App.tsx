@@ -579,7 +579,7 @@ export default function App() {
     // oxlint-disable-next-line react/set-state-in-effect
     setData(null);
     setError("");
-    setPage("account");
+    setPage("home");
     if (!userId) return;
     setLoading(true);
     loadAccounts()
