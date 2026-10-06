@@ -31,3 +31,4 @@ dist-ssr
 supabase/.temp
 coverage
 stage1-*-review.html
+stage2-review.html
