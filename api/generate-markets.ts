@@ -366,6 +366,14 @@ export async function POST(request: Request) {
         }
       });
     }
+    if (category === "Weekly Specials") {
+      const topSix = ["weekly_high", "weekly_low"].flatMap((kind) =>
+        quotes.filter((q) => q.kind === kind)
+          .sort((a, b) => Number(b.metadata.simulated_probability) - Number(a.metadata.simulated_probability))
+          .slice(0, 6),
+      );
+      quotes.splice(0, quotes.length, ...topSix);
+    }
     if (category === "Matchups") {
       const groups = [...new Set(quotes.map((q) => q.matchup_key))].map((key) =>
         quotes.filter((q) => q.matchup_key === key),

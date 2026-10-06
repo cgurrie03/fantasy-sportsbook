@@ -692,11 +692,13 @@ export function MarketAdmin({
                   <article className="prop-card" key={kind}>
                     <h2>
                       {kind === "weekly_high"
-                        ? "Weekly High Scorer"
-                        : "Weekly Low Scorer"}
+                        ? "Highest Weekly Scorer"
+                        : "Lowest Weekly Scorer"}
                     </h2>
                     {markets
                       .filter((q) => q.kind === kind)
+                      .sort((a, b) => a.odds - b.odds)
+                      .slice(0, 6)
                       .map((q) => (
                         <div className="matchup-preview-line" key={q.id}>
                           <span>{q.subject}</span>
@@ -705,7 +707,7 @@ export function MarketAdmin({
                       ))}
                     {!markets.some((q) => q.kind === kind) && (
                       <p>
-                        Generate weekly specials to preview every team's odds.
+                        Generate weekly specials to preview the six favorites in each market.
                       </p>
                     )}
                   </article>

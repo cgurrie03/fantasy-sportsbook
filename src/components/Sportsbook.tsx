@@ -343,9 +343,12 @@ export function Sportsbook({
                         {first.featured && (
                           <div className="featured-strip">
                             <strong>
-                              {first.featured === "Game of the Week"
-                                ? "★"
-                                : "⚑"}{" "}
+                              {first.featured === "Game of the Week" ? "★" : (
+                                <svg className="tank-icon" viewBox="0 0 32 24" aria-hidden="true" fill="currentColor">
+                                  <path d="M12 4h9v3h10v3H21l-2 3H8l3-3V6h1zM6 13h19l4 5-3 5H5l-4-5z" />
+                                  <path d="M7 17h17v3H7z" fill="var(--tank-track-color, #edca69)" />
+                                </svg>
+                              )}{" "}
                               {first.featured}
                             </strong>
                             <span>25% PROFIT BOOST</span>
@@ -541,8 +544,8 @@ export function Sportsbook({
                     <article className="prop-card" key={kind}>
                       <h2>
                         {kind === "weekly_high"
-                          ? "Weekly High Scorer"
-                          : "Weekly Low Scorer"}
+                          ? "Highest Weekly Scorer"
+                          : "Lowest Weekly Scorer"}
                       </h2>
                       <p>
                         Choose the team you think will finish{" "}
@@ -552,6 +555,8 @@ export function Sportsbook({
                       <div className="special-quotes">
                         {markets
                           .filter((m) => m.kind === kind)
+                          .sort((a, b) => a.odds - b.odds)
+                          .slice(0, 6)
                           .map((m) => (
                             <span key={m.id}>{quote(m)}</span>
                           ))}
