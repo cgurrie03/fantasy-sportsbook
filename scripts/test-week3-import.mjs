@@ -3,11 +3,12 @@ import assert from 'node:assert/strict'
 import {PGlite} from '@electric-sql/pglite'
 import {buildBalanceHistory} from '../src/lib/balanceHistory.ts'
 const db=new PGlite()
-await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;")
+await db.exec("create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;")
 const sql=['202610050001_accounts.sql','202610050002_league_seed.sql','202610050003_week3_import.sql'].map(name=>fs.readFileSync(new URL('../supabase/migrations/'+name,import.meta.url),'utf8')).join('\n')
 await db.exec(sql)
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/202610050004_league_period.sql',import.meta.url),'utf8'))
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/202610050005_display_names.sql',import.meta.url),'utf8'))
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/202610050006_weekly_markets.sql',import.meta.url),'utf8'))
 const rows=async sql=>(await db.query(sql)).rows
 assert.equal((await rows("select display_name from public.league_memberships m join public.teams t on t.id=m.team_id where t.roster_id=12"))[0].display_name,'Michael Schifano (Schif)')
 await db.exec('set role anon;')

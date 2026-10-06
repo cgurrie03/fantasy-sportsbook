@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
 import { BettingLogs, Chevron, TicketHistory } from "./TicketHistory";
+import { MarketAdmin } from "./MarketAdmin";
 const categories = [
   {
     id: "users",
@@ -114,6 +115,8 @@ export function AdminHub({
                 <TicketHistory data={data} tickets={tickets} owner={owner} />
               ) : selected === "logs" ? (
                 <BettingLogs tickets={tickets} owner={owner} />
+              ) : selected === "lines" || selected === "promos" ? (
+                <MarketAdmin data={data} leagueId={leagueId} />
               ) : (
                 <section className="upcoming-panel">
                   <strong>Upcoming Tools</strong>

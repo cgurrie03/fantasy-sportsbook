@@ -3,7 +3,7 @@ import type { AccountData } from "./accounts";
 export function buildBalanceHistory(data: AccountData, teamId: string) {
   const tickets = (data.tickets ?? []).filter((t) => t.team_id === teamId);
   const entries = [
-    ...tickets.map((t) => ({
+    ...tickets.filter(t => !data.ledger.some(e => e.ticket_id === t.id && e.kind === "wager")).map((t) => ({
       id: "wager-" + t.id,
       title: "Ticket Placed",
       reason:
@@ -38,7 +38,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
         return {
           id: e.id,
           title:
-            e.kind === "weekly_replenishment"
+            e.kind === "wager" ? "Ticket Placed" : e.kind === "weekly_replenishment"
               ? "Weekly Replenishment"
               : ticket?.status === "PUSH"
                 ? "Wager Returned"

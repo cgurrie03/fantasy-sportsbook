@@ -8,6 +8,7 @@ import "./App.css";
 import { AdminHub } from "./components/AdminHub";
 import { ThemeIcon } from "./components/ThemeIcon";
 import { buildBalanceHistory } from "./lib/balanceHistory";
+import { Sportsbook } from "./components/Sportsbook";
 const leagueAvatar =
   "https://sleepercdn.com/avatars/bac95664e269132b2a43e889f980a3e2";
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -521,7 +522,7 @@ export default function App() {
     [data, setData] = useState<AccountData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
-    [page, setPage] = useState<"account" | "admin">("account"),
+    [page, setPage] = useState<"home" | "account" | "admin">("account"),
     [leagueId, setLeagueId] = useState("");
   const [light, setLight] = useState(() => {
     try {
@@ -647,6 +648,14 @@ export default function App() {
                 <div className="profile-options">
                   <button
                     onClick={() => {
+                      setPage("home");
+                      if (profileMenu.current) profileMenu.current.open = false;
+                    }}
+                  >
+                    Home
+                  </button>
+                  <button
+                    onClick={() => {
                       setPage("account");
                       if (profileMenu.current) profileMenu.current.open = false;
                     }}
@@ -678,6 +687,13 @@ export default function App() {
           )}
         </div>
       </header>
+      {session && data && member && (
+        <nav className="global-nav" aria-label="Primary Navigation">
+          <button className={page === "home" ? "active" : ""} onClick={() => setPage("home")}>Home</button>
+          <button className={page === "account" ? "active" : ""} onClick={() => setPage("account")}>Account</button>
+          {member.role === "admin" && <button className={page === "admin" ? "active" : ""} onClick={() => setPage("admin")}>League Admin</button>}
+        </nav>
+      )}
       {!ready ? (
         <main className="empty" role="status">
           Loading Your Account…
@@ -735,7 +751,9 @@ export default function App() {
               Loading Your League…
             </main>
           ) : data && member && team ? (
-            page === "admin" && member.role === "admin" ? (
+            page === "home" ? (
+              <Sportsbook data={data} member={member} refresh={refresh} />
+            ) : page === "admin" && member.role === "admin" ? (
               <Admin data={data} leagueId={leagueId} refresh={refresh} />
             ) : (
               <Account data={data} member={member} team={team} />
