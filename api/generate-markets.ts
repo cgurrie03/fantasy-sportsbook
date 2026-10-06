@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
 const roundHalf = (value: number) => Math.round(value * 2) / 2;
 const american = (probability: number) => Math.round(probability >= 0.5 ? -100 * probability / (1 - probability) : 100 * (1 - probability) / probability);
+const SLEEPER_LEAGUE_ID = "1312126153980391424";
 
 export async function POST(request: Request) {
   const url = process.env.SUPABASE_URL, serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,8 +30,8 @@ export async function POST(request: Request) {
   if (!teams?.length) return json({ error: "League teams could not be loaded for this league." }, 400);
   const sleeper = async (path: string) => { const response = await fetch(`https://api.sleeper.app/v1/${path}`); if (!response.ok) throw new Error(`Sleeper returned ${response.status}.`); return response.json(); };
   try {
-    const matchups = await sleeper(`league/${input.league_id}/matchups/${input.week}`) as Array<{ matchup_id?: number; roster_id: number; points?: number; starters_points?: number[] }>;
-    const previous = input.week > 1 ? await sleeper(`league/${input.league_id}/matchups/${input.week - 1}`) as Array<{ roster_id: number; points?: number }> : [];
+    const matchups = await sleeper(`league/${SLEEPER_LEAGUE_ID}/matchups/${input.week}`) as Array<{ matchup_id?: number; roster_id: number; points?: number; starters_points?: number[] }>;
+    const previous = input.week > 1 ? await sleeper(`league/${SLEEPER_LEAGUE_ID}/matchups/${input.week - 1}`) as Array<{ roster_id: number; points?: number }> : [];
     const previousByRoster = new Map(previous.map(row => [row.roster_id, Number(row.points ?? 0)]));
     const rosterMap = new Map(teams.map(t => [t.roster_id, t]));
     const groups = new Map<number, typeof matchups>();
