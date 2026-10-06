@@ -119,7 +119,7 @@ export function AdminHub({
               ) : selected === "lines" || selected === "promos" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
               ) : selected === "schedule" ? (
-                <WeeklySchedule leagueId={leagueId} />
+                <WeeklySchedule leagueId={leagueId} reviewMode={reviewMode} />
               ) : (
                 <section className="upcoming-panel">
                   <strong>Upcoming Tools</strong>

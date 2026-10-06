@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
+import { emailLabels, renderEmail, sampleEmail } from "../lib/emailTemplates";
+import type { EmailKind } from "../lib/emailTemplates";
+import "./Sportsbook.css";
 interface Settings {
   publication_paused: boolean;
   opening_email: boolean;
@@ -32,7 +35,13 @@ interface Preview {
   }[];
   note: string;
 }
-export function WeeklySchedule({ leagueId }: { leagueId: string }) {
+export function WeeklySchedule({
+  leagueId,
+  reviewMode = false,
+}: {
+  leagueId: string;
+  reviewMode?: boolean;
+}) {
   const [settings, setSettings] = useState(defaults),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -41,7 +50,25 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
   const [runs, setRuns] = useState<
     { id: string; operation: string; market_week: number; created_at: string }[]
   >([]);
+  const [emailKind, setEmailKind] = useState<EmailKind>("opening");
+  const email = sampleEmail(emailKind);
+  function emailButton(kind: EmailKind) {
+    return (
+      <button
+        className="email-preview-button"
+        onClick={() => {
+          setEmailKind(kind);
+          document
+            .getElementById("email-template-preview")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      >
+        Preview
+      </button>
+    );
+  }
   useEffect(() => {
+    if (reviewMode) return;
     let active = true;
     void Promise.all([
       supabase!
@@ -76,7 +103,7 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
     return () => {
       active = false;
     };
-  }, [leagueId]);
+  }, [leagueId, reviewMode]);
   async function save() {
     setBusy(true);
     try {
@@ -101,6 +128,28 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
     }
   }
   async function review() {
+    if (reviewMode) {
+      setPreview({
+        week: 5,
+        mode: "preview",
+        tickets: [
+          {
+            ticket_id: "EXAMPLE-01",
+            market_week: 5,
+            pending: true,
+            legs: [
+              {
+                id: "example",
+                status: "OPEN",
+                evidence: "Waiting for confirmed weekly results.",
+              },
+            ],
+          },
+        ],
+        note: "Sample execution preview. No tickets, balances, or emails were changed.",
+      });
+      return;
+    }
     setBusy(true);
     try {
       const session = (await supabase!.auth.getSession()).data.session;
@@ -162,10 +211,19 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
         >
           Save Schedule
         </button>
-        <button disabled={!ready || busy} onClick={() => void review()}>
+        <button
+          disabled={(!ready && !reviewMode) || busy}
+          onClick={() => void review()}
+        >
           {busy ? "Working…" : "Preview Weekly Execution"}
         </button>
       </div>
+      <p className="execution-preview-help">
+        <strong>What does the preview do?</strong> It checks Sleeper results
+        against accepted tickets, shows which legs are ready to settle or need
+        review, and assesses replenishment eligibility. It does not settle bets,
+        change balances, publish markets, or send emails.
+      </p>
       <div className="schedule-table-wrap">
         <table className="schedule-table">
           <thead>
@@ -184,7 +242,11 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
             <tr>
               <td>Tuesday 7 AM</td>
               <td>Recheck unresolved results; flag admin review</td>
-              <td>Attention notice</td>
+              <td>
+                <span className="email-cell">
+                  <span>Admin attention</span> {emailButton("attention")}
+                </span>
+              </td>
             </tr>
             <tr>
               <td>Tuesday 8 AM</td>
@@ -210,19 +272,22 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
               </td>
               <td>Publish automatically unless paused</td>
               <td>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.opening_email}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        opening_email: e.target.checked,
-                      })
-                    }
-                  />{" "}
-                  Opening
-                </label>
+                <span className="email-cell">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={settings.opening_email}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          opening_email: e.target.checked,
+                        })
+                      }
+                    />{" "}
+                    Opening
+                  </label>
+                  {emailButton("opening")}
+                </span>
               </td>
             </tr>
             <tr>
@@ -239,19 +304,22 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
               </td>
               <td>Check betting is open</td>
               <td>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.reminder_email}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        reminder_email: e.target.checked,
-                      })
-                    }
-                  />{" "}
-                  Reminder
-                </label>
+                <span className="email-cell">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={settings.reminder_email}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          reminder_email: e.target.checked,
+                        })
+                      }
+                    />{" "}
+                    Reminder
+                  </label>
+                  {emailButton("reminder")}
+                </span>
               </td>
             </tr>
             <tr>
@@ -273,29 +341,76 @@ export function WeeklySchedule({ leagueId }: { leagueId: string }) {
               </td>
               <td>Results, leaderboard, and updated balances</td>
               <td>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.recap_email}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        recap_email: e.target.checked,
-                      })
-                    }
-                  />{" "}
-                  Recap
-                </label>
+                <span className="email-cell">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={settings.recap_email}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          recap_email: e.target.checked,
+                        })
+                      }
+                    />{" "}
+                    Recap
+                  </label>
+                  {emailButton("recap")}
+                </span>
               </td>
             </tr>
             <tr>
               <td>When a ticket is accepted</td>
               <td>Save original selections and odds</td>
-              <td>Required confirmation</td>
+              <td>
+                <span className="email-cell">
+                  <span>Required confirmation</span> {emailButton("confirmation")}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
+      <section id="email-template-preview" className="email-template-preview">
+        <div className="email-preview-heading">
+          <h2>Email Templates</h2>
+          <select
+            aria-label="Email template"
+            value={emailKind}
+            onChange={(e) => setEmailKind(e.target.value as EmailKind)}
+          >
+            {(Object.keys(emailLabels) as EmailKind[]).map((kind) => (
+              <option key={kind} value={kind}>
+                {emailLabels[kind]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p>
+          Sample content for approval. These templates are not connected to
+          scheduled delivery yet; no emails are sent from this preview.
+        </p>
+        <div className="email-envelope">
+          <span>
+            <strong>From:</strong> Goldy Fantasy Sportsbook
+            &lt;sportsbook@coopergurrie.com&gt;
+          </span>
+          <span>
+            <strong>To:</strong>{" "}
+            {emailKind === "attention"
+              ? "League admin"
+              : "The approved league member"}
+          </span>
+          <span>
+            <strong>Subject:</strong> {email.subject}
+          </span>
+        </div>
+        <iframe
+          title={`${emailLabels[emailKind]} sample`}
+          sandbox=""
+          srcDoc={renderEmail(email)}
+        />
+      </section>
       {preview && (
         <section>
           <h2>Execution Preview · Week {preview.week}</h2>

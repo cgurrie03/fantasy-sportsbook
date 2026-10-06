@@ -14,3 +14,33 @@
 .tank-icon{width:22px;height:18px;vertical-align:middle;margin-right:4px}
 
 .weekly-schedule{display:grid;gap:18px}.schedule-controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px}.schedule-controls label{display:flex;align-items:center;gap:8px}.schedule-table-wrap{overflow:auto}.schedule-table{width:100%;border-collapse:collapse;text-align:left}.schedule-table th,.schedule-table td{padding:14px 12px;border-bottom:1px solid var(--line,#31415b);vertical-align:middle}.schedule-table input[type=time]{width:110px;margin-left:8px;padding:6px}.schedule-table label{white-space:nowrap}.schedule-status{padding:14px;background:var(--panel,#16243a);border-radius:12px}@media(max-width:600px){.schedule-table th,.schedule-table td{font-size:12px;padding:12px 7px}.schedule-table input[type=time]{display:block;margin:6px 0 0;width:94px}}
+.weekly-schedule{color:var(--text)}
+.weekly-schedule input[type=checkbox]{appearance:auto;display:inline-block;width:16px!important;min-width:16px;height:16px!important;min-height:0;padding:0!important;margin:0!important;flex:0 0 16px;accent-color:#eac35e;vertical-align:middle}
+.weekly-schedule .schedule-controls{padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);gap:16px}
+.weekly-schedule .schedule-controls label{display:flex;flex-direction:row;align-items:center;gap:9px;font-size:13px;white-space:normal;width:auto;margin-right:auto}
+.weekly-schedule button{border-radius:10px;padding:10px 14px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-weight:650;font-size:12px}
+.weekly-schedule button.primary{background:#f3c85f;color:#14233c;border-color:#f3c85f}
+.weekly-schedule button:disabled{opacity:.5;cursor:not-allowed}
+.weekly-schedule .schedule-status{background:var(--surface);margin:0}
+.execution-preview-help{margin:0;font-size:13px;line-height:1.7;color:var(--muted);max-width:920px}
+.execution-preview-help strong{color:var(--text)}
+.weekly-schedule .schedule-table{table-layout:fixed;background:var(--surface);border-radius:14px;overflow:hidden;font-size:13px;line-height:1.5}
+.weekly-schedule .schedule-table th{height:48px;background:var(--surface2);font-size:12px}
+.weekly-schedule .schedule-table tr{height:82px}
+.weekly-schedule .schedule-table th,.weekly-schedule .schedule-table td{padding:14px 18px;border-color:var(--border);color:var(--text);overflow-wrap:anywhere}
+.weekly-schedule .schedule-table th:nth-child(1){width:28%}.weekly-schedule .schedule-table th:nth-child(2){width:42%}.weekly-schedule .schedule-table th:nth-child(3){width:30%}
+.weekly-schedule .schedule-table input[type=time]{display:inline-block;width:112px;min-width:0;margin:6px 0 0 8px;padding:7px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);color-scheme:dark}
+[data-theme=light] .weekly-schedule .schedule-table input[type=time]{color-scheme:light}
+.weekly-schedule .email-cell{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.weekly-schedule .email-cell label{display:flex;flex-direction:row;align-items:center;gap:9px;font-size:13px;white-space:normal;margin:0;width:auto}
+.weekly-schedule button.email-preview-button{font-size:11px;padding:7px 10px;flex-shrink:0}
+.email-template-preview{scroll-margin-top:24px;border:1px solid var(--border);padding:20px;border-radius:16px;background:var(--surface)}
+.email-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.email-preview-heading h2{margin:0}.email-preview-heading select{width:auto;max-width:240px}
+.email-template-preview>p{color:var(--muted);font-size:13px;line-height:1.6}
+.email-envelope{display:grid;gap:8px;font-size:12px;overflow-wrap:anywhere;padding:16px;background:var(--surface2);border-radius:10px;margin:18px 0}
+.email-template-preview iframe{display:block;width:100%;height:960px;border:0;border-radius:12px;background:#edf1f7}
+@media(max-width:700px){.weekly-schedule .schedule-table thead{display:none}.weekly-schedule .schedule-table,.weekly-schedule .schedule-table tbody{display:block}.weekly-schedule .schedule-table tr{display:grid;height:auto;grid-template-columns:1fr;border-bottom:1px solid var(--border);padding:12px}.weekly-schedule .schedule-table td{display:block;padding:6px 4px;border:0}.weekly-schedule .schedule-table td:first-child{font-weight:700}.weekly-schedule .schedule-table td:nth-child(2){color:var(--muted)}.weekly-schedule .schedule-table td:last-child{padding-top:10px}.weekly-schedule .email-cell{justify-content:flex-start}.email-preview-heading{align-items:stretch;flex-direction:column}.email-preview-heading select{width:100%;max-width:none}.email-template-preview{padding:12px}.email-template-preview iframe{height:1100px}.weekly-schedule .schedule-controls{align-items:stretch}.weekly-schedule .schedule-controls label{width:100%;margin-bottom:4px}}
+
+.weekly-schedule .schedule-table thead tr{height:48px}.weekly-schedule .schedule-table tbody tr{height:88px}.weekly-schedule .schedule-table input[type=time]{height:32px;min-height:0;display:block;margin:4px 0 0;padding:5px 7px}@media(max-width:700px){.weekly-schedule .schedule-table tbody tr{height:auto}}
+
+.weekly-schedule .email-cell{flex-wrap:nowrap}.weekly-schedule .email-cell>span,.weekly-schedule .email-cell>label{min-width:0}
