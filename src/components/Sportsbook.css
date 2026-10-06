@@ -49,3 +49,5 @@
 
 .market-lock{width:21px;height:21px}.market-quote:disabled:has(.market-lock){opacity:1;color:var(--muted);background:var(--surface2)}
 @media(max-width:760px){.board-heading h1>span{display:block}.board-heading h1 .season-divider{display:none}.board-window .board-date{display:block}.board-window .board-date-divider{display:none}.board-heading{align-items:flex-start}.board-window{font-size:11px;line-height:1.5}.board-heading h1{font-size:25px}}
+
+.execution-balance-wrap{overflow-x:auto}.execution-balances{width:100%;border-collapse:collapse;font-size:12px;text-align:left}.execution-balances caption{text-align:left;font-weight:700;padding:0 0 10px}.execution-balances th,.execution-balances td{padding:7px 10px;border-bottom:1px solid var(--border);line-height:1.3}.execution-balances th{color:var(--muted);font-size:11px}.execution-balances td:nth-child(2),.execution-balances td:nth-child(3){white-space:nowrap;font-variant-numeric:tabular-nums}.execution-review{display:grid;gap:12px}.execution-balances td:last-child{font-weight:600}@media(max-width:600px){.execution-balances th,.execution-balances td{padding:7px 5px;font-size:11px}}

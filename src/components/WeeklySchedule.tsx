@@ -82,8 +82,8 @@ export function WeeklySchedule({
   const [overrides, setOverrides] = useState<
     Record<string, { status: string; actual_value: string; evidence: string }>
   >({});
-  const [emailKind, setEmailKind] = useState<EmailKind>("opening");
-  const email = sampleEmail(emailKind);
+  const [emailKind, setEmailKind] = useState<EmailKind | "">("");
+  const email = sampleEmail(emailKind || "opening");
   function emailButton(kind: EmailKind) {
     return (
       <button
@@ -459,16 +459,20 @@ export function WeeklySchedule({
               ? "Execution Results"
               : "Review Before Applying"}
           </h2>
-          {preview.balances?.map((b) => (
-            <p key={b.team_id}>
-              <strong>{b.name}</strong> · Balance: ${b.current.toFixed(2)}
-              {b.eligible && b.target !== null
-                ? ` → ${b.target.toFixed(2)}`
-                : ""}
-              <br />
-              <small>{b.reason}</small>
-            </p>
-          ))}
+          <div className="execution-balance-wrap">
+            <table className="execution-balances">
+              <caption>Potential Balance Changes</caption>
+              <thead><tr><th>Team</th><th>Balance</th><th>After Replenishment</th><th>Status</th></tr></thead>
+              <tbody>{preview.balances?.map(b => (
+                <tr key={b.team_id}>
+                  <td>{b.name}</td><td>${b.current.toFixed(2)}</td>
+                  <td>{b.target === null ? "—" : "$" + b.target.toFixed(2)}</td>
+                  <td><span title={b.reason}>{b.eligible ? (b.target! > b.current ? "Top Up" : "Keep Balance") : b.reason === "Already processed this week" ? "Processed" : b.reason === "Current-week wager already placed" ? "Already Wagered" : b.reason.startsWith("Not due") ? "Not Due" : "On Hold"}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <small>Balances are rechecked after settlement. Unresolved tickets hold replenishment.</small>
           <button
             disabled={busy || !ready}
             onClick={() => setConfirmApply(true)}
@@ -591,8 +595,9 @@ export function WeeklySchedule({
           <select
             aria-label="Email template"
             value={emailKind}
-            onChange={(e) => setEmailKind(e.target.value as EmailKind)}
+            onChange={(e) => setEmailKind(e.target.value as EmailKind | "")}
           >
+            <option value="">Choose A Template…</option>
             {(Object.keys(emailLabels) as EmailKind[]).map((kind) => (
               <option key={kind} value={kind}>
                 {emailLabels[kind]}
@@ -600,6 +605,7 @@ export function WeeklySchedule({
             ))}
           </select>
         </div>
+        {emailKind && <>
         <p>
           Sample content for approval. These templates are not connected to
           scheduled delivery yet; no emails are sent from this preview.
@@ -626,6 +632,8 @@ export function WeeklySchedule({
           sandbox=""
           srcDoc={renderEmail(email)}
         />
+        <button className="text-button" onClick={() => setEmailKind("")}>Hide Preview</button>
+        </>}
       </section>
       <h2>Execution History</h2>
       {runs.length ? (
