@@ -189,6 +189,12 @@ try {
     await db.exec("reset role;");
   }
   await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  const times={settlement:"00:30",recheck:"07:00",replenishment:"08:00",generation:"08:30",refresh:"07:30",cutoff:"20:00"};
+  const saveTimes=(values)=>rows("select public.configure_weekly_schedule_v2($1,false,true,true,true,'08:00','19:00','08:15',$2::jsonb)",[league,JSON.stringify(values)]);
+  await saveTimes(times);
+  assert.deepEqual((await rows("select job_times from public.weekly_schedule where league_id=$1",[league]))[0].job_times,times);
+  await assert.rejects(()=>saveTimes({...times,settlement:"25:00"}));
+  assert.equal((await rows("select automation_enabled from public.weekly_schedule where league_id=$1",[league]))[0].automation_enabled,false);
   await assert.rejects(() =>
     rows("select public.replenish_weekly_balances($1,2025,6)", [league]),
   );

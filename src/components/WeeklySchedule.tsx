@@ -13,6 +13,7 @@ interface Settings {
   reminder_time: string;
   recap_time: string;
   automation_enabled: boolean;
+  job_times: Record<string, string>;
 }
 const defaults: Settings = {
   publication_paused: false,
@@ -23,6 +24,14 @@ const defaults: Settings = {
   reminder_time: "19:00",
   recap_time: "08:15",
   automation_enabled: false,
+  job_times: {
+    settlement: "00:30",
+    recheck: "07:00",
+    replenishment: "08:00",
+    generation: "08:30",
+    refresh: "07:30",
+    cutoff: "20:00",
+  },
 };
 interface Preview {
   week: number;
@@ -92,7 +101,11 @@ export function WeeklySchedule({
           return;
         }
         if (schedule.data) {
-          setSettings(schedule.data as Settings);
+          setSettings({
+            ...defaults,
+            ...schedule.data,
+            job_times: { ...defaults.job_times, ...schedule.data.job_times },
+          } as Settings);
           setReady(true);
         }
         setRuns(logs.data ?? []);
@@ -107,7 +120,7 @@ export function WeeklySchedule({
   async function save() {
     setBusy(true);
     try {
-      const r = await supabase!.rpc("configure_weekly_schedule", {
+      const r = await supabase!.rpc("configure_weekly_schedule_v2", {
         p_league: leagueId,
         p_paused: settings.publication_paused,
         p_opening: settings.opening_email,
@@ -116,6 +129,7 @@ export function WeeklySchedule({
         p_opening_time: settings.opening_time,
         p_reminder_time: settings.reminder_time,
         p_recap_time: settings.recap_time,
+        p_job_times: settings.job_times,
       });
       if (r.error) throw r.error;
       setNotice(
@@ -182,6 +196,112 @@ export function WeeklySchedule({
       setBusy(false);
     }
   }
+  const scheduleRows: {
+    key: string;
+    day: string;
+    time?: string;
+    description: string;
+    email?: EmailKind;
+    toggle?: "opening_email" | "reminder_email" | "recap_email";
+    who: string;
+  }[] = [
+    {
+      key: "settlement",
+      day: "Tuesday",
+      time: "settlement",
+      description: "Confirm final results and settle resolved weekly tickets",
+      who: "—",
+    },
+    {
+      key: "recheck",
+      day: "Tuesday",
+      time: "recheck",
+      description: "Recheck unresolved results; flag held replenishments",
+      email: "attention",
+      who: "League admin, only if review is needed",
+    },
+    {
+      key: "replenishment",
+      day: "Tuesday",
+      time: "replenishment",
+      description: "Replenish eligible balances and advance the week",
+      who: "—",
+    },
+    {
+      key: "generation",
+      day: "Tuesday",
+      time: "generation",
+      description: "Generate upcoming lines and featured matchups",
+      who: "—",
+    },
+    {
+      key: "refresh",
+      day: "Wednesday",
+      time: "refresh",
+      description: "Refresh projections, injuries, and generated lines",
+      who: "—",
+    },
+    {
+      key: "opening",
+      day: "Wednesday",
+      time: "opening_time",
+      description: "Publish the board unless paused; send the opening email",
+      email: "opening",
+      toggle: "opening_email",
+      who: "All league members",
+    },
+    {
+      key: "reminder",
+      day: "Thursday",
+      time: "reminder_time",
+      description: "Remind eligible users before betting closes",
+      email: "reminder",
+      toggle: "reminder_email",
+      who: "Members with an available balance above $0",
+    },
+    {
+      key: "cutoff",
+      day: "Thursday",
+      time: "cutoff",
+      description: "Close static weekly betting",
+      who: "—",
+    },
+    {
+      key: "recap",
+      day: "Tuesday",
+      time: "recap_time",
+      description:
+        "Send the league roundup and personal results after replenishment",
+      email: "recap",
+      toggle: "recap_email",
+      who: "All league members; personal stats are individualized",
+    },
+    {
+      key: "confirmation",
+      day: "On ticket acceptance",
+      description: "Confirm the accepted wager, selections, odds, and payout",
+      email: "confirmation",
+      who: "The bettor only",
+    },
+    {
+      key: "signin",
+      day: "On sign-in request",
+      description: "Send a secure sign-in link to the approved account",
+      email: "signin",
+      who: "The requesting account only",
+    },
+  ];
+  const getTime = (key: string) =>
+    (key === "opening_time" || key === "reminder_time" || key === "recap_time"
+      ? settings[key]
+      : settings.job_times[key]
+    ).slice(0, 5);
+  const changeTime = (key: string, value: string) =>
+    setSettings(
+      key === "opening_time" || key === "reminder_time" || key === "recap_time"
+        ? { ...settings, [key]: value }
+        : { ...settings, job_times: { ...settings.job_times, [key]: value } },
+    );
   return (
     <section className="weekly-schedule">
       <p className="schedule-status">
@@ -229,145 +349,57 @@ export function WeeklySchedule({
           <thead>
             <tr>
               <th>When</th>
-              <th>Execution</th>
+              <th>Description</th>
               <th>Email</th>
+              <th>Who</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>After Monday games finish</td>
-              <td>Confirm results and settle resolved tickets</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>Tuesday 7 AM</td>
-              <td>Recheck unresolved results; flag admin review</td>
-              <td>
-                <span className="email-cell">
-                  <span>Admin attention</span> {emailButton("attention")}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>Tuesday 8 AM</td>
-              <td>Replenish eligible balances; advance the week</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>Tuesday–Wednesday</td>
-              <td>Generate and refresh lines and featured matches</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>
-                Wednesday{" "}
-                <input
-                  aria-label="Opening email time"
-                  type="time"
-                  value={settings.opening_time.slice(0, 5)}
-                  onChange={(e) =>
-                    setSettings({ ...settings, opening_time: e.target.value })
-                  }
-                />
-              </td>
-              <td>Publish automatically unless paused</td>
-              <td>
-                <span className="email-cell">
-                  <label>
+            {scheduleRows.map((row) => (
+              <tr key={row.key}>
+                <td>
+                  {row.day}
+                  {row.time ? (
                     <input
-                      type="checkbox"
-                      checked={settings.opening_email}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          opening_email: e.target.checked,
-                        })
-                      }
-                    />{" "}
-                    Opening
-                  </label>
-                  {emailButton("opening")}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Thursday{" "}
-                <input
-                  aria-label="Reminder email time"
-                  type="time"
-                  value={settings.reminder_time.slice(0, 5)}
-                  onChange={(e) =>
-                    setSettings({ ...settings, reminder_time: e.target.value })
-                  }
-                />
-              </td>
-              <td>Check betting is open</td>
-              <td>
-                <span className="email-cell">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.reminder_email}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          reminder_email: e.target.checked,
-                        })
-                      }
-                    />{" "}
-                    Reminder
-                  </label>
-                  {emailButton("reminder")}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>Thursday 8 PM</td>
-              <td>Close static weekly markets</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>
-                Tuesday{" "}
-                <input
-                  aria-label="Recap email time"
-                  type="time"
-                  value={settings.recap_time.slice(0, 5)}
-                  onChange={(e) =>
-                    setSettings({ ...settings, recap_time: e.target.value })
-                  }
-                />
-              </td>
-              <td>Results, leaderboard, and updated balances</td>
-              <td>
-                <span className="email-cell">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.recap_email}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          recap_email: e.target.checked,
-                        })
-                      }
-                    />{" "}
-                    Recap
-                  </label>
-                  {emailButton("recap")}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>When a ticket is accepted</td>
-              <td>Save original selections and odds</td>
-              <td>
-                <span className="email-cell">
-                  <span>Required confirmation</span> {emailButton("confirmation")}
-                </span>
-              </td>
-            </tr>
+                      aria-label={row.description + " time"}
+                      type="time"
+                      value={getTime(row.time)}
+                      onChange={(e) => changeTime(row.time!, e.target.value)}
+                    />
+                  ) : (
+                    <small className="event-timing">Immediately</small>
+                  )}
+                </td>
+                <td>{row.description}</td>
+                <td>
+                  {row.email ? (
+                    <span className="email-cell">
+                      {row.toggle ? (
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(settings[row.toggle])}
+                            onChange={(e) =>
+                              setSettings({
+                                ...settings,
+                                [row.toggle!]: e.target.checked,
+                              })
+                            }
+                          />
+                          {emailLabels[row.email]}
+                        </label>
+                      ) : (
+                        <span>{emailLabels[row.email]}</span>
+                      )}
+                      {emailButton(row.email)}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>{row.who}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -399,7 +431,9 @@ export function WeeklySchedule({
             <strong>To:</strong>{" "}
             {emailKind === "attention"
               ? "League admin"
-              : "The approved league member"}
+              : emailKind === "reminder"
+                ? "League members with an available balance above $0"
+                : "The approved league member"}
           </span>
           <span>
             <strong>Subject:</strong> {email.subject}
