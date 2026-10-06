@@ -33,3 +33,11 @@ Use America/New_York for every operation, including daylight saving changes. The
 - Review sample opening, reminder, confirmation, and recap emails before sending to the league.
 
 Only required ticket confirmations currently have an email implementation. The other scheduled operations and email controls require this next stage.
+
+## First execution implementation
+
+Migration `202610050007_weekly_execution.sql` adds admin-readable schedule preferences and execution history, idempotent ticket settlement, and per-week replenishment. It defaults automation to disabled. `Weekly Schedule` now edits publication pause and email preferences and calls a no-write preview endpoint.
+
+The execution endpoint checks the verified admin membership. It waits for Sleeper's season/week state to advance before accepting weekly results, fetches all league scores (including teams outside the six displayed scorer favorites), and resolves against accepted ticket snapshots. Player participation must be explicit in the stats feed; absent evidence remains pending. Confirmed non-participation pushes the leg. Tied high/low winning outcomes push, while non-winners lose. Replenishment defers users with unresolved prior tickets, unsupported futures, or current-week tickets placed before that week's replenishment.
+
+These functions have been tested locally; the migration has not been applied to production. No scheduler is attached, no league-wide email has been sent, and no live ticket or balance has been changed. Next: apply the reviewed migration, deploy, verify the preview against live data, then connect the due-job dispatcher and branded email outbox before activation.

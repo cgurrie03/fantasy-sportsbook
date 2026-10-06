@@ -37,6 +37,10 @@ Use America/New_York, including daylight saving.
 
 Wednesday 8 AM publication is automatic unless the admin pauses it. Regeneration recalculates the selected category from current data; accepted tickets retain their original selections and prices. Scheduled execution is the next implementation stage; this schedule is approved but not yet running.
 
+Projected starting lineups maximize raw league-scored weekly projected points across the eligible roster, including bench replacements for missing/inactive/bye starters. History adjusts score estimates after lineup selection. A missing legal replacement remains an explicit unfilled slot; no free agents are invented.
+
+Confirmed non-participation on a Player Points ticket pushes that leg. Missing or ambiguous participation evidence stays pending. Replenishment waits for any unresolved prior weekly ticket belonging to that user; flag it for admin review and retry after resolution. An all-push ticket refunds its stake; mixed pushes remove those legs from the accepted payout calculation.
+
 ## Featured Markets
 
 GOTW: closest absolute spread where both teams are above .500; closest overall fallback, always one. Admin may override. Tank Bowl: both below .333, lowest combined wins, optional, admin handles ties. Boost potential profit by 25% on GOTW moneylines and Tank Bowl moneylines/Match Over. Do not boost returned stake. Sort matches by combined winning record, then projected points.

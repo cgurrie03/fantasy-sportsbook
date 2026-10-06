@@ -1,0 +1,202 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+import { settleLeg } from "../api/_lib/settlement.ts";
+const final = {
+  final: true,
+  teams: {
+    a: { name: "A", points: 110 },
+    b: { name: "B", points: 100 },
+    c: { name: "C", points: 80 },
+  },
+  players: {
+    p: { played: true, points: 20 },
+    dnp: { played: false, points: 0 },
+  },
+};
+const leg = (kind, side = "over", line = 20, metadata = {}) => ({
+  id: "leg",
+  accepted_line: line,
+  settlement_context: {
+    kind,
+    side,
+    team_id: "a",
+    home_team_id: "a",
+    away_team_id: "b",
+    metadata,
+  },
+});
+assert.equal(settleLeg(leg("spread", "a", -10), final).status, "PUSH");
+assert.equal(settleLeg(leg("moneyline", "a", null), final).status, "WON");
+assert.equal(
+  settleLeg(leg("match_total", "under", 209.5), final).status,
+  "LOST",
+);
+assert.equal(
+  settleLeg(leg("player_points", "under", 5, { player_id: "dnp" }), final)
+    .status,
+  "PUSH",
+);
+assert.equal(
+  settleLeg(leg("player_points", "under", 5, { player_id: "missing" }), final)
+    .status,
+  "OPEN",
+);
+assert.equal(settleLeg(leg("weekly_high"), final).status, "WON");
+assert.equal(
+  settleLeg(leg("weekly_high"), {
+    ...final,
+    teams: { ...final.teams, b: { name: "B", points: 110 } },
+  }).status,
+  "PUSH",
+);
+assert.equal(
+  settleLeg(leg("moneyline"), { ...final, final: false }).status,
+  "OPEN",
+);
+
+const db = new PGlite();
+try {
+  await db.exec(
+    "create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;",
+  );
+  for (const file of fs.readdirSync("supabase/migrations").sort())
+    await db.exec(fs.readFileSync(`supabase/migrations/${file}`, "utf8"));
+  const rows = async (sql, args = []) => (await db.query(sql, args)).rows;
+  const league = "13121261-5398-4391-8240-000000000003",
+    admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const team = (await rows("select id from public.teams where roster_id=1"))[0]
+    .id;
+  const ticket = "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    l1 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    l2 = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  await db.exec(
+    `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;`,
+  );
+  await db.query(
+    "insert into public.tickets(id,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values($1,$2,$3,3,2026,5,5,now(),500,10,60,'OPEN',0)",
+    [ticket, league, team],
+  );
+  await db.query(
+    "insert into public.ticket_legs(id,ticket_id,leg_number,selection,market_type,accepted_odds,accepted_decimal_odds,status,result_evidence) values($1,$3,1,'A','Spread',100,2,'OPEN','test'),($2,$3,2,'B','Team Total',200,3,'OPEN','test')",
+    [l1, l2, ticket],
+  );
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  const results = [
+    { id: l1, status: "WON", actual_value: 10, evidence: "final score" },
+    { id: l2, status: "PUSH", actual_value: 100, evidence: "tied line" },
+  ];
+  const before = Number(
+    (
+      await rows("select balance from public.wallets where team_id=$1", [team])
+    )[0].balance,
+  );
+  const settle = () =>
+    rows("select public.settle_weekly_ticket($1,$2::jsonb) result", [
+      ticket,
+      JSON.stringify(results),
+    ]);
+  assert.equal((await settle())[0].result.payout, 20);
+  assert.equal((await settle())[0].result.duplicate, true);
+  assert.equal(
+    Number(
+      (
+        await rows("select balance from public.wallets where team_id=$1", [
+          team,
+        ])
+      )[0].balance,
+    ),
+    before + 20,
+  );
+  assert.equal(
+    (
+      await rows(
+        "select count(*)::int n from public.wallet_ledger where event_key=$1",
+        [`ticket:settle:${ticket}`],
+      )
+    )[0].n,
+    1,
+  );
+  const replenish = () =>
+    rows("select public.replenish_weekly_balances($1,2026,6) result", [league]);
+  await replenish();
+  const balance = Number(
+    (
+      await rows("select balance from public.wallets where team_id=$1", [team])
+    )[0].balance,
+  );
+  assert.equal(balance, before + 20);
+  assert.equal((await replenish())[0].result.already_processed, 12);
+  await db.exec("reset role;");
+  const blockedTeam = (
+    await rows("select id from public.teams where roster_id=2")
+  )[0].id;
+  await db.query("update public.wallets set balance=20 where team_id=$1", [
+    blockedTeam,
+  ]);
+  await db.query(
+    "insert into public.tickets(league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values($1,$2,3,2026,6,6,now(),100,10,20,'OPEN',0)",
+    [league, blockedTeam],
+  );
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  const blocked = await rows(
+    "select public.replenish_weekly_balances($1,2026,7) result",
+    [league],
+  );
+  assert.equal(blocked[0].result.blocked, 1);
+  assert.equal(
+    Number(
+      (
+        await rows("select balance from public.wallets where team_id=$1", [
+          blockedTeam,
+        ])
+      )[0].balance,
+    ),
+    20,
+  );
+  await db.exec("reset role;");
+  for (const outcome of ["PUSH", "LOST"]) {
+    const id = (
+      await rows(
+        "insert into public.tickets(league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values($1,$2,3,2026,5,5,now(),100,10,20,'OPEN',0) returning id",
+        [league, team],
+      )
+    )[0].id;
+    const idLeg = (
+      await rows(
+        "insert into public.ticket_legs(ticket_id,leg_number,selection,market_type,accepted_odds,accepted_decimal_odds,status,result_evidence) values($1,1,'A','Spread',100,2,'OPEN','test') returning id",
+        [id],
+      )
+    )[0].id;
+    await db.exec(
+      `set role authenticated;set request.jwt.claim.sub='${admin}';`,
+    );
+    const paid = (
+      await rows("select public.settle_weekly_ticket($1,$2::jsonb) result", [
+        id,
+        JSON.stringify([
+          {
+            id: idLeg,
+            status: outcome,
+            actual_value: 0,
+            evidence: "confirmed result",
+          },
+        ]),
+      ])
+    )[0].result;
+    assert.equal(paid.payout, outcome === "PUSH" ? 10 : 0);
+    assert.equal(paid.status, outcome);
+    await db.exec("reset role;");
+  }
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  await assert.rejects(() =>
+    rows("select public.replenish_weekly_balances($1,2025,6)", [league]),
+  );
+  await db.exec("reset role;set role anon;");
+  await assert.rejects(settle);
+  console.log(
+    "Passed actual-score settlement, inactive pushes, pending results, accepted odds, duplicate payment/reset protection, higher-balance retention, and unauthorized execution rejection.",
+  );
+} finally {
+  await db.close();
+}

@@ -111,7 +111,7 @@ export function bestLineup(
         )
           return;
         const next = mask | (1 << index),
-          value = state.value + player.expected;
+          value = state.value + player.projection;
         if (!states.has(next) || states.get(next)!.value < value)
           states.set(next, { value, picks: [...state.picks, player] });
       });

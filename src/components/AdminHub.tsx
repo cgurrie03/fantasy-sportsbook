@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
 import { BettingLogs, Chevron, TicketHistory } from "./TicketHistory";
 import { MarketAdmin } from "./MarketAdmin";
+import { WeeklySchedule } from "./WeeklySchedule";
 const categories = [
   {
     id: "users",
@@ -52,7 +53,7 @@ const categories = [
     group: "Operations",
     title: "Weekly Schedule",
     description: "Week advancement, cutoff, settlement, and replenishment.",
-    status: "Upcoming",
+    status: "Review Schedule",
   },
   {
     id: "emails",
@@ -117,6 +118,8 @@ export function AdminHub({
                 <BettingLogs tickets={tickets} owner={owner} />
               ) : selected === "lines" || selected === "promos" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
+              ) : selected === "schedule" ? (
+                <WeeklySchedule leagueId={leagueId} />
               ) : (
                 <section className="upcoming-panel">
                   <strong>Upcoming Tools</strong>
