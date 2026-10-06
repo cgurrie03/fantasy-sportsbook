@@ -4,6 +4,7 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
 const roundHalf = (value: number) => Math.round(value * 2) / 2;
 const american = (probability: number) => Math.round(probability >= 0.5 ? -100 * probability / (1 - probability) : 100 * (1 - probability) / probability);
 const SLEEPER_LEAGUE_ID = "1312126153980391424";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const url = process.env.SUPABASE_URL, serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       add("team_total", "over", `${away.team_name} Over ${roundHalf(awayProjection / 2)}`, -110, roundHalf(awayProjection / 2), away.id); add("team_total", "under", `${away.team_name} Under ${roundHalf(awayProjection / 2)}`, -110, roundHalf(awayProjection / 2), away.id);
     }
     if (input.category === "Player Points") {
-      const players = await sleeper("players/nfl") as Record<string, { full_name?: string; first_name?: string; last_name?: string; position?: string; team?: string }>;
+      const players = (await sleeper("players/nfl") ?? {}) as Record<string, { full_name?: string; first_name?: string; last_name?: string; position?: string; team?: string }>;
       const excluded = new Set(["K", "DEF", "DST"]);
       for (const pairing of pairings) {
         const home = rosterMap.get(pairing[0].roster_id), away = rosterMap.get(pairing[1].roster_id); if (!home || !away) continue;
