@@ -7,7 +7,7 @@ export interface Market {
   label: string; subject: string; side: string; line: number | null; odds: number; boost_pct: number;
   team_id: string | null; home_team_id: string | null; away_team_id: string | null;
   home_projection: number | null; away_projection: number | null; featured: "" | "Game of the Week" | "Tank Bowl";
-  metadata: { player_id?: string; position?: string; nfl_team?: string; season_average?: number; projection?: number; game_info?: string; };
+  metadata: { player_id?: string; position?: string; nfl_team?: string; season_average?: number; projection?: number; game_info?: string; rationale?: string; generated_at?: string; [key: string]: unknown };
   active: boolean;
 }
 export const marketType = {spread:"Spread",moneyline:"Moneyline",match_total:"Match Total",team_total:"Team Total",player_points:"Player Points",weekly_high:"Weekly High Scorer",weekly_low:"Weekly Low Scorer"};
