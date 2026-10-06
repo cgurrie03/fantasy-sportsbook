@@ -637,13 +637,12 @@ export default function App() {
                   if (e.key === "Escape") e.currentTarget.open = false;
                 }}
               >
-                <summary className="profile" aria-label="Open Account Options">
+                <summary className="profile profile-box" aria-label="Open Account Options">
                   <Avatar
                     src={team?.avatar_url ?? null}
                     name={member?.display_name ?? "Member"}
                   />
-                  <span>{member?.display_name ?? "Account"}</span>
-                  <span aria-hidden="true">⌄</span>
+                  <span className="profile-copy"><strong>{member?.display_name ?? "Account"}</strong><small>Balance: {money(Number(data?.wallets.find(w => w.team_id === member?.team_id)?.balance ?? 0))}</small></span>
                 </summary>
                 <div className="profile-options">
                   <button
@@ -687,13 +686,6 @@ export default function App() {
           )}
         </div>
       </header>
-      {session && data && member && (
-        <nav className="global-nav" aria-label="Primary Navigation">
-          <button className={page === "home" ? "active" : ""} onClick={() => setPage("home")}>Home</button>
-          <button className={page === "account" ? "active" : ""} onClick={() => setPage("account")}>Account</button>
-          {member.role === "admin" && <button className={page === "admin" ? "active" : ""} onClick={() => setPage("admin")}>League Admin</button>}
-        </nav>
-      )}
       {!ready ? (
         <main className="empty" role="status">
           Loading Your Account…

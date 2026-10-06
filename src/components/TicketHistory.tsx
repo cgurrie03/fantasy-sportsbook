@@ -194,11 +194,9 @@ const legResult = (leg: TicketLeg) => {
           (value > 0 ? "Won by " : "Lost by ") +
           points(Math.abs(value)) +
           " points";
-  return (
-    (leg.market_type.includes("Over") || leg.market_type.includes("Under")
-      ? "Actual Total: "
-      : "Actual Score: ") + points(value)
-  );
+  if (leg.market_type.includes("Weekly High") || leg.market_type.includes("Weekly Low"))
+    return "Actual Winner: " + leg.selection + " · " + points(value);
+  return (leg.market_type.includes("Over") || leg.market_type.includes("Under") ? "Actual Total: " : "Actual Score: ") + points(value);
 };
 
 export function TicketHistory({

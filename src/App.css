@@ -594,6 +594,7 @@ footer {
 .profile-menu summary::-webkit-details-marker {
   display: none;
 }
+.profile-box{padding:6px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);display:flex;align-items:center;gap:8px}.profile-copy{display:grid;gap:2px}.profile-copy small{font-size:10px;color:var(--muted);font-weight:500}.leaderboard-subtitle{font-style:italic}
 .profile-options {
   position: absolute;
   right: 0;
@@ -1142,5 +1143,3 @@ footer {
   font-size: 12px;
   white-space: nowrap;
 }
-.global-nav{display:flex;gap:8px;max-width:1280px;margin:0 auto;padding:0 32px 4px}.global-nav button{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:9px;padding:9px 13px;font-size:12px}.global-nav button:hover,.global-nav button.active{color:var(--text);background:var(--surface-2);border-color:var(--border)}
-@media(max-width:600px){.global-nav{padding:0 16px 4px}}
