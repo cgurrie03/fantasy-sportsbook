@@ -13,6 +13,11 @@ try {
     "weekly-execution",
     "_lib/line-model",
     "_lib/settlement",
+    "_lib/worker-auth",
+    "_lib/email-templates",
+    "_lib/mail",
+    "weekly-worker",
+    "place-bet",
   ]) {
     const source = await readFile(`api/${file}.ts`, "utf8");
     const { outputText } = ts.transpileModule(source, {
@@ -48,6 +53,104 @@ try {
     ).status,
     401,
   );
+  const worker = await import(
+    pathToFileURL(path.join(root, "weekly-worker.js")).href
+  );
+  assert.equal(
+    (
+      await worker.POST(
+        new Request("https://example.invalid/api/weekly-worker", {
+          method: "POST",
+        }),
+      )
+    ).status,
+    401,
+  );
+  assert.equal(
+    worker.easternTime("2026-10-07", "08:00"),
+    "2026-10-07T12:00:00.000Z",
+  );
+  assert.equal(
+    worker.easternTime("2026-11-04", "08:00"),
+    "2026-11-04T13:00:00.000Z",
+  );
+  console.log(
+    "Scheduled worker rejects unauthenticated requests; Eastern times follow daylight saving.",
+  );
+  const mail = await import(
+    pathToFileURL(path.join(root, "_lib/mail.js")).href
+  );
+  const oldMailFetch = globalThis.fetch,
+    oldMailKey = process.env.RESEND_API_KEY;
+  const changes = [];
+  let providerFails = false;
+  const acceptedPayload = {
+    from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+    to: ["test@example.invalid"],
+    subject: "Accepted Ticket",
+    html: "<p>Saved picks</p>",
+    text: "Saved picks",
+  };
+  const emailDb = {
+    rpc: async () => ({
+      data: [
+        {
+          id: "mail",
+          event_key: "confirmation:test",
+          kind: "confirmation",
+          ticket_id: "ticket",
+          attempts: 1,
+          payload: acceptedPayload,
+        },
+      ],
+    }),
+    from: (table) => ({
+      update: (patch) => ({
+        eq: async () => {
+          changes.push({ table, patch });
+          return {};
+        },
+      }),
+    }),
+  };
+  process.env.RESEND_API_KEY = "test-provider-key";
+  globalThis.fetch = async (url, init) => {
+    assert.equal(String(url), "https://api.resend.com/emails");
+    assert.equal(init.headers["Idempotency-Key"], "confirmation:test");
+    assert.deepEqual(JSON.parse(init.body), acceptedPayload);
+    return new Response(
+      JSON.stringify(
+        providerFails
+          ? { message: "Temporary provider failure" }
+          : { id: "provider-id" },
+      ),
+      {
+        status: providerFails ? 503 : 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  };
+  try {
+    assert.equal((await mail.deliverEmails(emailDb)).sent, 1);
+    assert(
+      changes.some(
+        (c) => c.table === "outbound_emails" && c.patch.status === "sent",
+      ),
+    );
+    providerFails = true;
+    changes.length = 0;
+    assert.equal((await mail.deliverEmails(emailDb)).sent, 0);
+    assert(
+      changes.some((c) => c.patch.status === "failed" && c.patch.lease_until),
+    );
+    console.log(
+      "Email delivery preserves the saved payload/idempotency key and records transient failures for retry.",
+    );
+  } finally {
+    globalThis.fetch = oldMailFetch;
+    if (oldMailKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = oldMailKey;
+  }
   const savedFetch = globalThis.fetch;
   const savedUrl = process.env.SUPABASE_URL;
   const savedKey = process.env.SUPABASE_ANON_KEY;

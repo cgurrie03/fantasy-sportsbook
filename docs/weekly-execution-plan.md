@@ -49,3 +49,15 @@ Scheduled rows show an exact day/time; the newly proposed settlement time is Tue
 Opening emails show the actual featured matchups and a few published lines; omit Tank Bowl when no matchup is designated. Reminders go only to members with available cash above zero, evaluated at send time. Confirmations group accepted legs beneath matchup headers, indent selections, and show a leg-count circle. Never substitute regenerated odds for accepted odds.
 
 Recaps lead with league stories, then compact individualized stats. Worst beat is the narrowest losing spread/total margin among wagered lines; biggest upset is the winning underdog moneyline with the longest accepted base odds; most bet line counts distinct tickets containing that exact accepted selection and line; biggest winner ranks weekly net betting profit excluding top-ups and adjustments. Show ties honestly and omit stories without qualifying evidence. Ticket-stake totals on a popular parlay leg are labeled total ticket stakes, not separately allocated stakes. Preview stories are fictional; live statistics aggregation is not yet connected.
+
+## Scheduled delivery connection — October 6
+
+The server worker, private scheduler header, queue tables, service-only execution bridge, and admin logs are implemented. Supabase Cron checks once per minute. The scheduled connection is installed in production and activation is requested only after setup; it waits for a protected health response from the new Vercel deployment. No real email or wallet mutation was used for the local integration checks.
+
+Opening, reminder, recap, admin attention and accepted-ticket confirmation now share the reviewed HTML templates and plain-text equivalents. Outbox payloads are saved before sending; per-message keys and five-minute leases protect overlapping workers. Retries stop before Resend's 24-hour idempotency window expires, and exhausted/ambiguous deliveries remain visible for admin review. Imported confirmations are not replayed.
+
+Published boards retain their lines. Draft generation and Wednesday refresh share the manual generation implementation. Publication requires all three Wednesday categories to succeed; pause controls hold publication. Week 5 is already published, so its existing lines are preserved and the scheduled opening email uses that board. Records are refreshed from Sleeper. Accepted ticket snapshots remain intact.
+
+Current execution windows allow up to two hours of catch-up for a scheduled step. The worker processes one job and up to four email deliveries per invocation. Failures are logged and an admin attention email is queued. Replenishment and settlement remain idempotent database operations. Recap waits for the replenishment step.
+
+Deployment is currently blocked by this session's Windows Git credential-store restriction. Push the committed branch to main from the user's normal terminal. The installed scheduler will verify the deployed worker and activate automatically. Then verify one actual delivery and an end-to-end weekly cycle before considering the rollout fully proven.

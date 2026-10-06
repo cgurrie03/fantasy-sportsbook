@@ -13,6 +13,7 @@ interface Settings {
   reminder_time: string;
   recap_time: string;
   automation_enabled: boolean;
+  activation_requested?: boolean;
   job_times: Record<string, string>;
 }
 const defaults: Settings = {
@@ -78,6 +79,25 @@ export function WeeklySchedule({
   const [runs, setRuns] = useState<
     { id: string; operation: string; market_week: number; created_at: string }[]
   >([]);
+  const [deliveryLogs, setDeliveryLogs] = useState<
+    {
+      id: string;
+      kind: string;
+      recipient: string;
+      status: string;
+      last_error: string | null;
+      created_at: string;
+    }[]
+  >([]);
+  const [jobLogs, setJobLogs] = useState<
+    {
+      id: string;
+      operation: string;
+      status: string;
+      last_error: string | null;
+      created_at: string;
+    }[]
+  >([]);
   const [confirmApply, setConfirmApply] = useState(false);
   const [overrides, setOverrides] = useState<
     Record<string, { status: string; actual_value: string; evidence: string }>
@@ -116,6 +136,24 @@ export function WeeklySchedule({
         .limit(20),
     ])
       .then(([schedule, logs]) => {
+        void supabase!
+          .from("outbound_emails")
+          .select("id,kind,recipient,status,last_error,created_at")
+          .eq("league_id", leagueId)
+          .order("created_at", { ascending: false })
+          .limit(30)
+          .then((r) => {
+            if (active) setDeliveryLogs(r.data ?? []);
+          });
+        void supabase!
+          .from("automation_jobs")
+          .select("id,operation,status,last_error,created_at")
+          .eq("league_id", leagueId)
+          .order("created_at", { ascending: false })
+          .limit(30)
+          .then((r) => {
+            if (active) setJobLogs(r.data ?? []);
+          });
         if (!active) return;
         if (schedule.error || logs.error) {
           setNotice(
@@ -156,7 +194,7 @@ export function WeeklySchedule({
       });
       if (r.error) throw r.error;
       setNotice(
-        "Schedule preferences saved. Background execution is not activated yet.",
+        "Schedule preferences saved. Automatic execution follows these times when enabled.",
       );
     } catch (e) {
       setNotice(errorMessage(e));
@@ -357,12 +395,50 @@ export function WeeklySchedule({
         <strong>
           {settings.automation_enabled
             ? "Automation Active"
-            : "Automation Not Activated"}
+            : settings.activation_requested
+              ? "Waiting For Deployment Verification"
+              : "Automation Paused"}
         </strong>{" "}
         · All times Eastern
       </p>
       {notice && <p role="status">{notice}</p>}
       <div className="schedule-controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={
+              settings.automation_enabled ||
+              Boolean(settings.activation_requested)
+            }
+            disabled={busy || reviewMode || !ready}
+            onChange={async (e) => {
+              const enabled = e.target.checked;
+              setBusy(true);
+              try {
+                const r = await supabase!.rpc("set_weekly_automation", {
+                  p_league: leagueId,
+                  p_enabled: enabled,
+                });
+                if (r.error) throw r.error;
+                setSettings({
+                  ...settings,
+                  automation_enabled: false,
+                  activation_requested: enabled,
+                });
+                setNotice(
+                  enabled
+                    ? "Automation will start after the worker connection is verified."
+                    : "Weekly automation paused.",
+                );
+              } catch (error) {
+                setNotice(errorMessage(error));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+          Enable Weekly Automation
+        </label>
         <label>
           <input
             type="checkbox"
@@ -462,17 +538,46 @@ export function WeeklySchedule({
           <div className="execution-balance-wrap">
             <table className="execution-balances">
               <caption>Potential Balance Changes</caption>
-              <thead><tr><th>Team</th><th>Balance</th><th>After Replenishment</th><th>Status</th></tr></thead>
-              <tbody>{preview.balances?.map(b => (
-                <tr key={b.team_id}>
-                  <td>{b.name}</td><td>${b.current.toFixed(2)}</td>
-                  <td>{b.target === null ? "—" : "$" + b.target.toFixed(2)}</td>
-                  <td><span title={b.reason}>{b.eligible ? (b.target! > b.current ? "Top Up" : "Keep Balance") : b.reason === "Already processed this week" ? "Processed" : b.reason === "Current-week wager already placed" ? "Already Wagered" : b.reason.startsWith("Not due") ? "Not Due" : "On Hold"}</span></td>
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th>Balance</th>
+                  <th>After Replenishment</th>
+                  <th>Status</th>
                 </tr>
-              ))}</tbody>
+              </thead>
+              <tbody>
+                {preview.balances?.map((b) => (
+                  <tr key={b.team_id}>
+                    <td>{b.name}</td>
+                    <td>${b.current.toFixed(2)}</td>
+                    <td>
+                      {b.target === null ? "—" : "$" + b.target.toFixed(2)}
+                    </td>
+                    <td>
+                      <span title={b.reason}>
+                        {b.eligible
+                          ? b.target! > b.current
+                            ? "Top Up"
+                            : "Keep Balance"
+                          : b.reason === "Already processed this week"
+                            ? "Processed"
+                            : b.reason === "Current-week wager already placed"
+                              ? "Already Wagered"
+                              : b.reason.startsWith("Not due")
+                                ? "Not Due"
+                                : "On Hold"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
-          <small>Balances are rechecked after settlement. Unresolved tickets hold replenishment.</small>
+          <small>
+            Balances are rechecked after settlement. Unresolved tickets hold
+            replenishment.
+          </small>
           <button
             disabled={busy || !ready}
             onClick={() => setConfirmApply(true)}
@@ -519,7 +624,10 @@ export function WeeklySchedule({
                 </summary>
                 {t.legs.map((l) => (
                   <p key={l.id}>
-                    <strong>{l.selection ?? "Leg"} · {l.status}</strong> · {l.evidence}
+                    <strong>
+                      {l.selection ?? "Leg"} · {l.status}
+                    </strong>{" "}
+                    · {l.evidence}
                   </p>
                 ))}
                 {t.final &&
@@ -541,7 +649,8 @@ export function WeeklySchedule({
                       return (
                         <fieldset key={l.id}>
                           <legend>
-                            Review Unresolved Leg · {l.selection ?? l.id.slice(0, 8)}
+                            Review Unresolved Leg ·{" "}
+                            {l.selection ?? l.id.slice(0, 8)}
                           </legend>
                           <label>
                             Confirmed Result
@@ -605,36 +714,96 @@ export function WeeklySchedule({
             ))}
           </select>
         </div>
-        {emailKind && <>
-        <p>
-          Sample content for approval. These templates are not connected to
-          scheduled delivery yet; no emails are sent from this preview.
-        </p>
-        <div className="email-envelope">
-          <span>
-            <strong>From:</strong> Goldy Fantasy Sportsbook
-            &lt;sportsbook@coopergurrie.com&gt;
-          </span>
-          <span>
-            <strong>To:</strong>{" "}
-            {emailKind === "attention"
-              ? "League admin"
-              : emailKind === "reminder"
-                ? "League members with an available balance above $0"
-                : "The approved league member"}
-          </span>
-          <span>
-            <strong>Subject:</strong> {email.subject}
-          </span>
-        </div>
-        <iframe
-          title={`${emailLabels[emailKind]} sample`}
-          sandbox=""
-          srcDoc={renderEmail(email)}
-        />
-        <button className="text-button" onClick={() => setEmailKind("")}>Hide Preview</button>
-        </>}
+        {emailKind && (
+          <>
+            <p>
+              Sample template preview. Scheduled emails use live league data;
+              this preview sends nothing.
+            </p>
+            <div className="email-envelope">
+              <span>
+                <strong>From:</strong> Goldy Fantasy Sportsbook
+                &lt;sportsbook@coopergurrie.com&gt;
+              </span>
+              <span>
+                <strong>To:</strong>{" "}
+                {emailKind === "attention"
+                  ? "League admin"
+                  : emailKind === "reminder"
+                    ? "League members with an available balance above $0"
+                    : "The approved league member"}
+              </span>
+              <span>
+                <strong>Subject:</strong> {email.subject}
+              </span>
+            </div>
+            <iframe
+              title={`${emailLabels[emailKind]} sample`}
+              sandbox=""
+              srcDoc={renderEmail(email)}
+            />
+            <button className="text-button" onClick={() => setEmailKind("")}>
+              Hide Preview
+            </button>
+          </>
+        )}
       </section>
+      <details>
+        <summary>Email Delivery Logs · {deliveryLogs.length}</summary>
+        <table className="execution-balances">
+          <thead>
+            <tr>
+              <th>Type / Recipient</th>
+              <th>Status</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deliveryLogs.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  {r.kind}
+                  <br />
+                  {r.recipient}
+                </td>
+                <td>{r.status}</td>
+                <td>
+                  {r.last_error ??
+                    new Date(r.created_at).toLocaleString("en-US", {
+                      timeZone: "America/New_York",
+                    })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+      <details>
+        <summary>Scheduled Execution Logs · {jobLogs.length}</summary>
+        <table className="execution-balances">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Status</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobLogs.map((r) => (
+              <tr key={r.id}>
+                <td>{r.operation}</td>
+                <td>{r.status}</td>
+                <td>
+                  {r.last_error ??
+                    new Date(r.created_at).toLocaleString("en-US", {
+                      timeZone: "America/New_York",
+                    })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
       <h2>Execution History</h2>
       {runs.length ? (
         runs.map((r) => (

@@ -1,3 +1,4 @@
+import { isWorker } from "./_lib/worker-auth.js";
 import { createClient } from "@supabase/supabase-js";
 import { settleLeg } from "./_lib/settlement.js";
 import type { FinalResults, LegInput } from "./_lib/settlement.ts";
@@ -14,21 +15,35 @@ export async function POST(request: Request) {
     const key =
       process.env.SUPABASE_ANON_KEY ??
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const worker = isWorker(request);
     const authorization = request.headers.get("authorization") ?? "";
-    if (!url || !key || !authorization.startsWith("Bearer "))
+    if (!url || !key || (!worker && !authorization.startsWith("Bearer ")))
       return json({ error: "Sign in before reviewing weekly execution." }, 401);
-    const client = createClient(url, key, {
-      global: { headers: { Authorization: authorization } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const auth = await client.auth.getUser();
-    if (!auth.data.user || auth.error)
-      return json({ error: "Sign in again." }, 401);
-    const claim = await client.rpc("claim_memberships");
-    if (claim.error) throw new Error(claim.error.message);
+    const client = createClient(
+      url,
+      worker ? process.env.SUPABASE_SERVICE_ROLE_KEY! : key,
+      {
+        global: {
+          headers: {
+            Authorization: worker
+              ? `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+              : authorization,
+          },
+        },
+        auth: { persistSession: false, autoRefreshToken: false },
+      },
+    );
+    if (!worker) {
+      const auth = await client.auth.getUser();
+      if (!auth.data.user || auth.error)
+        return json({ error: "Sign in again." }, 401);
+      const claim = await client.rpc("claim_memberships");
+      if (claim.error) throw new Error(claim.error.message);
+    }
     const input = (await request.json()) as {
       league_id?: string;
       apply?: boolean;
+      replenish?: boolean;
       overrides?: {
         id: string;
         status: "WON" | "LOST" | "PUSH";
@@ -37,18 +52,21 @@ export async function POST(request: Request) {
       }[];
     };
     if (!input.league_id) return json({ error: "League is required." }, 400);
-    const member = await client
-      .from("league_memberships")
-      .select("role")
-      .eq("league_id", input.league_id)
-      .eq("user_id", auth.data.user.id)
-      .maybeSingle();
-    if (member.error) throw new Error(member.error.message);
-    if (member.data?.role !== "admin")
-      return json(
-        { error: "Only the league admin can review weekly execution." },
-        403,
-      );
+    if (!worker) {
+      const auth = await client.auth.getUser();
+      const member = await client
+        .from("league_memberships")
+        .select("role")
+        .eq("league_id", input.league_id)
+        .eq("user_id", auth.data.user!.id)
+        .maybeSingle();
+      if (member.error) throw new Error(member.error.message);
+      if (member.data?.role !== "admin")
+        return json(
+          { error: "Only the league admin can review weekly execution." },
+          403,
+        );
+    }
     const period = await client.rpc("sportsbook_period", {
       p_league: input.league_id,
     });
@@ -237,16 +255,22 @@ export async function POST(request: Request) {
     if (input.apply)
       for (const ticket of preview) {
         if (!ticket.legs.length) continue;
-        const saved = await client.rpc("settle_weekly_ticket", {
-          p_ticket: ticket.ticket_id,
-          p_results: ticket.legs,
-        });
+        const saved = worker
+          ? await client.rpc("worker_operation", {
+              p_league: input.league_id,
+              p_operation: "settle",
+              p_args: { ticket: ticket.ticket_id, results: ticket.legs },
+            })
+          : await client.rpc("settle_weekly_ticket", {
+              p_ticket: ticket.ticket_id,
+              p_results: ticket.legs,
+            });
         if (saved.error) throw new Error(saved.error.message);
         ticket.applied = saved.data;
       }
     const schedule = await client
       .from("weekly_schedule")
-      .select("job_times")
+      .select("job_times,automation_enabled")
       .eq("league_id", input.league_id)
       .maybeSingle();
     if (schedule.error) throw new Error(schedule.error.message);
@@ -268,12 +292,18 @@ export async function POST(request: Request) {
         hour * 60 + minute >= resetTime[0] * 60 + resetTime[1]) ||
       ["Wed", "Thu", "Fri", "Sat", "Sun"].includes(day ?? "");
     let replenishment: unknown = null;
-    if (input.apply && replenishmentDue) {
-      const saved = await client.rpc("replenish_weekly_balances", {
-        p_league: input.league_id,
-        p_season: season,
-        p_week: week,
-      });
+    if (input.apply && replenishmentDue && input.replenish !== false) {
+      const saved = worker
+        ? await client.rpc("worker_operation", {
+            p_league: input.league_id,
+            p_operation: "replenish",
+            p_args: { season, week },
+          })
+        : await client.rpc("replenish_weekly_balances", {
+            p_league: input.league_id,
+            p_season: season,
+            p_week: week,
+          });
       if (saved.error) throw new Error(saved.error.message);
       replenishment = saved.data;
     }
@@ -343,7 +373,7 @@ export async function POST(request: Request) {
       replenishment,
       balances,
       note: input.apply
-        ? "Results saved, eligible balances replenished, and leaderboard updated. Unresolved tickets remain open. Scheduled execution is not active."
+        ? "Results saved, eligible balances replenished, and leaderboard updated. Unresolved tickets remain open. Scheduled execution follows the saved settings."
         : "Preview does not change balances, tickets, or send emails. Scheduled execution is not active.",
     });
   } catch (e) {

@@ -1,3 +1,4 @@
+import { isWorker } from "./_lib/worker-auth.js";
 import { createClient } from "@supabase/supabase-js";
 import {
   bestLineup,
@@ -30,27 +31,43 @@ export async function POST(request: Request) {
       publicKey =
         process.env.SUPABASE_ANON_KEY ??
         process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const worker = isWorker(request);
     const token = request.headers
       .get("authorization")
       ?.replace(/^Bearer\s+/i, "");
-    if (!url || !publicKey || !token)
+    if (
+      !url ||
+      !publicKey ||
+      (!worker && !token) ||
+      (worker && !process.env.SUPABASE_SERVICE_ROLE_KEY)
+    )
       return json({ error: "Market generation is not configured." }, 401);
-    const userClient = createClient(url, publicKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: auth } = await userClient.auth.getUser();
-    if (!auth.user)
-      return json({ error: "Sign in again before generating markets." }, 401);
-    // Keep the membership mapping in sync with the verified email before checking admin access.
-    const claim = await userClient.rpc("claim_memberships");
-    if (claim.error)
-      return json(
-        {
-          error: `Account mapping could not be verified: ${claim.error.message}`,
+    const userClient = createClient(
+      url,
+      worker ? process.env.SUPABASE_SERVICE_ROLE_KEY! : publicKey,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${worker ? process.env.SUPABASE_SERVICE_ROLE_KEY : token}`,
+          },
         },
-        503,
-      );
+        auth: { persistSession: false, autoRefreshToken: false },
+      },
+    );
+    if (!worker) {
+      const { data: auth } = await userClient.auth.getUser();
+      if (!auth.user)
+        return json({ error: "Sign in again before generating markets." }, 401);
+      // Keep the membership mapping in sync with the verified email before checking admin access.
+      const claim = await userClient.rpc("claim_memberships");
+      if (claim.error)
+        return json(
+          {
+            error: `Account mapping could not be verified: ${claim.error.message}`,
+          },
+          503,
+        );
+    }
     let input: {
       league_id?: string;
       week?: number;
@@ -73,24 +90,27 @@ export async function POST(request: Request) {
         { error: "League, week (1–18), and season are required." },
         400,
       );
-    const { data: member, error: membershipError } = await userClient
-      .from("league_memberships")
-      .select("role,invited_email")
-      .eq("league_id", input.league_id)
-      .eq("user_id", auth.user.id)
-      .maybeSingle();
-    if (membershipError)
-      return json(
-        {
-          error: `Admin access could not be verified: ${membershipError.message}`,
-        },
-        503,
-      );
-    if (member?.role !== "admin")
-      return json(
-        { error: "Only the league admin can generate markets." },
-        403,
-      );
+    if (!worker) {
+      const auth = await userClient.auth.getUser();
+      const { data: member, error: membershipError } = await userClient
+        .from("league_memberships")
+        .select("role,invited_email")
+        .eq("league_id", input.league_id)
+        .eq("user_id", auth.data.user!.id)
+        .maybeSingle();
+      if (membershipError)
+        return json(
+          {
+            error: `Admin access could not be verified: ${membershipError.message}`,
+          },
+          503,
+        );
+      if (member?.role !== "admin")
+        return json(
+          { error: "Only the league admin can generate markets." },
+          403,
+        );
+    }
     const { data: teams, error: teamError } = await userClient
       .from("teams")
       .select("id,roster_id,team_name,wins,losses,ties")
@@ -146,6 +166,7 @@ export async function POST(request: Request) {
         },
         {
           roster_id: number;
+          settings: { wins: number; losses: number; ties: number };
           players: string[];
           reserve?: string[];
           taxi?: string[];
@@ -160,6 +181,17 @@ export async function POST(request: Request) {
       throw new Error(
         "Weekly projections are unavailable. No placeholder lines were generated.",
       );
+    for (const team of teams) {
+      const record = rosters.find(
+        (r) => r.roster_id === team.roster_id,
+      )?.settings;
+      if (record)
+        Object.assign(team, {
+          wins: record.wins,
+          losses: record.losses,
+          ties: record.ties,
+        });
+    }
     const allHistory = historical.flat();
     const pool = candidates(projections, league.scoring_settings, allHistory);
     const models = teams.map((team) => {

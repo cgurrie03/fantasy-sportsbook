@@ -42,7 +42,13 @@ assert.equal(
     .status,
   "OPEN",
 );
-assert.equal(settleLeg(leg("player_points", "over", 5, { player_id: "invalid" }), {...final, players: {invalid: {played: true, points: NaN}}}).status, "OPEN");
+assert.equal(
+  settleLeg(leg("player_points", "over", 5, { player_id: "invalid" }), {
+    ...final,
+    players: { invalid: { played: true, points: NaN } },
+  }).status,
+  "OPEN",
+);
 assert.equal(settleLeg(leg("weekly_high"), final).status, "WON");
 assert.equal(
   settleLeg(leg("weekly_high"), {
@@ -59,7 +65,10 @@ assert.equal(
 const db = new PGlite();
 try {
   await db.exec(
-    "create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;",
+    "create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;",
+  );
+  await db.exec(
+    "create function auth.role() returns text language sql stable as $$ select current_setting('request.jwt.claim.role',true) $$; grant execute on function auth.role() to anon,authenticated,service_role;",
   );
   for (const file of fs.readdirSync("supabase/migrations").sort())
     await db.exec(fs.readFileSync(`supabase/migrations/${file}`, "utf8"));
@@ -338,6 +347,52 @@ try {
   );
   await db.exec("reset role;set role anon;");
   await assert.rejects(settle);
+  await assert.rejects(() =>
+    rows("select * from public.claim_automation_job()"),
+  );
+  await db.exec(
+    "reset role; update public.weekly_schedule set automation_enabled=true;",
+  );
+  await rows(
+    "insert into public.automation_jobs(league_id,event_key,operation,market_week) values($1,'test-worker','settlement',5)",
+    [league],
+  );
+  await rows(
+    "insert into public.email_deliveries(ticket_id,recipient) values($1,'test@example.invalid')",
+    [voidId],
+  );
+  await db.exec(
+    "set role service_role;set request.jwt.claim.role='service_role';",
+  );
+  const claimedJob = await rows("select * from public.claim_automation_job()");
+  assert.equal(claimedJob.length, 1);
+  const claimedMail = await rows(
+    "select * from public.claim_outbound_emails()",
+  );
+  assert.equal(claimedMail.length, 1);
+  assert.equal(
+    (await rows("select * from public.claim_outbound_emails()")).length,
+    0,
+  );
+  await rows(
+    "update public.outbound_emails set first_attempt_at=now()-interval '25 hours',lease_until=now()-interval '1 hour' where id=$1",
+    [claimedMail[0].id],
+  );
+  assert.equal(
+    (await rows("select * from public.claim_outbound_emails()")).length,
+    0,
+  );
+  assert.equal(
+    (
+      await rows("select status from public.outbound_emails where id=$1", [
+        claimedMail[0].id,
+      ])
+    )[0].status,
+    "needs_review",
+  );
+  console.log(
+    "Passed worker role isolation, atomic confirmation queueing, leased job/email claims, and expired-idempotency hold.",
+  );
   console.log(
     "Passed actual-score settlement, inactive pushes, pending results, accepted odds, duplicate payment/reset protection, higher-balance retention, and unauthorized execution rejection.",
   );

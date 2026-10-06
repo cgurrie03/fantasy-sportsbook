@@ -59,7 +59,7 @@ const categories = [
     group: "Operations",
     title: "Emails & Delivery Logs",
     description: "Opening emails, reminders, confirmations, and results.",
-    status: "Upcoming",
+    status: "Delivery Logs",
   },
   {
     id: "settings",
@@ -133,7 +133,7 @@ export function AdminHub({
                 <BettingLogs tickets={tickets} owner={owner} />
               ) : selected === "lines" || selected === "promos" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
-              ) : selected === "schedule" || selected === "approvals" ? (
+              ) : selected === "schedule" || selected === "approvals" || selected === "emails" ? (
                 <WeeklySchedule
                   leagueId={leagueId}
                   reviewMode={reviewMode}
