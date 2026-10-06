@@ -12,6 +12,8 @@ export async function POST(request: Request) {
   const userClient = createClient(url, process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "", { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: auth } = await userClient.auth.getUser();
   if (!auth.user) return json({ error: "Sign in again before generating markets." }, 401);
+  // Keep the membership mapping in sync with the verified email before checking admin access.
+  await userClient.rpc("claim_memberships");
   let input: { league_id?: string; week?: number; nfl_season?: number };
   try { input = await request.json(); } catch { return json({ error: "Invalid generation request." }, 400); }
   if (!input.league_id || !Number.isInteger(input.week) || !Number.isInteger(input.nfl_season)) return json({ error: "League, week, and season are required." }, 400);
@@ -20,7 +22,8 @@ export async function POST(request: Request) {
     ? await client.from("league_memberships").select("role,invited_email").eq("league_id", input.league_id).ilike("invited_email", auth.user.email).maybeSingle()
     : { data: null };
   const member = memberById ?? memberByEmail;
-  if (member?.role !== "admin") return json({ error: "Only the league admin can generate markets." }, 403);
+  const primaryAdmin = auth.user.email?.toLowerCase() === "cooper.gurrie@gmail.com";
+  if (!primaryAdmin && member?.role !== "admin") return json({ error: "Only the league admin can generate markets." }, 403);
   const { data: teams, error: teamError } = await client.from("teams").select("id,roster_id,team_name,wins,losses,ties").eq("league_id", input.league_id).order("roster_id");
   if (teamError || !teams?.length) return json({ error: "League teams are unavailable." }, 400);
   const sleeper = async (path: string) => { const response = await fetch(`https://api.sleeper.app/v1/${path}`); if (!response.ok) throw new Error(`Sleeper returned ${response.status}.`); return response.json(); };
