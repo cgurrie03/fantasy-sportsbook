@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       if (input.category === "Player Points") continue;
       const homeProjection = roundHalf(Number(previousByRoster.get(home.roster_id) ?? pairing[0].points ?? 100) * 0.65 + 100 * 0.35);
       const awayProjection = roundHalf(Number(previousByRoster.get(away.roster_id) ?? pairing[1].points ?? 100) * 0.65 + 100 * 0.35);
-      const matchupKey = crypto.randomUUID(), spread = roundHalf((awayProjection - homeProjection) / 2), total = roundHalf(homeProjection + awayProjection);
+      const matchupKey = `sleeper-${input.week}-${Math.min(home.roster_id, away.roster_id)}-${Math.max(home.roster_id, away.roster_id)}`, spread = roundHalf((awayProjection - homeProjection) / 2), total = roundHalf(homeProjection + awayProjection);
       const rationale = `${home.team_name} projects to ${homeProjection} and ${away.team_name} to ${awayProjection}. The generator blends the most recent Sleeper matchup score at 65% with a neutral 100-point baseline at 35%, then derives the spread from the projection gap and the total from both projections.`;
       const probability = Math.min(0.82, Math.max(0.18, 0.5 + (homeProjection - awayProjection) / 180));
       const add = (kind: string, side: string, label: string, odds: number, line: number | null, teamId: string | null, featured = "") => quotes.push({ id: crypto.randomUUID(), board_id: "generated", market_key: `${matchupKey}:${kind}:${side}${kind === "team_total" ? `:${teamId ?? ""}` : ""}`, matchup_key: matchupKey, kind, label, subject: label, side, line, odds, boost_pct: 0, team_id: teamId, home_team_id: home.id, away_team_id: away.id, home_projection: homeProjection, away_projection: awayProjection, featured, metadata: { generated: true, generated_at: new Date().toISOString(), projection_method: "Sleeper recent matchup blend", rationale }, active: true });
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       const excluded = new Set(["K", "DEF", "DST"]);
       for (const pairing of pairings) {
         const home = rosterMap.get(pairing[0].roster_id), away = rosterMap.get(pairing[1].roster_id); if (!home || !away) continue;
-        const matchupKey = crypto.randomUUID();
+        const matchupKey = `sleeper-${input.week}-${Math.min(home.roster_id, away.roster_id)}-${Math.max(home.roster_id, away.roster_id)}`;
         for (const row of pairing) {
           const roster = rosterMap.get(row.roster_id), prior = previous.find(item => item.roster_id === row.roster_id);
           if (!roster) continue;
