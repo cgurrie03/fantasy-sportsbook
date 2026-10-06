@@ -26,18 +26,15 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     const url = process.env.SUPABASE_URL,
-      serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      publicKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     const token = request.headers
       .get("authorization")
       ?.replace(/^Bearer\s+/i, "");
-    if (!url || !serviceKey || !token)
+    if (!url || !publicKey || !token)
       return json({ error: "Market generation is not configured." }, 401);
-    const client = createClient(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const userClient = createClient(
       url,
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      publicKey,
       {
         global: { headers: { Authorization: `Bearer ${token}` } },
         auth: { persistSession: false, autoRefreshToken: false },
@@ -47,7 +44,9 @@ export async function POST(request: Request) {
     if (!auth.user)
       return json({ error: "Sign in again before generating markets." }, 401);
     // Keep the membership mapping in sync with the verified email before checking admin access.
-    await userClient.rpc("claim_memberships");
+    const claim = await userClient.rpc("claim_memberships");
+    if (claim.error)
+      return json({ error: `Account mapping could not be verified: ${claim.error.message}` }, 503);
     let input: {
       league_id?: string;
       week?: number;
@@ -70,22 +69,14 @@ export async function POST(request: Request) {
         { error: "League, week (1–18), and season are required." },
         400,
       );
-    const { data: memberById } = await client
+    const { data: member, error: membershipError } = await userClient
       .from("league_memberships")
       .select("role,invited_email")
       .eq("league_id", input.league_id)
       .eq("user_id", auth.user.id)
       .maybeSingle();
-    const { data: memberByEmail } =
-      auth.user.email && !memberById
-        ? await client
-            .from("league_memberships")
-            .select("role,invited_email")
-            .eq("league_id", input.league_id)
-            .ilike("invited_email", auth.user.email)
-            .maybeSingle()
-        : { data: null };
-    const member = memberById ?? memberByEmail;
+    if (membershipError)
+      return json({ error: `Admin access could not be verified: ${membershipError.message}` }, 503);
     if (member?.role !== "admin")
       return json(
         { error: "Only the league admin can generate markets." },
