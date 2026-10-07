@@ -217,7 +217,13 @@ export async function POST(request: Request) {
             ? ["spread", "moneyline", "match_total", "team_total"]
             : category === "Player Points"
               ? ["player_points"]
-              : ["weekly_high", "weekly_low"];
+              : [
+                  "weekly_high",
+                  "weekly_low",
+                  "weekly_count_150",
+                  "weekly_any_below_100",
+                  "weekly_any_200",
+                ];
         const featured = new Map(
           existing
             .filter((m: any) => m.active && m.featured)

@@ -147,6 +147,9 @@ export function highLowProbabilities(
   const high = teams.map(() => 1),
     low = teams.map(() => 1),
     trials = 6000;
+  const counts150 = Array.from({ length: teams.length + 1 }, () => 1);
+  let anyBelow100 = 1,
+    anyAtLeast200 = 1;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return (seed + 1) / 4294967297;
@@ -161,10 +164,16 @@ export function highLowProbabilities(
     );
     high[scores.indexOf(Math.max(...scores))]++;
     low[scores.indexOf(Math.min(...scores))]++;
+    counts150[scores.filter((s) => s >= 150).length]++;
+    if (scores.some((s) => s < 100)) anyBelow100++;
+    if (scores.some((s) => s >= 200)) anyAtLeast200++;
   }
   return {
     high: high.map((n) => n / (trials + teams.length)),
     low: low.map((n) => n / (trials + teams.length)),
+    counts150: counts150.map((n) => n / (trials + teams.length + 1)),
+    anyBelow100: anyBelow100 / (trials + 2),
+    anyAtLeast200: anyAtLeast200 / (trials + 2),
   };
 }
 

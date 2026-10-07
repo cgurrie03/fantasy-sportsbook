@@ -23,7 +23,10 @@ export interface Market {
     | "team_total"
     | "player_points"
     | "weekly_high"
-    | "weekly_low";
+    | "weekly_low"
+    | "weekly_count_150"
+    | "weekly_any_below_100"
+    | "weekly_any_200";
   label: string;
   subject: string;
   side: string;
@@ -57,7 +60,19 @@ export const marketType = {
   player_points: "Player Points",
   weekly_high: "Weekly High Scorer",
   weekly_low: "Weekly Low Scorer",
+  weekly_count_150: "Teams Scoring 150+",
+  weekly_any_below_100: "Any Team Below 100",
+  weekly_any_200: "Any Team Scoring 200+",
 };
+export const weeklyKinds = [
+  "weekly_high",
+  "weekly_low",
+  "weekly_count_150",
+  "weekly_any_below_100",
+  "weekly_any_200",
+];
+export const roundSpecialOdds = (odds: number) =>
+  Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / 10) * 10);
 export const decimalPrice = (odds: number) =>
   odds > 0 ? 1 + odds / 100 : 1 + 100 / Math.abs(odds);
 export const selectionPrice = (m: Market) =>

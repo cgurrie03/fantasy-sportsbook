@@ -7,6 +7,7 @@ import {
   loadMarketBoard,
   marketType,
   orderMatchups,
+  weeklyKinds,
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import "./Sportsbook.css";
@@ -137,9 +138,12 @@ export function MarketAdmin({
     board.status === "published" &&
     now >= Date.parse(board.opens_at) &&
     now < Date.parse(board.closes_at);
-  const categoryKinds = category === "Matchups"
-    ? ["spread", "moneyline", "match_total", "team_total"]
-    : category === "Player Points" ? ["player_points"] : ["weekly_high", "weekly_low"];
+  const categoryKinds =
+    category === "Matchups"
+      ? ["spread", "moneyline", "match_total", "team_total"]
+      : category === "Player Points"
+        ? ["player_points"]
+        : weeklyKinds;
   const hasGeneratedLines = markets.some((m) => categoryKinds.includes(m.kind));
 
   async function generate() {
@@ -203,7 +207,7 @@ export function MarketAdmin({
           ? ["spread", "moneyline", "match_total", "team_total"]
           : category === "Player Points"
             ? ["player_points"]
-            : ["weekly_high", "weekly_low"];
+            : weeklyKinds;
       setMarkets([
         ...markets.filter((m) => !replacedKinds.includes(m.kind)),
         ...generated,
@@ -513,8 +517,10 @@ export function MarketAdmin({
               </label>
             </div>
             <p className="muted">
-              Recalculate using the latest Sleeper data at any time. Only the selected betting type is replaced;
-              accepted tickets keep their original picks and odds. Review the updated markets before publishing.
+              Recalculate using the latest Sleeper data at any time. Only the
+              selected betting type is replaced; accepted tickets keep their
+              original picks and odds. Review the updated markets before
+              publishing.
             </p>
             {category === "Matchups" && (
               <div className="market-admin-preview">
@@ -692,26 +698,28 @@ export function MarketAdmin({
             )}
             {category === "Weekly Specials" && (
               <div className="props-grid">
-                {["weekly_high", "weekly_low"].map((kind) => (
+                {weeklyKinds.map((kind) => (
                   <article className="prop-card" key={kind}>
-                    <h2>
-                      {kind === "weekly_high"
-                        ? "Highest Weekly Scorer"
-                        : "Lowest Weekly Scorer"}
-                    </h2>
+                    <h2>{marketType[kind as Market["kind"]]}</h2>
                     {markets
                       .filter((q) => q.kind === kind)
                       .sort((a, b) => a.odds - b.odds)
-                      .slice(0, 6)
+                      .slice(
+                        0,
+                        kind === "weekly_high" || kind === "weekly_low"
+                          ? 6
+                          : 12,
+                      )
                       .map((q) => (
                         <div className="matchup-preview-line" key={q.id}>
-                          <span>{q.subject}</span>
+                          <span>{q.label}</span>
                           <strong>{formatOdds(q.odds)}</strong>
                         </div>
                       ))}
                     {!markets.some((q) => q.kind === kind) && (
                       <p>
-                        Generate weekly specials to preview the six favorites in each market.
+                        Generate weekly specials to preview the selections and
+                        odds.
                       </p>
                     )}
                   </article>

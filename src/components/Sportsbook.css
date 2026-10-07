@@ -51,3 +51,31 @@
 @media(max-width:760px){.board-heading h1>span{display:block}.board-heading h1 .season-divider{display:none}.board-window .board-date{display:block}.board-window .board-date-divider{display:none}.board-heading{align-items:flex-start}.board-window{font-size:11px;line-height:1.5}.board-heading h1{font-size:25px}}
 
 .execution-balance-wrap{overflow-x:auto}.execution-balances{width:100%;border-collapse:collapse;font-size:12px;text-align:left}.execution-balances caption{text-align:left;font-weight:700;padding:0 0 10px}.execution-balances th,.execution-balances td{padding:7px 10px;border-bottom:1px solid var(--border);line-height:1.3}.execution-balances th{color:var(--muted);font-size:11px}.execution-balances td:nth-child(2),.execution-balances td:nth-child(3){white-space:nowrap;font-variant-numeric:tabular-nums}.execution-review{display:grid;gap:12px}.execution-balances td:last-child{font-weight:600}@media(max-width:600px){.execution-balances th,.execution-balances td{padding:7px 5px;font-size:11px}}
+/* Keep mobile entry controls compact so ticket selections remain visible. */
+.wager-split>div,.wager-split>label{padding:7px 10px;gap:3px;margin:0}
+.wager-split input{min-height:0;height:23px;line-height:23px;margin:0;box-shadow:none}
+.wager-split strong{line-height:23px}
+@media(max-width:600px){
+ .bet-slip-dialog[open]{gap:6px!important}
+ .wager-split>div,.wager-split>label{padding:5px 8px;gap:2px}
+ .wager-split small{font-size:9px;line-height:12px}
+ .wager-split strong,.wager-split input{font-size:16px;height:21px;line-height:21px}
+ .quick-wagers button{padding:5px;min-height:28px}
+ .place-bet{padding:7px;gap:3px}
+ .slip-header button{padding:3px}
+ .slip-legs{flex:1 1 auto}
+}
+.prop-card .count-wheel{display:flex;position:relative;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;padding:12px calc(50% - 24px);scrollbar-width:none;overscroll-behavior-x:contain}
+.count-wheel::-webkit-scrollbar{display:none}
+.count-wheel button{flex:0 0 48px;height:48px;scroll-snap-align:center;border:1px solid var(--border);border-radius:50%;font-size:18px;font-weight:800;background:var(--surface-2);color:var(--text)}
+.count-wheel button[aria-pressed=true]{background:#f4c453;color:#12233d;border-color:#f4c453;box-shadow:0 0 0 4px #f4c45322}
+.count-instruction{display:block;text-align:center;color:var(--muted);font-size:11px;margin:4px 0 12px}
+.prop-card .count-selection{display:block}
+.void-ticket-icon{display:inline-grid;place-items:center;width:30px;height:30px;padding:5px;background:transparent;color:var(--error);border:1px solid var(--border);border-radius:50%;flex-shrink:0}
+.void-ticket-icon svg{width:18px;height:18px}.void-ticket-icon:hover{background:var(--surface2);border-color:var(--error)}
+.player-match-header{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:40px;background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:14px;padding:17px 20px;margin:16px 0}
+.player-match-team{display:flex;align-items:center;gap:12px;min-width:0}.player-match-team img,.player-team-initial{width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0}.player-team-initial{display:grid;place-items:center;background:var(--surface2);color:var(--gold);font-weight:800}
+.player-match-team>div{display:grid;gap:5px;min-width:0}.player-match-team strong{font-size:16px;overflow-wrap:anywhere}.player-match-team span,.player-match-team small{font-size:12px;color:var(--muted)}
+.player-match-vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--gold);font-weight:800;font-size:13px}
+.player-market-card{border-left:3px solid var(--gold)}.prop-card .player-card-team{display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 10px;margin:-4px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}.player-card-team span{font-weight:700;color:var(--gold)}.player-card-team small{font-size:10px}.player-market-card h2{font-size:16px;margin-bottom:8px}.player-market-card p{margin-bottom:9px;line-height:1.5}
+@media(max-width:600px){.player-match-header{gap:24px;padding:12px 10px}.player-match-team{gap:7px;align-items:flex-start;flex-direction:column}.player-match-team img,.player-team-initial{width:32px;height:32px}.player-match-team strong{font-size:13px}.player-match-team span,.player-match-team small{font-size:11px}.player-market-card{padding:13px}.player-match-vs{font-size:11px}.void-confirmation{padding:12px;margin:0 0 14px}}

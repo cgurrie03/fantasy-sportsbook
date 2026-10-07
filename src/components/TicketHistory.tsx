@@ -250,46 +250,16 @@ export function TicketHistory({
     <TicketFilters tickets={tickets} owner={owner} id="admin-ticket-filters">
       {(visible) => (
         <>
-          {canVoid && !tickets.some(t=>t.status==="OPEN") && <p className="history-note">No open tickets to cancel. Void Ticket appears inside an expanded open ticket; settled tickets are preserved.</p>}
+          {canVoid && !tickets.some((t) => t.status === "OPEN") && (
+            <p className="history-note">
+              No open tickets to cancel. The cancel icon appears beside Open;
+              settled tickets are preserved.
+            </p>
+          )}
           {feedback && (
             <p className="feedback" role="status">
               {feedback}
             </p>
-          )}
-          {voiding && (
-            <section
-              className="void-confirmation"
-              role="region"
-              aria-label="Confirm ticket cancellation"
-            >
-              <h2>Void Ticket</h2>
-              <p>
-                Refund {money(voiding.stake)} to {owner(voiding.team_id)} and
-                preserve this ticket as Voided.
-              </p>
-              <label>
-                Cancellation Reason
-                <input
-                  value={reason}
-                  maxLength={500}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </label>
-              <button
-                className="primary"
-                disabled={saving || !reason.trim()}
-                onClick={cancelTicket}
-              >
-                {saving ? "Voiding…" : "Void & Refund"}
-              </button>
-              <button
-                className="secondary"
-                disabled={saving}
-                onClick={() => setVoiding(null)}
-              >
-                Keep Ticket
-              </button>
-            </section>
           )}
           <div className="ticket-list">
             {visible.map((t) => {
@@ -310,6 +280,36 @@ export function TicketHistory({
                         </small>
                       </div>
                       <div className="ticket-labels">
+                        {canVoid && t.status === "OPEN" && (
+                          <button
+                            className="void-ticket-icon"
+                            disabled={saving}
+                            aria-label="Void Ticket"
+                            title="Void Ticket"
+                            aria-expanded={voiding?.id === t.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const details =
+                                e.currentTarget.closest("details");
+                              if (details) details.open = true;
+                              setVoiding(voiding?.id === t.id ? null : t);
+                              setReason("Cancelled by league admin");
+                              setFeedback("");
+                            }}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              aria-hidden="true"
+                            >
+                              <circle cx="12" cy="12" r="8" />
+                              <path d="m6.5 17.5 11-11" />
+                            </svg>
+                          </button>
+                        )}
                         <strong className={t.status.toLowerCase()}>
                           {title(t.status)}
                         </strong>
@@ -352,18 +352,41 @@ export function TicketHistory({
                     </div>
                   </summary>
                   <div className="ticket-body">
-                    {canVoid && t.status === "OPEN" && (
-                      <button
-                        className="void-ticket"
-                        disabled={saving}
-                        onClick={() => {
-                          setVoiding(t);
-                          setReason("");
-                          setFeedback("");
-                        }}
+                    {voiding?.id === t.id && (
+                      <section
+                        className="void-confirmation"
+                        role="region"
+                        aria-label="Confirm ticket cancellation"
                       >
-                        ⊘ Void Ticket
-                      </button>
+                        <h2>Void Ticket</h2>
+                        <p>
+                          Refund {money(voiding.stake)} to{" "}
+                          {owner(voiding.team_id)} and preserve this ticket as
+                          Voided.
+                        </p>
+                        <label>
+                          Cancellation Reason
+                          <input
+                            value={reason}
+                            maxLength={500}
+                            onChange={(e) => setReason(e.target.value)}
+                          />
+                        </label>
+                        <button
+                          className="primary"
+                          disabled={saving || !reason.trim()}
+                          onClick={cancelTicket}
+                        >
+                          {saving ? "Voiding…" : "Void & Refund"}
+                        </button>
+                        <button
+                          className="secondary"
+                          disabled={saving}
+                          onClick={() => setVoiding(null)}
+                        >
+                          Keep Ticket
+                        </button>
+                      </section>
                     )}
                     {legs.map((l) => (
                       <TicketLegDetails key={l.id} leg={l} />

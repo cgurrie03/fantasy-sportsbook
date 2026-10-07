@@ -7,7 +7,7 @@ export interface LegInput {
     team_id: string | null;
     home_team_id: string | null;
     away_team_id: string | null;
-    metadata?: { player_id?: string };
+    metadata?: { player_id?: string; expected_team_count?: number };
   } | null;
 }
 export interface FinalResults {
@@ -42,6 +42,42 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
   let difference: number;
   let evidence: string;
   switch (c.kind) {
+    case "weekly_count_150":
+    case "weekly_any_below_100":
+    case "weekly_any_200": {
+      const scores = Object.values(results.teams).map((t) => t.points);
+      const expected = c.metadata?.expected_team_count;
+      if (
+        !expected ||
+        scores.length !== expected ||
+        scores.some((n) => !Number.isFinite(n))
+      )
+        return pending("Complete league scores are required for this special.");
+      if (c.kind === "weekly_count_150") {
+        if (
+          line == null ||
+          !Number.isInteger(line) ||
+          line < 1 ||
+          line > expected
+        )
+          return pending("Accepted team count is missing.");
+        actual = scores.filter((s) => s >= 150).length;
+        difference = actual === line ? 1 : -1;
+        evidence = `Actual: ${actual} ${actual === 1 ? "team" : "teams"} scored 150+. Exact count required.`;
+      } else {
+        if (!["yes", "no"].includes(c.side))
+          return pending("Accepted Yes/No selection is missing.");
+        actual =
+          c.kind === "weekly_any_below_100"
+            ? Math.min(...scores)
+            : Math.max(...scores);
+        const occurred =
+          c.kind === "weekly_any_below_100" ? actual < 100 : actual >= 200;
+        difference = (c.side === "yes") === occurred ? 1 : -1;
+        evidence = `Actual: ${occurred ? "Yes" : "No"} · ${c.kind === "weekly_any_below_100" ? "Lowest" : "Highest"} score: ${actual.toFixed(2)}.`;
+      }
+      break;
+    }
     case "moneyline":
     case "spread": {
       if (!home || !away || !team)

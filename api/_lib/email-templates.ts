@@ -91,19 +91,47 @@ export function openingWeekStories(
   teams: { id: string; name: string; projected: number }[],
   matchups: { home: string; away: string; spread: number }[],
 ): NonNullable<EmailContent["stories"]> {
-  const ranked = teams.filter(t => Number.isFinite(t.projected))
+  const ranked = teams
+    .filter((t) => Number.isFinite(t.projected))
     .sort((a, b) => b.projected - a.projected || a.name.localeCompare(b.name));
-  const largest = matchups.filter(m => Number.isFinite(m.spread))
-    .sort((a, b) => Math.abs(b.spread) - Math.abs(a.spread) || a.home.localeCompare(b.home))[0];
-  const list = (rows: typeof ranked) => rows.map((t, i) =>
-    `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`).join("\n");
+  const largest = matchups
+    .filter((m) => Number.isFinite(m.spread))
+    .sort(
+      (a, b) =>
+        Math.abs(b.spread) - Math.abs(a.spread) || a.home.localeCompare(b.home),
+    )[0];
+  const list = (rows: typeof ranked) =>
+    rows
+      .map(
+        (t, i) =>
+          `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`,
+      )
+      .join("\n");
   return [
-    ...(largest ? [{title: "🚨 Largest Spread · Prove The Board Wrong",
-      text: `${largest.home} vs. ${largest.away}: ${Math.abs(largest.spread).toFixed(1)} points separate the sides on paper. The underdog has a ready-made receipt if this one goes sideways.`}] : []),
-    ...(ranked.length ? [{title: "🔥 Top 3 Projected Scorers · Bring The Firepower",
-      text: list(ranked.slice(0, 3)) + "\n\nBig projections, bigger expectations. Let's see who actually delivers."},
-      {title: "🧊 Bottom 3 Projected Scorers · Bulletin Board Material",
-      text: list([...ranked].reverse().slice(0, 3)) + "\n\nThe projections have spoken. A breakout week would make this email age beautifully."}] : []),
+    ...(largest
+      ? [
+          {
+            title: "🚨 Largest Spread · Prove The Board Wrong",
+            text: `${largest.home} vs. ${largest.away}: ${Math.abs(largest.spread).toFixed(1)} points separate the sides on paper. The underdog has a ready-made receipt if this one goes sideways.`,
+          },
+        ]
+      : []),
+    ...(ranked.length
+      ? [
+          {
+            title: "🔥 Top 3 Projected Scorers · Bring The Firepower",
+            text:
+              list(ranked.slice(0, 3)) +
+              "\n\nBig projections, bigger expectations. Let's see who actually delivers.",
+          },
+          {
+            title: "🧊 Bottom 3 Projected Scorers · Bulletin Board Material",
+            text:
+              list([...ranked].reverse().slice(0, 3)) +
+              "\n\nThe projections have spoken. A breakout week would make this email age beautifully.",
+          },
+        ]
+      : []),
   ];
 }
 export function sampleEmail(kind: EmailKind): EmailContent {
@@ -129,14 +157,14 @@ export function sampleEmail(kind: EmailKind): EmailContent {
         ],
         stories: openingWeekStories(
           [
-            {id: "a", name: "Example Team A", projected: 149.5},
-            {id: "b", name: "Example Team B", projected: 142},
-            {id: "c", name: "Example Team C", projected: 138.5},
-            {id: "d", name: "Example Team D", projected: 117},
-            {id: "e", name: "Example Team E", projected: 109.5},
-            {id: "f", name: "Example Team F", projected: 101},
+            { id: "a", name: "Example Team A", projected: 149.5 },
+            { id: "b", name: "Example Team B", projected: 142 },
+            { id: "c", name: "Example Team C", projected: 138.5 },
+            { id: "d", name: "Example Team D", projected: 117 },
+            { id: "e", name: "Example Team E", projected: 109.5 },
+            { id: "f", name: "Example Team F", projected: 101 },
           ],
-          [{home: "Example Team A", away: "Example Team F", spread: -24.5}],
+          [{ home: "Example Team A", away: "Example Team F", spread: -24.5 }],
         ),
         featured: [
           {
@@ -300,9 +328,9 @@ export function sampleEmail(kind: EmailKind): EmailContent {
         subject: "Your Sign-In Link · Goldy Fantasy Sportsbook",
         heading: "Welcome To Your Fantasy Sportsbook",
         paragraphs: [
-          "Use the link below to sign in to your approved league account. No password is needed.",
+          "Use the link below to sign in to your approved league account. No password is needed. This link can only be used once.",
           "After you use the link, this browser normally keeps you signed in. You'll need another link if you sign out, clear browser data, use a private window or different browser, or your session expires.",
-          "If you didn't request this email, you can ignore it. The official link will be supplied by the sign-in service.",
+          "If you didn't request this email, you can safely ignore it. Never forward your sign-in link to anyone else.",
         ],
         details: [["Account", "Your approved league email"]],
         button: "Sign In",

@@ -753,7 +753,8 @@ export function WeeklySchedule({
         <table className="execution-balances">
           <thead>
             <tr>
-              <th>Type / Recipient</th>
+              <th>Type</th>
+              <th>Recipient</th>
               <th>Status</th>
               <th>Details</th>
             </tr>
@@ -761,11 +762,8 @@ export function WeeklySchedule({
           <tbody>
             {deliveryLogs.map((r) => (
               <tr key={r.id}>
-                <td>
-                  {r.kind}
-                  <br />
-                  {r.recipient}
-                </td>
+                <td>{r.kind}</td>
+                <td>{r.recipient}</td>
                 <td>{r.status}</td>
                 <td>
                   {r.last_error ??

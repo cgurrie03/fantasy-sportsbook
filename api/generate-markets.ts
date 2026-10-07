@@ -22,6 +22,10 @@ const american = (probability: number) =>
       ? (-100 * probability) / (1 - probability)
       : (100 * (1 - probability)) / probability,
   );
+const specialOdds = (p: number) => {
+  const odds = american(Math.max(0.001, Math.min(0.999, p)));
+  return Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / 10) * 10);
+};
 const SLEEPER_LEAGUE_ID = "1312126153980391424";
 export const maxDuration = 60;
 
@@ -399,7 +403,7 @@ export async function POST(request: Request) {
             label: team.team_name,
             subject: team.team_name,
             line: null,
-            odds: Math.max(100, Math.min(100000, american(Math.min(0.499, p)))),
+            odds: specialOdds(Math.min(0.499, p)),
             team_id: team.id,
             home_team_id: null,
             away_team_id: null,
@@ -409,8 +413,6 @@ export async function POST(request: Request) {
           });
         }
       });
-    }
-    if (category === "Weekly Specials") {
       const topSix = ["weekly_high", "weekly_low"].flatMap((kind) =>
         quotes
           .filter((q) => q.kind === kind)
@@ -422,6 +424,59 @@ export async function POST(request: Request) {
           .slice(0, 6),
       );
       quotes.splice(0, quotes.length, ...topSix);
+      const lock = models.some((m) => m.unfilled_slots > 0);
+      const leagueQuote = (
+        kind: Market["kind"],
+        side: string,
+        label: string,
+        p: number,
+        line: number,
+      ) =>
+        quotes.push({
+          ...base,
+          id: crypto.randomUUID(),
+          market_key: `week-${input.week}:${kind}`,
+          matchup_key: null,
+          kind,
+          side,
+          label,
+          subject:
+            kind === "weekly_count_150"
+              ? "How Many Teams Will Score 150+?"
+              : kind === "weekly_any_below_100"
+                ? "Will Any Team Score Below 100?"
+                : "Will Any Team Score 200+?",
+          line,
+          odds: specialOdds(p),
+          team_id: null,
+          home_team_id: null,
+          away_team_id: null,
+          home_projection: null,
+          away_projection: null,
+          metadata: {
+            ...metadata,
+            simulated_probability: p,
+            trials: 6000,
+            expected_team_count: models.length,
+            lineup_locked: lock,
+          },
+        });
+      // One mutually exclusive exact-count market; zero is not offered.
+      for (let n = 1; n <= models.length; n++)
+        leagueQuote(
+          "weekly_count_150",
+          String(n),
+          `${n} ${n === 1 ? "Team" : "Teams"} Scoring 150+`,
+          probabilities.counts150[n],
+          n,
+        );
+      for (const [kind, p, threshold] of [
+        ["weekly_any_below_100", probabilities.anyBelow100, 100],
+        ["weekly_any_200", probabilities.anyAtLeast200, 200],
+      ] as const) {
+        leagueQuote(kind, "yes", "Yes", p, threshold);
+        leagueQuote(kind, "no", "No", 1 - p, threshold);
+      }
     }
     if (category === "Matchups") {
       const groups = [...new Set(quotes.map((q) => q.matchup_key))].map((key) =>

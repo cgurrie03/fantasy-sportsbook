@@ -186,3 +186,20 @@ if (process.argv.includes("--live")) {
 assert.equal(matchupSpread(100, 100), 0.5);
 assert.equal(matchupSpread(100.1, 100), -0.5);
 assert.equal(matchupSpread(100, 108), 8);
+const thresholdProbabilities = highLowProbabilities(
+  Array.from({ length: 12 }, () => ({ mean: 160, sd: 20 })),
+  5,
+);
+assert.ok(
+  Math.abs(thresholdProbabilities.counts150.reduce((a, b) => a + b, 0) - 1) <
+    1e-10,
+);
+assert.equal(thresholdProbabilities.counts150.length, 13);
+assert.ok(
+  thresholdProbabilities.anyBelow100 > 0 &&
+    thresholdProbabilities.anyBelow100 < 1,
+);
+assert.ok(
+  thresholdProbabilities.anyAtLeast200 > 0 &&
+    thresholdProbabilities.anyAtLeast200 < 1,
+);

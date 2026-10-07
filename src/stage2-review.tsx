@@ -19,6 +19,12 @@ function matchup(key:string,home:Team,away:Team,featured:Market["featured"],hp:n
 }
 matchup("m1",teams[0],teams[1],"Game of the Week",149.5,147.2);markets.filter(m=>m.matchup_key==="m1"&&m.kind==="moneyline").forEach(m=>m.boost_pct=25);
 matchup("m2",teams[2],teams[3],"Tank Bowl",132.4,128.1);markets.filter(m=>m.matchup_key==="m2"&&(m.kind==="moneyline"||(m.kind==="match_total"&&m.side==="over"))).forEach(m=>m.boost_pct=25);
+for(const [i,player] of ["Josh Allen","Justin Jefferson","Bijan Robinson","Lamar Jackson","Ja’Marr Chase","Saquon Barkley","Patrick Mahomes","CeeDee Lamb"].entries()) {
+ const home=i<6?teams[0]:teams[2], away=i<6?teams[1]:teams[3], key=i<6?"m1":"m2", own=i%2===0?home:away;
+ for(const side of ["over","under"]) markets.push(market(`player-${i}-${side}`,key,"player_points",`${player} ${side==='over'?'Over':'Under'} ${24-i}`,side,-110,{market_key:`player-${i}`,subject:player,line:24-i,team_id:own.id,home_team_id:home.id,away_team_id:away.id,home_projection:149.5,away_projection:147.2,metadata:{position:i%3===0?'QB':i%3===1?'WR':'RB',nfl_team:'BUF',season_average:25-i,projection:24-i,game_info:'Sun 1:00 PM vs. ATL'}}));
+}
+for(let n=1;n<=12;n++) markets.push(market(`count-${n}`,"","weekly_count_150",`${n} ${n===1?"Team":"Teams"} Scoring 150+`,String(n),[4500,1700,650,330,250,300,550,1100,2700,6800,15000,40000][n-1],{market_key:"weekly-count",matchup_key:null,line:n,subject:"How Many Teams Will Score 150+?"}));
+for(const kind of ["weekly_any_below_100","weekly_any_200"] as const) for(const side of ["yes","no"]) markets.push(market(`${kind}-${side}`,"",kind,side==="yes"?"Yes":"No",side,side==="yes"?180:-220,{market_key:kind,matchup_key:null,subject:kind==="weekly_any_200"?"Will Any Team Score 200+?":"Will Any Team Score Below 100?"}));
 const board:Board={id:"board",league_id:"review",market_week:5,nfl_season:2026,league_season:3,status:"published",revision:3,opens_at:new Date(Date.now()-3600000).toISOString(),closes_at:new Date(Date.now()+86400000).toISOString()};
 const data:AccountData={leagues:[{id:"review",name:"Goldy League",league_season:3,nfl_season:2026,avatar_url:null}],teams,memberships:teams.map((t,i)=>({id:"member"+i,league_id:"review",team_id:t.id,user_id:null,invited_email:"",display_name:t.sportsbook_owner_name,role:i===0?"admin":"member"})),wallets:teams.map(t=>({team_id:t.id,balance:100})),events:[],ledger:[],tickets:[],legs:[]};
 const member:Membership=data.memberships[0];

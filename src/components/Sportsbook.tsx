@@ -12,9 +12,11 @@ import {
   placeTicket,
   selectionPrice,
   orderMatchups,
+  weeklyKinds,
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
+import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import "./Sportsbook.css";
 
 export interface Standing {
@@ -91,6 +93,20 @@ export function Sportsbook({
   const record = (t: Team | undefined) =>
     t ? `${t.wins}–${t.losses}${t.ties ? "–" + t.ties : ""}` : "—";
   groups.splice(0, groups.length, ...orderMatchups(groups, data.teams));
+  const preferredMatchup =
+    groups.find(
+      (g) =>
+        g[0].home_team_id === member.team_id ||
+        g[0].away_team_id === member.team_id,
+    )?.[0].matchup_key ??
+    groups[0]?.[0].matchup_key ??
+    "";
+  const selectedMatchup = groups.some((g) => g[0].matchup_key === matchup)
+    ? matchup
+    : preferredMatchup;
+  const playerMatch = groups.find(
+    (g) => g[0].matchup_key === selectedMatchup,
+  )?.[0];
   const name = (m: Market) =>
     m.home_team_id && m.away_team_id
       ? `${team(m.home_team_id)?.team_name} vs. ${team(m.away_team_id)?.team_name}${m.featured ? " • " + m.featured : ""}`
@@ -222,8 +238,7 @@ export function Sportsbook({
         )}
         {!m.metadata.lineup_locked &&
           (m.kind === "moneyline" ||
-            m.kind === "weekly_high" ||
-            m.kind === "weekly_low" ||
+            weeklyKinds.includes(m.kind) ||
             m.boost_pct > 0) && (
             <span>
               {m.boost_pct > 0 && m.kind === "moneyline" && (
@@ -514,10 +529,9 @@ export function Sportsbook({
                   <label className="matchup-picker">
                     Matchup
                     <select
-                      value={matchup}
+                      value={selectedMatchup}
                       onChange={(e) => setMatchup(e.target.value)}
                     >
-                      <option value="all">All Matchups</option>
                       {groups.map((g) => (
                         <option
                           key={g[0].matchup_key}
@@ -528,13 +542,51 @@ export function Sportsbook({
                       ))}
                     </select>
                   </label>
+                  {playerMatch && (
+                    <section
+                      className="player-match-header"
+                      aria-label="Selected matchup teams"
+                    >
+                      {[playerMatch.home_team_id, playerMatch.away_team_id].map(
+                        (id, index) => {
+                          const t = team(id);
+                          return (
+                            <div className="player-match-team" key={id}>
+                              {t?.avatar_url ? (
+                                <img src={t.avatar_url} alt="" />
+                              ) : (
+                                <span className="player-team-initial">
+                                  {t?.team_name.slice(0, 1)}
+                                </span>
+                              )}
+                              <div>
+                                <strong>{t?.team_name}</strong>
+                                <span>
+                                  {owner(id ?? "")} · {record(t)}
+                                </span>
+                                <small>
+                                  Projected:{" "}
+                                  {Number(
+                                    index === 0
+                                      ? playerMatch.home_projection
+                                      : playerMatch.away_projection,
+                                  ).toFixed(1)}
+                                </small>
+                              </div>
+                            </div>
+                          );
+                        },
+                      )}
+                      <span className="player-match-vs">vs.</span>
+                    </section>
+                  )}
                   <div className="props-grid compact-player-grid">
                     {topPlayerKeys
                       .filter((key) =>
                         markets.some(
                           (m) =>
                             m.market_key === key &&
-                            (matchup === "all" || m.matchup_key === matchup),
+                            m.matchup_key === selectedMatchup,
                         ),
                       )
                       .map((key) => {
@@ -543,7 +595,14 @@ export function Sportsbook({
                           ),
                           m = pair[0];
                         return (
-                          <article className="prop-card" key={key}>
+                          <article
+                            className="prop-card player-market-card"
+                            key={key}
+                          >
+                            <div className="player-card-team">
+                              <span>{team(m.team_id)?.team_name}</span>
+                              <small>{owner(m.team_id ?? "")}</small>
+                            </div>
                             <h2>
                               {m.subject} • {m.metadata.position} -{" "}
                               {m.metadata.nfl_team}
@@ -573,7 +632,7 @@ export function Sportsbook({
                   {!markets.some(
                     (m) =>
                       m.kind === "player_points" &&
-                      (matchup === "all" || m.matchup_key === matchup),
+                      m.matchup_key === selectedMatchup,
                   ) && (
                     <p>
                       Player markets have not been published for this matchup
@@ -610,6 +669,38 @@ export function Sportsbook({
                       )}
                     </article>
                   ))}
+                  <WeeklyCountPicker
+                    markets={markets.filter(
+                      (m) => m.kind === "weekly_count_150",
+                    )}
+                    renderQuote={quote}
+                  />
+                  {(["weekly_any_below_100", "weekly_any_200"] as const).map(
+                    (kind) => (
+                      <article className="prop-card" key={kind}>
+                        <h2>
+                          {kind === "weekly_any_below_100"
+                            ? "Will Any Team Score Below 100?"
+                            : "Will Any Team Score 200+?"}
+                        </h2>
+                        <p>
+                          {kind === "weekly_any_below_100"
+                            ? "At least one team must finish below 100 points for Yes to win."
+                            : "At least one team must finish with 200 or more points for Yes to win."}
+                        </p>
+                        <div>
+                          {markets
+                            .filter((m) => m.kind === kind)
+                            .map((m) => (
+                              <span key={m.id}>{quote(m)}</span>
+                            ))}
+                        </div>
+                        {!markets.some((m) => m.kind === kind) && (
+                          <p>These markets are coming soon.</p>
+                        )}
+                      </article>
+                    ),
+                  )}
                 </div>
               )}
               {category === "Season Futures" && (

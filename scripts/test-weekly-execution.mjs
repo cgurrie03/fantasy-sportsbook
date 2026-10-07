@@ -63,6 +63,46 @@ assert.equal(
 );
 
 const db = new PGlite();
+const thresholdResults = {
+  final: true,
+  teams: {
+    a: { name: "A", points: 150 },
+    b: { name: "B", points: 200 },
+    c: { name: "C", points: 100 },
+  },
+  players: {},
+};
+const special = (kind, side, line) =>
+  leg(kind, side, line, { expected_team_count: 3 });
+assert.equal(
+  settleLeg(special("weekly_count_150", "2", 2), thresholdResults).status,
+  "WON",
+);
+assert.equal(
+  settleLeg(special("weekly_count_150", "1", 1), thresholdResults).status,
+  "LOST",
+);
+assert.equal(
+  settleLeg(special("weekly_any_below_100", "yes", 100), thresholdResults)
+    .status,
+  "LOST",
+);
+assert.equal(
+  settleLeg(special("weekly_any_below_100", "no", 100), thresholdResults)
+    .status,
+  "WON",
+);
+assert.equal(
+  settleLeg(special("weekly_any_200", "yes", 200), thresholdResults).status,
+  "WON",
+);
+assert.equal(
+  settleLeg(special("weekly_count_150", "2", 2), {
+    ...thresholdResults,
+    teams: { a: thresholdResults.teams.a },
+  }).status,
+  "OPEN",
+);
 try {
   await db.exec(
     "create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;",
@@ -77,6 +117,32 @@ try {
     admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const team = (await rows("select id from public.teams where roster_id=1"))[0]
     .id;
+  const specialBoard = "99999999-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  await db.query(
+    "insert into public.sportsbook_boards(id,league_id,market_week,nfl_season,league_season,opens_at,closes_at) values($1,$2,17,2026,3,now(),now()+interval '1 day')",
+    [specialBoard, league],
+  );
+  for (const [i, kind] of [
+    "weekly_count_150",
+    "weekly_any_below_100",
+    "weekly_any_200",
+  ].entries()) {
+    const id = `99999999-aaaa-4aaa-8aaa-aaaaaaaaaaa${i}`;
+    await db.query(
+      "insert into public.sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds) values($1,$2,$3,$3,'Selection','Special','yes',237)",
+      [id, specialBoard, kind],
+    );
+    assert.equal(
+      Number(
+        (
+          await rows("select odds from public.sportsbook_markets where id=$1", [
+            id,
+          ])
+        )[0].odds,
+      ),
+      240,
+    );
+  }
   const ticket = "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
     l1 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     l2 = "ffffffff-ffff-4fff-8fff-ffffffffffff";
