@@ -7,7 +7,11 @@ export interface LegInput {
     team_id: string | null;
     home_team_id: string | null;
     away_team_id: string | null;
-    metadata?: { player_id?: string; expected_team_count?: number };
+    metadata?: {
+      player_id?: string;
+      expected_team_count?: number;
+      projection_targets?: Record<string, number>;
+    };
   } | null;
 }
 export interface FinalResults {
@@ -75,6 +79,46 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
           c.kind === "weekly_any_below_100" ? actual < 100 : actual >= 200;
         difference = (c.side === "yes") === occurred ? 1 : -1;
         evidence = `Actual: ${occurred ? "Yes" : "No"} · ${c.kind === "weekly_any_below_100" ? "Lowest" : "Highest"} score: ${actual.toFixed(2)}.`;
+      }
+      break;
+    }
+    case "weekly_count_projection":
+    case "weekly_average":
+    case "weekly_highest_score": {
+      const rows = Object.entries(results.teams),
+        expected = c.metadata?.expected_team_count;
+      if (
+        !expected ||
+        rows.length !== expected ||
+        rows.some(([, t]) => !Number.isFinite(t.points)) ||
+        line === null
+      )
+        return pending(
+          "Complete league scores and an accepted line are required.",
+        );
+      if (c.kind === "weekly_count_projection") {
+        const targets = c.metadata?.projection_targets;
+        if (
+          !targets ||
+          rows.some(([id]) => !Number.isFinite(targets[id])) ||
+          Object.keys(targets).length !== expected ||
+          !Number.isInteger(line) ||
+          line < 0 ||
+          line > expected
+        )
+          return pending("Accepted projection targets are incomplete.");
+        actual = rows.filter(([id, t]) => t.points > targets[id]).length;
+        difference = actual === line ? 1 : -1;
+        evidence = `Actual: ${actual} teams beat their accepted projection. Tied projections do not count.`;
+      } else {
+        if (!["over", "under"].includes(c.side))
+          return pending("Accepted Over/Under selection is unavailable.");
+        actual =
+          c.kind === "weekly_average"
+            ? rows.reduce((n, [, t]) => n + t.points, 0) / expected
+            : Math.max(...rows.map(([, t]) => t.points));
+        difference = c.side === "over" ? actual - line : line - actual;
+        evidence = `Actual ${c.kind === "weekly_average" ? "league average" : "highest score"}: ${actual.toFixed(2)}.`;
       }
       break;
     }

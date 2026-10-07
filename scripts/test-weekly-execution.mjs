@@ -51,6 +51,37 @@ assert.equal(
 );
 assert.equal(settleLeg(leg("weekly_high"), final).status, "WON");
 assert.equal(
+  settleLeg(
+    leg("weekly_average", "over", 96.5, { expected_team_count: 3 }),
+    final,
+  ).status,
+  "WON",
+);
+assert.equal(
+  settleLeg(
+    leg("weekly_highest_score", "under", 110, { expected_team_count: 3 }),
+    final,
+  ).status,
+  "PUSH",
+);
+assert.equal(
+  settleLeg(
+    leg("weekly_count_projection", "2", 2, {
+      expected_team_count: 3,
+      projection_targets: { a: 105, b: 100, c: 75 },
+    }),
+    final,
+  ).status,
+  "WON",
+);
+assert.equal(
+  settleLeg(
+    leg("weekly_count_projection", "2", 2, { expected_team_count: 3 }),
+    final,
+  ).status,
+  "OPEN",
+);
+assert.equal(
   settleLeg(leg("weekly_high"), {
     ...final,
     teams: { ...final.teams, b: { name: "B", points: 110 } },

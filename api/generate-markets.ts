@@ -14,6 +14,7 @@ import {
   firstRoundOwner,
   seasonProbabilities,
   bracketProbabilities,
+  seasonStrength,
 } from "./_lib/futures-model.js";
 import type { TradedPick, BracketGame } from "./_lib/futures-model.ts";
 
@@ -282,19 +283,82 @@ export async function POST(request: Request) {
       if (!Number.isInteger(playoffStart))
         throw new Error("The league playoff schedule is unavailable.");
       const playoffPhase = input.week! >= playoffStart;
-      const seasonTeams = models.map((t) => {
+      const futureWeeklyMeans: number[][] = [models.map((t) => t.mean)];
+      const missingProjectionWeeks: number[] = [];
+      // Provider weekly forecasts include the NFL schedule/byes. Bound concurrent
+      // downloads and keep only rostered candidates rather than retaining feeds.
+      const forecastWeeks = Array.from(
+        { length: Math.max(0, playoffStart + 3 - input.week! - 1) },
+        (_, i) => input.week! + i + 1,
+      );
+      const rostered = new Set(rosters.flatMap((r) => r.players));
+      for (let start = 0; start < forecastWeeks.length; start += 3) {
+        const forecasts = await Promise.all(
+          forecastWeeks.slice(start, start + 3).map(async (week) => {
+            try {
+              const rows = (await fetchData(
+                `https://api.sleeper.com/projections/nfl/${input.nfl_season}/${week}?season_type=regular`,
+              )) as Projection[];
+              if (!Array.isArray(rows) || !rows.some((r) => r.stats?.gp > 0))
+                throw new Error("No weekly forecasts");
+              const futurePool = candidates(
+                rows
+                  .filter((r) => rostered.has(r.player_id))
+                  .map((r) => ({
+                    ...r,
+                    player: { ...r.player, injury_status: "" },
+                  })),
+                league.scoring_settings,
+                allHistory,
+              );
+              return models.map((t) => {
+                const roster = rosters.find(
+                  (r) => r.roster_id === t.roster_id,
+                )!;
+                return bestLineup(
+                  futurePool.filter(
+                    (p) =>
+                      roster.players.includes(p.id) &&
+                      !(roster.taxi ?? []).includes(p.id),
+                  ),
+                  league.roster_positions,
+                  true,
+                ).reduce((n, p) => n + p.expected, 0);
+              });
+            } catch {
+              missingProjectionWeeks.push(week);
+              return models.map((t) => t.season_mean);
+            }
+          }),
+        );
+        futureWeeklyMeans.push(...forecasts);
+      }
+      const histories = models.map((t) =>
+        allHistory
+          .filter((h) => h.roster_id === t.roster_id)
+          .map((h) => Number(h.points)),
+      );
+      const empiricalVariances = histories
+        .filter((h) => h.length > 1)
+        .map((h) => {
+          const mean = h.reduce((a, b) => a + b, 0) / h.length;
+          return h.reduce((n, s) => n + (s - mean) ** 2, 0) / (h.length - 1);
+        });
+      const leagueVariance = empiricalVariances.length
+        ? empiricalVariances.reduce((a, b) => a + b, 0) /
+          empiricalVariances.length
+        : 900;
+      const seasonTeams = models.map((t, i) => {
         const record = rosters.find(
           (r) => r.roster_id === t.roster_id,
         )!.settings;
-        const past = allHistory
-          .filter((h) => h.roster_id === t.roster_id)
-          .map((h) => Number(h.points));
+        const past = histories[i];
+        const forecasts = futureWeeklyMeans.map((week) => week[i]);
+        if (t.unfilled_slots && past.length)
+          forecasts[0] = past.reduce((a, b) => a + b, 0) / past.length;
         return {
           ...t,
-          mean:
-            t.unfilled_slots && past.length
-              ? roundHalf(past.reduce((a, b) => a + b, 0) / past.length)
-              : t.season_mean,
+          ...seasonStrength(past, forecasts, leagueVariance),
           points:
             Number(record.fpts ?? 0) + Number(record.fpts_decimal ?? 0) / 100,
         };
@@ -335,7 +399,13 @@ export async function POST(request: Request) {
           )) as BracketGame[])
         : null;
       const playoffChampions = bracket
-        ? bracketProbabilities(seasonTeams, bracket, input.week)
+        ? bracketProbabilities(
+            seasonTeams,
+            bracket,
+            input.week,
+            10000,
+            input.week! - playoffStart + 1,
+          )
         : null;
       if (bracket?.find((g) => g.p === 1)?.w)
         return json({
@@ -388,7 +458,13 @@ export async function POST(request: Request) {
             metadata: {
               ...metadata,
               projection_method:
-                "Season strength: 60% historical team scoring and 40% current best-lineup estimate; historical scoring substitutes for incomplete current lineups.",
+                "Week-specific best-lineup forecasts: 60% provider weekly estimate, 40% historical scoring. Historical volatility shrinks toward league volatility; season-strength uncertainty is sampled separately.",
+              model_version: "weekly-season-v2",
+              season_mean: seasonTeams[i].mean,
+              weekly_score_sd: seasonTeams[i].sd,
+              strength_uncertainty: seasonTeams[i].mean_uncertainty,
+              forecast_weeks: forecastWeeks,
+              missing_projection_weeks: missingProjectionWeeks,
               simulated_probability: p,
               trials: 10000,
               roster_id: team.roster_id,
@@ -407,7 +483,12 @@ export async function POST(request: Request) {
       return json({
         quotes,
         warnings: [
-          "10,000 season simulations using remaining matchups and current team strength. Seeding: record, then points; #1 pick: regular-season last place. Future injuries, trades, and waiver moves are not predicted.",
+          "10,000 simulations use week-specific NFL forecasts, best eligible lineups, fantasy schedule, records, points, historical volatility, and season-strength uncertainty. Future availability follows provider forecasts; injury recovery, trades and waivers remain uncertain.",
+          ...(missingProjectionWeeks.length
+            ? [
+                `Weekly forecasts unavailable for Weeks ${missingProjectionWeeks.sort((a, b) => a - b).join(", ")}; those weeks use the historical/current strength fallback.`,
+              ]
+            : []),
         ],
       });
     }
@@ -627,7 +708,13 @@ export async function POST(request: Request) {
               ? "How Many Teams Will Score 150+?"
               : kind === "weekly_any_below_100"
                 ? "Will Any Team Score Below 100?"
-                : "Will Any Team Score 200+?",
+                : kind === "weekly_any_200"
+                  ? "Will Any Team Score 200+?"
+                  : kind === "weekly_count_projection"
+                    ? "How Many Teams Will Beat Their Projection?"
+                    : kind === "weekly_average"
+                      ? "League Average Score"
+                      : "Highest Weekly Score",
           line,
           odds: specialOdds(p),
           team_id: null,
@@ -642,6 +729,13 @@ export async function POST(request: Request) {
             expected_team_count: models.length,
             lineup_locked: lock,
             lock_reason: lock ? lockReason : undefined,
+            ...(kind === "weekly_count_projection"
+              ? {
+                  projection_targets: Object.fromEntries(
+                    models.map((m) => [m.id, m.mean]),
+                  ),
+                }
+              : {}),
           },
         });
       // One mutually exclusive exact-count market; zero is not offered.
@@ -659,6 +753,24 @@ export async function POST(request: Request) {
       ] as const) {
         leagueQuote(kind, "yes", "Yes", p, threshold);
         leagueQuote(kind, "no", "No", 1 - p, threshold);
+      }
+      for (let n = 0; n <= models.length; n++)
+        leagueQuote(
+          "weekly_count_projection",
+          String(n),
+          `${n} ${n === 1 ? "Team" : "Teams"} Beating Projection`,
+          probabilities.countsProjection[n],
+          n,
+        );
+      for (const [kind, samples] of [
+        ["weekly_average", probabilities.averageScores],
+        ["weekly_highest_score", probabilities.highestScores],
+      ] as const) {
+        const sorted = [...samples].sort((a, b) => a - b),
+          line = Math.floor(sorted[Math.floor(sorted.length / 2)]) + 0.5;
+        const p = samples.filter((s) => s > line).length / samples.length;
+        leagueQuote(kind, "over", `Over ${line}`, p, line);
+        leagueQuote(kind, "under", `Under ${line}`, 1 - p, line);
       }
     }
     if (category === "Matchups") {

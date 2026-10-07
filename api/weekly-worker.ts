@@ -333,6 +333,9 @@ export async function POST(request: Request) {
                   "weekly_count_150",
                   "weekly_any_below_100",
                   "weekly_any_200",
+                  "weekly_count_projection",
+                  "weekly_average",
+                  "weekly_highest_score",
                 ];
         const featured = new Map(
           existing

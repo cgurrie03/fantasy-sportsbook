@@ -14,8 +14,22 @@ export function SeasonFutures({
   markets: Market[];
   quote: (m: Market, text?: string) => React.ReactNode;
 }) {
+  const rowCount = Math.max(
+    1,
+    ...futureKinds.map(
+      (kind) =>
+        markets.filter(
+          (m) =>
+            m.kind === kind &&
+            (kind !== "future_playoffs" || m.side === "make"),
+        ).length,
+    ),
+  );
   return (
-    <div className="season-futures-grid">
+    <div
+      className="season-futures-grid"
+      style={{ "--future-rows": rowCount } as React.CSSProperties}
+    >
       {futureKinds.map((kind) => (
         <article className="prop-card season-future-card" key={kind}>
           <header>
@@ -39,20 +53,27 @@ export function SeasonFutures({
                   ? "Win the league championship."
                   : kind === "future_playoffs"
                     ? "Qualify for the seven-team playoff field."
-                    : "Finish last in the regular season. Pick owner is shown below."}
+                    : "Regular-season last place. Pick owner below."}
               </p>
             </div>
           </header>
           <div className="future-rows">
-            {kind === "future_playoffs" && (
-              <div className="future-column-headings">
-                <span>Team</span>
-                <div>
-                  <span>Make</span>
-                  <span>Miss</span>
-                </div>
-              </div>
-            )}
+            <div
+              className="future-column-headings"
+              aria-hidden={kind !== "future_playoffs"}
+            >
+              {kind === "future_playoffs" ? (
+                <>
+                  <span>Team</span>
+                  <div>
+                    <span>Make</span>
+                    <span>Miss</span>
+                  </div>
+                </>
+              ) : (
+                <span>&nbsp;</span>
+              )}
+            </div>
             {markets
               .filter(
                 (m) =>

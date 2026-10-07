@@ -724,6 +724,39 @@ export function Sportsbook({
                     )}
                     renderQuote={quote}
                   />
+                  <WeeklyCountPicker
+                    projection
+                    markets={markets.filter(
+                      (m) => m.kind === "weekly_count_projection",
+                    )}
+                    renderQuote={quote}
+                  />
+                  {(["weekly_average", "weekly_highest_score"] as const).map(
+                    (kind) => (
+                      <article className="prop-card" key={kind}>
+                        <h2>
+                          {kind === "weekly_average"
+                            ? "League Average Score"
+                            : "Highest Score Of The Week"}
+                        </h2>
+                        <p>
+                          {kind === "weekly_average"
+                            ? "Final points across all 12 teams, divided by 12."
+                            : "The highest final score by any team this week."}
+                        </p>
+                        <div>
+                          {markets
+                            .filter((m) => m.kind === kind)
+                            .map((m) => (
+                              <span key={m.id}>{quote(m)}</span>
+                            ))}
+                        </div>
+                        {!markets.some((m) => m.kind === kind) && (
+                          <p>Generate Weekly Specials to add this market.</p>
+                        )}
+                      </article>
+                    ),
+                  )}
                   {(["weekly_any_below_100", "weekly_any_200"] as const).map(
                     (kind) => (
                       <article className="prop-card" key={kind}>

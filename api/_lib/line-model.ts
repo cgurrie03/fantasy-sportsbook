@@ -148,6 +148,9 @@ export function highLowProbabilities(
     low = teams.map(() => 1),
     trials = 6000;
   const counts150 = Array.from({ length: teams.length + 1 }, () => 1);
+  const countsProjection = Array.from({ length: teams.length + 1 }, () => 1),
+    averageScores: number[] = [],
+    highestScores: number[] = [];
   let anyBelow100 = 1,
     anyAtLeast200 = 1;
   const random = () => {
@@ -165,6 +168,9 @@ export function highLowProbabilities(
     high[scores.indexOf(Math.max(...scores))]++;
     low[scores.indexOf(Math.min(...scores))]++;
     counts150[scores.filter((s) => s >= 150).length]++;
+    countsProjection[scores.filter((s, i) => s > teams[i].mean).length]++;
+    averageScores.push(scores.reduce((a, b) => a + b, 0) / teams.length);
+    highestScores.push(Math.max(...scores));
     if (scores.some((s) => s < 100)) anyBelow100++;
     if (scores.some((s) => s >= 200)) anyAtLeast200++;
   }
@@ -172,6 +178,11 @@ export function highLowProbabilities(
     high: high.map((n) => n / (trials + teams.length)),
     low: low.map((n) => n / (trials + teams.length)),
     counts150: counts150.map((n) => n / (trials + teams.length + 1)),
+    countsProjection: countsProjection.map(
+      (n) => n / (trials + teams.length + 1),
+    ),
+    averageScores,
+    highestScores,
     anyBelow100: anyBelow100 / (trials + 2),
     anyAtLeast200: anyAtLeast200 / (trials + 2),
   };

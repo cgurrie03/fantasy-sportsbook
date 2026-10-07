@@ -6,10 +6,40 @@ export interface SeasonTeam {
   points: number;
   mean: number;
   sd: number;
+  weekly_means?: number[];
+  mean_uncertainty?: number;
 }
 export interface SeasonGame {
   home: number;
   away: number;
+}
+
+export function seasonStrength(
+  history: number[],
+  projections: number[],
+  leagueVariance: number,
+) {
+  if (
+    !projections.length ||
+    [...history, ...projections].some((n) => !Number.isFinite(n))
+  )
+    throw new Error("Season scoring inputs are incomplete.");
+  const historicMean = history.length
+    ? history.reduce((a, b) => a + b, 0) / history.length
+    : projections.reduce((a, b) => a + b, 0) / projections.length;
+  const weekly_means = projections.map((p) => 0.6 * p + 0.4 * historicMean);
+  const mean = weekly_means.reduce((a, b) => a + b, 0) / weekly_means.length;
+  const variance =
+    (history.reduce((n, s) => n + (s - historicMean) ** 2, 0) +
+      4 * leagueVariance) /
+    (Math.max(0, history.length - 1) + 4);
+  const sd = Math.max(20, mean * 0.18, Math.sqrt(variance));
+  return {
+    mean,
+    sd,
+    weekly_means,
+    mean_uncertainty: sd / Math.sqrt(history.length + 4),
+  };
 }
 
 // A seeded simulation makes a repeated review reproducible for unchanged inputs.
@@ -39,13 +69,15 @@ export function seasonProbabilities(
     state = (1664525 * state + 1013904223) >>> 0;
     return (state + 1) / 4294967297;
   };
-  const score = (i: number) =>
+  const normal = () =>
+    Math.sqrt(-2 * Math.log(random())) * Math.cos(2 * Math.PI * random());
+  let form = teams.map(() => 0);
+  const score = (i: number, week: number) =>
     Math.max(
       0,
-      teams[i].mean +
-        teams[i].sd *
-          Math.sqrt(-2 * Math.log(random())) *
-          Math.cos(2 * Math.PI * random()),
+      (teams[i].weekly_means?.[week] ?? teams[i].mean) +
+        form[i] +
+        teams[i].sd * normal(),
     );
   const counts = teams.map(() => ({ champion: 0, playoffs: 0, last: 0 }));
   const capacity = 2 ** Math.ceil(Math.log2(playoffTeams));
@@ -53,14 +85,22 @@ export function seasonProbabilities(
   for (let n = 4; n <= capacity; n *= 2)
     slots = slots.flatMap((rank) => [rank, n + 1 - rank]);
   for (let trial = 0; trial < trials; trial++) {
+    form = teams.map((t) =>
+      t.mean_uncertainty ? t.mean_uncertainty * normal() : 0,
+    );
     const wins = teams.map((t) => t.wins + t.ties / 2),
       points = teams.map((t) => t.points);
-    for (const week of schedule) {
-      const scores = teams.map((_, i) => score(i));
+    for (const [weekIndex, week] of schedule.entries()) {
+      const scores = teams.map(
+        (_, i) => Math.round(score(i, weekIndex) * 100) / 100,
+      );
       for (const game of week) {
         const a = index.get(game.home)!,
           b = index.get(game.away)!;
-        wins[scores[a] >= scores[b] ? a : b]++;
+        if (scores[a] === scores[b]) {
+          wins[a] += 0.5;
+          wins[b] += 0.5;
+        } else wins[scores[a] > scores[b] ? a : b]++;
       }
       scores.forEach((s, i) => (points[i] += s));
     }
@@ -77,16 +117,25 @@ export function seasonProbabilities(
     let bracket: (number | null)[] = slots.map((rank) =>
       rank <= playoffTeams ? ranked[rank - 1] : null,
     );
+    let playoffRound = 0;
     while (bracket.length > 1) {
       const next: (number | null)[] = [];
       for (let j = 0; j < bracket.length; j += 2) {
         const a = bracket[j],
           b = bracket[j + 1];
         next.push(
-          a === null ? b : b === null ? a : score(a) >= score(b) ? a : b,
+          a === null
+            ? b
+            : b === null
+              ? a
+              : score(a, schedule.length + playoffRound) >=
+                  score(b, schedule.length + playoffRound)
+                ? a
+                : b,
         );
       }
       bracket = next;
+      playoffRound++;
     }
     counts[bracket[0]!].champion++;
   }
@@ -119,6 +168,7 @@ export function bracketProbabilities(
   games: BracketGame[],
   seed = 1,
   trials = 10000,
+  startRound = 1,
 ) {
   const final = games.find((g) => g.p === 1);
   if (!final)
@@ -130,12 +180,14 @@ export function bracketProbabilities(
     state = (1664525 * state + 1013904223) >>> 0;
     return (state + 1) / 4294967297;
   };
-  const score = (roster: number) => {
+  let form = teams.map(() => 0);
+  const score = (roster: number, round: number) => {
     const t = teams.find((t) => t.roster_id === roster);
     if (!t) throw new Error("A playoff team is missing.");
     return Math.max(
       0,
-      t.mean +
+      (t.weekly_means?.[Math.max(0, round - startRound)] ?? t.mean) +
+        form[teams.indexOf(t)] +
         t.sd *
           Math.sqrt(-2 * Math.log(random())) *
           Math.cos(2 * Math.PI * random()),
@@ -143,6 +195,13 @@ export function bracketProbabilities(
   };
   const counts = teams.map(() => 0);
   for (let trial = 0; trial < trials; trial++) {
+    form = teams.map((t) =>
+      t.mean_uncertainty
+        ? t.mean_uncertainty *
+          Math.sqrt(-2 * Math.log(random())) *
+          Math.cos(2 * Math.PI * random())
+        : 0,
+    );
     const cache = new Map<number, { w: number; l: number }>(),
       visiting = new Set<number>();
     const resolve = (id: number): { w: number; l: number } => {
@@ -168,7 +227,7 @@ export function bracketProbabilities(
       };
       const a = participant(g.t1, g.t1_from),
         b = participant(g.t2, g.t2_from),
-        aWins = score(a) >= score(b),
+        aWins = score(a, g.r) >= score(b, g.r),
         result = { w: aWins ? a : b, l: aWins ? b : a };
       cache.set(id, result);
       visiting.delete(id);

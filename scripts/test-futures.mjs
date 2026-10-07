@@ -6,7 +6,13 @@ import {
   seasonProbabilities,
   firstRoundOwner,
   bracketProbabilities,
+  seasonStrength,
 } from "../api/_lib/futures-model.ts";
+const strength = seasonStrength([120, 160, 100, 180], [140, 90, 170], 900);
+assert(strength.weekly_means[1] < strength.weekly_means[0]);
+assert(strength.mean_uncertainty > 0);
+assert(strength.sd >= 20);
+assert.throws(() => seasonStrength([NaN], [120], 900), /incomplete/);
 import {
   settleFuture,
   regularSeasonResults,
@@ -481,6 +487,13 @@ try {
   assert.equal(revived[0].id, playerQuote.id);
   assert.equal(Number(revived[0].line), 23.5);
   assert.equal(revived[0].active, true);
+  const newSpecials = ["weekly_count_projection","weekly_average","weekly_highest_score"].map((kind,i)=>({id:randomUUID(),market_key:kind,kind,label:kind,subject:kind,side:i?"over":"6",line:i?150.5:6,odds:225,metadata:{expected_team_count:12,projection_targets:Object.fromEntries(all.map(t=>[t.id,150]))}}));
+  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",[weeklyBoard,league,JSON.stringify(newSpecials)]);
+  const weeklyRevision=(await rows("select revision from public.sportsbook_boards where id=$1",[weeklyBoard]))[0].revision;
+  for (const quote of newSpecials) await rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[quote.id],randomUUID()]);
+  const types=await rows("select distinct market_type from public.ticket_legs where market_quote_id=any($1)",[newSpecials.map(q=>q.id)]);
+  assert.equal(types.length,3);
+  console.log("New weekly specials accept singles and preserve descriptive labels and projection snapshots.");
   console.log(
     "Player market removal, return and repeated recalculation preserve quote identity.",
   );

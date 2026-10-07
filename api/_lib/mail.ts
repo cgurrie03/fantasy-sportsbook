@@ -153,6 +153,45 @@ export async function buildEmail(
       projected.set(g[0].home_team_id, Number(g[0].home_projection));
       projected.set(g[0].away_team_id, Number(g[0].away_projection));
     }
+    const futuresBoard = (
+      await read(
+        db
+          .from("sportsbook_boards")
+          .select("id")
+          .eq("league_id", row.league_id)
+          .eq("nfl_season", league.nfl_season)
+          .eq("board_type", "future")
+          .eq("status", "published")
+          .lte("opens_at", new Date().toISOString())
+          .gt("closes_at", new Date().toISOString()),
+      )
+    )[0];
+    const favorites = futuresBoard
+      ? (
+          await read(
+            db
+              .from("sportsbook_markets")
+              .select("team_id,odds,metadata")
+              .eq("board_id", futuresBoard.id)
+              .eq("kind", "future_champion")
+              .eq("active", true),
+          )
+        )
+          .sort(
+            (a, b) =>
+              Number(b.metadata.simulated_probability) -
+              Number(a.metadata.simulated_probability),
+          )
+          .slice(0, 4)
+          .map((m) => ({
+            owner:
+              members.find((u) => u.team_id === m.team_id)?.display_name ??
+              teams.find((t) => t.id === m.team_id)?.sportsbook_owner_name ??
+              "League Member",
+            team: teams.find((t) => t.id === m.team_id)?.team_name ?? "Team",
+            odds: Number(m.odds),
+          }))
+      : [];
     return {
       ...base,
       subject: `Week ${row.market_week} Is Open · Goldy Fantasy Sportsbook`,
@@ -173,13 +212,7 @@ export async function buildEmail(
             name: t.team_name,
             projected: projected.get(t.id)!,
           })),
-        groups.map((g) => ({
-          home:
-            teams.find((t) => t.id === g[0].home_team_id)?.team_name ?? "Home",
-          away:
-            teams.find((t) => t.id === g[0].away_team_id)?.team_name ?? "Away",
-          spread: Number(g.find((m) => m.kind === "spread")?.line),
-        })),
+        favorites,
       ),
       featured: groups
         .filter((g) => g[0].featured)

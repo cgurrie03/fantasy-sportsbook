@@ -89,17 +89,11 @@ export function renderEmail(content: EmailContent) {
 // Use the published board snapshot so email highlights agree with accepted markets.
 export function openingWeekStories(
   teams: { id: string; name: string; projected: number }[],
-  matchups: { home: string; away: string; spread: number }[],
+  championshipFavorites: { owner: string; team: string; odds: number }[] = [],
 ): NonNullable<EmailContent["stories"]> {
   const ranked = teams
     .filter((t) => Number.isFinite(t.projected))
     .sort((a, b) => b.projected - a.projected || a.name.localeCompare(b.name));
-  const largest = matchups
-    .filter((m) => Number.isFinite(m.spread))
-    .sort(
-      (a, b) =>
-        Math.abs(b.spread) - Math.abs(a.spread) || a.home.localeCompare(b.home),
-    )[0];
   const list = (rows: typeof ranked) =>
     rows
       .map(
@@ -108,11 +102,19 @@ export function openingWeekStories(
       )
       .join("\n");
   return [
-    ...(largest
+    ...(championshipFavorites.length
       ? [
           {
-            title: "🚨 Largest Spread · Prove The Board Wrong",
-            text: `${largest.home} vs. ${largest.away}: ${Math.abs(largest.spread).toFixed(1)} points separate the sides on paper. The underdog has a ready-made receipt if this one goes sideways.`,
+            title: "🏆 FUTURE BETS ARE LIVE",
+            text:
+              "The championship favorites. Who’s bringing home the trophy?\n\n" +
+              championshipFavorites
+                .slice(0, 4)
+                .map(
+                  (t, i) =>
+                    `${i + 1}. ${t.owner} · ${t.team} · ${t.odds > 0 ? "+" : ""}${t.odds}`,
+                )
+                .join("\n"),
           },
         ]
       : []),
@@ -164,7 +166,12 @@ export function sampleEmail(kind: EmailKind): EmailContent {
             { id: "e", name: "Example Team E", projected: 109.5 },
             { id: "f", name: "Example Team F", projected: 101 },
           ],
-          [{ home: "Example Team A", away: "Example Team F", spread: -24.5 }],
+          [
+            { owner: "Phillip Woodings", team: "Hellbean", odds: 300 },
+            { owner: "Ben King", team: "Thank you josh allen", odds: 350 },
+            { owner: "Nelson Barboza", team: "Diabloo", odds: 400 },
+            { owner: "RJ McCandless", team: "Malik’s Magic Magnum", odds: 450 },
+          ],
         ),
         featured: [
           {

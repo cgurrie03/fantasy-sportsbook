@@ -277,6 +277,21 @@ try {
       assert.equal(response.status, 200, JSON.stringify(result));
       assert.equal(result.quotes.length, 48);
       assert(result.quotes.every((q) => q.odds % 50 === 0));
+      assert(result.quotes.every((q) => Math.abs(q.odds) <= 10000));
+      console.log(
+        JSON.stringify(
+          result.quotes
+            .filter((q) => q.kind === "future_champion")
+            .map((q) => ({
+              team: q.label,
+              champion: q.metadata.simulated_probability,
+              mean: q.metadata.season_mean,
+              sd: q.metadata.weekly_score_sd,
+              uncertainty: q.metadata.strength_uncertainty,
+              missing: q.metadata.missing_projection_weeks,
+            })),
+        ),
+      );
       console.log(
         `Live Sleeper futures check: ${result.quotes.length} quotes, ${teams.length} teams, all odds rounded to 50; no live database changes.`,
       );

@@ -28,6 +28,9 @@ export interface Market {
     | "weekly_count_150"
     | "weekly_any_below_100"
     | "weekly_any_200"
+    | "weekly_count_projection"
+    | "weekly_average"
+    | "weekly_highest_score"
     | "future_champion"
     | "future_playoffs"
     | "future_first_pick";
@@ -67,6 +70,9 @@ export const marketType = {
   weekly_count_150: "Teams Scoring 150+",
   weekly_any_below_100: "Any Team Below 100",
   weekly_any_200: "Any Team Scoring 200+",
+  weekly_count_projection: "Teams Beating Projection",
+  weekly_average: "League Average Score",
+  weekly_highest_score: "Highest Weekly Score",
   future_champion: "League Winner",
   future_playoffs: "Make / Miss Playoffs",
   future_first_pick: "#1 Pick",
@@ -83,6 +89,9 @@ export const weeklyKinds = [
   "weekly_count_150",
   "weekly_any_below_100",
   "weekly_any_200",
+  "weekly_count_projection",
+  "weekly_average",
+  "weekly_highest_score",
 ];
 export const roundSpecialOdds = (odds: number) =>
   Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / 10) * 10);
@@ -130,6 +139,66 @@ export const canPlacePicks = (picks: Market[]) =>
     : picks.length >= 2 ||
       (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
 export function specialConflict(a: Market, b: Market) {
+  const highest =
+    a.kind === "weekly_highest_score"
+      ? a
+      : b.kind === "weekly_highest_score"
+        ? b
+        : null;
+  const related = highest === a ? b : a;
+  if (highest && highest.line !== null) {
+    if (
+      highest.side === "under" &&
+      ((related.kind === "weekly_any_200" &&
+        related.side === "yes" &&
+        highest.line <= 200) ||
+        (["team_total", "weekly_average"].includes(related.kind) &&
+          related.side === "over" &&
+          Number(related.line) >= highest.line) ||
+        (related.kind === "weekly_count_150" &&
+          Number(related.line) > 0 &&
+          highest.line <= 150))
+    )
+      return true;
+    if (
+      highest.side === "over" &&
+      related.kind === "weekly_any_200" &&
+      related.side === "no" &&
+      highest.line >= 200
+    )
+      return true;
+  }
+  const projectionCount =
+    a.kind === "weekly_count_projection"
+      ? a
+      : b.kind === "weekly_count_projection"
+        ? b
+        : null;
+  const other = projectionCount === a ? b : a;
+  if (
+    projectionCount &&
+    ["team_total", "weekly_average"].includes(other.kind)
+  ) {
+    const targets = projectionCount.metadata.projection_targets as
+      Record<string, number> | undefined;
+    const values = Object.values(targets ?? {});
+    const target =
+      other.kind === "team_total"
+        ? targets?.[other.team_id ?? ""]
+        : values.reduce((n, v) => n + v, 0) / values.length;
+    if (
+      target !== undefined &&
+      Number.isFinite(target) &&
+      ((projectionCount.line === 0 &&
+        other.side === "over" &&
+        Number(other.line) >= target) ||
+        (projectionCount.line ===
+          projectionCount.metadata.expected_team_count &&
+          other.side === "under" &&
+          Number(other.line) <= target))
+    )
+      return true;
+  }
   if (
     (a.kind === "weekly_low" && b.kind === "weekly_high") ||
     (a.kind === "weekly_high" && b.kind === "weekly_low")

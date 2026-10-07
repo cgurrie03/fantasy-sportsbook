@@ -4,9 +4,11 @@ import type { Market } from "../lib/markets";
 export function WeeklyCountPicker({
   markets,
   renderQuote,
+  projection = false,
 }: {
   markets: Market[];
   renderQuote: (market: Market) => ReactNode;
+  projection?: boolean;
 }) {
   const options = [...markets].sort((a, b) => Number(a.line) - Number(b.line));
   const preferred = [...options].sort(
@@ -41,10 +43,15 @@ export function WeeklyCountPicker({
   }, [Boolean(current)]);
   return (
     <article className="prop-card count-special">
-      <h2>How Many Teams Will Score 150+?</h2>
+      <h2>
+        {projection
+          ? "How Many Teams Will Beat Their Projection?"
+          : "How Many Teams Will Score 150+?"}
+      </h2>
       <p>
-        Choose the exact count. Each qualifying team must score at least 150
-        points.
+        {projection
+          ? "Choose the exact count. Teams must exceed the published projections saved with your ticket. A tied projection does not count."
+          : "Choose the exact count. Each qualifying team must score at least 150 points."}
       </p>
       {!current ? (
         <p>These markets are coming soon.</p>
@@ -54,7 +61,11 @@ export function WeeklyCountPicker({
             className="count-wheel"
             ref={wheel}
             role="group"
-            aria-label="Number of teams scoring 150 or more"
+            aria-label={
+              projection
+                ? "Number of teams beating projection"
+                : "Number of teams scoring 150 or more"
+            }
             onScroll={(e) => {
               const node = e.currentTarget,
                 center = node.scrollLeft + node.clientWidth / 2;
