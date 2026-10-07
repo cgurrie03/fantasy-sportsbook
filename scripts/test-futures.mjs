@@ -402,6 +402,28 @@ try {
     ),
     1,
   );
+  // A player falls out of the top 12 and later returns with a fresh generated ID.
+  // Saving must revive the original quote rather than insert a duplicate.
+  const weeklyBoard = randomUUID();
+  const playerQuote = {
+    id: randomUUID(), market_key: "week-9:player-points:123", kind: "player_points",
+    label: "Player Over 20.5", subject: "Player", side: "over", line: 20.5,
+    odds: -110, team_id: team, metadata: { player_id: "123" },
+  };
+  const saveWeekly = async (quotes) => rows(
+    "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",
+    [weeklyBoard, league, JSON.stringify(quotes)],
+  );
+  await saveWeekly([playerQuote]);
+  await saveWeekly([]);
+  await saveWeekly([{ ...playerQuote, id: randomUUID(), line: 22.5 }]);
+  await saveWeekly([{ ...playerQuote, id: randomUUID(), line: 23.5 }]);
+  const revived = await rows("select id,line,active from public.sportsbook_markets where board_id=$1", [weeklyBoard]);
+  assert.equal(revived.length, 1);
+  assert.equal(revived[0].id, playerQuote.id);
+  assert.equal(Number(revived[0].line), 23.5);
+  assert.equal(revived[0].active, true);
+  console.log("Player market removal, return and repeated recalculation preserve quote identity.");
   console.log(
     "Futures placement, immutable accepted odds, refunds, settlement, cutoff isolation, closed outcomes, and all cash-floor cases passed.",
   );
