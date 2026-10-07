@@ -215,7 +215,7 @@ export function MarketAdmin({
       ]);
       setEditingKey(null);
       message(
-        `Generated ${quotes.length} ${category.toLowerCase()} markets from Sleeper data. Review them before publishing.${result.warnings?.length ? " " + result.warnings.join(" ") : ""}`,
+        `Recalculated ${quotes.length} ${category.toLowerCase()} markets from current Sleeper rosters and projections. These are preview changes: click Publish Board to update live lines and clear resolved locks. Existing tickets stay unchanged.${result.warnings?.length ? " " + result.warnings.join(" ") : ""}`,
         result.warnings?.length ? "info" : "success",
       );
     } catch (e) {

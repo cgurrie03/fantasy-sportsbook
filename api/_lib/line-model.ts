@@ -58,7 +58,7 @@ export function candidates(
       const injury = row.player.injury_status ?? "";
       // Provider projections already incorporate expected availability. Confirmed inactive players are excluded;
       // questionable players retain the provider estimate rather than receiving a second arbitrary discount.
-      const inactive = /^(out|ir|pup|suspended|doubtful)$/i.test(injury);
+      const inactive = /^(out|ir|pup|suspended)$/i.test(injury);
       const adjustment =
         average == null
           ? 0
@@ -93,6 +93,12 @@ export function bestLineup(
   positions: string[],
   allowEmpty = false,
 ): Candidate[] {
+  const result = projectedLineup(players, positions);
+  if (result.missingSlots.length && !allowEmpty)
+    throw new Error("A complete projected lineup could not be formed. Check roster eligibility, injuries, and projection coverage.");
+  return result.picks;
+}
+export function projectedLineup(players: Candidate[], positions: string[]) {
   const slots = positions.filter((p) => !["BN", "IR", "TAXI"].includes(p));
   if (slots.length > 16)
     throw new Error(
@@ -102,7 +108,10 @@ export function bestLineup(
   const states = new Map<number, { value: number; picks: Candidate[] }>([
     [0, { value: 0, picks: [] }],
   ]);
-  for (const player of players.filter((p) => p.expected > 0)) {
+  const unique = new Map<string, Candidate>();
+  for (const p of players.filter(p => p.expected > 0 && p.projection > 0))
+    if (!unique.has(p.id) || unique.get(p.id)!.projection < p.projection) unique.set(p.id, p);
+  for (const player of unique.values()) {
     for (const [mask, state] of [...states]) {
       slots.forEach((slot, index) => {
         if (
@@ -117,14 +126,14 @@ export function bestLineup(
       });
     }
   }
-  const complete = states.get((1 << slots.length) - 1);
-  if (!complete && allowEmpty)
-    return [...states.values()].sort((a, b) => b.value - a.value)[0].picks;
-  if (!complete)
-    throw new Error(
-      "A complete projected lineup could not be formed. Check roster eligibility, injuries, and projection coverage.",
-    );
-  return complete.picks;
+  // Cover as many mandatory slots as possible before maximizing points.
+  const filled = (mask: number) => mask.toString(2).replace(/0/g, "").length;
+  const [mask, result] = [...states].sort((a, b) => filled(b[0]) - filled(a[0]) || b[1].value - a[1].value)[0];
+  const missingSlots = slots.flatMap((slot, index) => mask & (1 << index) ? [] : [
+    slots.filter(s => s === slot).length > 1
+      ? `${slot} ${slots.slice(0, index + 1).filter(s => s === slot).length}` : slot,
+  ]);
+  return { picks: result.picks, missingSlots };
 }
 export function deviation(scores: number[], projection: number) {
   const mean = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);

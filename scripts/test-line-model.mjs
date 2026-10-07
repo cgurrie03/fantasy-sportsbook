@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { writeFile, mkdir } from "node:fs/promises";
 import {
   bestLineup,
+  projectedLineup,
   matchupSpread,
   candidates,
   score,
@@ -59,6 +60,7 @@ const rows = [
   },
 ];
 assert.equal(candidates(rows, { rec: 1 }, [])[0].expected, 0);
+assert.equal(candidates([{...rows[0],player_id:"doubtful",player:{position:"WR",injury_status:"Doubtful"}}],{rec:1},[])[0].expected,10);
 const preferred = bestLineup(
   [
     { ...player("higher-projection", ["WR"], 15), projection: 20 },
@@ -68,6 +70,23 @@ const preferred = bestLineup(
   ["WR"],
 );
 assert.equal(preferred[0].id, "higher-projection");
+const replacementRoster = [
+  player("bye-kicker", ["K"], 0), player("bench-kicker", ["K"], 7.5),
+  player("bye-rb", ["RB"], 0), player("rb1", ["RB"], 18),
+  player("bench-rb", ["RB"], 9), player("bench-wr", ["WR"], 14),
+];
+const replacements = projectedLineup(replacementRoster, ["RB", "RB", "FLEX", "K"]);
+assert.deepEqual(replacements.missingSlots, []);
+assert.equal(replacements.picks.length, 4);
+assert(replacements.picks.some(p => p.id === "bench-kicker"));
+assert(replacements.picks.some(p => p.id === "bench-rb"));
+const noActiveRb = projectedLineup(replacementRoster.filter(p => p.id !== "bench-rb"), ["RB", "RB", "FLEX", "K"]);
+assert.deepEqual(noActiveRb.missingSlots, ["RB 2"]);
+assert(!noActiveRb.picks.some(p => p.expected === 0));
+// Re-evaluation clears a formerly missing kicker as soon as a rostered replacement exists.
+assert.deepEqual(projectedLineup([player("bye-kicker", ["K"], 0)], ["K"]).missingSlots, ["K"]);
+assert.deepEqual(projectedLineup(replacementRoster, ["K"]).missingSlots, []);
+assert.equal(projectedLineup([player("duplicate", ["RB"], 10), player("duplicate", ["RB"], 10)], ["RB", "RB"]).picks.length, 1);
 assert.equal(
   candidates(
     [
@@ -139,7 +158,7 @@ if (process.argv.includes("--live")) {
   }
   assert.equal(rosters.length, 12);
   console.log(
-    "Live projections and optimal lineup coverage verified for all 12 teams.",
+    "Active-roster and bench projection coverage audited for all 12 teams; incomplete rosters remain reported above.",
   );
   if (process.argv.includes("--report")) {
     const { deviation } = await import("../api/_lib/line-model.ts");

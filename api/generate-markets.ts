@@ -2,6 +2,7 @@ import { isWorker } from "./_lib/worker-auth.js";
 import { createClient } from "@supabase/supabase-js";
 import {
   bestLineup,
+  projectedLineup,
   matchupSpread,
   candidates,
   deviation,
@@ -156,6 +157,7 @@ export async function POST(request: Request) {
       );
     const fetchData = async (path: string) => {
       const response = await fetch(path, {
+        cache: "no-store",
         signal: AbortSignal.timeout(25000),
       });
       if (!response.ok)
@@ -230,13 +232,13 @@ export async function POST(request: Request) {
         ...(roster.reserve ?? []),
         ...(roster.taxi ?? []),
       ]);
-      const lineup = bestLineup(
+      const selection = projectedLineup(
         pool.filter(
           (p) => roster.players.includes(p.id) && !excluded.has(p.id),
         ),
         league.roster_positions,
-        true,
       );
+      const lineup = selection.picks;
       const mean = roundHalf(
         lineup.reduce((total, player) => total + player.expected, 0),
       );
@@ -246,6 +248,7 @@ export async function POST(request: Request) {
       return {
         ...team,
         lineup,
+        missing_slots: selection.missingSlots,
         mean,
         season_mean: scores.length
           ? roundHalf(
@@ -275,7 +278,7 @@ export async function POST(request: Request) {
         "League-scored weekly projections, optimal legal lineup, capped historical adjustment",
       historical_weeks: historical.length,
       injury_source:
-        "Sleeper projection feed; Out/IR/PUP/Suspended/Doubtful excluded",
+        "Sleeper projection feed; Out/IR/PUP/Suspended excluded. Questionable and Doubtful retain positive provider projections; active roster and bench only.",
       scoring_settings: league.scoring_settings,
     };
     if (category === "Season Futures") {
@@ -549,8 +552,10 @@ export async function POST(request: Request) {
                   (teamId === home.id
                     ? home.unfilled_slots > 0
                     : away.unfilled_slots > 0),
-            lock_reason:
-              "A complete lineup with positive projections is unavailable. Regenerate lines after roster or projection coverage is corrected.",
+            lock_reason: [home, away]
+              .filter(t => t.unfilled_slots > 0 && (kind !== "team_total" || t.id === teamId))
+              .map(t => `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`)
+              .join(" "),
           },
         });
       if (category === "Matchups") {
@@ -685,7 +690,7 @@ export async function POST(request: Request) {
         "Regenerate after complete eligible lineups with positive projections are available for: " +
         models
           .filter((m) => m.unfilled_slots > 0)
-          .map((m) => m.team_name)
+          .map((m) => `${m.team_name} (${m.missing_slots.join(", ")})`)
           .join(", ") +
         ".";
       const leagueQuote = (
@@ -838,7 +843,7 @@ export async function POST(request: Request) {
         .filter((t) => t.unfilled_slots > 0)
         .map(
           (t) =>
-            `${t.team_name}: ${t.unfilled_slots} starting slot(s) have no active weekly projection and contribute zero points.`,
+            `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
         ),
     });
   } catch (error) {
