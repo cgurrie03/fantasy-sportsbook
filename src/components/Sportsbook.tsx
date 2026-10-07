@@ -13,6 +13,7 @@ import {
   selectionPrice,
   orderMatchups,
   weeklyKinds,
+  canPlacePicks,
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
@@ -75,7 +76,7 @@ export function Sportsbook({
     wager = Number(stake),
     price = combinedPrice(picks),
     valid =
-      picks.length >= 2 &&
+      canPlacePicks(picks) &&
       wager >= 1 &&
       wager <= balance &&
       Math.round(wager * 100) === wager * 100;
@@ -551,7 +552,10 @@ export function Sportsbook({
                         (id, index) => {
                           const t = team(id);
                           return (
-                            <div className="player-match-team" key={id}>
+                            <div
+                              className={`player-match-team${index === 1 ? " player-match-team-right" : ""}`}
+                              key={id}
+                            >
                               {t?.avatar_url ? (
                                 <img src={t.avatar_url} alt="" />
                               ) : (
@@ -934,8 +938,8 @@ export function Sportsbook({
           </button>
         </div>
         <p className="wager-help">
-          {picks.length < 2
-            ? "Choose at least 2 picks to place a bet."
+          {!canPlacePicks(picks)
+            ? "Choose at least 2 picks, or a Weekly Special single."
             : `Enter a wager from $1 to ${money(balance)}.`}
         </p>
         {notice && (

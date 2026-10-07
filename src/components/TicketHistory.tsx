@@ -321,7 +321,9 @@ export function TicketHistory({
                     <p className="ticket-meta">
                       {t.ticket_type === "future"
                         ? "Future Bet"
-                        : `${legs.length} Pick Parlay`}{" "}
+                        : legs.length === 1
+                          ? "Single Bet"
+                          : `${legs.length} Pick Parlay`}{" "}
                       · Week {t.market_week} · {ticketDate(t.placed_at)}
                     </p>
                     <div className="ticket-values">

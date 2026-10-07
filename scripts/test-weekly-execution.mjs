@@ -412,6 +412,84 @@ try {
     /market is locked/,
   );
   await db.exec("reset role;set role anon;");
+  await db.exec("reset role;begin;");
+  await rows(
+    "update public.sportsbook_boards set status='published',opens_at=now()-interval '1 hour' where id=$1",
+    [specialBoard],
+  );
+  const singles = [];
+  for (const kind of [
+    "weekly_high",
+    "weekly_low",
+    "weekly_count_150",
+    "weekly_any_below_100",
+    "weekly_any_200",
+    "player_points",
+  ]) {
+    singles.push(
+      (
+        await rows(
+          "insert into public.sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,line,metadata) values(gen_random_uuid(),$1,$2,$2,$2,'Test','no',100,12,'{\"expected_team_count\":12}') returning id",
+          [specialBoard, kind],
+        )
+      )[0].id,
+    );
+  }
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  for (const id of singles.slice(0, 5)) {
+    const result = (
+      await rows(
+        "select public.place_sportsbook_ticket($1,1,$2::uuid[],1,gen_random_uuid()) result",
+        [specialBoard, [id]],
+      )
+    )[0].result;
+    assert.ok(result.ticket_id, "Every Weekly Special accepts a single");
+  }
+  await db.exec("savepoint rejected_pick;");
+  await assert.rejects(
+    () =>
+      rows(
+        "select public.place_sportsbook_ticket($1,1,$2::uuid[],1,gen_random_uuid())",
+        [specialBoard, [singles[5]]],
+      ),
+    /at least two picks/,
+  );
+  await db.exec("rollback to savepoint rejected_pick;");
+  assert.ok(
+    (
+      await rows(
+        "select public.place_sportsbook_ticket($1,1,$2::uuid[],1,gen_random_uuid()) result",
+        [specialBoard, [singles[0], singles[5]]],
+      )
+    )[0].result.ticket_id,
+  );
+  await db.exec("reset role;");
+  const lowYes = (
+    await rows(
+      "select id from public.sportsbook_markets where board_id=$1 and kind='weekly_any_below_100' and side='yes'",
+      [specialBoard],
+    )
+  )[0].id;
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  await assert.rejects(
+    () =>
+      rows(
+        "select public.place_sportsbook_ticket($1,1,$2::uuid[],1,gen_random_uuid())",
+        [specialBoard, [singles[3], lowYes]],
+      ),
+    /one outcome/,
+  );
+  await db.exec("rollback to savepoint rejected_pick;");
+  await assert.rejects(
+    () =>
+      rows(
+        "select public.place_sportsbook_ticket($1,1,$2::uuid[],1,gen_random_uuid())",
+        [specialBoard, [singles[2], lowYes]],
+      ),
+    /contradictory/,
+  );
+  await db.exec("rollback to savepoint rejected_pick;");
+  await db.exec("reset role;rollback;set role anon;");
   await assert.rejects(settle);
   await assert.rejects(() =>
     rows("select * from public.claim_automation_job()"),

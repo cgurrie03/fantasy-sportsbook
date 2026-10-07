@@ -110,11 +110,68 @@ export function orderMatchups(
 }
 export const combinedPrice = (picks: Market[]) =>
   picks.reduce((price, pick) => price * selectionPrice(pick), 1);
+export const canPlacePicks = (picks: Market[]) =>
+  picks.length >= 2 ||
+  (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
+export function specialConflict(a: Market, b: Market) {
+  if (
+    (a.kind === "weekly_low" && b.kind === "weekly_high") ||
+    (a.kind === "weekly_high" && b.kind === "weekly_low")
+  )
+    return a.team_id === b.team_id;
+  const count =
+    a.kind === "weekly_count_150"
+      ? a
+      : b.kind === "weekly_count_150"
+        ? b
+        : null;
+  const low =
+    a.kind === "weekly_any_below_100"
+      ? a
+      : b.kind === "weekly_any_below_100"
+        ? b
+        : null;
+  if (
+    count &&
+    low?.side === "yes" &&
+    Number(count.line) === Number(count.metadata.expected_team_count ?? 12)
+  )
+    return true;
+  const total =
+    a.kind === "team_total" ? a : b.kind === "team_total" ? b : null;
+  const special = total === a ? b : a;
+  if (total && total.line !== null) {
+    if (
+      special.kind === "weekly_any_below_100" &&
+      special.side === "no" &&
+      total.side === "under" &&
+      total.line <= 100
+    )
+      return true;
+    if (
+      special.kind === "weekly_any_200" &&
+      special.side === "no" &&
+      total.side === "over" &&
+      total.line >= 200
+    )
+      return true;
+    if (
+      count &&
+      total.side === "under" &&
+      total.line <= 150 &&
+      Number(count.line) === Number(count.metadata.expected_team_count ?? 12)
+    )
+      return true;
+  }
+  return false;
+}
 export function pickConflict(picks: Market[], next: Market) {
   if (picks.some((p) => p.id === next.id)) return "";
   if (picks.length >= 10) return "A ticket can contain up to 10 picks.";
   if (picks.some((p) => p.market_key === next.market_key))
     return "Choose only one outcome from this market.";
+  if (picks.some((p) => specialConflict(p, next)))
+    return "These selections have contradictory outcomes.";
   if (
     next.matchup_key &&
     picks.some(
