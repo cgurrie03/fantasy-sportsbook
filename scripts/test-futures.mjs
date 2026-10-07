@@ -130,6 +130,7 @@ assert.match(pickConflict([weekly], future), /standalone/);
 const playoff = { id: "p", kind: "future_playoffs", market_key: "playoff:1" };
 const otherPlayoff = { ...playoff, id: "p2", market_key: "playoff:2" };
 assert(canPlacePicks([playoff, otherPlayoff]));
+assert.equal(canPlacePicks([playoff]), false);
 assert.equal(pickConflict([playoff], otherPlayoff), "");
 assert.match(pickConflict([playoff], future), /standalone/);
 assert.match(
@@ -251,6 +252,10 @@ try {
       )
     )[0].result;
   await place([quotes[0].id], 30);
+  await assert.rejects(
+    () => place([quotes[1].id], 10, randomUUID()),
+    /at least two playoff picks/,
+  );
   const ticket = (
     await rows("select * from public.tickets where request_key=$1", [req])
   )[0];
@@ -326,7 +331,7 @@ try {
     JSON.stringify(result),
   ]);
   assert.equal(await balance(), 205);
-  await place([quotes[1].id], 50, randomUUID());
+  await place([quotes[2].id], 50, randomUUID());
   const openTicket = (
     await rows(
       "select id from public.tickets where team_id=$1 and status='OPEN' order by placed_at desc limit 1",
@@ -391,7 +396,7 @@ try {
     false,
   );
   await assert.rejects(
-    () => place([quotes[1].id], 5, randomUUID()),
+    () => place([quotes[1].id, otherPlayoffQuote.id], 5, randomUUID()),
     /no longer available/,
   );
   await db.exec(

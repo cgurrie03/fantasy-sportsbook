@@ -84,6 +84,51 @@ try {
   );
   const oldMailFetch = globalThis.fetch,
     oldMailKey = process.env.RESEND_API_KEY;
+  // Opening content must be built from the final published board, not preview fixtures.
+  const openingTeams = Array.from({ length: 4 }, (_, i) => ({
+    id: `team${i}`, team_name: `Final Team ${i}`, wins: 4 - i, losses: i,
+    ties: 0, avatar_url: `https://example.invalid/team${i}.png`,
+  }));
+  const openingQuotes = [
+    { kind: "spread", matchup_key: "match", home_team_id: "team0", away_team_id: "team1", team_id: "team0", line: 7.5, home_projection: 140, away_projection: 147, featured: "Game of the Week" },
+    { kind: "spread", matchup_key: "match", team_id: "team1", line: -7.5 },
+    { kind: "moneyline", matchup_key: "match", team_id: "team0", odds: 150, boost_pct: 25 },
+    { kind: "moneyline", matchup_key: "match", team_id: "team1", odds: -170, boost_pct: 25 },
+    { kind: "match_total", matchup_key: "match", side: "over", line: 287.5, odds: -110, boost_pct: 0 },
+  ];
+  let openingStatus = "published";
+  const openingDb = { from(table) {
+    const filters = {};
+    const query = {
+      select() { return query; },
+      eq(k, v) { filters[k] = v; return query; },
+      lte() { return query; }, gt() { return query; },
+      then(resolve) {
+        const records = table === "teams" ? openingTeams
+          : table === "league_memberships" ? openingTeams.map((t, i) => ({ team_id: t.id, display_name: `Final Owner ${i}` }))
+          : table === "wallets" ? [{ balance: 173.25 }]
+          : table === "leagues" ? [{ nfl_season: 2026, league_season: 3 }]
+          : table === "sportsbook_boards" ? [filters.board_type === "future" ? { id: "future" } : { id: "weekly", status: openingStatus, opens_at: "2026-10-07T12:00:00Z", closes_at: "2026-10-09T00:00:00Z" }]
+          : filters.board_id === "future" ? openingTeams.map((t, i) => ({ team_id: t.id, odds: 300 + i * 50, metadata: { simulated_probability: .4 - i * .05 } }))
+          : openingQuotes;
+        return Promise.resolve({ data: records }).then(resolve);
+      },
+    };
+    return query;
+  } };
+  const openingRow = { kind: "opening", league_id: "test", team_id: "team0", market_week: 5 };
+  const finalOpening = await mail.buildEmail(openingDb, openingRow);
+  assert.equal(finalOpening.featured[0].teams[0].record, "4–0");
+  assert.equal(finalOpening.featured[0].teams[0].avatarUrl, openingTeams[0].avatar_url);
+  assert.equal(finalOpening.featured[0].teams[0].boostedOdds, "+188");
+  assert.equal(finalOpening.featured[0].total, "287.5");
+  assert.match(finalOpening.stories[0].title, /FUTURE BETS ARE LIVE/);
+  assert.match(finalOpening.stories[0].text, /Final Owner 3.*\+450/);
+  openingQuotes[4].line = 299.5;
+  assert.equal((await mail.buildEmail(openingDb, openingRow)).featured[0].total, "299.5");
+  openingStatus = "draft";
+  await assert.rejects(() => mail.buildEmail(openingDb, openingRow), /waits for final publication/);
+  console.log("Opening email uses final published lines, boosted odds, current records, avatars, owner favorites and balance; drafts cannot send.");
   const changes = [];
   let providerFails = false;
   const acceptedPayload = {

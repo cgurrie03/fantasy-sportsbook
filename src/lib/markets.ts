@@ -135,7 +135,9 @@ export const combinedPrice = (picks: Market[]) =>
 export const canPlacePicks = (picks: Market[]) =>
   picks.some(isFuture)
     ? picks.length <= 10 &&
-      (picks.length === 1 || picks.every((p) => p.kind === "future_playoffs"))
+      (picks.every((p) => p.kind === "future_playoffs")
+        ? picks.length >= 2
+        : picks.length === 1)
     : picks.length >= 2 ||
       (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
 export function specialConflict(a: Market, b: Market) {

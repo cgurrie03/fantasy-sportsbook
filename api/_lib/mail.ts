@@ -121,7 +121,8 @@ export async function buildEmail(
           .eq("market_week", row.market_week),
       )
     )[0];
-    if (!board) throw new Error("Published board unavailable.");
+    if (!board || board.status !== "published")
+      throw new Error("Published board unavailable; email waits for final publication.");
     if (row.kind === "reminder")
       return {
         ...base,

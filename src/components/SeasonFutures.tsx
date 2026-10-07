@@ -58,22 +58,6 @@ export function SeasonFutures({
             </div>
           </header>
           <div className="future-rows">
-            <div
-              className="future-column-headings"
-              aria-hidden={kind !== "future_playoffs"}
-            >
-              {kind === "future_playoffs" ? (
-                <>
-                  <span>Team</span>
-                  <div>
-                    <span>Make</span>
-                    <span>Miss</span>
-                  </div>
-                </>
-              ) : (
-                <span>&nbsp;</span>
-              )}
-            </div>
             {markets
               .filter(
                 (m) =>
@@ -131,7 +115,7 @@ export function SeasonFutures({
                             ),
                           ]
                             .filter((q): q is Market => !!q)
-                            .map((q) => <span key={q.id}>{quote(q, "")}</span>)
+                            .map((q) => <span key={q.id}>{quote(q, q.side === "make" ? "Make" : "Miss")}</span>)
                         : quote(m, "")}
                     </div>
                   </div>
@@ -292,7 +276,7 @@ export function FuturesAdmin({
         </p>
       )}
       <p>
-        League Winner and #1 Pick: singles · Playoff-only parlays allowed · Odds
+        League Winner and #1 Pick: singles · Make/Miss Playoffs: parlays only · Odds
         rounded to 50, capped at ±10,000 · Record, then points for seeding ·
         Seven playoff teams, #1 seed bye · 2027 first-round ownership from
         Sleeper

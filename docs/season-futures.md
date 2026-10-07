@@ -5,7 +5,7 @@ Approved rules (October 6, 2026):
 - League Winner, Make / Miss Playoffs for every team, and #1 Pick.
 - #1 Pick tracks regular-season last place. Show the original team with its next-year first-round pick owner in parentheses. Sleeper traded picks supply ownership; accepted ticket labels retain the ownership shown at placement.
 - Seven playoff teams, Week 15 start, record then points for seeding, top seed receives the first-round bye. This is the confirmed working assumption and is visible in admin.
-- League Winner and #1 Pick are standalone singles. Make/Miss Playoffs supports singles and 2–10 leg playoff-only parlays; opposite outcomes for one team are blocked. Weekly and future selections cannot share a ticket.
+- League Winner and #1 Pick are standalone singles. Make/Miss Playoffs requires 2–10 leg playoff-only parlays; opposite outcomes for one team are blocked. Weekly and future selections cannot share a ticket. Previously accepted playoff singles remain intact.
 - Base futures odds round to 50 and cap at ±10,000; accepted ticket prices remain unchanged.
 - Season markets stay available through weekly cutoffs, unless manually closed or their outcome has been resolved.
 - Weekly cash floor is max($25, $100 minus open futures stakes). Higher available cash is retained. Open futures do not block the weekly refill; unresolved prior weekly tickets do.

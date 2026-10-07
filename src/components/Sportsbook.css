@@ -98,9 +98,6 @@
   line-height: 1.25;
 }
 .season-future-card > header { min-height: 54px; align-items: flex-start; margin-bottom:8px; }
-.future-column-headings { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; color:var(--muted); min-height:28px; }
-.future-column-headings > div { display:flex; gap:6px; }
-.future-column-headings > div > span { width:65px; text-align:center; }
 .future-row.playoff-cutoff { border-top:3px solid var(--gold); }
 .future-pick-owner { color:var(--gold); }
 .market-lock-explanation { border-left:3px solid var(--gold); padding:8px 10px; font-size:12px; line-height:1.5; }
@@ -183,9 +180,13 @@
   }
 }
 @media (min-width:1101px) {
-  .season-futures-grid { grid-template-rows:auto auto repeat(var(--future-rows),auto); row-gap:0; }
-  .season-future-card { display:grid; grid-template-rows:subgrid; grid-row:span calc(var(--future-rows) + 2); gap:0; }
+  .season-futures-grid { grid-template-rows:auto repeat(var(--future-rows),auto); row-gap:0; }
+  .season-future-card { display:grid; grid-template-rows:subgrid; grid-row:span calc(var(--future-rows) + 1); gap:0; }
   .season-future-card > .future-rows { display:contents; }
   .season-future-card > header { min-height:0; padding-bottom:12px; margin-bottom:0; }
   .future-row { margin:0; }
 }
+.count-special { display:flex; flex-direction:column; }
+.count-special > h2 { margin:0 0 12px; }
+.count-special > p { line-height:1.65; min-height:40px; margin:0 0 10px; }
+.count-special > .count-selection { margin-top:auto; }
