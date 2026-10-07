@@ -498,6 +498,19 @@ try {
   for (const quote of newSpecials) await rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[quote.id],randomUUID()]);
   const types=await rows("select distinct market_type from public.ticket_legs where market_quote_id=any($1)",[newSpecials.map(q=>q.id)]);
   assert.equal(types.length,3);
+  const acceptedWeekly = () => rows("select l.* from public.ticket_legs l where market_quote_id=any($1) order by l.id",[newSpecials.map(q=>q.id)]);
+  const beforeRefreshLegs = await acceptedWeekly();
+  const beforeRefreshTickets = await rows("select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",[newSpecials.map(q=>q.id)]);
+  const beforeRefreshBalance = await balance();
+  const refreshedQuotes = newSpecials.map(q=>({...q,odds:400,line:q.kind==='weekly_count_projection'?7:170.5,metadata:{...q.metadata,projection_targets:Object.fromEntries(all.map(t=>[t.id,180]))}}));
+  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",[weeklyBoard,league,JSON.stringify(refreshedQuotes)]);
+  await assert.rejects(()=>rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[newSpecials[0].id],randomUUID()]),/Betting is closed/);
+  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",[weeklyBoard,league,JSON.stringify(refreshedQuotes)]);
+  assert.deepEqual(await acceptedWeekly(),beforeRefreshLegs);
+  assert.deepEqual(await rows("select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",[newSpecials.map(q=>q.id)]),beforeRefreshTickets);
+  assert.equal(await balance(),beforeRefreshBalance);
+  await assert.rejects(()=>rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[newSpecials[0].id],randomUUID()]),/Lines have changed/);
+  console.log("Published-to-draft morning repricing preserves all ticket and leg fields, projection snapshots and wallet balances; stale slips are rejected.");
   console.log("New weekly specials accept singles and preserve descriptive labels and projection snapshots.");
   console.log(
     "Player market removal, return and repeated recalculation preserve quote identity.",

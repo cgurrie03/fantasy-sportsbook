@@ -48,6 +48,14 @@ export function boardWindow(now: Date, opening: string, cutoff: string) {
     closes: easternTime(day(2), cutoff.slice(0, 5)),
   };
 }
+export function retainPublishedBoard(status: string | undefined, operation: string) {
+  return status === "published" && !operation.startsWith("refresh_");
+}
+export function publicationRefreshComplete(jobs: { operation: string; status: string }[]) {
+  return ["refresh_matchups", "refresh_players", "refresh_specials"].every(
+    (operation) => jobs.some((job) => job.operation === operation && job.status === "done"),
+  );
+}
 export async function POST(request: Request) {
   if (!isWorker(request))
     return json({ error: "Scheduled worker authentication required." }, 401);
@@ -287,7 +295,7 @@ export async function POST(request: Request) {
               .eq("market_week", job.market_week),
           )
         )[0];
-        if (board?.status === "published") {
+        if (retainPublishedBoard(board?.status, job.operation)) {
           const retained = await db
             .from("automation_jobs")
             .update({
@@ -300,9 +308,9 @@ export async function POST(request: Request) {
           if (retained.error) throw new Error(retained.error.message);
           return json({ job: job.operation, retained_published_board: true });
         }
-        if (board && board.status !== "draft")
+        if (board && !["draft", "published"].includes(board.status))
           throw new Error(
-            "Automatic regeneration will not change an already published or manually closed board.",
+            "Automatic regeneration will not reopen a manually closed board.",
           );
         const response = await generate(
           internal("generate-markets", {
@@ -384,7 +392,44 @@ export async function POST(request: Request) {
           category,
           markets: generated.length,
           warnings: result.warnings,
+          accepted_tickets_preserved: true,
         };
+        if (job.operation === "refresh_specials") {
+          const reasons = [...new Set<string>(generated
+            .filter((q: any) => q.metadata?.lineup_locked)
+            .map((q: any) => String(q.metadata.lock_reason)))];
+          if (reasons.length) {
+            for (const admin of recipients.filter((m: any) => m.role === "admin")) {
+              const content = {
+                subject: `Incomplete Projected Lineups · Week ${job.market_week}`,
+                heading: "The Morning Refresh Needs Your Review",
+                greeting: `Hi ${admin.display_name ?? "Cooper"},`,
+                paragraphs: [
+                  "The scheduled morning recalculation finished, but some teams still lack a complete eligible lineup with positive projections.",
+                  ...reasons,
+                  "Affected selections remain locked. Review the roster or projection coverage and decide how to proceed. Other markets can open normally. Existing tickets have not changed.",
+                ],
+                details: [["Week", String(job.market_week)]] as [string, string][],
+                button: "Review Lines & Markets",
+                url: "https://sportsbook.coopergurrie.com/",
+              };
+              await queueEmail(db, {
+                league_id: job.league_id,
+                event_key: `${job.event_key}:lineup-attention:${admin.id}`,
+                kind: "attention",
+                recipient: admin.invited_email,
+                team_id: admin.team_id,
+                market_week: job.market_week,
+                payload: {
+                  from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+                  to: [admin.invited_email], subject: content.subject,
+                  html: renderEmail(content),
+                  text: [content.subject, ...content.paragraphs, content.url].join("\n\n"),
+                },
+              });
+            }
+          }
+        }
       } else if (job.operation === "publish") {
         if (schedule.publication_paused) {
           await db
@@ -422,13 +467,7 @@ export async function POST(request: Request) {
               "refresh_specials",
             ]),
         );
-        if (
-          board?.status !== "published" &&
-          !["refresh_matchups", "refresh_players", "refresh_specials"].every(
-            (op) =>
-              fresh.some((j: any) => j.operation === op && j.status === "done"),
-          )
-        )
+        if (!publicationRefreshComplete(fresh))
           throw new Error(
             "Publication held: all three categories need a successful fresh Wednesday refresh.",
           );

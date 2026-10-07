@@ -76,6 +76,17 @@ try {
     worker.easternTime("2026-11-04", "08:00"),
     "2026-11-04T13:00:00.000Z",
   );
+  assert.equal(worker.retainPublishedBoard("published", "refresh_matchups"), false);
+  assert.equal(worker.retainPublishedBoard("published", "refresh_players"), false);
+  assert.equal(worker.retainPublishedBoard("published", "refresh_specials"), false);
+  assert.equal(worker.retainPublishedBoard("published", "generate_matchups"), true);
+  const morningRefresh = ["refresh_matchups", "refresh_players", "refresh_specials"]
+    .map(operation => ({ operation, status: "done" }));
+  assert(worker.publicationRefreshComplete(morningRefresh));
+  assert.equal(worker.publicationRefreshComplete(morningRefresh.slice(0, 2)), false);
+  assert.equal(worker.publicationRefreshComplete([
+    ...morningRefresh.slice(0, 2), { operation: "refresh_specials", status: "failed" },
+  ]), false);
   console.log(
     "Scheduled worker rejects unauthenticated requests; Eastern times follow daylight saving.",
   );
