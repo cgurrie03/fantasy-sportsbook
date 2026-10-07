@@ -16,5 +16,6 @@ fs.writeFileSync(
     "{{ .ConfirmationURL }}",
   ),
 );
+fs.writeFileSync("supabase/templates/confirm-signup.html", official.replaceAll("https://SIGN_IN_LINK_PLACEHOLDER", "{{ .ConfirmationURL }}"));
 fs.writeFileSync("signin-email-review.html", renderEmail(base));
 console.log("Exported production sign-in HTML and a sample preview.");
