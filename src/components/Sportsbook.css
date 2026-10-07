@@ -71,7 +71,7 @@
 .count-wheel button[aria-pressed=true]{background:#f4c453;color:#12233d;border-color:#f4c453;box-shadow:0 0 0 4px #f4c45322}
 .count-instruction{display:block;text-align:center;color:var(--muted);font-size:11px;margin:4px 0 12px}
 .prop-card .count-selection{display:block}
-.void-ticket-icon{display:inline-grid;place-items:center;width:30px;height:30px;padding:5px;background:transparent;color:var(--error);border:1px solid var(--border);border-radius:50%;flex-shrink:0}
+.void-ticket-icon{display:inline-grid;place-items:center;width:30px;height:30px;min-width:30px;min-height:30px;max-width:30px;max-height:30px;box-sizing:border-box;padding:5px;background:transparent;color:var(--error);border:1px solid var(--border);border-radius:50%;flex-shrink:0}
 .void-ticket-icon svg{width:18px;height:18px}.void-ticket-icon:hover{background:var(--surface2);border-color:var(--error)}
 .player-match-header{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:40px;background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:14px;padding:17px 20px;margin:16px 0}
 .player-match-team{display:flex;align-items:center;gap:12px;min-width:0}.player-match-team img,.player-team-initial{width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0}.player-team-initial{display:grid;place-items:center;background:var(--surface2);color:var(--gold);font-weight:800}
