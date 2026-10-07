@@ -80,7 +80,7 @@ export async function buildEmail(
     )[0];
     return {
       ...base,
-      subject: `Bet Confirmed · Week ${ticket.market_week} · ${ticket.id.slice(0, 8)}`,
+      subject: `Bet Confirmed · ${ticket.ticket_type === "future" ? "Season Futures" : `Week ${ticket.market_week}`} · ${ticket.id.slice(0, 8)}`,
       heading: "Your Bet Is Confirmed",
       paragraphs: [
         "Your selections and accepted odds are locked in. Follow your ticket in My Bets.",
@@ -89,7 +89,7 @@ export async function buildEmail(
         ["Ticket", ticket.id.slice(0, 8)],
         [
           "Season / Week",
-          `Season ${ticket.league_season} • Week ${ticket.market_week}`,
+          `Season ${ticket.league_season} • ${ticket.ticket_type === "future" ? "Season Futures" : `Week ${ticket.market_week}`}`,
         ],
         ["Placed", date(ticket.placed_at)],
         ["Wager", money(ticket.stake)],
@@ -98,7 +98,11 @@ export async function buildEmail(
         ["Balance after placement", money(ledger?.balance_after ?? balance)],
       ],
       legs: legs.map((l) => ({
-        matchup: l.matchup ?? "Weekly Specials",
+        matchup:
+          l.matchup ??
+          (ticket.ticket_type === "future"
+            ? "Season Futures"
+            : "Weekly Specials"),
         selection: l.selection,
         type: l.market_type,
       })),
@@ -111,6 +115,7 @@ export async function buildEmail(
         db
           .from("sportsbook_boards")
           .select("*")
+          .eq("board_type", "weekly")
           .eq("league_id", row.league_id)
           .eq("nfl_season", league.nfl_season)
           .eq("market_week", row.market_week),

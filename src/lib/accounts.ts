@@ -85,6 +85,7 @@ export interface TicketLeg {
   selection: string;
   market_type: string;
   actual_value?: number | string | null;
+  result_evidence?: string;
   matchup: string | null;
   status: string;
 }
@@ -110,7 +111,7 @@ export async function loadAccounts(): Promise<AccountData> {
     supabase
       .from("ticket_legs")
       .select(
-        "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value",
+        "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence",
       )
       .order("leg_number"),
     supabase

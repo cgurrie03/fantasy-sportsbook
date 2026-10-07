@@ -140,7 +140,7 @@ try {
           ])
         )[0].odds,
       ),
-      240,
+      225,
     );
   }
   const ticket = "dddddddd-dddd-4ddd-8ddd-dddddddddddd",

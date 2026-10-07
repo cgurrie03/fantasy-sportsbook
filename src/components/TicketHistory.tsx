@@ -188,6 +188,12 @@ const legResult = (leg: TicketLeg) => {
       ? "Awaiting result"
       : "Actual result unavailable";
   const value = Number(leg.actual_value);
+  if (
+    ["League Winner", "Make / Miss Playoffs", "#1 Pick"].includes(
+      leg.market_type,
+    )
+  )
+    return leg.result_evidence ?? "Confirmed season result";
   const points = (n: number) =>
     n.toLocaleString("en-US", { maximumFractionDigits: 2 });
   if (leg.market_type === "Spread" || leg.market_type === "Moneyline")
@@ -324,7 +330,11 @@ export function TicketHistory({
                         : legs.length === 1
                           ? "Single Bet"
                           : `${legs.length} Pick Parlay`}{" "}
-                      · Week {t.market_week} · {ticketDate(t.placed_at)}
+                      ·{" "}
+                      {t.ticket_type === "future"
+                        ? "Season Futures"
+                        : `Week ${t.market_week}`}{" "}
+                      · {ticketDate(t.placed_at)}
                     </p>
                     <div className="ticket-values">
                       <div>

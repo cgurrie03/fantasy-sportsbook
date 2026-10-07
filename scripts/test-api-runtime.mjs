@@ -12,6 +12,8 @@ try {
     "generate-markets",
     "weekly-execution",
     "_lib/line-model",
+    "_lib/futures-model",
+    "_lib/futures-settlement",
     "_lib/settlement",
     "_lib/worker-auth",
     "_lib/email-templates",
@@ -220,6 +222,67 @@ try {
     else process.env.SUPABASE_URL = savedUrl;
     if (savedKey === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = savedKey;
+  }
+  if (process.argv.includes("--live-futures")) {
+    const liveFetch = globalThis.fetch;
+    const sleeper = async (path) => {
+      const r = await liveFetch(
+        `https://api.sleeper.com/v1/league/1312126153980391424/${path}`,
+      );
+      assert(r.ok);
+      return r.json();
+    };
+    const [rosters, users] = await Promise.all([
+      sleeper("rosters"),
+      sleeper("users"),
+    ]);
+    const teams = rosters.map((r) => ({
+      id: `00000000-0000-4000-8000-${String(r.roster_id).padStart(12, "0")}`,
+      roster_id: r.roster_id,
+      team_name:
+        users.find((u) => u.user_id === r.owner_id)?.metadata?.team_name ??
+        users.find((u) => u.user_id === r.owner_id)?.display_name ??
+        `Team ${r.roster_id}`,
+      wins: r.settings.wins,
+      losses: r.settings.losses,
+      ties: r.settings.ties,
+    }));
+    process.env.SUPABASE_URL = "https://futures-test.invalid";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+    process.env.SUPABASE_ANON_KEY = "test-key";
+    process.env.WEEKLY_WORKER_SECRET = "local-read-only-check";
+    globalThis.fetch = async (input, init) =>
+      String(input).startsWith("https://futures-test.invalid/rest/v1/teams")
+        ? new Response(JSON.stringify(teams), {
+            headers: { "Content-Type": "application/json" },
+          })
+        : liveFetch(input, init);
+    try {
+      const response = await POST(
+        new Request("https://example.invalid/api/generate-markets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-worker-secret": "local-read-only-check",
+          },
+          body: JSON.stringify({
+            league_id: "test",
+            week: 5,
+            nfl_season: 2026,
+            category: "Season Futures",
+          }),
+        }),
+      );
+      const result = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(result));
+      assert.equal(result.quotes.length, 48);
+      assert(result.quotes.every((q) => q.odds % 50 === 0));
+      console.log(
+        `Live Sleeper futures check: ${result.quotes.length} quotes, ${teams.length} teams, all odds rounded to 50; no live database changes.`,
+      );
+    } finally {
+      globalThis.fetch = liveFetch;
+    }
   }
   console.log(
     "Compiled generation API loads and returns JSON without TypeScript source files.",

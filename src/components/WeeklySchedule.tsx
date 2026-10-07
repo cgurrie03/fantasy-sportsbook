@@ -48,6 +48,7 @@ interface Preview {
   }[];
   tickets: {
     ticket_id: string;
+    ticket_type?: string;
     market_week: number;
     pending: boolean;
     final?: boolean;
@@ -610,12 +611,15 @@ export function WeeklySchedule({
           <h2>Execution Preview · Week {preview.week}</h2>
           <p>{preview.note}</p>
           {preview.tickets.length === 0 ? (
-            <p>No open weekly tickets need settlement.</p>
+            <p>No open tickets need settlement.</p>
           ) : (
             preview.tickets.map((t) => (
               <details key={t.ticket_id}>
                 <summary>
-                  Week {t.market_week} · {t.ticket_id.slice(0, 8)} ·{" "}
+                  {t.ticket_type === "future"
+                    ? "Season Futures"
+                    : `Week ${t.market_week}`}{" "}
+                  · {t.ticket_id.slice(0, 8)} ·{" "}
                   {t.pending
                     ? t.final
                       ? "Needs Review"

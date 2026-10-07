@@ -14,10 +14,13 @@ import {
   orderMatchups,
   weeklyKinds,
   canPlacePicks,
+  loadFuturesBoard,
+  isFuture,
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
 import { WeeklyCountPicker } from "./WeeklyCountPicker";
+import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
 
 export interface Standing {
@@ -40,6 +43,8 @@ export interface BoardReview {
   board: Board;
   markets: Market[];
   standings: Standing[];
+  futureBoard?: Board;
+  futureMarkets?: Market[];
 }
 export function Sportsbook({
   data,
@@ -53,6 +58,12 @@ export function Sportsbook({
   review?: BoardReview;
 }) {
   const [tab, setTab] = useState("Home"),
+    [futureBoard, setFutureBoard] = useState<Board | null>(
+      review?.futureBoard ?? null,
+    ),
+    [futureMarkets, setFutureMarkets] = useState<Market[]>(
+      review?.futureMarkets ?? [],
+    ),
     [board, setBoard] = useState<Board | null>(review?.board ?? null),
     [markets, setMarkets] = useState<Market[]>(review?.markets ?? []),
     [week, setWeek] = useState(review?.board.market_week ?? 5),
@@ -117,6 +128,12 @@ export function Sportsbook({
     board.status === "published" &&
     clock >= Date.parse(board.opens_at) &&
     clock < Date.parse(board.closes_at);
+  const futureAccepting =
+    !!futureBoard &&
+    futureBoard.status === "published" &&
+    clock >= Date.parse(futureBoard.opens_at) &&
+    clock < Date.parse(futureBoard.closes_at);
+  const selectedBoard = picks.some(isFuture) ? futureBoard : board;
   useEffect(() => {
     if (review) return;
     let active = true;
@@ -124,12 +141,15 @@ export function Sportsbook({
     Promise.all([
       loadMarketBoard(member.league_id),
       supabase?.rpc("league_leaderboard", { p_league: member.league_id }),
+      loadFuturesBoard(member.league_id),
     ])
-      .then(([r, s]) => {
+      .then(([r, s, f]) => {
         if (!active) return;
         setBoard(r.board);
         setMarkets(r.markets);
         setWeek(r.week);
+        setFutureBoard(f.board);
+        setFutureMarkets(f.markets);
         if (s?.error) throw s.error;
         setStandings(s?.data ?? []);
       })
@@ -166,7 +186,7 @@ export function Sportsbook({
     setPicks([...picks, m]);
   }
   async function submit() {
-    if (!board || !valid || busy) return;
+    if (!selectedBoard || !valid || busy) return;
     if (review) {
       setNotice("This is a local review. No bet was placed or email sent.");
       return;
@@ -174,15 +194,20 @@ export function Sportsbook({
     setBusy(true);
     setNotice("");
     const key = JSON.stringify([
-      board.id,
-      board.revision,
+      selectedBoard.id,
+      selectedBoard.revision,
       picks.map((p) => p.id),
       wager,
     ]);
     if (request.current.key !== key)
       request.current = { key, id: crypto.randomUUID() };
     try {
-      const result = await placeTicket(board, picks, wager, request.current.id);
+      const result = await placeTicket(
+        selectedBoard,
+        picks,
+        wager,
+        request.current.id,
+      );
       setPicks([]);
       setStake("0");
       setOpen(false);
@@ -215,7 +240,9 @@ export function Sportsbook({
         }
         aria-pressed={selected}
         disabled={
-          Boolean(m.metadata.lineup_locked) || (!accepting && !review) || busy
+          Boolean(m.metadata.lineup_locked) ||
+          (!(isFuture(m) ? futureAccepting : accepting) && !review) ||
+          busy
         }
         onClick={() => toggle(m)}
       >
@@ -240,6 +267,7 @@ export function Sportsbook({
         {!m.metadata.lineup_locked &&
           (m.kind === "moneyline" ||
             weeklyKinds.includes(m.kind) ||
+            isFuture(m) ||
             m.boost_pct > 0) && (
             <span>
               {m.boost_pct > 0 && m.kind === "moneyline" && (
@@ -310,7 +338,17 @@ export function Sportsbook({
               </h1>
             </div>
             <div className="board-window">
-              {board ? (
+              {category === "Season Futures" ? (
+                <>
+                  <strong>
+                    {futureAccepting
+                      ? "Season Futures Open"
+                      : "Season Futures Closed"}
+                  </strong>
+                  <span>Available throughout the week unless closed.</span>
+                  <span>Standalone bets · Accepted odds stay locked</span>
+                </>
+              ) : board ? (
                 <>
                   <strong>
                     {board.status === "draft"
@@ -369,6 +407,8 @@ export function Sportsbook({
             <p role="status">Loading weekly markets…</p>
           ) : error ? (
             <p role="alert">{error}</p>
+          ) : category === "Season Futures" ? (
+            <SeasonFutures data={data} markets={futureMarkets} quote={quote} />
           ) : !markets.length ? (
             <section className="empty">
               <h2>The Next Board Is On Its Way</h2>
@@ -942,6 +982,28 @@ export function Sportsbook({
             ? "Choose at least 2 picks, or a Weekly Special single."
             : `Enter a wager from $1 to ${money(balance)}.`}
         </p>
+        {picks.some(isFuture) && (
+          <p className="wager-help">
+            Futures stakes remain part of your active balance. Weekly cash
+            minimum:{" "}
+            {money(
+              Math.max(
+                25,
+                100 -
+                  (data.tickets ?? [])
+                    .filter(
+                      (t) =>
+                        t.ticket_type === "future" &&
+                        t.status === "OPEN" &&
+                        t.team_id === member.team_id,
+                    )
+                    .reduce((sum, t) => sum + Number(t.stake), 0) -
+                  wager,
+              ),
+            )}
+            .
+          </p>
+        )}
         {notice && (
           <p className="slip-feedback" role="status">
             {notice}
@@ -949,7 +1011,11 @@ export function Sportsbook({
         )}
         <button
           className="place-bet"
-          disabled={!valid || busy || (!accepting && !review)}
+          disabled={
+            !valid ||
+            busy ||
+            (!(picks.some(isFuture) ? futureAccepting : accepting) && !review)
+          }
           onClick={() => void submit()}
         >
           <strong>

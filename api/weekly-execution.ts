@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import { settleLeg } from "./_lib/settlement.js";
 import type { FinalResults, LegInput } from "./_lib/settlement.ts";
 import { score } from "./_lib/line-model.js";
+import {
+  settleFuture,
+  regularSeasonResults,
+} from "./_lib/futures-settlement.js";
+import type { SeasonResult } from "./_lib/futures-settlement.ts";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -109,6 +114,11 @@ export async function POST(request: Request) {
     const league = (await get("v1/league/1312126153980391424")) as {
       scoring_settings: Record<string, number>;
       season: string;
+      settings: {
+        playoff_week_start: number;
+        playoff_teams: number;
+        last_report?: number;
+      };
     };
     if (Number(league.season) !== season || Number(state.season) !== season)
       throw new Error(
@@ -248,6 +258,170 @@ export async function POST(request: Request) {
         });
       }
     }
+    const seasonResults: SeasonResult = {
+      champion: null,
+      playoffRosters: null,
+      last: null,
+      names: Object.fromEntries(teams.map((t) => [t.roster_id, t.team_name])),
+    };
+    const futures = tickets.filter((t) => t.ticket_type === "future");
+    const futureBoard = await client
+      .from("sportsbook_boards")
+      .select("id")
+      .eq("league_id", input.league_id)
+      .eq("nfl_season", season)
+      .eq("board_type", "future")
+      .maybeSingle();
+    if (futureBoard.error) throw new Error(futureBoard.error.message);
+    const regularFinal =
+      state.week >= league.settings.playoff_week_start &&
+      Number(league.settings.last_report) >=
+        league.settings.playoff_week_start - 1;
+    if (futureBoard.data && regularFinal) {
+      // Reconstruct only the regular season so later playoff scores cannot alter draft order.
+      const weeks = (await Promise.all(
+        Array.from({ length: league.settings.playoff_week_start - 1 }, (_, i) =>
+          get(`v1/league/1312126153980391424/matchups/${i + 1}`),
+        ),
+      )) as { roster_id: number; matchup_id: number; points: number }[][];
+      const totals = teams.map((t) => ({
+        roster_id: t.roster_id,
+        settings: { wins: 0, ties: 0, fpts: 0 },
+      }));
+      let complete = true;
+      for (const games of weeks) {
+        if (
+          games.length !== teams.length ||
+          new Set(games.map((g) => g.roster_id)).size !== teams.length
+        )
+          complete = false;
+        for (const t of totals) {
+          const game = games.find((g) => g.roster_id === t.roster_id),
+            opponent = games.find(
+              (g) =>
+                g.matchup_id === game?.matchup_id &&
+                g.roster_id !== t.roster_id,
+            );
+          if (
+            !game ||
+            !opponent ||
+            !Number.isFinite(game.points) ||
+            !Number.isFinite(opponent.points)
+          ) {
+            complete = false;
+            continue;
+          }
+          t.settings.fpts += game.points;
+          t.settings.wins += Number(game.points > opponent.points);
+          t.settings.ties += Number(game.points === opponent.points);
+        }
+      }
+      if (complete)
+        Object.assign(
+          seasonResults,
+          regularSeasonResults(totals, league.settings.playoff_teams),
+        );
+      const bracket = (await get(
+        "v1/league/1312126153980391424/winners_bracket",
+      )) as { p?: number; w?: number }[];
+      const winner = bracket.find((g) => g.p === 1)?.w;
+      seasonResults.champion = Number.isInteger(winner) ? winner! : null;
+    }
+    if (futures.length) {
+      const r = await client
+        .from("ticket_legs")
+        .select(
+          "id,ticket_id,selection,accepted_line,settlement_context,status,actual_value,result_evidence,accepted_decimal_odds",
+        )
+        .in(
+          "ticket_id",
+          futures.map((t) => t.id),
+        );
+      if (r.error) throw new Error(r.error.message);
+      for (const ticket of futures) {
+        const legs = (r.data ?? []).filter((l) => l.ticket_id === ticket.id);
+        const outcomes = legs.map((l) => {
+          const outcome = {
+            ...settleFuture(l, seasonResults),
+            selection: l.selection,
+          };
+          const override = input.overrides?.find((o) => o.id === l.id);
+          if (!override) return outcome;
+          const final =
+            l.settlement_context?.kind === "future_champion"
+              ? seasonResults.champion !== null
+              : regularFinal;
+          if (
+            !final ||
+            outcome.status !== "OPEN" ||
+            !["WON", "LOST", "PUSH"].includes(override.status) ||
+            !Number.isFinite(override.actual_value) ||
+            !override.evidence?.trim() ||
+            override.evidence.trim().length < 5 ||
+            override.evidence.length > 500
+          )
+            throw new Error(
+              "Only unresolved final season results can be reviewed; provide the result and evidence.",
+            );
+          usedOverrides.add(l.id);
+          return {
+            ...override,
+            selection: l.selection,
+            evidence:
+              "Admin-reviewed season result: " + override.evidence.trim(),
+          };
+        });
+        const pending =
+          !outcomes.length || outcomes.some((o) => o.status === "OPEN");
+        preview.push({
+          ticket_id: ticket.id,
+          team_id: ticket.team_id,
+          market_week: ticket.market_week,
+          ticket_type: "future",
+          pending,
+          final: legs.some(
+            (l) => l.settlement_context?.kind === "future_champion",
+          )
+            ? seasonResults.champion !== null
+            : regularFinal,
+          stake: Number(ticket.stake),
+          projected_payout: pending
+            ? null
+            : outcomes.some((o) => o.status === "LOST")
+              ? 0
+              : Math.round(
+                  Number(ticket.stake) *
+                    legs.reduce(
+                      (price, l) => price * Number(l.accepted_decimal_odds),
+                      1,
+                    ) *
+                    100,
+                ) / 100,
+          legs: outcomes,
+          applied: null as unknown,
+        });
+      }
+    }
+    if (input.apply && futureBoard.data) {
+      const kinds = [
+        ...(seasonResults.playoffRosters ? ["future_playoffs"] : []),
+        ...(seasonResults.last !== null ? ["future_first_pick"] : []),
+        ...(seasonResults.champion !== null ? ["future_champion"] : []),
+      ];
+      if (kinds.length) {
+        const r = worker
+          ? await client.rpc("worker_operation", {
+              p_league: input.league_id,
+              p_operation: "resolve_futures",
+              p_args: { kinds },
+            })
+          : await client.rpc("resolve_future_markets", {
+              p_league: input.league_id,
+              p_kinds: kinds,
+            });
+        if (r.error) throw new Error(r.error.message);
+      }
+    }
     if (input.overrides?.some((o) => !usedOverrides.has(o.id)))
       throw new Error(
         "A reviewed result no longer belongs to an unresolved ticket. Refresh the preview.",
@@ -311,7 +485,7 @@ export async function POST(request: Request) {
       client.from("wallets").select("team_id,balance"),
       client
         .from("tickets")
-        .select("team_id,market_week,status,ticket_type,nfl_season")
+        .select("team_id,market_week,status,ticket_type,nfl_season,stake")
         .eq("league_id", input.league_id),
       client
         .from("wallet_ledger")
@@ -336,13 +510,15 @@ export async function POST(request: Request) {
             : userTickets.some(
                   (t) =>
                     t.status === "OPEN" &&
-                    (t.ticket_type === "future" ||
-                      (t.nfl_season === season && t.market_week < week)),
+                    t.ticket_type !== "future" &&
+                    t.nfl_season === season &&
+                    t.market_week < week,
                 )
               ? "Unresolved ticket — admin review required"
               : userTickets.some(
                     (t) =>
                       t.status !== "VOIDED" &&
+                      t.ticket_type !== "future" &&
                       t.nfl_season === season &&
                       t.market_week >= week,
                   )
@@ -360,7 +536,17 @@ export async function POST(request: Request) {
             w.balance === null
               ? null
               : reason === "Eligible"
-                ? Math.max(100, Number(w.balance))
+                ? Math.max(
+                    25,
+                    100 -
+                      userTickets
+                        .filter(
+                          (t) =>
+                            t.ticket_type === "future" && t.status === "OPEN",
+                        )
+                        .reduce((sum, t) => sum + Number(t.stake), 0),
+                    Number(w.balance),
+                  )
                 : Number(w.balance),
         };
       });

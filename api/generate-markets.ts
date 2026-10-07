@@ -9,6 +9,12 @@ import {
 } from "./_lib/line-model.js";
 import type { History, Projection } from "./_lib/line-model.ts";
 import type { Market } from "../src/lib/markets.ts";
+import {
+  firstRoundOwner,
+  seasonProbabilities,
+  bracketProbabilities,
+} from "./_lib/futures-model.js";
+import type { TradedPick, BracketGame } from "./_lib/futures-model.ts";
 
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), {
@@ -22,9 +28,11 @@ const american = (probability: number) =>
       ? (-100 * probability) / (1 - probability)
       : (100 * (1 - probability)) / probability,
   );
-const specialOdds = (p: number) => {
+const specialOdds = (p: number, step = 25) => {
   const odds = american(Math.max(0.001, Math.min(0.999, p)));
-  return Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / 10) * 10);
+  return (
+    Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / step) * step)
+  );
 };
 const SLEEPER_LEAGUE_ID = "1312126153980391424";
 export const maxDuration = 60;
@@ -132,7 +140,14 @@ export async function POST(request: Request) {
       );
 
     const category = input.category ?? "Matchups";
-    if (!["Matchups", "Player Points", "Weekly Specials"].includes(category))
+    if (
+      ![
+        "Matchups",
+        "Player Points",
+        "Weekly Specials",
+        "Season Futures",
+      ].includes(category)
+    )
       return json(
         { error: "Season Futures generation is not available yet." },
         409,
@@ -167,10 +182,17 @@ export async function POST(request: Request) {
           scoring_settings: Record<string, number>;
           roster_positions: string[];
           season: string;
+          settings: { playoff_week_start: number; playoff_teams: number };
         },
         {
           roster_id: number;
-          settings: { wins: number; losses: number; ties: number };
+          settings: {
+            wins: number;
+            losses: number;
+            ties: number;
+            fpts?: number;
+            fpts_decimal?: number;
+          };
           players: string[];
           reserve?: string[];
           taxi?: string[];
@@ -223,6 +245,12 @@ export async function POST(request: Request) {
         ...team,
         lineup,
         mean,
+        season_mean: scores.length
+          ? roundHalf(
+              (scores.reduce((a, b) => a + b, 0) / scores.length) * 0.6 +
+                mean * 0.4,
+            )
+          : mean,
         sd: deviation(scores, mean),
         unfilled_slots:
           league.roster_positions.filter(
@@ -248,6 +276,140 @@ export async function POST(request: Request) {
         "Sleeper projection feed; Out/IR/PUP/Suspended/Doubtful excluded",
       scoring_settings: league.scoring_settings,
     };
+    if (category === "Season Futures") {
+      const playoffStart = Number(league.settings.playoff_week_start);
+      if (!Number.isInteger(playoffStart))
+        throw new Error("The league playoff schedule is unavailable.");
+      const playoffPhase = input.week! >= playoffStart;
+      const seasonTeams = models.map((t) => {
+        const record = rosters.find(
+          (r) => r.roster_id === t.roster_id,
+        )!.settings;
+        const past = allHistory
+          .filter((h) => h.roster_id === t.roster_id)
+          .map((h) => Number(h.points));
+        return {
+          ...t,
+          mean:
+            t.unfilled_slots && past.length
+              ? roundHalf(past.reduce((a, b) => a + b, 0) / past.length)
+              : t.season_mean,
+          points:
+            Number(record.fpts ?? 0) + Number(record.fpts_decimal ?? 0) / 100,
+        };
+      });
+      const [remaining, trades] = (await Promise.all([
+        Promise.all(
+          Array.from(
+            { length: Math.max(0, playoffStart - input.week!) },
+            (_, i) =>
+              sleeper(
+                `league/${SLEEPER_LEAGUE_ID}/matchups/${input.week! + i}`,
+              ),
+          ),
+        ),
+        sleeper(`league/${SLEEPER_LEAGUE_ID}/traded_picks`),
+      ])) as [{ roster_id: number; matchup_id: number }[][], TradedPick[]];
+      const schedule = remaining.map((week) =>
+        [
+          ...new Set(week.map((m) => m.matchup_id).filter((id) => id != null)),
+        ].map((id) => {
+          const pair = week.filter((m) => m.matchup_id === id);
+          if (pair.length !== 2)
+            throw new Error(
+              "The remaining schedule contains an incomplete matchup.",
+            );
+          return { home: pair[0].roster_id, away: pair[1].roster_id };
+        }),
+      );
+      const probabilities = seasonProbabilities(
+        seasonTeams,
+        schedule,
+        Number(league.settings.playoff_teams),
+        input.week,
+      );
+      const bracket = playoffPhase
+        ? ((await sleeper(
+            `league/${SLEEPER_LEAGUE_ID}/winners_bracket`,
+          )) as BracketGame[])
+        : null;
+      const playoffChampions = bracket
+        ? bracketProbabilities(seasonTeams, bracket, input.week)
+        : null;
+      if (bracket?.find((g) => g.p === 1)?.w)
+        return json({
+          quotes: [],
+          warnings: [
+            "The championship has been decided. Season markets are closed.",
+          ],
+        });
+      models.forEach((team, i) => {
+        const pickOwnerRoster = firstRoundOwner(
+          team.roster_id,
+          input.nfl_season! + 1,
+          trades,
+        );
+        const pickOwner = models.find((m) => m.roster_id === pickOwnerRoster);
+        if (!pickOwner)
+          throw new Error(`Pick owner missing for ${team.team_name}.`);
+        for (const [kind, side, p] of [
+          [
+            "future_champion",
+            team.id,
+            playoffChampions?.[i] ?? probabilities[i].champion,
+          ],
+          ["future_playoffs", "make", probabilities[i].playoffs],
+          ["future_playoffs", "miss", 1 - probabilities[i].playoffs],
+          ["future_first_pick", team.id, probabilities[i].last],
+        ] as const) {
+          if (playoffPhase && (kind !== "future_champion" || p === 0)) continue;
+          quotes.push({
+            ...base,
+            id: crypto.randomUUID(),
+            market_key: `season-${input.nfl_season}:${kind}${kind === "future_playoffs" ? ":" + team.id : ""}`,
+            matchup_key: null,
+            kind,
+            side,
+            label:
+              kind === "future_first_pick"
+                ? `${team.team_name} (${pickOwner.team_name})`
+                : kind === "future_playoffs"
+                  ? `${team.team_name} · ${side === "make" ? "Make Playoffs" : "Miss Playoffs"}`
+                  : team.team_name,
+            subject: team.team_name,
+            line: null,
+            odds: specialOdds(p, 50),
+            team_id: team.id,
+            home_team_id: null,
+            away_team_id: null,
+            home_projection: seasonTeams[i].mean,
+            away_projection: null,
+            metadata: {
+              ...metadata,
+              projection_method:
+                "Season strength: 60% historical team scoring and 40% current best-lineup estimate; historical scoring substitutes for incomplete current lineups.",
+              simulated_probability: p,
+              trials: 10000,
+              roster_id: team.roster_id,
+              playoff_teams: league.settings.playoff_teams,
+              playoff_week_start: playoffStart,
+              pick_draft_season: input.nfl_season! + 1,
+              pick_owner_roster_id: pickOwnerRoster,
+              pick_owner_team_id: pickOwner.id,
+              pick_owner_name: pickOwner.team_name,
+              last_place_basis: "regular_season",
+              seeding_basis: "record_then_points",
+            },
+          });
+        }
+      });
+      return json({
+        quotes,
+        warnings: [
+          "10,000 season simulations using remaining matchups and current team strength. Seeding: record, then points; #1 pick: regular-season last place. Future injuries, trades, and waiver moves are not predicted.",
+        ],
+      });
+    }
     const pairings = [
       ...new Set(matchups.map((m) => m.matchup_id).filter((id) => id != null)),
     ].map((id) => matchups.filter((m) => m.matchup_id === id));
@@ -329,7 +491,14 @@ export async function POST(request: Request) {
           [away, "away", -spread, 1 - probability],
         ] as const) {
           add("spread", side, team.team_name, line, -110, team.id);
-          add("moneyline", side, team.team_name, null, american(p), team.id);
+          add(
+            "moneyline",
+            side,
+            team.team_name,
+            null,
+            specialOdds(p, 10),
+            team.id,
+          );
           for (const direction of ["over", "under"])
             add(
               "team_total",

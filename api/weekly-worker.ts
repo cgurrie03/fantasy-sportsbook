@@ -135,10 +135,119 @@ export async function POST(request: Request) {
         if (job.operation === "recheck")
           for (const week of new Set<number>(
             result.tickets
-              .filter((t: any) => t.pending && t.market_week <= job.market_week)
+              .filter(
+                (t: any) =>
+                  t.pending &&
+                  t.ticket_type !== "future" &&
+                  t.market_week <= job.market_week,
+              )
               .map((t: any) => t.market_week),
           ))
             await enqueue("attention", week, true);
+        const unresolvedFutures = result.tickets.filter(
+          (t: any) => t.ticket_type === "future" && t.pending && t.final,
+        );
+        if (job.operation === "recheck" && unresolvedFutures.length) {
+          const content = {
+            subject: "Season Futures Need Review",
+            heading: "A Final Season Result Needs Your Attention",
+            greeting: "Hi Cooper,",
+            paragraphs: [
+              "These season tickets have a final-result ambiguity. Their stakes remain committed; the normal futures cash-floor rule still applies.",
+            ],
+            details: unresolvedFutures.map(
+              (t: any) =>
+                [
+                  "Ticket " + t.ticket_id.slice(0, 8),
+                  t.legs
+                    .filter((l: any) => l.status === "OPEN")
+                    .map((l: any) => l.evidence)
+                    .join(" "),
+                ] as [string, string],
+            ),
+            button: "Review Weekly Execution",
+            url: "https://sportsbook.coopergurrie.com/",
+          };
+          for (const m of recipients.filter((m: any) => m.role === "admin"))
+            await queueEmail(db, {
+              league_id: job.league_id,
+              event_key: `${league.nfl_season}:${job.market_week}:future-attention:${m.id}`,
+              kind: "attention",
+              recipient: m.invited_email,
+              team_id: m.team_id,
+              market_week: job.market_week,
+              payload: {
+                from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+                to: [m.invited_email],
+                subject: content.subject,
+                html: renderEmail(content),
+                text:
+                  content.subject +
+                  "\n" +
+                  content.paragraphs.join("\n") +
+                  "\n" +
+                  content.details
+                    .map((d: [string, string]) => d.join(": "))
+                    .join("\n") +
+                  "\n" +
+                  content.url,
+              },
+            });
+        }
+      } else if (job.operation === "generate_futures") {
+        const board = (
+          await read(
+            db
+              .from("sportsbook_boards")
+              .select("*")
+              .eq("league_id", job.league_id)
+              .eq("nfl_season", league.nfl_season)
+              .eq("board_type", "future"),
+          )
+        )[0];
+        if (!board)
+          summary = {
+            skipped: true,
+            reason: "Season Futures have not been enabled.",
+          };
+        else {
+          const r = await generate(
+            internal("generate-markets", {
+              league_id: job.league_id,
+              week: job.market_week,
+              nfl_season: league.nfl_season,
+              category: "Season Futures",
+            }),
+          );
+          const result: any = await r.json();
+          if (!r.ok) throw new Error(result.error);
+          const prior = await read(
+            db.from("sportsbook_markets").select("*").eq("board_id", board.id),
+          );
+          const quotes = result.quotes.map((q: any) => ({
+            ...q,
+            id:
+              prior.find(
+                (m: any) => m.market_key === q.market_key && m.side === q.side,
+              )?.id ?? q.id,
+          }));
+          const saved = await db.rpc("worker_operation", {
+            p_league: job.league_id,
+            p_operation: "save_future_board",
+            p_args: {
+              board: board.id,
+              quotes,
+              status: quotes.length ? board.status : "closed",
+            },
+          });
+          if (saved.error) throw new Error(saved.error.message);
+          summary = {
+            category: "Season Futures",
+            markets: quotes.length,
+            status: board.status,
+            accepted_odds_preserved: true,
+          };
+        }
       } else if (
         job.operation.startsWith("generate_") ||
         job.operation.startsWith("refresh_")
@@ -172,6 +281,7 @@ export async function POST(request: Request) {
             db
               .from("sportsbook_boards")
               .select("*")
+              .eq("board_type", "weekly")
               .eq("league_id", job.league_id)
               .eq("nfl_season", league.nfl_season)
               .eq("market_week", job.market_week),
@@ -290,6 +400,7 @@ export async function POST(request: Request) {
             db
               .from("sportsbook_boards")
               .select("*")
+              .eq("board_type", "weekly")
               .eq("league_id", job.league_id)
               .eq("nfl_season", league.nfl_season)
               .eq("market_week", job.market_week),
@@ -352,6 +463,7 @@ export async function POST(request: Request) {
         const result = await db
           .from("sportsbook_boards")
           .update({ status: "closed" })
+          .eq("board_type", "weekly")
           .eq("league_id", job.league_id)
           .eq("nfl_season", league.nfl_season)
           .eq("market_week", job.market_week)
@@ -364,6 +476,7 @@ export async function POST(request: Request) {
           db
             .from("sportsbook_boards")
             .select("id")
+            .eq("board_type", "weekly")
             .eq("league_id", job.league_id)
             .eq("market_week", job.market_week)
             .eq("nfl_season", league.nfl_season)

@@ -11,6 +11,7 @@ import {
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import "./Sportsbook.css";
+import { FuturesAdmin } from "./SeasonFutures";
 
 export function easternTimestamp(value: string) {
   let date = new Date(value + "Z");
@@ -464,58 +465,73 @@ export function MarketAdmin({
                   <option>Season Futures</option>
                 </select>
               </label>
-              <button
-                className="primary generate-lines"
-                onClick={() => void generate()}
-                disabled={busy}
-              >
-                {hasGeneratedLines ? "Recalculate Lines" : "Generate Lines"}
-              </button>
-              <button
-                className="primary"
-                onClick={() => void save("published")}
-                disabled={busy || !markets.length}
-              >
-                Publish Board
-              </button>
-              <button
-                onClick={() => void toggleBetting()}
-                disabled={busy || !markets.length}
-              >
-                {marketOpen ? "Close Betting Market" : "Open Betting Market"}
-              </button>
+              {category !== "Season Futures" && (
+                <>
+                  <button
+                    className="primary generate-lines"
+                    onClick={() => void generate()}
+                    disabled={busy}
+                  >
+                    {hasGeneratedLines ? "Recalculate Lines" : "Generate Lines"}
+                  </button>
+                  <button
+                    className="primary"
+                    onClick={() => void save("published")}
+                    disabled={busy || !markets.length}
+                  >
+                    Publish Board
+                  </button>
+                  <button
+                    onClick={() => void toggleBetting()}
+                    disabled={busy || !markets.length}
+                  >
+                    {marketOpen
+                      ? "Close Betting Market"
+                      : "Open Betting Market"}
+                  </button>
+                </>
+              )}
             </div>
-            <div className="market-admin-times market-admin-times-split">
-              <label>
-                Opening · Eastern
-                <input
-                  type="datetime-local"
-                  value={wallTime(board.opens_at)}
-                  onChange={(e) => {
-                    if (e.target.value)
-                      setBoard({
-                        ...board,
-                        opens_at: easternTimestamp(e.target.value),
-                      });
-                  }}
-                />
-              </label>
-              <span className="time-divider">→</span>
-              <label>
-                Cutoff · Eastern
-                <input
-                  type="datetime-local"
-                  value={wallTime(board.closes_at)}
-                  onChange={(e) => {
-                    if (e.target.value)
-                      setBoard({
-                        ...board,
-                        closes_at: easternTimestamp(e.target.value),
-                      });
-                  }}
-                />
-              </label>
-            </div>
+            {category === "Season Futures" ? (
+              <FuturesAdmin
+                data={data}
+                leagueId={leagueId}
+                week={board.market_week}
+                season={board.nfl_season}
+              />
+            ) : (
+              <div className="market-admin-times market-admin-times-split">
+                <label>
+                  Opening · Eastern
+                  <input
+                    type="datetime-local"
+                    value={wallTime(board.opens_at)}
+                    onChange={(e) => {
+                      if (e.target.value)
+                        setBoard({
+                          ...board,
+                          opens_at: easternTimestamp(e.target.value),
+                        });
+                    }}
+                  />
+                </label>
+                <span className="time-divider">→</span>
+                <label>
+                  Cutoff · Eastern
+                  <input
+                    type="datetime-local"
+                    value={wallTime(board.closes_at)}
+                    onChange={(e) => {
+                      if (e.target.value)
+                        setBoard({
+                          ...board,
+                          closes_at: easternTimestamp(e.target.value),
+                        });
+                    }}
+                  />
+                </label>
+              </div>
+            )}
             <p className="muted">
               Recalculate using the latest Sleeper data at any time. Only the
               selected betting type is replaced; accepted tickets keep their

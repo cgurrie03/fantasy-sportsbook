@@ -10,6 +10,7 @@ export interface Board {
   revision: number;
   opens_at: string;
   closes_at: string;
+  board_type?: "weekly" | "future";
 }
 export interface Market {
   id: string;
@@ -26,7 +27,10 @@ export interface Market {
     | "weekly_low"
     | "weekly_count_150"
     | "weekly_any_below_100"
-    | "weekly_any_200";
+    | "weekly_any_200"
+    | "future_champion"
+    | "future_playoffs"
+    | "future_first_pick";
   label: string;
   subject: string;
   side: string;
@@ -63,7 +67,16 @@ export const marketType = {
   weekly_count_150: "Teams Scoring 150+",
   weekly_any_below_100: "Any Team Below 100",
   weekly_any_200: "Any Team Scoring 200+",
+  future_champion: "League Winner",
+  future_playoffs: "Make / Miss Playoffs",
+  future_first_pick: "#1 Pick",
 };
+export const futureKinds = [
+  "future_champion",
+  "future_playoffs",
+  "future_first_pick",
+];
+export const isFuture = (m: Market) => futureKinds.includes(m.kind);
 export const weeklyKinds = [
   "weekly_high",
   "weekly_low",
@@ -111,8 +124,10 @@ export function orderMatchups(
 export const combinedPrice = (picks: Market[]) =>
   picks.reduce((price, pick) => price * selectionPrice(pick), 1);
 export const canPlacePicks = (picks: Market[]) =>
-  picks.length >= 2 ||
-  (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
+  picks.some(isFuture)
+    ? picks.length === 1
+    : picks.length >= 2 ||
+      (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
 export function specialConflict(a: Market, b: Market) {
   if (
     (a.kind === "weekly_low" && b.kind === "weekly_high") ||
@@ -167,6 +182,8 @@ export function specialConflict(a: Market, b: Market) {
 }
 export function pickConflict(picks: Market[], next: Market) {
   if (picks.some((p) => p.id === next.id)) return "";
+  if (picks.length && (isFuture(next) || picks.some(isFuture)))
+    return "Season Futures are standalone bets. Clear your slip before choosing another selection.";
   if (picks.length >= 10) return "A ticket can contain up to 10 picks.";
   if (picks.some((p) => p.market_key === next.market_key))
     return "Choose only one outcome from this market.";
@@ -195,6 +212,7 @@ export async function loadMarketBoard(leagueId: string) {
     .from("sportsbook_boards")
     .select("*")
     .eq("league_id", leagueId)
+    .eq("board_type", "weekly")
     .eq("market_week", week)
     .order("nfl_season", { ascending: false })
     .limit(1);
@@ -208,6 +226,27 @@ export async function loadMarketBoard(leagueId: string) {
     .eq("active", true);
   if (quotes.error) throw quotes.error;
   return { board, markets: quotes.data as Market[], week };
+}
+
+export async function loadFuturesBoard(leagueId: string) {
+  if (!supabase) throw new Error("The market service is unavailable.");
+  const response = await supabase
+    .from("sportsbook_boards")
+    .select("*")
+    .eq("league_id", leagueId)
+    .eq("board_type", "future")
+    .order("nfl_season", { ascending: false })
+    .limit(1);
+  if (response.error) throw response.error;
+  const board = response.data?.[0] as Board | undefined;
+  if (!board) return { board: null, markets: [] as Market[] };
+  const quotes = await supabase
+    .from("sportsbook_markets")
+    .select("*")
+    .eq("board_id", board.id)
+    .eq("active", true);
+  if (quotes.error) throw quotes.error;
+  return { board, markets: quotes.data as Market[] };
 }
 
 export async function placeTicket(
