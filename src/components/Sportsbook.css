@@ -94,7 +94,16 @@
 }
 .season-future-card h2 {
   margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.25;
 }
+.season-future-card > header { min-height: 100px; align-items: flex-start; }
+.future-column-headings { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; color:var(--muted); min-height:28px; }
+.future-column-headings > div { display:flex; gap:6px; }
+.future-column-headings > div > span { width:65px; text-align:center; }
+.future-row.playoff-cutoff { border-top:3px solid var(--gold); }
+.future-pick-owner { color:var(--gold); }
+.market-lock-explanation { border-left:3px solid var(--gold); padding:8px 10px; font-size:12px; line-height:1.5; }
 .season-future-card header p {
   margin: 0;
   font-size: 12px;

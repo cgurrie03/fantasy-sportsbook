@@ -121,6 +121,15 @@ const future = { id: "a", kind: "future_champion", market_key: "champ" },
 assert(canPlacePicks([future]));
 assert(!canPlacePicks([future, weekly]));
 assert.match(pickConflict([weekly], future), /standalone/);
+const playoff = { id: "p", kind: "future_playoffs", market_key: "playoff:1" };
+const otherPlayoff = { ...playoff, id: "p2", market_key: "playoff:2" };
+assert(canPlacePicks([playoff, otherPlayoff]));
+assert.equal(pickConflict([playoff], otherPlayoff), "");
+assert.match(pickConflict([playoff], future), /standalone/);
+assert.match(
+  pickConflict([playoff], { ...playoff, id: "miss" }),
+  /one outcome/,
+);
 console.log(
   "Season simulations, playoff progression, draft ownership, tied standings, and standalone selection rules passed.",
 );
@@ -152,6 +161,8 @@ try {
     ["weekly_low", -237, -225],
     ["future_champion", 333, 350],
     ["future_champion", -333, -350],
+    ["future_champion", 99900, 10000],
+    ["future_champion", -99900, -10000],
   ]) {
     const id = randomUUID();
     await db.query(
@@ -324,6 +335,42 @@ try {
     openTicket,
   ]);
   assert.equal(await balance(), 205);
+  const otherPlayoffQuote = {
+    ...q("future_playoffs", "miss"),
+    market_key: "playoff:other",
+    team_id: all[1].id,
+    metadata: { roster_id: 2 },
+  };
+  const contradictoryQuote = { ...q("future_playoffs", "miss") };
+  quotes.push(otherPlayoffQuote, contradictoryQuote);
+  await save();
+  await assert.rejects(
+    () => place([quotes[1].id, contradictoryQuote.id], 1, randomUUID()),
+    /one outcome/,
+  );
+  const parlayKey = randomUUID();
+  await place([quotes[1].id, otherPlayoffQuote.id], 1, parlayKey);
+  const playoffTicket = (
+    await rows(
+      "select id,ticket_type from public.tickets where request_key=$1",
+      [parlayKey],
+    )
+  )[0];
+  assert.equal(playoffTicket.ticket_type, "future");
+  assert.equal(
+    (
+      await rows("select * from public.ticket_legs where ticket_id=$1", [
+        playoffTicket.id,
+      ])
+    ).length,
+    2,
+  );
+  await rows("select public.void_sportsbook_ticket($1,'Regression cleanup')", [
+    playoffTicket.id,
+  ]);
+  console.log(
+    "Playoff-only parlays accepted; opposite outcomes and mixed futures rejected.",
+  );
   await rows(
     "select public.resolve_future_markets($1,array['future_playoffs'])",
     [league],
@@ -406,24 +453,37 @@ try {
   // Saving must revive the original quote rather than insert a duplicate.
   const weeklyBoard = randomUUID();
   const playerQuote = {
-    id: randomUUID(), market_key: "week-9:player-points:123", kind: "player_points",
-    label: "Player Over 20.5", subject: "Player", side: "over", line: 20.5,
-    odds: -110, team_id: team, metadata: { player_id: "123" },
+    id: randomUUID(),
+    market_key: "week-9:player-points:123",
+    kind: "player_points",
+    label: "Player Over 20.5",
+    subject: "Player",
+    side: "over",
+    line: 20.5,
+    odds: -110,
+    team_id: team,
+    metadata: { player_id: "123" },
   };
-  const saveWeekly = async (quotes) => rows(
-    "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",
-    [weeklyBoard, league, JSON.stringify(quotes)],
-  );
+  const saveWeekly = async (quotes) =>
+    rows(
+      "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",
+      [weeklyBoard, league, JSON.stringify(quotes)],
+    );
   await saveWeekly([playerQuote]);
   await saveWeekly([]);
   await saveWeekly([{ ...playerQuote, id: randomUUID(), line: 22.5 }]);
   await saveWeekly([{ ...playerQuote, id: randomUUID(), line: 23.5 }]);
-  const revived = await rows("select id,line,active from public.sportsbook_markets where board_id=$1", [weeklyBoard]);
+  const revived = await rows(
+    "select id,line,active from public.sportsbook_markets where board_id=$1",
+    [weeklyBoard],
+  );
   assert.equal(revived.length, 1);
   assert.equal(revived[0].id, playerQuote.id);
   assert.equal(Number(revived[0].line), 23.5);
   assert.equal(revived[0].active, true);
-  console.log("Player market removal, return and repeated recalculation preserve quote identity.");
+  console.log(
+    "Player market removal, return and repeated recalculation preserve quote identity.",
+  );
   console.log(
     "Futures placement, immutable accepted odds, refunds, settlement, cutoff isolation, closed outcomes, and all cash-floor cases passed.",
   );

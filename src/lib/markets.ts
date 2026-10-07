@@ -125,7 +125,8 @@ export const combinedPrice = (picks: Market[]) =>
   picks.reduce((price, pick) => price * selectionPrice(pick), 1);
 export const canPlacePicks = (picks: Market[]) =>
   picks.some(isFuture)
-    ? picks.length === 1
+    ? picks.length <= 10 &&
+      (picks.length === 1 || picks.every((p) => p.kind === "future_playoffs"))
     : picks.length >= 2 ||
       (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
 export function specialConflict(a: Market, b: Market) {
@@ -182,8 +183,15 @@ export function specialConflict(a: Market, b: Market) {
 }
 export function pickConflict(picks: Market[], next: Market) {
   if (picks.some((p) => p.id === next.id)) return "";
-  if (picks.length && (isFuture(next) || picks.some(isFuture)))
-    return "Season Futures are standalone bets. Clear your slip before choosing another selection.";
+  if (
+    picks.length &&
+    (isFuture(next) || picks.some(isFuture)) &&
+    !(
+      next.kind === "future_playoffs" &&
+      picks.every((p) => p.kind === "future_playoffs")
+    )
+  )
+    return "League Winner and #1 Pick are standalone bets. Playoff picks can combine only with other playoff picks.";
   if (picks.length >= 10) return "A ticket can contain up to 10 picks.";
   if (picks.some((p) => p.market_key === next.market_key))
     return "Choose only one outcome from this market.";

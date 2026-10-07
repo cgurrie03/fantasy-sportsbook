@@ -39,11 +39,20 @@ export function SeasonFutures({
                   ? "Win the league championship."
                   : kind === "future_playoffs"
                     ? "Qualify for the seven-team playoff field."
-                    : "Finish last in the regular season. Pick owner is shown in parentheses."}
+                    : "Finish last in the regular season. Pick owner is shown below."}
               </p>
             </div>
           </header>
           <div className="future-rows">
+            {kind === "future_playoffs" && (
+              <div className="future-column-headings">
+                <span>Team</span>
+                <div>
+                  <span>Make</span>
+                  <span>Miss</span>
+                </div>
+              </div>
+            )}
             {markets
               .filter(
                 (m) =>
@@ -55,10 +64,13 @@ export function SeasonFutures({
                   Number(b.metadata.simulated_probability) -
                   Number(a.metadata.simulated_probability),
               )
-              .map((m) => {
+              .map((m, index) => {
                 const team = data.teams.find((t) => t.id === m.team_id);
                 return (
-                  <div className="future-row" key={m.id}>
+                  <div
+                    className={`future-row${kind === "future_playoffs" && index === 7 ? " playoff-cutoff" : ""}`}
+                    key={m.id}
+                  >
                     <div className="future-team">
                       {team?.avatar_url ? (
                         <img src={team.avatar_url} alt="" />
@@ -68,11 +80,16 @@ export function SeasonFutures({
                         </span>
                       )}
                       <div>
-                        <strong>
-                          {kind === "future_first_pick"
-                            ? m.label
-                            : (team?.team_name ?? m.subject)}
-                        </strong>
+                        <strong>{team?.team_name ?? m.subject}</strong>
+                        {kind === "future_first_pick" && (
+                          <small className="future-pick-owner">
+                            Pick Owner:{" "}
+                            {data.teams.find(
+                              (t) => t.id === m.metadata.pick_owner_team_id,
+                            )?.team_name ??
+                              String(m.metadata.pick_owner_name ?? "Unknown")}
+                          </small>
+                        )}
                         <small>
                           {data.memberships.find(
                             (member) => member.team_id === team?.id,
@@ -93,12 +110,8 @@ export function SeasonFutures({
                             ),
                           ]
                             .filter((q): q is Market => !!q)
-                            .map((q) => (
-                              <span key={q.id}>
-                                {quote(q, q.side === "make" ? "Make" : "Miss")}
-                              </span>
-                            ))
-                        : quote(m, "Select")}
+                            .map((q) => <span key={q.id}>{quote(q, "")}</span>)
+                        : quote(m, "")}
                     </div>
                   </div>
                 );
@@ -258,7 +271,8 @@ export function FuturesAdmin({
         </p>
       )}
       <p>
-        Standalone bets · Odds rounded to 50 · Record, then points for seeding ·
+        League Winner and #1 Pick: singles · Playoff-only parlays allowed · Odds
+        rounded to 50, capped at ±10,000 · Record, then points for seeding ·
         Seven playoff teams, #1 seed bye · 2027 first-round ownership from
         Sleeper
       </p>
@@ -270,6 +284,8 @@ export function FuturesAdmin({
             <span>{text}</span>
             <input
               type="number"
+              min="-10000"
+              max="10000"
               step="50"
               aria-label={`${m.label} Odds`}
               value={m.odds}
@@ -281,9 +297,12 @@ export function FuturesAdmin({
                           ...q,
                           odds:
                             Math.sign(q.odds || 1) *
-                            Math.max(
-                              100,
-                              Math.round(Math.abs(q.odds) / 50) * 50,
+                            Math.min(
+                              10000,
+                              Math.max(
+                                100,
+                                Math.round(Math.abs(q.odds) / 50) * 50,
+                              ),
                             ),
                         }
                       : q,

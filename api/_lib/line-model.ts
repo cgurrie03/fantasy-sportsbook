@@ -183,3 +183,17 @@ export function matchupSpread(home: number, away: number) {
   const magnitude = Math.max(0.5, Math.round(Math.abs(difference) * 2) / 2);
   return difference < 0 ? -magnitude : magnitude;
 }
+
+// Maximize the combined high/low likelihood while assigning each team to only
+// one six-team field. Independent top-six lists can overlap for volatile teams.
+export function weeklyScorerFields(high: number[], low: number[]) {
+  if (high.length !== low.length || high.length !== 12)
+    throw new Error("Weekly scorer fields require 12 teams.");
+  const ranked = high
+    .map((_, i) => i)
+    .sort((a, b) => high[b] - low[b] - (high[a] - low[a]) || a - b);
+  return {
+    high: ranked.slice(0, 6).sort((a, b) => high[b] - high[a] || a - b),
+    low: ranked.slice(6).sort((a, b) => low[b] - low[a] || a - b),
+  };
+}

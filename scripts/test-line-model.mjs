@@ -6,7 +6,17 @@ import {
   candidates,
   score,
   highLowProbabilities,
+  weeklyScorerFields,
 } from "../api/_lib/line-model.ts";
+const fields = weeklyScorerFields(
+  [0.4, 0.2, 0.1, 0.08, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01, 0.005, 0.005],
+  [0.4, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1, 0.2, 0.005, 0.005],
+);
+assert.equal(fields.high.length, 6);
+assert.equal(fields.low.length, 6);
+assert.equal(new Set([...fields.high, ...fields.low]).size, 12);
+assert(fields.high.includes(1));
+assert(fields.low.includes(9));
 assert.equal(
   score({ rec: 5, rec_yd: 60, rec_td: 1 }, { rec: 1, rec_yd: 0.1, rec_td: 6 }),
   17,

@@ -6,6 +6,7 @@ import {
   candidates,
   deviation,
   highLowProbabilities,
+  weeklyScorerFields,
 } from "./_lib/line-model.js";
 import type { History, Projection } from "./_lib/line-model.ts";
 import type { Market } from "../src/lib/markets.ts";
@@ -378,7 +379,7 @@ export async function POST(request: Request) {
                   : team.team_name,
             subject: team.team_name,
             line: null,
-            odds: specialOdds(p, 50),
+            odds: Math.max(-10000, Math.min(10000, specialOdds(p, 50))),
             team_id: team.id,
             home_team_id: null,
             away_team_id: null,
@@ -556,8 +557,13 @@ export async function POST(request: Request) {
         models.map((t) => ({ mean: t.mean, sd: t.sd })),
         input.week,
       );
+      const fields = weeklyScorerFields(probabilities.high, probabilities.low);
       models.forEach((team, index) => {
         for (const kind of ["weekly_high", "weekly_low"] as const) {
+          if (
+            !(kind === "weekly_high" ? fields.high : fields.low).includes(index)
+          )
+            continue;
           const p =
             kind === "weekly_high"
               ? probabilities.high[index]
@@ -594,6 +600,13 @@ export async function POST(request: Request) {
       );
       quotes.splice(0, quotes.length, ...topSix);
       const lock = models.some((m) => m.unfilled_slots > 0);
+      const lockReason =
+        "Regenerate after complete eligible lineups with positive projections are available for: " +
+        models
+          .filter((m) => m.unfilled_slots > 0)
+          .map((m) => m.team_name)
+          .join(", ") +
+        ".";
       const leagueQuote = (
         kind: Market["kind"],
         side: string,
@@ -628,6 +641,7 @@ export async function POST(request: Request) {
             trials: 6000,
             expected_team_count: models.length,
             lineup_locked: lock,
+            lock_reason: lock ? lockReason : undefined,
           },
         });
       // One mutually exclusive exact-count market; zero is not offered.

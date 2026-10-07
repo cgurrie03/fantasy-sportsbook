@@ -236,7 +236,9 @@ export function Sportsbook({
         aria-label={
           m.metadata.lineup_locked
             ? `${m.label}: Locked — incomplete projected lineup`
-            : undefined
+            : short === ""
+              ? `${m.label}: ${formatOdds(m.odds)}`
+              : undefined
         }
         aria-pressed={selected}
         disabled={
@@ -262,7 +264,7 @@ export function Sportsbook({
             <span>Locked</span>
           </>
         ) : (
-          <strong>{short ?? m.label}</strong>
+          short !== "" && <strong>{short ?? m.label}</strong>
         )}
         {!m.metadata.lineup_locked &&
           (m.kind === "moneyline" ||
@@ -346,7 +348,10 @@ export function Sportsbook({
                       : "Season Futures Closed"}
                   </strong>
                   <span>Available throughout the week unless closed.</span>
-                  <span>Standalone bets · Accepted odds stay locked</span>
+                  <span>
+                    Playoff-only parlays allowed · League Winner and #1 Pick:
+                    singles
+                  </span>
                 </>
               ) : board ? (
                 <>
@@ -732,6 +737,19 @@ export function Sportsbook({
                             ? "At least one team must finish below 100 points for Yes to win."
                             : "At least one team must finish with 200 or more points for Yes to win."}
                         </p>
+                        {markets.some(
+                          (m) => m.kind === kind && m.metadata.lineup_locked,
+                        ) && (
+                          <p className="market-lock-explanation" role="status">
+                            {String(
+                              markets.find(
+                                (m) =>
+                                  m.kind === kind && m.metadata.lineup_locked,
+                              )?.metadata.lock_reason ??
+                                "Locked until every team has a complete eligible lineup with positive projections. Regenerate Weekly Specials after the roster or projection issue is corrected.",
+                            )}
+                          </p>
+                        )}
                         <div>
                           {markets
                             .filter((m) => m.kind === kind)
