@@ -29,7 +29,26 @@ import {
   optimalActualLineup,
   bettingStats,
   winQuantile,
+  performanceVsExpectations,
 } from "../src/lib/reporting.ts";
+assert.deepEqual(
+  performanceVsExpectations(
+    [
+      { team: "a", final: true, error: 20 },
+      { team: "a", final: true, error: -10 },
+      { team: "a", final: false, error: -150 },
+      { team: "a", final: true, error: null },
+      { team: "b", final: true, error: 80 },
+    ],
+    "a",
+  ),
+  { total: 10, average: 5 },
+  "Live scores and missing projections must not distort team performance",
+);
+assert.deepEqual(performanceVsExpectations([], "a"), {
+  total: null,
+  average: null,
+});
 assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.1), 3);
 assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.9), 12);
 assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.5), 8);

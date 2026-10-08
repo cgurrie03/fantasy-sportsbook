@@ -10,6 +10,7 @@ import {
   optimalActualLineup,
   confirmedSeasonResults,
   winQuantile,
+  performanceVsExpectations,
 } from "../lib/reporting";
 import type { Forecast, ScoreWeek } from "../lib/reporting";
 import { settleLeg } from "../../api/_lib/settlement";
@@ -21,24 +22,29 @@ import type { FigureSpec } from "./ReportFigure";
 import { exportReport } from "../lib/report-export";
 import { formatOdds, marketType } from "../lib/markets";
 const titles = [
-  "Projected vs. actual",
-  "Scoring trends",
-  "Schedule luck & all-play",
-  "Scoring consistency",
+  "Projected vs. Actual",
+  "Scoring Trends",
+  "Expected vs. Actual Wins",
+  "Scoring Consistency",
   "Lineup efficiency & review",
-  "Standings & playoff race",
-  "Championship & #1 pick outlook",
-  "Regular-season win outlook",
-  "Betting performance",
-  "Wallet activity",
-  "Popular selections",
-  "Open ticket exposure",
-  "Weekly storylines",
-  "Model accuracy & special trends",
-  "Automation health",
-  "Email delivery health",
+  "Standings & Playoff Race",
+  "Championship & #1 Pick Outlook",
+  "Regular-Season Win Outlook",
+  "Betting Performance",
+  "Wallet Activity",
+  "Popular Selections",
+  "Open Ticket Exposure",
+  "Weekly Storylines",
+  "Model Accuracy & Special Trends",
+  "Automation Health",
+  "Email Delivery Health",
 ];
-const reportOrder = [0, 13, 5, 7, 8, 12, 1, 2, 3, 4, 6, 11, 10, 9, 14, 15];
+const reportGroups = [
+  { name: "League Stats", reports: [0, 5, 12, 1, 2, 3] },
+  { name: "Forecasts & Model Accuracy", reports: [13, 7, 6] },
+  { name: "Betting Stats", reports: [8, 10, 11, 9] },
+  { name: "Operations & Delivery", reports: [14, 15] },
+];
 const descriptions = [
   "Compares each team's actual score with its archived opening projection, or a clearly labelled reconstructed starter projection. Weekly high and low deviations identify the biggest surprises.",
   "Tracks each team's final weekly scores on a shared scale, with its average, season high and season low. Reveals scoring momentum rather than prediction accuracy.",
@@ -85,6 +91,24 @@ export function Reports({
   const inFlight = useRef(false);
   const exportNode = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!exportOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!exportMenu.current?.contains(event.target as Node))
+        setExportOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExportOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [exportOpen]);
   const league = data.leagues.find((l) => l.id === leagueId)!;
   const [report, setReport] = useState(0),
     [week, setWeek] = useState(0),
@@ -204,9 +228,7 @@ export function Reports({
             break;
         }
         await load();
-        setNotice(
-          "Sleeper results refreshed. Tickets, balances, and emails are unchanged.",
-        );
+        setNotice("Sleeper results refreshed successfully.");
       } catch (e) {
         setNotice(errorMessage(e));
       } finally {
@@ -240,10 +262,19 @@ export function Reports({
   const rows = useMemo(
     () =>
       scoreRows(weeks, forecasts).filter(
-        (r) => (!week || r.week === week) && (!team || r.team === team),
+        (r) =>
+          (!week || r.week === week) &&
+          (!team || r.team === team) &&
+          (report !== 0 || r.final),
       ),
-    [weeks, forecasts, week, team],
+    [weeks, forecasts, week, team, report],
   );
+  const completedWeeks = weeks.filter(
+    (w) => w.final && (!week || w.market_week === week),
+  );
+  const teamPerformance = (id: string) => {
+    return performanceVsExpectations(rows, id);
+  };
   const finalRows = rows.filter((r) => r.final),
     errors = finalRows.filter((r) => r.error !== null);
   const mean = (values: number[]) =>
@@ -514,20 +545,60 @@ export function Reports({
         ]),
     );
   if (report === 10) {
-    const counts = new Map<string, { count: number; stakes: number }>();
+    const counts = new Map<
+      string,
+      {
+        count: number;
+        stakes: number;
+        won: number;
+        lost: number;
+        pushed: number;
+        open: number;
+      }
+    >();
     for (const t of filteredTickets.filter((t) => t.status !== "VOIDED")) {
       for (const l of (data.legs ?? []).filter((l) => l.ticket_id === t.id)) {
-        const entry = counts.get(l.selection) ?? { count: 0, stakes: 0 };
+        const selection = /moneyline|^ml$/i.test(l.market_type)
+          ? `${l.selection.replace(/\s*·?\s*ML$/i, "")} · ML`
+          : l.selection;
+        const entry = counts.get(selection) ?? {
+          count: 0,
+          stakes: 0,
+          won: 0,
+          lost: 0,
+          pushed: 0,
+          open: 0,
+        };
         entry.count++;
         entry.stakes += Number(t.stake);
-        counts.set(l.selection, entry);
+        if (l.status === "WON") entry.won++;
+        else if (l.status === "LOST") entry.lost++;
+        else if (["PUSH", "VOIDED"].includes(l.status)) entry.pushed++;
+        else entry.open++;
+        counts.set(selection, entry);
       }
     }
     add(
-      ["Selection", "Ticket appearances", "Ticket stakes*"],
+      [
+        "Selection",
+        "Ticket Appearances",
+        "Ticket Stakes*",
+        "Won",
+        "Lost",
+        "Push / Void",
+        "Pending",
+      ],
       [...counts]
         .sort((a, b) => b[1].count - a[1].count)
-        .map(([s, n]) => [s, n.count, money(n.stakes)]),
+        .map(([s, n]) => [
+          s,
+          n.count,
+          money(n.stakes),
+          n.won,
+          n.lost,
+          n.pushed,
+          n.open,
+        ]),
     );
   }
   if (report === 11)
@@ -959,13 +1030,13 @@ export function Reports({
   }
   const countWeeks = new Set(finalRows.map((r) => r.week)).size;
   let kpis: [string, string | number][] = [
-    ["Final team-week results", finalRows.length],
-    ["Projection error · MAE", `${fixed(mae)} pts`],
+    ["Completed Team Scores", finalRows.length],
+    ["Average Projection Error", `${fixed(mae)} pts`],
     [
-      "Actual minus projected · average",
+      "Average vs. Expectations",
       `${bias !== null && bias > 0 ? "+" : ""}${fixed(bias)} pts`,
     ],
-    ["Forecast versions archived", forecasts.length],
+    ["Saved Forecast Versions", forecasts.length],
   ];
   if ([1, 2, 3, 4, 12].includes(report))
     kpis = [
@@ -1104,6 +1175,7 @@ export function Reports({
     ];
   }
   const download = async (format: "png" | "pdf") => {
+    setExportOpen(false);
     if (!exportNode.current) return;
     setExporting(true);
     try {
@@ -1131,6 +1203,8 @@ export function Reports({
         "Difference",
         "Projection basis",
         "Status",
+        "Team Total Difference",
+        "Team Average Difference",
       ],
       rows.map((r) => [
         owner(r.team),
@@ -1140,9 +1214,12 @@ export function Reports({
         r.error ?? "",
         r.basis,
         r.final ? "Final" : "Live",
+        teamPerformance(r.team).total ?? "",
+        teamPerformance(r.team).average ?? "",
       ]),
     );
   const exportCsv = () => {
+    setExportOpen(false);
     const csv = [columns, ...table]
       .map((row) =>
         row
@@ -1173,10 +1250,14 @@ export function Reports({
               if ([12, 14, 15].includes(next)) setTeam("");
             }}
           >
-            {reportOrder.map((i) => (
-              <option key={i} value={i}>
-                {titles[i]}
-              </option>
+            {reportGroups.map((group) => (
+              <optgroup key={group.name} label={group.name}>
+                {group.reports.map((i) => (
+                  <option key={i} value={i}>
+                    {titles[i]}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -1207,7 +1288,13 @@ export function Reports({
             onChange={(e) => setWeek(Number(e.target.value))}
           >
             <option value={0}>All weeks</option>
-            {[...new Set(weeks.map((w) => w.market_week))].map((w) => (
+            {[
+              ...new Set(
+                (report === 0 ? weeks.filter((w) => w.final) : weeks).map(
+                  (w) => w.market_week,
+                ),
+              ),
+            ].map((w) => (
               <option key={w} value={w}>
                 Week {w}
               </option>
@@ -1236,38 +1323,73 @@ export function Reports({
           disabled={busy || Boolean(previewData)}
           onClick={() => void refresh()}
         >
-          {busy ? "Refreshing…" : "Refresh Sleeper data"}
+          {busy ? "Refreshing…" : "Refresh Sleeper Data"}
         </button>
-        {
-          <button disabled={!table.length} onClick={exportCsv}>
-            Export CSV
+        <div className="report-export-menu" ref={exportMenu}>
+          <button
+            disabled={exporting}
+            aria-expanded={exportOpen}
+            aria-controls="report-export-options"
+            onClick={() => setExportOpen(!exportOpen)}
+          >
+            <span aria-hidden="true">↓</span>{" "}
+            {exporting ? "Exporting…" : "Export"}{" "}
+            <span aria-hidden="true">⌄</span>
           </button>
-        }
-      </div>
-      <div className="report-export-actions">
-        <span>Export the selected report and filters</span>
-        <button disabled={exporting} onClick={() => void download("png")}>
-          {exporting ? "Preparing export…" : "Download image"}
-        </button>
-        <button disabled={exporting} onClick={() => void download("pdf")}>
-          Download PDF
-        </button>
+          {exportOpen && (
+            <div id="report-export-options" className="report-export-options">
+              <span>Export this report</span>
+              <button onClick={() => void download("pdf")}>
+                <span aria-hidden="true">▤</span> PDF Document
+              </button>
+              <button onClick={() => void download("png")}>
+                <span aria-hidden="true">▧</span> PNG Image
+              </button>
+              <button disabled={!table.length} onClick={exportCsv}>
+                <span aria-hidden="true">▦</span> CSV Data
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {notice && (
-        <p role="status" className="market-admin-notice">
+        <p
+          role="status"
+          className={`report-notice ${/failed|error/i.test(notice) ? "error" : ""}`}
+        >
           {notice}
         </p>
       )}
       <div ref={exportNode} className="report-export-surface">
-        <p className="report-export-context">
-          {league.name} · {season} · {week ? `Week ${week}` : "All weeks"} ·{" "}
-          {team ? owner(team) : "All teams"}
-        </p>
+        <div className="report-export-context">
+          <strong>{league.name}</strong>
+          <span>{season}</span>
+          <span>
+            {week
+              ? `Week ${week}`
+              : report === 0
+                ? "Completed Weeks"
+                : "All Weeks"}
+          </span>
+          <span>{team ? owner(team) : "All Teams"}</span>
+        </div>
         <div className="report-kpis">
-          {kpis.map(([label, value]) => (
+          {kpis.map(([label, value], index) => (
             <article key={label}>
               <small>{label}</small>
               <strong>{value}</strong>
+              {report === 0 && (
+                <p className="report-kpi-help">
+                  {
+                    [
+                      "Number of completed team scores in view.",
+                      "Average miss in points, ignoring direction (MAE).",
+                      "Positive means actual scores beat projections on average.",
+                      "Archived snapshots, including recalculations; not an accuracy score.",
+                    ][index]
+                  }
+                </p>
+              )}
             </article>
           ))}
         </div>
@@ -1277,6 +1399,15 @@ export function Reports({
             <small>Updated {asOf || "—"} · Eastern</small>
           </div>
           <p className="report-description">{descriptions[report]}</p>
+          {report === 13 && (
+            <p className="report-note report-model-explainer">
+              This report needs an original archived opening forecast and a
+              final result for the same week. Current-week markets cannot be
+              graded until games finish. Reconstructed historical player
+              projections do not substitute for original sportsbook lines.
+              Futures are evaluated when their season outcomes are confirmed.
+            </p>
+          )}
           {report === 1 && <ScoreTrend rows={finalRows} owner={owner} />}
           {figure && <ReportFigure spec={figure} />}
           {report === 0 ? (
@@ -1284,21 +1415,27 @@ export function Reports({
               <p className="report-note">
                 Actual minus projected points. Blue = overperformance; orange =
                 underperformance. HIGH / LOW mark each week's largest deviation.
-                Live scores are labelled.
+                Only completed weeks are included. Total and average show each
+                team's performance against expectations across the selected
+                completed weeks.
               </p>
               <div className="report-table-wrap">
                 <table className="score-heatmap">
                   <thead>
                     <tr>
                       <th>Team</th>
-                      {weeks
-                        .filter((w) => !week || w.market_week === week)
-                        .map((w) => (
-                          <th key={w.market_week}>
-                            Week {w.market_week}
-                            <small>{w.final ? "Final" : "Live"}</small>
-                          </th>
-                        ))}
+                      {completedWeeks.map((w) => (
+                        <th key={w.market_week}>
+                          Week {w.market_week}
+                          <small>{w.final ? "Final" : "Live"}</small>
+                        </th>
+                      ))}
+                      <th data-summary="true">
+                        Total Difference<small>Actual − projected</small>
+                      </th>
+                      <th data-summary="true">
+                        Average Difference<small>Per measured week</small>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1313,57 +1450,68 @@ export function Reports({
                             </span>
                           </span>
                         </th>
-                        {weeks
-                          .filter((w) => !week || w.market_week === week)
-                          .map((w) => {
-                            const r = rows.find(
-                              (r) =>
-                                r.team === t.id && r.week === w.market_week,
-                            );
-                            const all = scoreRows([w], forecasts).filter(
-                              (r) => r.error !== null,
-                            );
-                            const high = Math.max(...all.map((r) => r.error!)),
-                              low = Math.min(...all.map((r) => r.error!));
-                            return (
-                              <td key={w.market_week}>
-                                <div
-                                  className={`heat-cell ${r?.error !== null && r?.error !== undefined ? (r.error >= 0 ? "over" : "under") : ""}`}
-                                  title={r?.basis}
-                                  style={
-                                    {
-                                      "--heat": String(
-                                        Math.min(
-                                          0.8,
-                                          0.18 + Math.abs(r?.error ?? 0) / 100,
-                                        ),
+                        {completedWeeks.map((w) => {
+                          const r = rows.find(
+                            (r) => r.team === t.id && r.week === w.market_week,
+                          );
+                          const all = scoreRows([w], forecasts).filter(
+                            (r) => r.error !== null,
+                          );
+                          const high = Math.max(...all.map((r) => r.error!)),
+                            low = Math.min(...all.map((r) => r.error!));
+                          return (
+                            <td key={w.market_week}>
+                              <div
+                                className={`heat-cell ${r?.error !== null && r?.error !== undefined ? (r.error >= 0 ? "over" : "under") : ""}`}
+                                title={r?.basis}
+                                style={
+                                  {
+                                    "--heat": String(
+                                      Math.min(
+                                        0.8,
+                                        0.18 + Math.abs(r?.error ?? 0) / 100,
                                       ),
-                                    } as React.CSSProperties
-                                  }
-                                >
-                                  <small>
-                                    {r && r.error !== null
-                                      ? r.error === high
-                                        ? "HIGH"
-                                        : r.error === low
-                                          ? "LOW"
-                                          : ""
-                                      : ""}
-                                  </small>
-                                  <strong>
-                                    {r?.error !== null && r?.error !== undefined
-                                      ? `${r.error >= 0 ? "+" : ""}${fixed(r.error)}`
-                                      : "—"}
-                                  </strong>
-                                  <span>
-                                    {r
-                                      ? `${fixed(r.actual)} / ${fixed(r.projection)}`
-                                      : "No data"}
-                                  </span>
-                                </div>
-                              </td>
-                            );
-                          })}
+                                    ),
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <small>
+                                  {r && r.error !== null
+                                    ? r.error === high
+                                      ? "HIGH"
+                                      : r.error === low
+                                        ? "LOW"
+                                        : ""
+                                    : ""}
+                                </small>
+                                <strong>
+                                  {r?.error !== null && r?.error !== undefined
+                                    ? `${r.error >= 0 ? "+" : ""}${fixed(r.error)}`
+                                    : "—"}
+                                </strong>
+                                <span>
+                                  {r
+                                    ? `${fixed(r.actual)} / ${fixed(r.projection)}`
+                                    : "No data"}
+                                </span>
+                              </div>
+                            </td>
+                          );
+                        })}
+                        {[
+                          teamPerformance(t.id).total,
+                          teamPerformance(t.id).average,
+                        ].map((value, i) => (
+                          <td key={`summary-${i}`}>
+                            <span
+                              className={`report-performance ${value !== null && value >= 0 ? "over" : "under"}`}
+                            >
+                              {value !== null && value > 0 ? "+" : ""}
+                              {fixed(value)}
+                              <small>pts</small>
+                            </span>
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>

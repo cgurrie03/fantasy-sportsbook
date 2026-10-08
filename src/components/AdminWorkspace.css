@@ -92,12 +92,110 @@
   align-items: end;
   flex-wrap: wrap;
 }
+.report-toolbar label {
+  margin: 0;
+}
 .report-toolbar label:first-child {
   flex: 1;
   min-width: 210px;
 }
 .report-toolbar select {
   min-height: 42px;
+}
+.report-toolbar > button,
+.report-export-menu > button {
+  height: 44px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.report-export-menu {
+  position: relative;
+}
+.report-export-options {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 215px;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 12px 32px #0004;
+}
+.report-export-options > span {
+  display: block;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.report-export-options button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 12px 10px;
+}
+.report-export-options button:hover {
+  background: var(--bg);
+}
+.report-notice {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--chart-blue);
+  border-radius: 9px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.report-notice.error {
+  border-left-color: var(--chart-orange);
+}
+.report-export-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-export-context strong {
+  margin-right: auto;
+  color: var(--text);
+  font-size: 13px;
+}
+.report-export-context > span {
+  padding: 5px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.report-kpi-help {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.report-performance {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.report-performance.over {
+  color: var(--chart-blue);
+}
+.report-performance.under {
+  color: var(--chart-orange);
+}
+.report-model-explainer {
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 8px;
 }
 .report-heading {
   display: flex;

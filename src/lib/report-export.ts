@@ -67,13 +67,19 @@ export async function exportReport(
       el.style.overflow = "visible";
     });
     const heatmap = clone.querySelector<HTMLTableElement>(".score-heatmap");
-    if (format === "pdf" && heatmap && heatmap.rows[0].cells.length > 6) {
-      const columns = heatmap.rows[0].cells.length;
+    const weekColumns = heatmap
+      ? heatmap.rows[0].cells.length -
+        1 -
+        heatmap.rows[0].querySelectorAll("[data-summary]").length
+      : 0;
+    if (format === "pdf" && heatmap && weekColumns > 5) {
+      const columns = weekColumns + 1;
       for (let start = 1; start < columns; start += 5) {
         const part = heatmap.cloneNode(true) as HTMLTableElement;
         for (const row of [...part.rows])
           [...row.cells].forEach((cell, i) => {
-            if (i !== 0 && (i < start || i >= start + 5)) cell.remove();
+            if (i !== 0 && i < columns && (i < start || i >= start + 5))
+              cell.remove();
           });
         const label = document.createElement("p");
         label.className = "report-note";

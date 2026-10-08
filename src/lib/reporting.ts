@@ -47,6 +47,19 @@ export interface ScoreRow {
   opponent: number | null;
   final: boolean;
 }
+export function performanceVsExpectations(rows: ScoreRow[], team: string) {
+  const measured = rows.filter(
+    (r) =>
+      r.team === team &&
+      r.final &&
+      r.error !== null &&
+      Number.isFinite(r.error),
+  );
+  const total = measured.length
+    ? measured.reduce((n, r) => n + r.error!, 0)
+    : null;
+  return { total, average: total === null ? null : total / measured.length };
+}
 export function winQuantile(
   distribution: Record<string, number> | undefined,
   target: number,
