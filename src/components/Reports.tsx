@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountData } from "../lib/accounts";
-import { errorMessage, money } from "../lib/accounts";
+import { errorMessage, money, loadAccounts } from "../lib/accounts";
+import { readAllRows } from "../lib/pagination";
 import { supabase } from "../lib/supabase";
 import {
   bettingStats,
@@ -8,12 +9,16 @@ import {
   scoreRows,
   optimalActualLineup,
   confirmedSeasonResults,
+  winQuantile,
 } from "../lib/reporting";
 import type { Forecast, ScoreWeek } from "../lib/reporting";
 import { settleLeg } from "../../api/_lib/settlement";
 import { settleFuture } from "../../api/_lib/futures-settlement";
 import type { Market } from "../lib/markets";
 import { ScoreTrend } from "./ScoreTrend";
+import { ReportFigure } from "./ReportFigure";
+import type { FigureSpec } from "./ReportFigure";
+import { exportReport } from "../lib/report-export";
 import { formatOdds, marketType } from "../lib/markets";
 const titles = [
   "Projected vs. actual",
@@ -33,6 +38,25 @@ const titles = [
   "Automation health",
   "Email delivery health",
 ];
+const reportOrder = [0, 13, 5, 7, 8, 12, 1, 2, 3, 4, 6, 11, 10, 9, 14, 15];
+const descriptions = [
+  "Compares each team's actual score with its archived opening projection, or a clearly labelled reconstructed starter projection. Weekly high and low deviations identify the biggest surprises.",
+  "Tracks each team's final weekly scores on a shared scale, with its average, season high and season low. Reveals scoring momentum rather than prediction accuracy.",
+  "Compares actual matchup wins in the selected weeks with expected wins from scoring against every other team. Shows who benefited from, or suffered from, the schedule.",
+  "Compares each team's scoring floor, ceiling, average and standard deviation across final weeks. A smaller deviation means steadier scoring; it does not mean a stronger team.",
+  "Compares the actual starting score with the best legal lineup drawn from the roster archived at opening. Shows possible missed points; unavailable eligibility stays blank.",
+  "Ranks current teams by record, then recorded points, and compares their latest simulated playoff probabilities. These are current standings and season forecasts, not a selected week's standings.",
+  "Compares each team's simulated chance of winning the championship and finishing last in the regular season. Pick ownership is shown separately from the team being forecast.",
+  "Compares expected final regular-season wins, the posted half-win line and the simulated over/under probabilities. The chart shows uncertainty, not a guaranteed final record.",
+  "Compares settled ticket profit and return on settled stakes by team. Open tickets are excluded from ROI; voided tickets contribute no profit or loss.",
+  "Shows recorded balance movements, including wagers, payouts, replenishments and admin adjustments. This is the latest wallet history, not a selected week's financial statement.",
+  "Ranks selections by the number of non-voided tickets containing them. Ticket stakes are shown per selection appearance and must not be added across parlay legs.",
+  "Compares stakes currently committed to open weekly and futures tickets. Potential payouts are possible obligations, not guaranteed losses or independent totals.",
+  "Summarizes final weekly high and low scores and the biggest positive projection deviation. These are league-wide storylines; the team filter does not narrow the high/low contest.",
+  "Evaluates original opening forecasts against final outcomes, including unbet markets. Calibration compares predicted probabilities with observed win rates; futures remain pending until their season outcome is confirmed.",
+  "Summarizes the latest 100 scheduled execution jobs by operation and recorded status. A successful job log indicates execution, not proof that every downstream action succeeded.",
+  "Summarizes the latest 100 email records by communication type and delivery status. Sent means accepted by the provider, not confirmed inbox delivery.",
+];
 const fixed = (n: number | null, places = 1) =>
   n === null || !Number.isFinite(n) ? "—" : n.toFixed(places);
 const percent = (n: number | null) =>
@@ -47,7 +71,7 @@ type Log = {
   last_error: string | null;
 };
 export function Reports({
-  data,
+  data: initialData,
   leagueId,
   previewData,
 }: {
@@ -55,7 +79,12 @@ export function Reports({
   leagueId: string;
   previewData?: { weeks: ScoreWeek[]; forecasts?: Forecast[] };
 }) {
+  const [liveData, setLiveData] = useState(initialData);
+  const data = previewData ? initialData : liveData;
+  useEffect(() => setLiveData(initialData), [initialData]);
   const inFlight = useRef(false);
+  const exportNode = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
   const league = data.leagues.find((l) => l.id === leagueId)!;
   const [report, setReport] = useState(0),
     [week, setWeek] = useState(0),
@@ -83,12 +112,16 @@ export function Reports({
     id;
   const load = useCallback(async () => {
     const responses = await Promise.all([
-      supabase!
-        .from("forecast_snapshots")
-        .select("*")
-        .eq("league_id", leagueId)
-        .eq("nfl_season", season)
-        .order("captured_at"),
+      readAllRows((from, to) =>
+        supabase!
+          .from("forecast_snapshots")
+          .select("*")
+          .eq("league_id", leagueId)
+          .eq("nfl_season", season)
+          .order("captured_at")
+          .order("id")
+          .range(from, to),
+      ),
       supabase!
         .from("league_result_weeks")
         .select("*")
@@ -109,16 +142,18 @@ export function Reports({
         .limit(100),
     ]);
     for (const r of responses) if (r.error) throw r.error;
-    setForecasts(responses[0].data ?? []);
-    setWeeks(responses[1].data ?? []);
-    setJobs(responses[2].data ?? []);
-    setEmails(responses[3].data ?? []);
+    setForecasts((responses[0].data ?? []) as Forecast[]);
+    const cached = (responses[1].data ?? []) as ScoreWeek[];
+    setWeeks(cached);
+    setJobs((responses[2].data ?? []) as Log[]);
+    setEmails((responses[3].data ?? []) as Log[]);
+    setLiveData(await loadAccounts());
     setAsOf(
       new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
     );
     return (
-      !responses[1].data?.length ||
-      responses[1].data.some(
+      !cached.length ||
+      cached.some(
         (w) => !w.final && Date.now() - Date.parse(w.fetched_at) > 300000,
       )
     );
@@ -258,11 +293,27 @@ export function Reports({
     );
   if (report === 2)
     add(
-      ["Team", "All-play win rate", "Actual record", "Expected wins*"],
+      [
+        "Team",
+        "All-play win rate",
+        "Matchup win-equivalents*",
+        "Expected wins*",
+      ],
       byTeam.map(({ t, r }) => [
         owner(t.id),
         percent(mean(r.map((x) => x.allPlay))),
-        `${t.wins}–${t.losses}`,
+        r.reduce(
+          (n, x) =>
+            n +
+            (x.opponent === null
+              ? 0
+              : x.actual > x.opponent
+                ? 1
+                : x.actual === x.opponent
+                  ? 0.5
+                  : 0),
+          0,
+        ),
         fixed(r.reduce((n, x) => n + x.allPlay, 0)),
       ]),
     );
@@ -344,8 +395,18 @@ export function Reports({
   if (report === 5)
     add(
       ["Rank", "Team", "Record", "Make playoffs", "Miss playoffs"],
-      [...teams]
-        .sort((a, b) => b.wins + b.ties / 2 - a.wins - a.ties / 2)
+      data.teams
+        .filter((t) => t.league_id === leagueId)
+        .sort(
+          (a, b) =>
+            b.wins + b.ties / 2 - a.wins - a.ties / 2 ||
+            scoreRows(weeks, forecasts)
+              .filter((r) => r.final && r.team === b.id)
+              .reduce((n, r) => n + r.actual, 0) -
+              scoreRows(weeks, forecasts)
+                .filter((r) => r.final && r.team === a.id)
+                .reduce((n, r) => n + r.actual, 0),
+        )
         .map((t, i) => [
           i + 1,
           owner(t.id),
@@ -370,7 +431,8 @@ export function Reports({
               )?.metadata.simulated_probability ?? NaN,
             ),
           ),
-        ]),
+        ])
+        .filter((row) => !team || row[1] === owner(team)),
     );
   if (report === 6)
     add(
@@ -442,7 +504,9 @@ export function Reports({
       data.ledger
         .filter((l) => teams.some((t) => t.id === l.team_id))
         .map((l) => [
-          new Date(l.created_at).toLocaleString(),
+          new Date(l.created_at).toLocaleString("en-US", {
+            timeZone: "America/New_York",
+          }),
           owner(l.team_id),
           l.reason,
           l.balance_before === null ? "—" : money(l.balance_before),
@@ -531,7 +595,10 @@ export function Reports({
         .filter(
           (q) =>
             !q.metadata.lineup_locked &&
-            (!team || q.team_id === team) &&
+            (!team ||
+              q.team_id === team ||
+              q.home_team_id === team ||
+              q.away_team_id === team) &&
             ((["moneyline", "spread"].includes(q.kind) && q.side === "home") ||
               (["match_total", "team_total", "player_points"].includes(
                 q.kind,
@@ -607,7 +674,9 @@ export function Reports({
     add(
       ["Date", "Operation", "Status", "Details"],
       jobs.map((j) => [
-        new Date(j.created_at).toLocaleString(),
+        new Date(j.created_at).toLocaleString("en-US", {
+          timeZone: "America/New_York",
+        }),
         j.operation ?? "",
         j.status,
         j.last_error ?? "—",
@@ -617,11 +686,460 @@ export function Reports({
     add(
       ["Date", "Type", "Recipient", "Status", "Details"],
       emails.map((e) => [
-        new Date(e.created_at).toLocaleString(),
+        new Date(e.created_at).toLocaleString("en-US", {
+          timeZone: "America/New_York",
+        }),
         e.kind ?? "",
         e.recipient ?? "",
         e.status,
         e.last_error ?? "—",
+      ]),
+    );
+  const number = (value: string | number) =>
+    typeof value === "number"
+      ? value
+      : Number.parseFloat(value.replace(/[$,%]/g, ""));
+  if ([1, 6, 7, 8].includes(report)) {
+    const index = report === 8 ? 3 : report === 1 ? 2 : 1;
+    table.sort((a, b) => number(b[index]) - number(a[index]));
+  }
+  if (report === 4)
+    table.sort(
+      (a, b) =>
+        (Number.isFinite(number(b[4])) ? number(b[4]) : -Infinity) -
+        (Number.isFinite(number(a[4])) ? number(a[4]) : -Infinity),
+    );
+  let figure: FigureSpec | undefined;
+  const chart = (
+    type: FigureSpec["type"],
+    title: string,
+    unit: string,
+    note: string,
+    points: FigureSpec["points"],
+    legend?: string[],
+  ) => {
+    figure = { type, title, unit, note, points, legend };
+  };
+  if (report === 2)
+    chart(
+      "paired",
+      "Matchup wins versus all-play expected wins",
+      "wins",
+      "Blue: matchup wins plus half of ties in the selected final weeks. Gold: all-play expected wins. The gap isolates schedule advantage.",
+      table.map((r) => ({
+        label: String(r[0]),
+        value: number(r[2]),
+        second: number(r[3]),
+      })),
+      ["Matchup win-equivalents", "Expected wins"],
+    );
+  if (report === 3)
+    chart(
+      "range",
+      "Scoring floor, average and ceiling",
+      "points",
+      "Blue range: lowest to highest final score. Gold dot: average. The table's standard deviation measures consistency.",
+      byTeam
+        .filter((x) => x.r.length)
+        .map(({ t, r }) => ({
+          label: owner(t.id),
+          value: mean(r.map((x) => x.actual))!,
+          low: Math.min(...r.map((x) => x.actual)),
+          high: Math.max(...r.map((x) => x.actual)),
+        })),
+      ["Min–max score", "Average"],
+    );
+  if (report === 4)
+    chart(
+      "bars",
+      "Points left out of the starting lineup",
+      "points",
+      "Up to 24 largest missed-point results. Only weeks with a complete archived eligible roster and final player scores are included. This is a hindsight comparison.",
+      table
+        .filter((r) => Number.isFinite(number(r[4])))
+        .sort((a, b) => number(b[4]) - number(a[4]))
+        .slice(0, 24)
+        .map((r) => ({ label: `W${r[0]} ${r[1]}`, value: number(r[4]) })),
+    );
+  if (report === 5)
+    chart(
+      "bars",
+      "Playoff qualification forecast",
+      "%",
+      "Raw simulation probability, not the probability implied by rounded betting odds. Current record and recorded season points determine the displayed order.",
+      table.map((r) => ({ label: `${r[0]}. ${r[1]}`, value: number(r[3]) })),
+    );
+  if (report === 6)
+    chart(
+      "paired",
+      "Championship chance versus last-place chance",
+      "%",
+      "The same team can have uncertainty at both ends of the standings. #1 pick ownership does not change which team's finish is forecast.",
+      table.map((r) => ({
+        label: String(r[0]),
+        value: number(r[1]),
+        second: number(r[3]),
+      })),
+      ["League winner", "Regular-season last"],
+    );
+  if (report === 7)
+    chart(
+      "range",
+      "Regular-season win forecast and uncertainty",
+      "wins",
+      "Blue: 10th–90th percentile simulated wins. Gold: expected wins. Vertical marker: posted half-win betting line. This is an 80% model interval.",
+      teams
+        .flatMap((t) => {
+          const q = currentQuotes.find(
+            (q) =>
+              q.kind === "future_win_total" &&
+              q.side === "over" &&
+              q.team_id === t.id,
+          );
+          if (!q) return [];
+          const distribution = q.metadata.win_distribution as
+            Record<string, number> | undefined;
+          return [
+            {
+              label: owner(t.id),
+              value: Number(q.metadata.expected_wins),
+              second: q.line ?? undefined,
+              low: winQuantile(distribution, 0.1),
+              high: winQuantile(distribution, 0.9),
+            },
+          ];
+        })
+        .sort((a, b) => b.value - a.value),
+      ["80% interval", "Expected wins"],
+    );
+  if (report === 8)
+    chart(
+      "diverging",
+      "Settled betting profit by team",
+      "$",
+      "Zero is break-even. Blue is net profit; orange is net loss. Open and voided tickets do not enter settled profit.",
+      table.map((r) => ({ label: String(r[0]), value: number(r[3]) })),
+    );
+  if (report === 9)
+    chart(
+      "paired",
+      "Recorded cash credits versus deductions",
+      "$",
+      "Totals use entries with known before/after balances. Opening entries are excluded. Credits include replenishments and admin changes, so this is cash flow rather than betting ROI.",
+      teams.map((t) => {
+        const changes = data.ledger
+          .filter((l) => l.team_id === t.id && l.balance_before !== null)
+          .map((l) => Number(l.balance_after) - Number(l.balance_before))
+          .filter(Number.isFinite);
+        return {
+          label: owner(t.id),
+          value: changes.filter((n) => n < 0).reduce((sum, n) => sum - n, 0),
+          second: changes.filter((n) => n > 0).reduce((sum, n) => sum + n, 0),
+        };
+      }),
+      ["Deductions", "Credits"],
+    );
+  if (report === 10)
+    chart(
+      "bars",
+      "Most frequently selected lines",
+      "tickets",
+      "Top 12 by ticket appearances. A parlay contributes one appearance to each selection it contains, so these counts are not independent tickets.",
+      table
+        .slice(0, 12)
+        .map((r) => ({ label: String(r[0]), value: number(r[1]) })),
+    );
+  if (report === 11)
+    chart(
+      "stacked",
+      "Open stakes: weekly bets versus futures",
+      "$",
+      "Stake committed to open tickets, grouped by team and category. This compares tied-up cash; it does not sum potential payouts.",
+      teams.map((t) => ({
+        label: owner(t.id),
+        value: filteredTickets
+          .filter(
+            (q) =>
+              q.team_id === t.id &&
+              q.status === "OPEN" &&
+              q.ticket_type !== "future",
+          )
+          .reduce((n, q) => n + Number(q.stake), 0),
+        second: filteredTickets
+          .filter(
+            (q) =>
+              q.team_id === t.id &&
+              q.status === "OPEN" &&
+              q.ticket_type === "future",
+          )
+          .reduce((n, q) => n + Number(q.stake), 0),
+      })),
+      ["Weekly stakes", "Futures stakes"],
+    );
+  if (report === 12)
+    chart(
+      "range",
+      "League-wide scoring spread each week",
+      "points",
+      "Blue: lowest to highest team score. Gold: league average. Wide ranges indicate weeks with a bigger gap between the league's best and worst scores.",
+      weeks
+        .filter((w) => w.final && (!week || week === w.market_week))
+        .map((w) => {
+          const scores = Object.values(w.results).map((r) => r.points);
+          return {
+            label: `Week ${w.market_week}`,
+            value: mean(scores)!,
+            low: Math.min(...scores),
+            high: Math.max(...scores),
+          };
+        }),
+      ["Low–high score", "League average"],
+    );
+  if (report === 13)
+    chart(
+      "calibration",
+      "Are forecast probabilities calibrated?",
+      "%",
+      "Each bubble groups forecasts into a 10-point probability band. Bubble size indicates sample count. The gold diagonal is perfect calibration. Correlated markets and small samples limit conclusions.",
+      Array.from({ length: 10 }, (_, i) => {
+        const sample = evaluations.filter(
+          (e) =>
+            e.p !== null &&
+            e.p >= i / 10 &&
+            (i === 9 ? e.p <= 1 : e.p < (i + 1) / 10) &&
+            e.brier !== null,
+        );
+        return {
+          label: `${i * 10}–${(i + 1) * 10}%`,
+          value: sample.length ? mean(sample.map((e) => e.p!))! * 100 : NaN,
+          second: sample.length
+            ? mean(sample.map((e) => Number(e.outcome.status === "WON")))! * 100
+            : NaN,
+          count: sample.length,
+        };
+      }),
+    );
+  if (report === 14 || report === 15) {
+    const records = report === 14 ? jobs : emails;
+    const groups = [
+      ...new Set(
+        records.map((r) => (report === 14 ? r.operation : r.kind) ?? "Unknown"),
+      ),
+    ];
+    chart(
+      "stacked",
+      report === 14
+        ? "Scheduled job outcomes by operation"
+        : "Email processing outcomes by type",
+      report === 14 ? "jobs" : "emails",
+      "Counts use the latest 100 records. Gold includes work still pending or processing; orange indicates recorded failure or review.",
+      groups.map((label) => {
+        const items = records.filter(
+          (r) =>
+            ((report === 14 ? r.operation : r.kind) ?? "Unknown") === label,
+        );
+        const done = (s: string) =>
+          ["sent", "done", "completed", "succeeded", "success"].includes(s);
+        const failed = (s: string) =>
+          ["failed", "needs_review", "error"].includes(s);
+        return {
+          label,
+          value: items.filter((r) => done(r.status)).length,
+          second: items.filter((r) => !done(r.status) && !failed(r.status))
+            .length,
+          high: items.filter((r) => failed(r.status)).length,
+        };
+      }),
+      [
+        report === 14 ? "Completed" : "Sent",
+        "Pending / other",
+        "Failed / review",
+      ],
+    );
+  }
+  const countWeeks = new Set(finalRows.map((r) => r.week)).size;
+  let kpis: [string, string | number][] = [
+    ["Final team-week results", finalRows.length],
+    ["Projection error · MAE", `${fixed(mae)} pts`],
+    [
+      "Actual minus projected · average",
+      `${bias !== null && bias > 0 ? "+" : ""}${fixed(bias)} pts`,
+    ],
+    ["Forecast versions archived", forecasts.length],
+  ];
+  if ([1, 2, 3, 4, 12].includes(report))
+    kpis = [
+      ["Teams in view", teams.length],
+      ["Final weeks", countWeeks],
+      [
+        "Lowest final score",
+        finalRows.length
+          ? fixed(Math.min(...finalRows.map((r) => r.actual)))
+          : "—",
+      ],
+      [
+        "Highest final score",
+        finalRows.length
+          ? fixed(Math.max(...finalRows.map((r) => r.actual)))
+          : "—",
+      ],
+    ];
+  if ([5, 6, 7].includes(report))
+    kpis = [
+      ["Teams in view", teams.length],
+      [
+        "Latest forecast selections",
+        currentQuotes.filter((q) => !team || q.team_id === team).length,
+      ],
+      [
+        "Simulation trials",
+        currentQuotes.length
+          ? Number(currentQuotes[0].metadata.trials ?? 0).toLocaleString()
+          : "—",
+      ],
+      [
+        "Archived future revisions",
+        forecasts.filter((f) => f.board_type === "future").length,
+      ],
+    ];
+  if (report === 8) {
+    const settled = filteredTickets.filter((t) =>
+        ["WON", "LOST", "PUSH"].includes(t.status),
+      ),
+      stake = settled.reduce((n, t) => n + Number(t.stake), 0),
+      profit = settled.reduce(
+        (n, t) => n + Number(t.actual_payout) - Number(t.stake),
+        0,
+      );
+    kpis = [
+      ["Settled tickets", settled.length],
+      ["Settled stakes", money(stake)],
+      ["Net settled profit", money(profit)],
+      ["Return on settled stakes", percent(stake ? profit / stake : null)],
+    ];
+  }
+  if (report === 9)
+    kpis = [
+      ["Balance entries", table.length],
+      ["Teams in view", teams.length],
+      [
+        "Recorded current cash",
+        money(
+          data.wallets
+            .filter((w) => teams.some((t) => t.id === w.team_id))
+            .reduce((n, w) => n + Number(w.balance), 0),
+        ),
+      ],
+      ["Displayed history", "Latest available"],
+    ];
+  if (report === 10)
+    kpis = [
+      ["Unique selection labels", table.length],
+      ["Ticket appearances", table.reduce((n, r) => n + number(r[1]), 0)],
+      ["Most selected appearances", table[0]?.[1] ?? "—"],
+      ["Stake basis", "Per appearance"],
+    ];
+  if (report === 11) {
+    const open = filteredTickets.filter((t) => t.status === "OPEN");
+    kpis = [
+      ["Open tickets", open.length],
+      [
+        "Weekly stakes",
+        money(
+          open
+            .filter((t) => t.ticket_type !== "future")
+            .reduce((n, t) => n + Number(t.stake), 0),
+        ),
+      ],
+      [
+        "Futures stakes",
+        money(
+          open
+            .filter((t) => t.ticket_type === "future")
+            .reduce((n, t) => n + Number(t.stake), 0),
+        ),
+      ],
+      [
+        "Total committed stakes",
+        money(open.reduce((n, t) => n + Number(t.stake), 0)),
+      ],
+    ];
+  }
+  if (report === 13)
+    kpis = [
+      ["Opening selections evaluated", evaluations.length],
+      [
+        "Binary outcomes with probabilities",
+        evaluations.filter((e) => e.brier !== null).length,
+      ],
+      [
+        "Mean Brier score",
+        fixed(
+          mean(evaluations.flatMap((e) => (e.brier === null ? [] : [e.brier]))),
+          3,
+        ),
+      ],
+      ["Forecast versions archived", forecasts.length],
+    ];
+  if ([14, 15].includes(report)) {
+    const records = report === 14 ? jobs : emails;
+    kpis = [
+      ["Records in view", records.length],
+      [
+        report === 14 ? "Completed" : "Provider accepted",
+        records.filter((r) => r.status === (report === 14 ? "done" : "sent"))
+          .length,
+      ],
+      [
+        "Failed / review",
+        records.filter((r) => ["failed", "needs_review"].includes(r.status))
+          .length,
+      ],
+      [
+        "Pending / processing",
+        records.filter((r) =>
+          ["pending", "running", "sending"].includes(r.status),
+        ).length,
+      ],
+    ];
+  }
+  const download = async (format: "png" | "pdf") => {
+    if (!exportNode.current) return;
+    setExporting(true);
+    try {
+      await exportReport(
+        exportNode.current,
+        `goldy-${titles[report].toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${season}${week ? `-week-${week}` : ""}`,
+        format,
+      );
+      setNotice(
+        `${format.toUpperCase()} prepared with the selected filters. Long detail tables show 40 rows; CSV includes every row.`,
+      );
+    } catch (e) {
+      setNotice(`Export failed: ${errorMessage(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+  if (report === 0)
+    add(
+      [
+        "Team",
+        "Week",
+        "Actual",
+        "Projected",
+        "Difference",
+        "Projection basis",
+        "Status",
+      ],
+      rows.map((r) => [
+        owner(r.team),
+        r.week,
+        r.actual,
+        r.projection ?? "",
+        r.error ?? "",
+        r.basis,
+        r.final ? "Final" : "Live",
       ]),
     );
   const exportCsv = () => {
@@ -648,11 +1166,16 @@ export function Reports({
           Report
           <select
             value={report}
-            onChange={(e) => setReport(Number(e.target.value))}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setReport(next);
+              if ([5, 6, 7, 9, 14, 15].includes(next)) setWeek(0);
+              if ([12, 14, 15].includes(next)) setTeam("");
+            }}
           >
-            {titles.map((t, i) => (
-              <option key={t} value={i}>
-                {t}
+            {reportOrder.map((i) => (
+              <option key={i} value={i}>
+                {titles[i]}
               </option>
             ))}
           </select>
@@ -679,6 +1202,7 @@ export function Reports({
         <label>
           Week
           <select
+            disabled={[5, 6, 7, 9, 14, 15].includes(report)}
             value={week}
             onChange={(e) => setWeek(Number(e.target.value))}
           >
@@ -692,7 +1216,11 @@ export function Reports({
         </label>
         <label>
           Team
-          <select value={team} onChange={(e) => setTeam(e.target.value)}>
+          <select
+            disabled={[12, 14, 15].includes(report)}
+            value={team}
+            onChange={(e) => setTeam(e.target.value)}
+          >
             <option value="">All teams</option>
             {data.teams
               .filter((t) => t.league_id === leagueId)
@@ -710,262 +1238,356 @@ export function Reports({
         >
           {busy ? "Refreshing…" : "Refresh Sleeper data"}
         </button>
-        {report !== 0 && (
+        {
           <button disabled={!table.length} onClick={exportCsv}>
             Export CSV
           </button>
-        )}
+        }
+      </div>
+      <div className="report-export-actions">
+        <span>Export the selected report and filters</span>
+        <button disabled={exporting} onClick={() => void download("png")}>
+          {exporting ? "Preparing export…" : "Download image"}
+        </button>
+        <button disabled={exporting} onClick={() => void download("pdf")}>
+          Download PDF
+        </button>
       </div>
       {notice && (
         <p role="status" className="market-admin-notice">
           {notice}
         </p>
       )}
-      <div className="report-kpis">
-        <article>
-          <small>Final team-week results</small>
-          <strong>{finalRows.length}</strong>
-        </article>
-        <article>
-          <small>Available projection error · MAE</small>
-          <strong>
-            {fixed(mae)} <em>points</em>
-          </strong>
-        </article>
-        <article>
-          <small>Scoring above projection</small>
-          <strong>
-            {bias !== null && bias > 0 ? "+" : ""}
-            {fixed(bias)} <em>average</em>
-          </strong>
-        </article>
-        <article>
-          <small>Forecast versions archived</small>
-          <strong>{forecasts.length}</strong>
-        </article>
-      </div>
-      <article className="admin-panel">
-        <div className="report-heading">
-          <h2>{titles[report]}</h2>
-          <small>Updated {asOf || "—"} · Eastern</small>
+      <div ref={exportNode} className="report-export-surface">
+        <p className="report-export-context">
+          {league.name} · {season} · {week ? `Week ${week}` : "All weeks"} ·{" "}
+          {team ? owner(team) : "All teams"}
+        </p>
+        <div className="report-kpis">
+          {kpis.map(([label, value]) => (
+            <article key={label}>
+              <small>{label}</small>
+              <strong>{value}</strong>
+            </article>
+          ))}
         </div>
-        {[0, 1].includes(report) && <ScoreTrend rows={rows} />}
-        {report === 0 ? (
-          <>
-            <p className="report-note">
-              Actual minus projected points. Blue = overperformance; orange =
-              underperformance. HIGH / LOW mark each week's largest deviation.
-              Live scores are labelled.
-            </p>
-            <div className="report-table-wrap">
-              <table className="score-heatmap">
-                <thead>
-                  <tr>
-                    <th>Team</th>
-                    {weeks
-                      .filter((w) => !week || w.market_week === week)
-                      .map((w) => (
-                        <th key={w.market_week}>
-                          Week {w.market_week}
-                          <small>{w.final ? "Final" : "Live"}</small>
-                        </th>
-                      ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.map((t) => (
-                    <tr key={t.id}>
-                      <th>
-                        <span className="report-team">
-                          {t.avatar_url && <img src={t.avatar_url} alt="" />}
-                          <span>
-                            {owner(t.id)}
-                            <small>{t.team_name}</small>
-                          </span>
-                        </span>
-                      </th>
+        <article className="admin-panel">
+          <div className="report-heading">
+            <h2>{titles[report]}</h2>
+            <small>Updated {asOf || "—"} · Eastern</small>
+          </div>
+          <p className="report-description">{descriptions[report]}</p>
+          {report === 1 && <ScoreTrend rows={finalRows} owner={owner} />}
+          {figure && <ReportFigure spec={figure} />}
+          {report === 0 ? (
+            <>
+              <p className="report-note">
+                Actual minus projected points. Blue = overperformance; orange =
+                underperformance. HIGH / LOW mark each week's largest deviation.
+                Live scores are labelled.
+              </p>
+              <div className="report-table-wrap">
+                <table className="score-heatmap">
+                  <thead>
+                    <tr>
+                      <th>Team</th>
                       {weeks
                         .filter((w) => !week || w.market_week === week)
-                        .map((w) => {
-                          const r = rows.find(
-                            (r) => r.team === t.id && r.week === w.market_week,
-                          );
-                          const all = scoreRows([w], forecasts).filter(
-                            (r) => r.error !== null,
-                          );
-                          const high = Math.max(...all.map((r) => r.error!)),
-                            low = Math.min(...all.map((r) => r.error!));
-                          return (
-                            <td key={w.market_week}>
-                              <div
-                                className={`heat-cell ${r?.error !== null && r?.error !== undefined ? (r.error >= 0 ? "over" : "under") : ""}`}
-                                title={r?.basis}
-                                style={
-                                  {
-                                    "--heat": String(
-                                      Math.min(
-                                        0.8,
-                                        0.18 + Math.abs(r?.error ?? 0) / 100,
-                                      ),
-                                    ),
-                                  } as React.CSSProperties
-                                }
-                              >
-                                <small>
-                                  {r && r.error !== null
-                                    ? r.error === high
-                                      ? "HIGH"
-                                      : r.error === low
-                                        ? "LOW"
-                                        : ""
-                                    : ""}
-                                </small>
-                                <strong>
-                                  {r?.error !== null && r?.error !== undefined
-                                    ? `${r.error >= 0 ? "+" : ""}${fixed(r.error)}`
-                                    : "—"}
-                                </strong>
-                                <span>
-                                  {r
-                                    ? `${fixed(r.actual)} / ${fixed(r.projection)}`
-                                    : "No data"}
-                                </span>
-                              </div>
-                            </td>
-                          );
-                        })}
+                        .map((w) => (
+                          <th key={w.market_week}>
+                            Week {w.market_week}
+                            <small>{w.final ? "Final" : "Live"}</small>
+                          </th>
+                        ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="report-note">
-              Cell footer: actual / projected. Historical starter projections
-              are reconstructed from current provider data; they are not
-              original pregame sportsbook forecasts. Hover a cell for its basis.
-            </p>
-          </>
-        ) : (
-          <div className="report-table-wrap">
-            <table className="report-table">
-              <thead>
-                <tr>
-                  {columns.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.map((r, i) => (
-                  <tr key={i}>
-                    {r.map((v, j) => (
-                      <td key={j}>{v}</td>
+                  </thead>
+                  <tbody>
+                    {teams.map((t) => (
+                      <tr key={t.id}>
+                        <th>
+                          <span className="report-team">
+                            {t.avatar_url && <img src={t.avatar_url} alt="" />}
+                            <span>
+                              {owner(t.id)}
+                              <small>{t.team_name}</small>
+                            </span>
+                          </span>
+                        </th>
+                        {weeks
+                          .filter((w) => !week || w.market_week === week)
+                          .map((w) => {
+                            const r = rows.find(
+                              (r) =>
+                                r.team === t.id && r.week === w.market_week,
+                            );
+                            const all = scoreRows([w], forecasts).filter(
+                              (r) => r.error !== null,
+                            );
+                            const high = Math.max(...all.map((r) => r.error!)),
+                              low = Math.min(...all.map((r) => r.error!));
+                            return (
+                              <td key={w.market_week}>
+                                <div
+                                  className={`heat-cell ${r?.error !== null && r?.error !== undefined ? (r.error >= 0 ? "over" : "under") : ""}`}
+                                  title={r?.basis}
+                                  style={
+                                    {
+                                      "--heat": String(
+                                        Math.min(
+                                          0.8,
+                                          0.18 + Math.abs(r?.error ?? 0) / 100,
+                                        ),
+                                      ),
+                                    } as React.CSSProperties
+                                  }
+                                >
+                                  <small>
+                                    {r && r.error !== null
+                                      ? r.error === high
+                                        ? "HIGH"
+                                        : r.error === low
+                                          ? "LOW"
+                                          : ""
+                                      : ""}
+                                  </small>
+                                  <strong>
+                                    {r?.error !== null && r?.error !== undefined
+                                      ? `${r.error >= 0 ? "+" : ""}${fixed(r.error)}`
+                                      : "—"}
+                                  </strong>
+                                  <span>
+                                    {r
+                                      ? `${fixed(r.actual)} / ${fixed(r.projection)}`
+                                      : "No data"}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          })}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!table.length && <p>No eligible data for these filters yet.</p>}
-          </div>
-        )}
-        {[9, 14, 15].includes(report) && (
-          <p className="report-note">
-            Week filters do not apply to wallet or operations logs. These views
-            show the latest recorded activity.
-          </p>
-        )}
-        {report === 2 && (
-          <p className="report-note">
-            *All-play rate counts wins against every other team that week, ties
-            as half-wins. Expected wins is the sum of weekly all-play rates; it
-            measures schedule luck rather than forecasting.
-          </p>
-        )}
-        {report === 4 && (
-          <p className="report-note">
-            *The optimal score uses the eligible roster archived at opening, not
-            later waiver additions. Missing archived eligibility or player
-            scores produces an unavailable value, rather than a guessed optimum.
-            Players without provider names retain their Sleeper IDs.
-          </p>
-        )}
-        {report === 10 && (
-          <p className="report-note">
-            *Ticket stakes count the full ticket stake for each selection
-            appearance; this is popularity, not additive financial exposure.
-          </p>
-        )}
-        {report === 13 && (
-          <>
-            <p className="report-note">
-              Evaluation uses the final pre-opening snapshot, or the first
-              opening publication snapshot when it commits just after opening,
-              includes unbet selections, excludes locked markets and
-              unresolved/push outcomes from Brier scores. Each binary market is
-              counted once. Lower Brier scores are better; small samples are
-              preliminary.
-            </p>
-            <h3>Futures forecast history</h3>
+                  </tbody>
+                </table>
+              </div>
+              <p className="report-note">
+                Cell footer: actual / projected. Historical starter projections
+                are reconstructed from current provider data; they are not
+                original pregame sportsbook forecasts. Hover a cell for its
+                basis.
+              </p>
+            </>
+          ) : (
             <div className="report-table-wrap">
               <table className="report-table">
                 <thead>
                   <tr>
-                    <th>As of</th>
-                    <th>Team</th>
-                    <th>Market</th>
-                    <th>Probability</th>
-                    <th>Line</th>
-                    <th>Model</th>
-                    <th>Outcome</th>
+                    {columns.map((c, i) => (
+                      <th key={`${i}:${c}`}>{c}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {forecasts
-                    .filter((f) => f.board_type === "future")
-                    .flatMap((f) =>
-                      f.quotes
-                        .filter(
-                          (q) =>
-                            (!team || q.team_id === team) &&
-                            !["miss", "under"].includes(q.side),
-                        )
-                        .map((q) => (
-                          <tr key={`${f.id}:${q.id}`}>
-                            <td>{new Date(f.captured_at).toLocaleString()}</td>
-                            <td>{owner(q.team_id ?? "")}</td>
-                            <td>{marketType[q.kind]}</td>
-                            <td>
-                              {percent(
-                                Number(q.metadata.simulated_probability),
-                              )}
-                            </td>
-                            <td>{q.line ?? "—"}</td>
-                            <td>
-                              {String(
-                                q.metadata.model_version ?? "Unavailable",
-                              )}
-                            </td>
-                            <td>{futureOutcome(q).status}</td>
-                          </tr>
-                        )),
-                    )}
+                  {table.map((r, i) => (
+                    <tr key={i}>
+                      {r.map((v, j) => (
+                        <td key={j}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+              {!table.length && <p>No eligible data for these filters yet.</p>}
             </div>
+          )}
+          {[5, 6, 7, 9, 14, 15].includes(report) && (
             <p className="report-note">
-              Season outcomes remain pending until confirmed. Older boards
-              captured at installation are retained as history, not treated as
-              original published predictions.
+              Week filters do not apply to current season outlooks, wallet
+              history or operations logs. These views show the latest available
+              records.
             </p>
-          </>
-        )}
-        {[14, 15].includes(report) && (
-          <p className="report-note">
-            Latest 100 records. “Sent” means accepted by the email provider, not
-            confirmed inbox delivery.
-          </p>
-        )}
-      </article>
+          )}
+          {report === 2 && (
+            <p className="report-note">
+              *Matchup ties count as half a win. All-play rate counts wins
+              against every other team that week, ties as half-wins. Expected
+              wins is the sum of weekly all-play rates; it measures schedule
+              luck rather than forecasting.
+            </p>
+          )}
+          {report === 4 && (
+            <p className="report-note">
+              *The optimal score uses the eligible roster archived at opening,
+              not later waiver additions. Missing archived eligibility or player
+              scores produces an unavailable value, rather than a guessed
+              optimum. Players without provider names retain their Sleeper IDs.
+            </p>
+          )}
+          {report === 10 && (
+            <p className="report-note">
+              *Ticket stakes count the full ticket stake for each selection
+              appearance; this is popularity, not additive financial exposure.
+            </p>
+          )}
+          {report === 13 && (
+            <>
+              <p className="report-note">
+                Evaluation uses the final pre-opening snapshot, or the first
+                opening publication snapshot when it commits just after opening,
+                includes unbet selections, excludes locked markets and
+                unresolved/push outcomes from Brier scores. Each binary market
+                is counted once. Lower Brier scores are better; small samples
+                are preliminary.
+              </p>
+              <h3>Accuracy by market and model</h3>
+              <div className="report-table-wrap">
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Market</th>
+                      <th>Model</th>
+                      <th>Evaluated</th>
+                      <th>Mean absolute error</th>
+                      <th>Mean Brier score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ...new Set(
+                        evaluations.map(
+                          (e) =>
+                            `${e.q.kind}|${String(e.q.metadata.model_version ?? "Unavailable")}`,
+                        ),
+                      ),
+                    ].map((key) => {
+                      const [kind, model] = key.split("|");
+                      const sample = evaluations.filter(
+                        (e) =>
+                          e.q.kind === kind &&
+                          String(
+                            e.q.metadata.model_version ?? "Unavailable",
+                          ) === model,
+                      );
+                      return (
+                        <tr key={key}>
+                          <td>{marketType[kind as Market["kind"]]}</td>
+                          <td>{model}</td>
+                          <td>{sample.length}</td>
+                          <td>
+                            {fixed(
+                              mean(
+                                sample.flatMap((e) =>
+                                  e.error === null ? [] : [Math.abs(e.error)],
+                                ),
+                              ),
+                              2,
+                            )}{" "}
+                            {kind.includes("count") ? "teams" : "points"}
+                          </td>
+                          <td>
+                            {fixed(
+                              mean(
+                                sample.flatMap((e) =>
+                                  e.brier === null ? [] : [e.brier],
+                                ),
+                              ),
+                              3,
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="report-note">
+                Error units stay separate by market. A blank value means the
+                measure is unavailable or does not apply. Team filters omit
+                league-wide specials.
+              </p>
+              <h3>Futures forecast history</h3>
+              <div className="report-table-wrap">
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>As of</th>
+                      <th>Team</th>
+                      <th>Market</th>
+                      <th>Probability</th>
+                      <th>Line</th>
+                      <th>Model</th>
+                      <th>Outcome</th>
+                      <th>Brier score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forecasts
+                      .filter((f) => f.board_type === "future")
+                      .flatMap((f) =>
+                        f.quotes
+                          .filter(
+                            (q) =>
+                              (!team || q.team_id === team) &&
+                              !["miss", "under"].includes(q.side),
+                          )
+                          .map((q) => (
+                            <tr key={`${f.id}:${q.id}`}>
+                              <td>
+                                {new Date(f.captured_at).toLocaleString(
+                                  "en-US",
+                                  { timeZone: "America/New_York" },
+                                )}
+                              </td>
+                              <td>{owner(q.team_id ?? "")}</td>
+                              <td>{marketType[q.kind]}</td>
+                              <td>
+                                {percent(
+                                  Number(q.metadata.simulated_probability),
+                                )}
+                              </td>
+                              <td>{q.line ?? "—"}</td>
+                              <td>
+                                {String(
+                                  q.metadata.model_version ?? "Unavailable",
+                                )}
+                              </td>
+                              <td>{futureOutcome(q).status}</td>
+                              <td>
+                                {["WON", "LOST"].includes(
+                                  futureOutcome(q).status,
+                                ) &&
+                                typeof q.metadata.simulated_probability ===
+                                  "number"
+                                  ? fixed(
+                                      (q.metadata.simulated_probability -
+                                        Number(
+                                          futureOutcome(q).status === "WON",
+                                        )) **
+                                        2,
+                                      3,
+                                    )
+                                  : "—"}
+                              </td>
+                            </tr>
+                          )),
+                      )}
+                  </tbody>
+                </table>
+              </div>
+              <p className="report-note">
+                Season outcomes remain pending until confirmed. Older boards
+                captured at installation are retained as history, not treated as
+                original published predictions.
+              </p>
+            </>
+          )}
+          {[14, 15].includes(report) && (
+            <p className="report-note">
+              Latest 100 records. “Sent” means accepted by the email provider,
+              not confirmed inbox delivery.
+            </p>
+          )}
+        </article>
+      </div>
     </section>
   );
 }

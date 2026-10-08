@@ -47,6 +47,29 @@ export interface ScoreRow {
   opponent: number | null;
   final: boolean;
 }
+export function winQuantile(
+  distribution: Record<string, number> | undefined,
+  target: number,
+): number | undefined {
+  if (!distribution || target < 0 || target > 1) return undefined;
+  const bins = Object.entries(distribution)
+    .map(([n, p]) => [Number(n), p])
+    .sort((a, b) => a[0] - b[0]);
+  if (
+    !bins.length ||
+    bins.some(
+      ([n, p]) => !Number.isInteger(n) || n < 0 || !Number.isFinite(p) || p < 0,
+    ) ||
+    Math.abs(bins.reduce((n, [, p]) => n + p, 0) - 1) > 0.001
+  )
+    return undefined;
+  let cumulative = 0;
+  for (const [n, p] of bins) {
+    cumulative += p;
+    if (cumulative >= target) return n;
+  }
+  return bins.at(-1)?.[0];
+}
 export function scoreRows(
   weeks: ScoreWeek[],
   forecasts: Forecast[],
@@ -238,4 +261,3 @@ export function confirmedSeasonResults(
   }
   return { ...result, ...regularSeasonResults(totals, playoffTeams) };
 }
-

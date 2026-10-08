@@ -180,12 +180,13 @@
   }
 }
 @media (min-width:1101px) {
-  .season-futures-grid { grid-template-rows:auto repeat(var(--future-rows),auto); row-gap:0; }
-  .season-future-card { display:grid; grid-template-rows:subgrid; grid-row:span calc(var(--future-rows) + 1); gap:0; }
-  .season-future-card > .future-rows { display:contents; }
+  .season-futures-grid { grid-template-rows:repeat(2,auto); gap:28px 24px; align-items:stretch; }
+  .season-future-card { display:flex; flex-direction:column; gap:0; }
+  .season-future-card > .future-rows { display:flex; flex:1; }
   .season-future-card > header { min-height:0; padding-bottom:12px; margin-bottom:0; }
-  .future-row { margin:0; }
+  .future-row { margin:0; min-height:86px; flex:1; }
 }
+.email-preview-heading select { appearance:none; padding-right:40px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%237187a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
 .count-special { display:flex; flex-direction:column; }
 .count-special > h2 { margin:0 0 12px; }
 .count-special > p { line-height:1.65; min-height:40px; margin:0 0 10px; }

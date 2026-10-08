@@ -196,7 +196,7 @@ export function AdminHub({
             <h1>League Admin</h1>
             <p>Choose a category to manage your sportsbook.</p>
           </div>
-          {["League Management", "Markets", "Operations", "Insights"].map(
+          {["Insights", "League Management", "Markets", "Operations"].map(
             (group) => (
               <section className="admin-category-group" key={group}>
                 <h2>{group}</h2>

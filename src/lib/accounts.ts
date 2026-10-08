@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { readAllRows } from "./pagination";
 export interface League {
   sleeper_league_id?: string;
   id: string;
@@ -100,26 +101,42 @@ export async function loadAccounts(): Promise<AccountData> {
     supabase.from("teams").select("*").order("roster_id"),
     supabase.from("league_memberships").select("*"),
     supabase.from("wallets").select("*"),
-    supabase
-      .from("balance_events")
-      .select("*")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("tickets")
-      .select(
-        "id,league_id,nfl_season,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,ticket_type,accepted_potential_payout,actual_payout,status",
-      )
-      .order("placed_at", { ascending: false }),
-    supabase
-      .from("ticket_legs")
-      .select(
-        "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence",
-      )
-      .order("leg_number"),
-    supabase
-      .from("wallet_ledger")
-      .select("*")
-      .order("created_at", { ascending: false }),
+    readAllRows((from, to) =>
+      supabase!
+        .from("balance_events")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    ),
+    readAllRows((from, to) =>
+      supabase!
+        .from("tickets")
+        .select(
+          "id,league_id,nfl_season,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,ticket_type,accepted_potential_payout,actual_payout,status",
+        )
+        .order("placed_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    ),
+    readAllRows((from, to) =>
+      supabase!
+        .from("ticket_legs")
+        .select(
+          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence",
+        )
+        .order("leg_number")
+        .order("id")
+        .range(from, to),
+    ),
+    readAllRows((from, to) =>
+      supabase!
+        .from("wallet_ledger")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    ),
   ]);
   for (const result of results) if (result.error) throw result.error;
   return {

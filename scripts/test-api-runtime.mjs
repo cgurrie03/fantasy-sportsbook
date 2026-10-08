@@ -21,6 +21,7 @@ try {
     "weekly-worker",
     "place-bet",
     "report-results",
+    "report-avatar",
   ]) {
     const source = await readFile(`api/${file}.ts`, "utf8");
     const { outputText } = ts.transpileModule(source, {
@@ -46,6 +47,66 @@ try {
   const report = await import(
     pathToFileURL(path.join(root, "report-results.js")).href
   );
+  const avatar = await import(
+    pathToFileURL(path.join(root, "report-avatar.js")).href
+  );
+  assert.equal(
+    (
+      await avatar.GET(
+        new Request(
+          "https://example.invalid/api/report-avatar?path=https://evil.invalid",
+        ),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await avatar.GET(
+        new Request(
+          "https://example.invalid/api/report-avatar?path=/avatars/../../secret",
+        ),
+      )
+    ).status,
+    400,
+  );
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(
+        url,
+        "https://sleepercdn.com/avatars/964be8b3957b1ce3d42b656f4d747c73",
+      );
+      assert.equal(options.redirect, "error");
+      return new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-type": "image/png" },
+      });
+    };
+    const image = await avatar.GET(
+      new Request(
+        "https://example.invalid/api/report-avatar?path=/avatars/964be8b3957b1ce3d42b656f4d747c73",
+      ),
+    );
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("content-type"), "image/png");
+    assert.equal((await image.arrayBuffer()).byteLength, 3);
+    globalThis.fetch = async () =>
+      new Response("not an image", {
+        headers: { "content-type": "text/html" },
+      });
+    assert.equal(
+      (
+        await avatar.GET(
+          new Request(
+            "https://example.invalid/api/report-avatar?path=/avatars/964be8b3957b1ce3d42b656f4d747c73",
+          ),
+        )
+      ).status,
+      404,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
   assert.equal(
     (
       await report.POST(

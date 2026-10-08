@@ -31,7 +31,12 @@ export function SeasonFutures({
       className="season-futures-grid"
       style={{ "--future-rows": rowCount } as React.CSSProperties}
     >
-      {futureKinds.map((kind) => (
+      {[
+        "future_win_total",
+        "future_playoffs",
+        "future_champion",
+        "future_first_pick",
+      ].map((kind) => (
         <article className="prop-card season-future-card" key={kind}>
           <header>
             <span className="future-emblem" aria-hidden="true">
@@ -74,8 +79,16 @@ export function SeasonFutures({
               )
               .sort(
                 (a, b) =>
-                  Number(b.metadata.simulated_probability) -
-                  Number(a.metadata.simulated_probability),
+                  Number(
+                    kind === "future_win_total"
+                      ? b.metadata.expected_wins
+                      : b.metadata.simulated_probability,
+                  ) -
+                  Number(
+                    kind === "future_win_total"
+                      ? a.metadata.expected_wins
+                      : a.metadata.simulated_probability,
+                  ),
               )
               .map((m, index) => {
                 const team = data.teams.find((t) => t.id === m.team_id);

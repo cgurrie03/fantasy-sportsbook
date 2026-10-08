@@ -1,10 +1,44 @@
 import assert from "node:assert/strict";
+import { readAllRows } from "../src/lib/pagination.ts";
+const pages = [];
+const fullHistory = await readAllRows(async (from, to) => {
+  pages.push([from, to]);
+  return {
+    data: Array.from({ length: from === 0 ? 1000 : 7 }, (_, i) => ({
+      id: from + i,
+    })),
+    error: null,
+  };
+});
+assert.equal(
+  fullHistory.data.length,
+  1007,
+  "Season history must continue beyond the provider's default row limit",
+);
+assert.deepEqual(pages, [
+  [0, 999],
+  [1000, 1999],
+]);
+await assert.rejects(
+  readAllRows(async () => ({ data: null, error: new Error("Read failed") })),
+  /Read failed/,
+);
 import {
   deduplicateForecasts,
   scoreRows,
   optimalActualLineup,
   bettingStats,
+  winQuantile,
 } from "../src/lib/reporting.ts";
+assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.1), 3);
+assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.9), 12);
+assert.equal(winQuantile({ 3: 0.15, 8: 0.5, 12: 0.35 }, 0.5), 8);
+assert.equal(
+  winQuantile({ 3: 0.15, 8: 0.5 }, 0.9),
+  undefined,
+  "Incomplete win histogram must not claim an uncertainty interval",
+);
+assert.equal(winQuantile({ 3: -0.5, 8: 1.5 }, 0.5), undefined);
 const opening = "2026-10-14T12:00:00Z";
 const quote = {
   kind: "moneyline",
