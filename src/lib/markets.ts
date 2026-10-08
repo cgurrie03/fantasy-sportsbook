@@ -33,6 +33,7 @@ export interface Market {
     | "weekly_highest_score"
     | "future_champion"
     | "future_playoffs"
+    | "future_win_total"
     | "future_first_pick";
   label: string;
   subject: string;
@@ -75,11 +76,13 @@ export const marketType = {
   weekly_highest_score: "Highest Weekly Score",
   future_champion: "League Winner",
   future_playoffs: "Make / Miss Playoffs",
+  future_win_total: "Regular-season Wins",
   future_first_pick: "#1 Pick",
 };
 export const futureKinds = [
   "future_champion",
   "future_playoffs",
+  "future_win_total",
   "future_first_pick",
 ];
 export const isFuture = (m: Market) => futureKinds.includes(m.kind);
@@ -137,7 +140,9 @@ export const canPlacePicks = (picks: Market[]) =>
     ? picks.length <= 10 &&
       (picks.every((p) => p.kind === "future_playoffs")
         ? picks.length >= 2
-        : picks.length === 1)
+        : picks.every((p) => p.kind === "future_win_total")
+          ? picks.length >= 1
+          : picks.length === 1)
     : picks.length >= 2 ||
       (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
 export function specialConflict(a: Market, b: Market) {
@@ -258,11 +263,11 @@ export function pickConflict(picks: Market[], next: Market) {
     picks.length &&
     (isFuture(next) || picks.some(isFuture)) &&
     !(
-      next.kind === "future_playoffs" &&
-      picks.every((p) => p.kind === "future_playoffs")
+      ["future_playoffs", "future_win_total"].includes(next.kind) &&
+      picks.every((p) => p.kind === next.kind)
     )
   )
-    return "League Winner and #1 Pick are standalone bets. Playoff picks can combine only with other playoff picks.";
+    return "League Winner and #1 Pick are standalone bets. Playoff picks and win-total picks each combine only within their own category.";
   if (picks.length >= 10) return "A ticket can contain up to 10 picks.";
   if (picks.some((p) => p.market_key === next.market_key))
     return "Choose only one outcome from this market.";

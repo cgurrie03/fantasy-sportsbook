@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
-import { AdminHub } from "./components/AdminHub";
+const AdminHub = lazy(() =>
+  import("./components/AdminHub").then((module) => ({
+    default: module.AdminHub,
+  })),
+);
 import { ThemeIcon } from "./components/ThemeIcon";
 import { buildBalanceHistory } from "./lib/balanceHistory";
 import { Sportsbook } from "./components/Sportsbook";
@@ -506,14 +510,16 @@ export function Admin({
   reviewMode?: boolean;
 }) {
   return (
-    <AdminHub
-      data={data}
-      leagueId={leagueId}
-      refresh={refresh}
-      initialCategory={initialCategory}
-      reviewMode={reviewMode}
-      users={<UsersAdmin data={data} leagueId={leagueId} refresh={refresh} />}
-    />
+    <Suspense fallback={<p role="status">Loading league admin…</p>}>
+      <AdminHub
+        data={data}
+        leagueId={leagueId}
+        refresh={refresh}
+        initialCategory={initialCategory}
+        reviewMode={reviewMode}
+        users={<UsersAdmin data={data} leagueId={leagueId} refresh={refresh} />}
+      />
+    </Suspense>
   );
 }
 export default function App() {

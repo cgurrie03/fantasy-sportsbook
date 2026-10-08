@@ -1,0 +1,295 @@
+.admin-workspace {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+.admin-panel {
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  min-width: 0;
+}
+.admin-panel h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+.admin-panel p {
+  line-height: 1.65;
+}
+.admin-panel small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.report-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.settings-fields label,
+.report-toolbar label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.setting-value {
+  display: block;
+  font-size: 16px;
+  margin: 8px 0;
+}
+.report-tag {
+  display: inline-flex;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.report-kpis article {
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.report-kpis small {
+  font-size: 12px;
+  color: var(--muted);
+  display: block;
+  line-height: 1.5;
+}
+.report-kpis strong {
+  display: block;
+  font-size: 28px;
+  margin-top: 10px;
+  color: var(--gold);
+}
+.report-kpis em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--muted);
+}
+.report-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.report-toolbar label:first-child {
+  flex: 1;
+  min-width: 210px;
+}
+.report-toolbar select {
+  min-height: 42px;
+}
+.report-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+}
+.report-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.report-table,
+.score-heatmap {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.report-table th,
+.report-table td,
+.score-heatmap th,
+.score-heatmap td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.report-table th {
+  color: var(--muted);
+  font-size: 11px;
+}
+.report-table td {
+  line-height: 1.55;
+}
+.report-table tbody tr:hover {
+  background: var(--surface2);
+}
+.report-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+}
+.report-team img {
+  height: 32px;
+  width: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.score-heatmap th {
+  font-size: 12px;
+}
+.score-heatmap td {
+  padding: 6px;
+}
+.heat-cell {
+  position: relative;
+  min-width: 94px;
+  display: grid;
+  text-align: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.heat-cell.over {
+  background: rgba(38, 130, 186, var(--heat));
+  border-color: #6bb6e4;
+}
+.heat-cell.under {
+  background: rgba(185, 95, 35, var(--heat));
+  border-color: #e3a678;
+}
+.heat-cell strong {
+  font-size: 20px;
+  margin: 2px 0;
+}
+.heat-cell > small {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  min-height: 14px;
+  color: inherit;
+  font-weight: 800;
+}
+.heat-cell > span {
+  font-size: 10px;
+}
+.exception-panel {
+  border-left: 3px solid var(--gold);
+}
+.admin-panel summary {
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.6;
+}
+.admin-workspace button {
+  min-height: 42px;
+}
+.reports button {
+  white-space: nowrap;
+}
+.reports .market-admin-notice {
+  margin: 0;
+}
+.season-futures-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 700px) {
+  .report-kpis,
+  .report-grid,
+  .settings-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-fields {
+    grid-template-columns: 1fr;
+  }
+  .admin-panel {
+    padding: 15px;
+  }
+  .report-heading {
+    display: block;
+  }
+  .report-toolbar label {
+    flex: 1;
+    min-width: 130px;
+  }
+  .report-toolbar button {
+    flex: 1;
+  }
+  .report-kpis article {
+    padding: 13px;
+  }
+  .report-kpis strong {
+    font-size: 23px;
+  }
+  .report-table th,
+  .report-table td {
+    padding: 10px;
+  }
+  .season-futures-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-team {
+    min-width: 135px;
+  }
+  .report-team img {
+    width: 26px;
+    height: 26px;
+  }
+}
+html[data-theme="light"] .heat-cell.over,
+html[data-theme="light"] .heat-cell.under {
+  color: #10243d;
+}
+.report-chart {
+  margin: 16px 0 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface2);
+}
+.report-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 330px;
+}
+.report-chart figcaption {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.report-chart figcaption span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.report-chart i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.actual-key {
+  background: #68b9e8;
+}
+.projected-key {
+  background: var(--gold);
+}

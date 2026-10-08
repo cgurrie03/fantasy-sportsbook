@@ -247,6 +247,9 @@ export async function POST(request: Request) {
         .map((h) => Number(h.points));
       return {
         ...team,
+        eligible_players: pool
+          .filter((p) => roster.players.includes(p.id) && !excluded.has(p.id))
+          .map((p) => ({ id: p.id, name: p.name, positions: p.positions })),
         lineup,
         missing_slots: selection.missingSlots,
         mean,
@@ -272,6 +275,7 @@ export async function POST(request: Request) {
       active: true,
     };
     const metadata = {
+      model_version: "weekly-lineup-v3",
       generated: true,
       generated_at: generatedAt,
       projection_method:
@@ -280,6 +284,7 @@ export async function POST(request: Request) {
       injury_source:
         "Sleeper projection feed; Out/IR/PUP/Suspended excluded. Questionable and Doubtful retain positive provider projections; active roster and bench only.",
       scoring_settings: league.scoring_settings,
+      roster_positions: league.roster_positions,
     };
     if (category === "Season Futures") {
       const playoffStart = Number(league.settings.playoff_week_start);
@@ -435,12 +440,14 @@ export async function POST(request: Request) {
           ["future_playoffs", "make", probabilities[i].playoffs],
           ["future_playoffs", "miss", 1 - probabilities[i].playoffs],
           ["future_first_pick", team.id, probabilities[i].last],
+          ["future_win_total", "over", probabilities[i].win_over],
+          ["future_win_total", "under", 1 - probabilities[i].win_over],
         ] as const) {
           if (playoffPhase && (kind !== "future_champion" || p === 0)) continue;
           quotes.push({
             ...base,
             id: crypto.randomUUID(),
-            market_key: `season-${input.nfl_season}:${kind}${kind === "future_playoffs" ? ":" + team.id : ""}`,
+            market_key: `season-${input.nfl_season}:${kind}${["future_playoffs", "future_win_total"].includes(kind) ? ":" + team.id : ""}`,
             matchup_key: null,
             kind,
             side,
@@ -449,9 +456,12 @@ export async function POST(request: Request) {
                 ? `${team.team_name} (${pickOwner.team_name})`
                 : kind === "future_playoffs"
                   ? `${team.team_name} · ${side === "make" ? "Make Playoffs" : "Miss Playoffs"}`
-                  : team.team_name,
+                  : kind === "future_win_total"
+                    ? `${team.team_name} ${side === "over" ? "Over" : "Under"} ${probabilities[i].win_line} wins`
+                    : team.team_name,
             subject: team.team_name,
-            line: null,
+            line:
+              kind === "future_win_total" ? probabilities[i].win_line : null,
             odds: Math.max(-10000, Math.min(10000, specialOdds(p, 50))),
             team_id: team.id,
             home_team_id: null,
@@ -462,7 +472,9 @@ export async function POST(request: Request) {
               ...metadata,
               projection_method:
                 "Week-specific best-lineup forecasts: 60% provider weekly estimate, 40% historical scoring. Historical volatility shrinks toward league volatility; season-strength uncertainty is sampled separately.",
-              model_version: "weekly-season-v2",
+              model_version: "weekly-season-v3",
+              expected_wins: probabilities[i].expected_wins,
+              win_distribution: probabilities[i].win_distribution,
               season_mean: seasonTeams[i].mean,
               weekly_score_sd: seasonTeams[i].sd,
               strength_uncertainty: seasonTeams[i].mean_uncertainty,
@@ -514,7 +526,15 @@ export async function POST(request: Request) {
         away_team_id: away.id,
         home_projection: home.mean,
         away_projection: away.mean,
-        metadata,
+        metadata: {
+          ...metadata,
+          home_lineup: home.lineup,
+          away_lineup: away.lineup,
+          home_eligible_players: home.eligible_players,
+          away_eligible_players: away.eligible_players,
+          home_missing_slots: home.missing_slots,
+          away_missing_slots: away.missing_slots,
+        },
       };
       const add = (
         kind: Market["kind"],
@@ -553,8 +573,15 @@ export async function POST(request: Request) {
                     ? home.unfilled_slots > 0
                     : away.unfilled_slots > 0),
             lock_reason: [home, away]
-              .filter(t => t.unfilled_slots > 0 && (kind !== "team_total" || t.id === teamId))
-              .map(t => `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`)
+              .filter(
+                (t) =>
+                  t.unfilled_slots > 0 &&
+                  (kind !== "team_total" || t.id === teamId),
+              )
+              .map(
+                (t) =>
+                  `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
+              )
               .join(" "),
           },
         });
@@ -585,6 +612,12 @@ export async function POST(request: Request) {
             null,
             specialOdds(p, 10),
             team.id,
+            {
+              metadata: {
+                simulated_probability: p,
+                model_version: "weekly-lineup-v3",
+              },
+            },
           );
           for (const direction of ["over", "under"])
             add(

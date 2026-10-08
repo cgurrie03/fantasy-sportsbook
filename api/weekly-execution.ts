@@ -209,6 +209,8 @@ export async function POST(request: Request) {
             !final ||
             outcome.status !== "OPEN" ||
             !["WON", "LOST", "PUSH"].includes(override.status) ||
+            (l.settlement_context?.kind === "future_win_total" &&
+              override.status === "PUSH") ||
             !Number.isFinite(override.actual_value) ||
             !override.evidence?.trim() ||
             override.evidence.trim().length < 5 ||
@@ -355,6 +357,8 @@ export async function POST(request: Request) {
             !final ||
             outcome.status !== "OPEN" ||
             !["WON", "LOST", "PUSH"].includes(override.status) ||
+            (l.settlement_context?.kind === "future_win_total" &&
+              override.status === "PUSH") ||
             !Number.isFinite(override.actual_value) ||
             !override.evidence?.trim() ||
             override.evidence.trim().length < 5 ||
@@ -404,6 +408,7 @@ export async function POST(request: Request) {
     }
     if (input.apply && futureBoard.data) {
       const kinds = [
+        ...(seasonResults.regularWins ? ["future_win_total"] : []),
         ...(seasonResults.playoffRosters ? ["future_playoffs"] : []),
         ...(seasonResults.last !== null ? ["future_first_pick"] : []),
         ...(seasonResults.champion !== null ? ["future_champion"] : []),

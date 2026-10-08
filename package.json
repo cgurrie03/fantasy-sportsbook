@@ -13,6 +13,7 @@
     "test:lines": "node scripts/test-line-model.mjs",
     "test:api": "node scripts/test-api-runtime.mjs",
     "test:weekly": "node scripts/test-weekly-execution.mjs",
+    "test:reporting": "node scripts/test-reporting.mjs",
     "test:futures": "node scripts/test-futures.mjs",
     "format": "prettier --write src scripts"
   },

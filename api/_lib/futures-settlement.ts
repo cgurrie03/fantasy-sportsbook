@@ -3,6 +3,7 @@ export interface SeasonResult {
   champion: number | null;
   playoffRosters: number[] | null;
   last: number | null;
+  regularWins?: Record<number, number>;
   names?: Record<number, string>;
 }
 export function settleFuture(leg: LegInput, result: SeasonResult): LegResult {
@@ -37,6 +38,23 @@ export function settleFuture(leg: LegInput, result: SeasonResult): LegResult {
     actual = result.last;
     won = actual === roster;
     evidence = `Regular-season Last Place: ${result.names?.[actual] ?? "Selected team"}.`;
+  } else if (context?.kind === "future_win_total") {
+    const wins = result.regularWins?.[roster];
+    const line = Number(leg.accepted_line);
+    if (wins === undefined)
+      return pending("Waiting for confirmed regular-season wins.");
+    if (
+      !Number.isInteger(wins) ||
+      !Number.isFinite(line) ||
+      line % 1 !== 0.5 ||
+      !["over", "under"].includes(context.side)
+    )
+      return pending(
+        "Invalid accepted win-total selection; admin review required.",
+      );
+    actual = wins;
+    won = context.side === "over" ? wins > line : wins < line;
+    evidence = `Regular-season wins: ${wins}. Accepted line: ${line}. Ties do not count as wins.`;
   } else if (context?.kind === "future_playoffs") {
     if (result.playoffRosters === null)
       return pending(
@@ -67,7 +85,7 @@ export function regularSeasonResults(
     };
   }[],
   playoffTeams: number,
-): Pick<SeasonResult, "playoffRosters" | "last"> {
+): Pick<SeasonResult, "playoffRosters" | "last" | "regularWins"> {
   const rank = rosters
     .map((r) => ({
       id: r.roster_id,
@@ -86,6 +104,9 @@ export function regularSeasonResults(
   const tied = (a: (typeof rank)[number], b: (typeof rank)[number]) =>
     a.record === b.record && a.points === b.points;
   return {
+    regularWins: Object.fromEntries(
+      rosters.map((r) => [r.roster_id, r.settings.wins]),
+    ),
     playoffRosters: tied(rank[playoffTeams - 1], rank[playoffTeams])
       ? null
       : rank.slice(0, playoffTeams).map((r) => r.id),

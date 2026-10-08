@@ -67,10 +67,12 @@ export function WeeklySchedule({
   leagueId,
   reviewMode = false,
   onApplied,
+  exceptionsOnly = false,
 }: {
   leagueId: string;
   reviewMode?: boolean;
   onApplied?: () => Promise<void>;
+  exceptionsOnly?: boolean;
 }) {
   const [settings, setSettings] = useState(defaults),
     [notice, setNotice] = useState(""),
@@ -392,143 +394,160 @@ export function WeeklySchedule({
     );
   return (
     <section className="weekly-schedule">
-      <p className="schedule-status">
-        <strong>
-          {settings.automation_enabled
-            ? "Automation Active"
-            : settings.activation_requested
-              ? "Waiting For Deployment Verification"
-              : "Automation Paused"}
-        </strong>{" "}
-        · All times Eastern
-      </p>
-      {notice && <p role="status">{notice}</p>}
-      <div className="schedule-controls">
-        <label>
-          <input
-            type="checkbox"
-            checked={
-              settings.automation_enabled ||
-              Boolean(settings.activation_requested)
-            }
-            disabled={busy || reviewMode || !ready}
-            onChange={async (e) => {
-              const enabled = e.target.checked;
-              setBusy(true);
-              try {
-                const r = await supabase!.rpc("set_weekly_automation", {
-                  p_league: leagueId,
-                  p_enabled: enabled,
-                });
-                if (r.error) throw r.error;
-                setSettings({
-                  ...settings,
-                  automation_enabled: false,
-                  activation_requested: enabled,
-                });
-                setNotice(
-                  enabled
-                    ? "Automation will start after the worker connection is verified."
-                    : "Weekly automation paused.",
-                );
-              } catch (error) {
-                setNotice(errorMessage(error));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          />
-          Enable Weekly Automation
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.publication_paused}
-            onChange={(e) =>
-              setSettings({ ...settings, publication_paused: e.target.checked })
-            }
-          />{" "}
-          Pause automatic publication
-        </label>
-        <button
-          className="primary"
-          disabled={!ready || busy}
-          onClick={() => void save()}
-        >
-          Save Schedule
-        </button>
-        <button
-          disabled={(!ready && !reviewMode) || busy}
-          onClick={() => void review()}
-        >
-          {busy ? "Working…" : "Preview Weekly Execution"}
-        </button>
-      </div>
-      <p className="execution-preview-help">
-        <strong>What does the preview do?</strong> It checks Sleeper results
-        against accepted tickets, shows which legs are ready to settle or need
-        review, and assesses replenishment eligibility. It does not settle bets,
-        change balances, publish markets, or send emails.
-      </p>
-      <div className="schedule-table-wrap">
-        <table className="schedule-table">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Description</th>
-              <th>Email</th>
-              <th>Who</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scheduleRows.map((row) => (
-              <tr key={row.key}>
-                <td>
-                  {row.day}
-                  {row.time ? (
-                    <input
-                      aria-label={row.description + " time"}
-                      type="time"
-                      value={getTime(row.time)}
-                      onChange={(e) => changeTime(row.time!, e.target.value)}
-                    />
-                  ) : (
-                    <small className="event-timing">Immediately</small>
-                  )}
-                </td>
-                <td>{row.description}</td>
-                <td>
-                  {row.email ? (
-                    <span className="email-cell">
-                      {row.toggle ? (
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(settings[row.toggle])}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                [row.toggle!]: e.target.checked,
-                              })
-                            }
-                          />
-                          {emailLabels[row.email]}
-                        </label>
+      {exceptionsOnly && (
+        <>
+          <button disabled={busy || !ready} onClick={() => void review()}>
+            Check results and replenishment
+          </button>
+          {notice && <p role="status">{notice}</p>}
+        </>
+      )}
+      {!exceptionsOnly && (
+        <>
+          <p className="schedule-status">
+            <strong>
+              {settings.automation_enabled
+                ? "Automation Active"
+                : settings.activation_requested
+                  ? "Waiting For Deployment Verification"
+                  : "Automation Paused"}
+            </strong>{" "}
+            · All times Eastern
+          </p>
+          {notice && <p role="status">{notice}</p>}
+          <div className="schedule-controls">
+            <label>
+              <input
+                type="checkbox"
+                checked={
+                  settings.automation_enabled ||
+                  Boolean(settings.activation_requested)
+                }
+                disabled={busy || reviewMode || !ready}
+                onChange={async (e) => {
+                  const enabled = e.target.checked;
+                  setBusy(true);
+                  try {
+                    const r = await supabase!.rpc("set_weekly_automation", {
+                      p_league: leagueId,
+                      p_enabled: enabled,
+                    });
+                    if (r.error) throw r.error;
+                    setSettings({
+                      ...settings,
+                      automation_enabled: false,
+                      activation_requested: enabled,
+                    });
+                    setNotice(
+                      enabled
+                        ? "Automation will start after the worker connection is verified."
+                        : "Weekly automation paused.",
+                    );
+                  } catch (error) {
+                    setNotice(errorMessage(error));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+              Enable Weekly Automation
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.publication_paused}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    publication_paused: e.target.checked,
+                  })
+                }
+              />{" "}
+              Pause automatic publication
+            </label>
+            <button
+              className="primary"
+              disabled={!ready || busy}
+              onClick={() => void save()}
+            >
+              Save Schedule
+            </button>
+            <button
+              disabled={(!ready && !reviewMode) || busy}
+              onClick={() => void review()}
+            >
+              {busy ? "Working…" : "Preview Weekly Execution"}
+            </button>
+          </div>
+          <p className="execution-preview-help">
+            <strong>What does the preview do?</strong> It checks Sleeper results
+            against accepted tickets, shows which legs are ready to settle or
+            need review, and assesses replenishment eligibility. It does not
+            settle bets, change balances, publish markets, or send emails.
+          </p>
+          <div className="schedule-table-wrap">
+            <table className="schedule-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Description</th>
+                  <th>Email</th>
+                  <th>Who</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scheduleRows.map((row) => (
+                  <tr key={row.key}>
+                    <td>
+                      {row.day}
+                      {row.time ? (
+                        <input
+                          aria-label={row.description + " time"}
+                          type="time"
+                          value={getTime(row.time)}
+                          onChange={(e) =>
+                            changeTime(row.time!, e.target.value)
+                          }
+                        />
                       ) : (
-                        <span>{emailLabels[row.email]}</span>
+                        <small className="event-timing">Immediately</small>
                       )}
-                      {emailButton(row.email)}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td>{row.who}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                    <td>{row.description}</td>
+                    <td>
+                      {row.email ? (
+                        <span className="email-cell">
+                          {row.toggle ? (
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(settings[row.toggle])}
+                                onChange={(e) =>
+                                  setSettings({
+                                    ...settings,
+                                    [row.toggle!]: e.target.checked,
+                                  })
+                                }
+                              />
+                              {emailLabels[row.email]}
+                            </label>
+                          ) : (
+                            <span>{emailLabels[row.email]}</span>
+                          )}
+                          {emailButton(row.email)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>{row.who}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
       {preview && !reviewMode && (
         <section className="execution-review">
           <h2>
@@ -702,122 +721,132 @@ export function WeeklySchedule({
           )}
         </section>
       )}
-      <section id="email-template-preview" className="email-template-preview">
-        <div className="email-preview-heading">
-          <h2>Email Templates</h2>
-          <select
-            aria-label="Email template"
-            value={emailKind}
-            onChange={(e) => setEmailKind(e.target.value as EmailKind | "")}
+      {!exceptionsOnly && (
+        <>
+          <section
+            id="email-template-preview"
+            className="email-template-preview"
           >
-            <option value="">Choose A Template…</option>
-            {(Object.keys(emailLabels) as EmailKind[]).map((kind) => (
-              <option key={kind} value={kind}>
-                {emailLabels[kind]}
-              </option>
-            ))}
-          </select>
-        </div>
-        {emailKind && (
-          <>
-            <p>
-              Sample template preview. Scheduled emails use live league data;
-              this preview sends nothing.
-            </p>
-            <div className="email-envelope">
-              <span>
-                <strong>From:</strong> Goldy Fantasy Sportsbook
-                &lt;sportsbook@coopergurrie.com&gt;
-              </span>
-              <span>
-                <strong>To:</strong>{" "}
-                {emailKind === "attention"
-                  ? "League admin"
-                  : emailKind === "reminder"
-                    ? "League members with an available balance above $0"
-                    : "The approved league member"}
-              </span>
-              <span>
-                <strong>Subject:</strong> {email.subject}
-              </span>
+            <div className="email-preview-heading">
+              <h2>Email Templates</h2>
+              <select
+                aria-label="Email template"
+                value={emailKind}
+                onChange={(e) => setEmailKind(e.target.value as EmailKind | "")}
+              >
+                <option value="">Choose A Template…</option>
+                {(Object.keys(emailLabels) as EmailKind[]).map((kind) => (
+                  <option key={kind} value={kind}>
+                    {emailLabels[kind]}
+                  </option>
+                ))}
+              </select>
             </div>
-            <iframe
-              title={`${emailLabels[emailKind]} sample`}
-              sandbox=""
-              srcDoc={renderEmail(email)}
-            />
-            <button className="text-button" onClick={() => setEmailKind("")}>
-              Hide Preview
-            </button>
-          </>
-        )}
-      </section>
-      <details>
-        <summary>Email Delivery Logs · {deliveryLogs.length}</summary>
-        <table className="execution-balances">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Recipient</th>
-              <th>Status</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deliveryLogs.map((r) => (
-              <tr key={r.id}>
-                <td>{r.kind}</td>
-                <td>{r.recipient}</td>
-                <td>{r.status}</td>
-                <td>
-                  {r.last_error ??
-                    new Date(r.created_at).toLocaleString("en-US", {
-                      timeZone: "America/New_York",
-                    })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
-      <details>
-        <summary>Scheduled Execution Logs · {jobLogs.length}</summary>
-        <table className="execution-balances">
-          <thead>
-            <tr>
-              <th>Operation</th>
-              <th>Status</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobLogs.map((r) => (
-              <tr key={r.id}>
-                <td>{r.operation}</td>
-                <td>{r.status}</td>
-                <td>
-                  {r.last_error ??
-                    new Date(r.created_at).toLocaleString("en-US", {
-                      timeZone: "America/New_York",
-                    })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
-      <h2>Execution History</h2>
-      {runs.length ? (
-        runs.map((r) => (
-          <p key={r.id}>
-            {r.operation} · Week {r.market_week} ·{" "}
-            {new Date(r.created_at).toLocaleString("en-US", {
-              timeZone: "America/New_York",
-            })}
-          </p>
-        ))
-      ) : (
-        <p>No weekly execution jobs have run.</p>
+            {emailKind && (
+              <>
+                <p>
+                  Sample template preview. Scheduled emails use live league
+                  data; this preview sends nothing.
+                </p>
+                <div className="email-envelope">
+                  <span>
+                    <strong>From:</strong> Goldy Fantasy Sportsbook
+                    &lt;sportsbook@coopergurrie.com&gt;
+                  </span>
+                  <span>
+                    <strong>To:</strong>{" "}
+                    {emailKind === "attention"
+                      ? "League admin"
+                      : emailKind === "reminder"
+                        ? "League members with an available balance above $0"
+                        : "The approved league member"}
+                  </span>
+                  <span>
+                    <strong>Subject:</strong> {email.subject}
+                  </span>
+                </div>
+                <iframe
+                  title={`${emailLabels[emailKind]} sample`}
+                  sandbox=""
+                  srcDoc={renderEmail(email)}
+                />
+                <button
+                  className="text-button"
+                  onClick={() => setEmailKind("")}
+                >
+                  Hide Preview
+                </button>
+              </>
+            )}
+          </section>
+          <details>
+            <summary>Email Delivery Logs · {deliveryLogs.length}</summary>
+            <table className="execution-balances">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Recipient</th>
+                  <th>Status</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryLogs.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.kind}</td>
+                    <td>{r.recipient}</td>
+                    <td>{r.status}</td>
+                    <td>
+                      {r.last_error ??
+                        new Date(r.created_at).toLocaleString("en-US", {
+                          timeZone: "America/New_York",
+                        })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+          <details>
+            <summary>Scheduled Execution Logs · {jobLogs.length}</summary>
+            <table className="execution-balances">
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th>Status</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobLogs.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.operation}</td>
+                    <td>{r.status}</td>
+                    <td>
+                      {r.last_error ??
+                        new Date(r.created_at).toLocaleString("en-US", {
+                          timeZone: "America/New_York",
+                        })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+          <h2>Execution History</h2>
+          {runs.length ? (
+            runs.map((r) => (
+              <p key={r.id}>
+                {r.operation} · Week {r.market_week} ·{" "}
+                {new Date(r.created_at).toLocaleString("en-US", {
+                  timeZone: "America/New_York",
+                })}
+              </p>
+            ))
+          ) : (
+            <p>No weekly execution jobs have run.</p>
+          )}
+        </>
       )}
     </section>
   );

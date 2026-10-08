@@ -52,6 +52,57 @@ assert(Math.abs(sum("last") - 1) < 1e-10);
 assert(Math.abs(sum("playoffs") - 7) < 1e-10);
 assert(odds[0].champion > 0.9);
 assert.deepEqual(odds, seasonProbabilities(teams, schedule, 7, 5));
+for (const p of odds) {
+  assert.equal(p.win_line % 1, 0.5);
+  assert(
+    Math.abs(Object.values(p.win_distribution).reduce((a, b) => a + b, 0) - 1) <
+      1e-10,
+  );
+}
+const winLeg = {
+  id: "wins",
+  accepted_line: 6.5,
+  settlement_context: {
+    kind: "future_win_total",
+    side: "over",
+    metadata: { roster_id: 1 },
+  },
+};
+assert.equal(
+  settleFuture(winLeg, {
+    champion: null,
+    last: null,
+    playoffRosters: null,
+    regularWins: { 1: 7 },
+  }).status,
+  "WON",
+);
+assert.equal(
+  settleFuture(winLeg, {
+    champion: null,
+    last: null,
+    playoffRosters: null,
+    regularWins: { 1: 6 },
+  }).status,
+  "LOST",
+);
+assert.equal(
+  settleFuture(winLeg, { champion: null, last: null, playoffRosters: null })
+    .status,
+  "OPEN",
+);
+assert.equal(
+  settleFuture(
+    { ...winLeg, accepted_line: 6 },
+    { champion: null, last: null, playoffRosters: null, regularWins: { 1: 6 } },
+  ).status,
+  "OPEN",
+);
+assert(canPlacePicks([{ kind: "future_win_total" }]));
+assert(
+  canPlacePicks([{ kind: "future_win_total" }, { kind: "future_win_total" }]),
+);
+
 assert.throws(
   () => seasonProbabilities(teams, [[{ home: 1, away: 2 }]], 7),
   /incomplete/,
@@ -382,6 +433,115 @@ try {
   console.log(
     "Playoff-only parlays accepted; opposite outcomes and mixed futures rejected.",
   );
+  const winQuote = {
+    ...q("future_win_total", "over"),
+    market_key: "wins:team",
+    line: 6.5,
+    metadata: { roster_id: 1 },
+  };
+  const otherWin = {
+    ...q("future_win_total", "under"),
+    market_key: "wins:other",
+    line: 7.5,
+    team_id: all[1].id,
+    metadata: { roster_id: 2 },
+  };
+  const oppositeWin = { ...winQuote, id: randomUUID(), side: "under" };
+  quotes.push(winQuote, otherWin, oppositeWin);
+  await save();
+  assert.equal(
+    Number(
+      (
+        await rows("select line from public.sportsbook_markets where id=$1", [
+          winQuote.id,
+        ])
+      )[0].line,
+    ),
+    6.5,
+  );
+  const singleWin = await place([winQuote.id], 1, randomUUID());
+  assert(singleWin);
+  await place([winQuote.id, otherWin.id], 1, randomUUID());
+  await assert.rejects(
+    () => place([winQuote.id, oppositeWin.id], 1, randomUUID()),
+    /one outcome/,
+  );
+  await assert.rejects(
+    () => place([winQuote.id, quotes[1].id], 1, randomUUID()),
+    /remain separate/,
+  );
+  const snapshot = (
+    await rows(
+      "select * from public.forecast_snapshots where board_id=$1 order by revision limit 1",
+      [board],
+    )
+  )[0];
+  assert.equal(
+    snapshot.quotes[0].odds === 350 ||
+      snapshot.quotes.some((q) => q.odds === 350),
+    true,
+  );
+  const oldJson = JSON.stringify(snapshot.quotes);
+  winQuote.line = 8.5;
+  await save();
+  assert.equal(
+    JSON.stringify(
+      (
+        await rows("select quotes from public.forecast_snapshots where id=$1", [
+          snapshot.id,
+        ])
+      )[0].quotes,
+    ),
+    oldJson,
+  );
+  assert.equal(
+    Number(
+      (
+        await rows("select line from public.sportsbook_markets where id=$1", [
+          winQuote.id,
+        ])
+      )[0].line,
+    ),
+    8.5,
+  );
+  await assert.rejects(
+    () =>
+      rows("update public.forecast_snapshots set quotes='[]' where id=$1", [
+        snapshot.id,
+      ]),
+    /permission/,
+  );
+  await rows(
+    "select public.save_league_identity($1,'Updated League','','Settings regression test')",
+    [league],
+  );
+  assert.equal(
+    (
+      await rows("select * from public.admin_change_log where league_id=$1", [
+        league,
+      ])
+    ).length,
+    1,
+  );
+  await rows("select public.save_report_results($1,2026,1,true,$2::jsonb)", [
+    league,
+    JSON.stringify({ test: { points: 120 } }),
+  ]);
+  assert.equal(
+    (
+      await rows(
+        "select * from public.league_result_weeks where league_id=$1",
+        [league],
+      )
+    ).length,
+    1,
+  );
+  winQuote.line = 8;
+  await assert.rejects(save, /win_total_half_line/);
+  winQuote.line = 8.5;
+  console.log(
+    "Win-total singles and homogeneous parlays, half-line validation, immutable forecast snapshots, and audited settings passed.",
+  );
   await rows(
     "select public.resolve_future_markets($1,array['future_playoffs'])",
     [league],
@@ -492,28 +652,164 @@ try {
   assert.equal(revived[0].id, playerQuote.id);
   assert.equal(Number(revived[0].line), 23.5);
   assert.equal(revived[0].active, true);
-  const newSpecials = ["weekly_count_projection","weekly_average","weekly_highest_score"].map((kind,i)=>({id:randomUUID(),market_key:kind,kind,label:kind,subject:kind,side:i?"over":"6",line:i?150.5:6,odds:225,metadata:{expected_team_count:12,projection_targets:Object.fromEntries(all.map(t=>[t.id,150]))}}));
-  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",[weeklyBoard,league,JSON.stringify(newSpecials)]);
-  const weeklyRevision=(await rows("select revision from public.sportsbook_boards where id=$1",[weeklyBoard]))[0].revision;
-  for (const quote of newSpecials) await rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[quote.id],randomUUID()]);
-  const types=await rows("select distinct market_type from public.ticket_legs where market_quote_id=any($1)",[newSpecials.map(q=>q.id)]);
-  assert.equal(types.length,3);
-  const acceptedWeekly = () => rows("select l.* from public.ticket_legs l where market_quote_id=any($1) order by l.id",[newSpecials.map(q=>q.id)]);
+  const newSpecials = [
+    "weekly_count_projection",
+    "weekly_average",
+    "weekly_highest_score",
+  ].map((kind, i) => ({
+    id: randomUUID(),
+    market_key: kind,
+    kind,
+    label: kind,
+    subject: kind,
+    side: i ? "over" : "6",
+    line: i ? 150.5 : 6,
+    odds: 225,
+    metadata: {
+      expected_team_count: 12,
+      projection_targets: Object.fromEntries(all.map((t) => [t.id, 150])),
+    },
+  }));
+  await rows(
+    "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",
+    [weeklyBoard, league, JSON.stringify(newSpecials)],
+  );
+  const weeklyRevision = (
+    await rows("select revision from public.sportsbook_boards where id=$1", [
+      weeklyBoard,
+    ])
+  )[0].revision;
+  for (const quote of newSpecials)
+    await rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)", [
+      weeklyBoard,
+      weeklyRevision,
+      [quote.id],
+      randomUUID(),
+    ]);
+  const types = await rows(
+    "select distinct market_type from public.ticket_legs where market_quote_id=any($1)",
+    [newSpecials.map((q) => q.id)],
+  );
+  assert.equal(types.length, 3);
+  const acceptedWeekly = () =>
+    rows(
+      "select l.* from public.ticket_legs l where market_quote_id=any($1) order by l.id",
+      [newSpecials.map((q) => q.id)],
+    );
   const beforeRefreshLegs = await acceptedWeekly();
-  const beforeRefreshTickets = await rows("select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",[newSpecials.map(q=>q.id)]);
+  const beforeRefreshTickets = await rows(
+    "select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",
+    [newSpecials.map((q) => q.id)],
+  );
   const beforeRefreshBalance = await balance();
-  const refreshedQuotes = newSpecials.map(q=>({...q,odds:400,line:q.kind==='weekly_count_projection'?7:170.5,metadata:{...q.metadata,projection_targets:Object.fromEntries(all.map(t=>[t.id,180]))}}));
-  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",[weeklyBoard,league,JSON.stringify(refreshedQuotes)]);
-  await assert.rejects(()=>rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[newSpecials[0].id],randomUUID()]),/Betting is closed/);
-  await rows("select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",[weeklyBoard,league,JSON.stringify(refreshedQuotes)]);
-  assert.deepEqual(await acceptedWeekly(),beforeRefreshLegs);
-  assert.deepEqual(await rows("select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",[newSpecials.map(q=>q.id)]),beforeRefreshTickets);
-  assert.equal(await balance(),beforeRefreshBalance);
-  await assert.rejects(()=>rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)",[weeklyBoard,weeklyRevision,[newSpecials[0].id],randomUUID()]),/Lines have changed/);
-  console.log("Published-to-draft morning repricing preserves all ticket and leg fields, projection snapshots and wallet balances; stale slips are rejected.");
-  console.log("New weekly specials accept singles and preserve descriptive labels and projection snapshots.");
+  const refreshedQuotes = newSpecials.map((q) => ({
+    ...q,
+    odds: 400,
+    line: q.kind === "weekly_count_projection" ? 7 : 170.5,
+    metadata: {
+      ...q.metadata,
+      projection_targets: Object.fromEntries(all.map((t) => [t.id, 180])),
+    },
+  }));
+  await rows(
+    "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'draft')",
+    [weeklyBoard, league, JSON.stringify(refreshedQuotes)],
+  );
+  await assert.rejects(
+    () =>
+      rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)", [
+        weeklyBoard,
+        weeklyRevision,
+        [newSpecials[0].id],
+        randomUUID(),
+      ]),
+    /Betting is closed/,
+  );
+  await rows(
+    "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",
+    [weeklyBoard, league, JSON.stringify(refreshedQuotes)],
+  );
+  assert.deepEqual(await acceptedWeekly(), beforeRefreshLegs);
+  assert.deepEqual(
+    await rows(
+      "select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",
+      [newSpecials.map((q) => q.id)],
+    ),
+    beforeRefreshTickets,
+  );
+  assert.equal(await balance(), beforeRefreshBalance);
+  await assert.rejects(
+    () =>
+      rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)", [
+        weeklyBoard,
+        weeklyRevision,
+        [newSpecials[0].id],
+        randomUUID(),
+      ]),
+    /Lines have changed/,
+  );
+  console.log(
+    "Published-to-draft morning repricing preserves all ticket and leg fields, projection snapshots and wallet balances; stale slips are rejected.",
+  );
+  console.log(
+    "New weekly specials accept singles and preserve descriptive labels and projection snapshots.",
+  );
   console.log(
     "Player market removal, return and repeated recalculation preserve quote identity.",
+  );
+  await rows(
+    "select public.review_admin_exception($1,'lineup:regression','keep_locked','Roster has no eligible positive projected replacement')",
+    [league],
+  );
+  assert.equal(
+    (
+      await rows(
+        "select * from public.admin_exception_reviews where league_id=$1",
+        [league],
+      )
+    ).length,
+    1,
+  );
+  const stranger = randomUUID();
+  await db.exec(
+    `reset role;set role authenticated;set request.jwt.claim.sub='${stranger}';`,
+  );
+  assert.equal(
+    (await rows("select * from public.forecast_snapshots")).length,
+    0,
+  );
+  assert.equal(
+    (await rows("select * from public.league_result_weeks")).length,
+    0,
+  );
+  assert.equal((await rows("select * from public.admin_change_log")).length, 0);
+  assert.equal(
+    (await rows("select * from public.admin_exception_reviews")).length,
+    0,
+  );
+  await assert.rejects(
+    () =>
+      rows(
+        "select public.save_league_identity($1,'Bad Change','','Unauthorized edit')",
+        [league],
+      ),
+    /Only the league admin/,
+  );
+  await assert.rejects(
+    () =>
+      rows(
+        "select public.review_admin_exception($1,'fake:test','keep_locked','Unauthorized review')",
+        [league],
+      ),
+    /Only the league admin/,
+  );
+  await assert.rejects(
+    () =>
+      rows("select public.save_report_results($1,2026,1,true,'{}')", [league]),
+    /Only the league admin/,
+  );
+  console.log(
+    "Reports, settings history and exception decisions are isolated from non-admin identities.",
   );
   console.log(
     "Futures placement, immutable accepted odds, refunds, settlement, cutoff isolation, closed outcomes, and all cash-floor cases passed.",

@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
 import { BettingLogs, Chevron, TicketHistory } from "./TicketHistory";
 import { MarketAdmin } from "./MarketAdmin";
+import { LeagueSettings } from "./LeagueSettings";
+import { Approvals } from "./Approvals";
+const Reports = lazy(() =>
+  import("./Reports").then((module) => ({ default: module.Reports })),
+);
+import "./AdminWorkspace.css";
 import { WeeklySchedule } from "./WeeklySchedule";
 const categories = [
   {
@@ -50,23 +56,23 @@ const categories = [
   {
     id: "schedule",
     group: "Operations",
-    title: "Weekly Schedule",
-    description: "Week advancement, cutoff, settlement, and replenishment.",
+    title: "Automation & Communications",
+    description: "Weekly execution, email templates, and delivery history.",
     status: "Review Schedule",
-  },
-  {
-    id: "emails",
-    group: "Operations",
-    title: "Emails & Delivery Logs",
-    description: "Opening emails, reminders, confirmations, and results.",
-    status: "Delivery Logs",
   },
   {
     id: "settings",
     group: "Operations",
     title: "League Settings",
-    description: "Season, league connection, and sportsbook rules.",
-    status: "Upcoming",
+    description: "League identity, enforced rules, and change history.",
+    status: "Manage",
+  },
+  {
+    id: "reports",
+    group: "Insights",
+    title: "Reports & Dashboard",
+    description: "League performance, forecast accuracy, and operating health.",
+    status: "Live Data",
   },
 ];
 export function AdminHub({
@@ -84,7 +90,9 @@ export function AdminHub({
   reviewMode: boolean;
   refresh?: () => Promise<void>;
 }) {
-  const [selected, setSelected] = useState(initialCategory ?? "");
+  const [selected, setSelected] = useState(
+    initialCategory === "emails" ? "schedule" : (initialCategory ?? ""),
+  );
   const category = categories.find((c) => c.id === selected);
   const tickets = (data.tickets ?? []).filter((t) => t.league_id === leagueId);
   const owner = (id: string) =>
@@ -133,11 +141,28 @@ export function AdminHub({
                 <BettingLogs tickets={tickets} owner={owner} />
               ) : selected === "lines" || selected === "promos" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
-              ) : selected === "schedule" || selected === "approvals" || selected === "emails" ? (
+              ) : selected === "schedule" ? (
                 <WeeklySchedule
                   leagueId={leagueId}
                   reviewMode={reviewMode}
                   onApplied={refresh}
+                />
+              ) : selected === "reports" ? (
+                <Suspense fallback={<p role="status">Loading reports…</p>}>
+                  <Reports data={data} leagueId={leagueId} />
+                </Suspense>
+              ) : selected === "settings" ? (
+                <LeagueSettings
+                  data={data}
+                  leagueId={leagueId}
+                  onChanged={refresh}
+                />
+              ) : selected === "approvals" ? (
+                <Approvals
+                  data={data}
+                  leagueId={leagueId}
+                  onApplied={refresh}
+                  onLines={() => setSelected("lines")}
                 />
               ) : (
                 <section className="upcoming-panel">
@@ -171,46 +196,48 @@ export function AdminHub({
             <h1>League Admin</h1>
             <p>Choose a category to manage your sportsbook.</p>
           </div>
-          {["League Management", "Markets", "Operations"].map((group) => (
-            <section className="admin-category-group" key={group}>
-              <h2>{group}</h2>
-              <div className="admin-category-list">
-                {categories
-                  .filter((c) => c.group === group)
-                  .map((c) => {
-                    const content = (
-                      <>
-                        <span>
-                          <strong>{c.title}</strong>
-                          <small>{c.description}</small>
-                        </span>
-                        <span
-                          className={
-                            "category-status " +
-                            (c.status === "Upcoming" ? "upcoming" : "")
-                          }
+          {["League Management", "Markets", "Operations", "Insights"].map(
+            (group) => (
+              <section className="admin-category-group" key={group}>
+                <h2>{group}</h2>
+                <div className="admin-category-list">
+                  {categories
+                    .filter((c) => c.group === group)
+                    .map((c) => {
+                      const content = (
+                        <>
+                          <span>
+                            <strong>{c.title}</strong>
+                            <small>{c.description}</small>
+                          </span>
+                          <span
+                            className={
+                              "category-status " +
+                              (c.status === "Upcoming" ? "upcoming" : "")
+                            }
+                          >
+                            {c.status}
+                          </span>
+                          <span aria-hidden="true">›</span>
+                        </>
+                      );
+                      return reviewMode ? (
+                        <a
+                          href={"/stage1-admin-" + c.id + "-review.html"}
+                          key={c.id}
                         >
-                          {c.status}
-                        </span>
-                        <span aria-hidden="true">›</span>
-                      </>
-                    );
-                    return reviewMode ? (
-                      <a
-                        href={"/stage1-admin-" + c.id + "-review.html"}
-                        key={c.id}
-                      >
-                        {content}
-                      </a>
-                    ) : (
-                      <button key={c.id} onClick={() => setSelected(c.id)}>
-                        {content}
-                      </button>
-                    );
-                  })}
-              </div>
-            </section>
-          ))}
+                          {content}
+                        </a>
+                      ) : (
+                        <button key={c.id} onClick={() => setSelected(c.id)}>
+                          {content}
+                        </button>
+                      );
+                    })}
+                </div>
+              </section>
+            ),
+          )}
         </>
       )}
     </main>

@@ -79,7 +79,12 @@ export function seasonProbabilities(
         form[i] +
         teams[i].sd * normal(),
     );
-  const counts = teams.map(() => ({ champion: 0, playoffs: 0, last: 0 }));
+  const counts = teams.map(() => ({
+    champion: 0,
+    playoffs: 0,
+    last: 0,
+    wins: {} as Record<number, number>,
+  }));
   const capacity = 2 ** Math.ceil(Math.log2(playoffTeams));
   let slots = [1, 2];
   for (let n = 4; n <= capacity; n *= 2)
@@ -88,6 +93,7 @@ export function seasonProbabilities(
     form = teams.map((t) =>
       t.mean_uncertainty ? t.mean_uncertainty * normal() : 0,
     );
+    const actualWins = teams.map((t) => t.wins);
     const wins = teams.map((t) => t.wins + t.ties / 2),
       points = teams.map((t) => t.points);
     for (const [weekIndex, week] of schedule.entries()) {
@@ -100,10 +106,17 @@ export function seasonProbabilities(
         if (scores[a] === scores[b]) {
           wins[a] += 0.5;
           wins[b] += 0.5;
-        } else wins[scores[a] > scores[b] ? a : b]++;
+        } else {
+          const winner = scores[a] > scores[b] ? a : b;
+          wins[winner]++;
+          actualWins[winner]++;
+        }
       }
       scores.forEach((s, i) => (points[i] += s));
     }
+    actualWins.forEach((n, i) => {
+      counts[i].wins[n] = (counts[i].wins[n] ?? 0) + 1;
+    });
     const ranked = teams
       .map((_, i) => i)
       .sort(
@@ -139,11 +152,35 @@ export function seasonProbabilities(
     }
     counts[bracket[0]!].champion++;
   }
-  return counts.map((c) => ({
-    champion: c.champion / trials,
-    playoffs: c.playoffs / trials,
-    last: c.last / trials,
-  }));
+  return counts.map((c, i) => {
+    const distribution = Object.fromEntries(
+      Object.entries(c.wins).map(([n, count]) => [n, count / trials]),
+    );
+    const thresholds = Array.from(
+      { length: Math.max(1, schedule.length) },
+      (_, n) => teams[i].wins + n + 0.5,
+    );
+    const over = (line: number) =>
+      Object.entries(distribution).reduce(
+        (sum, [n, p]) => sum + (Number(n) > line ? p : 0),
+        0,
+      );
+    const line = thresholds.sort(
+      (a, b) => Math.abs(over(a) - 0.5) - Math.abs(over(b) - 0.5),
+    )[0];
+    return {
+      champion: c.champion / trials,
+      playoffs: c.playoffs / trials,
+      last: c.last / trials,
+      win_line: line,
+      win_over: over(line),
+      expected_wins: Object.entries(distribution).reduce(
+        (sum, [n, p]) => sum + Number(n) * p,
+        0,
+      ),
+      win_distribution: distribution,
+    };
+  });
 }
 
 export interface TradedPick {

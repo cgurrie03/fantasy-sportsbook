@@ -21,7 +21,8 @@ export function SeasonFutures({
         markets.filter(
           (m) =>
             m.kind === kind &&
-            (kind !== "future_playoffs" || m.side === "make"),
+            (kind !== "future_playoffs" || m.side === "make") &&
+            (kind !== "future_win_total" || m.side === "over"),
         ).length,
     ),
   );
@@ -38,7 +39,9 @@ export function SeasonFutures({
                 ? "🏆"
                 : kind === "future_playoffs"
                   ? "★"
-                  : "#1"}
+                  : kind === "future_win_total"
+                    ? "↗"
+                    : "#1"}
             </span>
             <div>
               <h2>
@@ -46,14 +49,18 @@ export function SeasonFutures({
                   ? "League Winner"
                   : kind === "future_playoffs"
                     ? "Make / Miss Playoffs"
-                    : "#1 Pick"}
+                    : kind === "future_win_total"
+                      ? "Regular-season Wins"
+                      : "#1 Pick"}
               </h2>
               <p>
                 {kind === "future_champion"
                   ? "Win the league championship."
                   : kind === "future_playoffs"
                     ? "Qualify for the seven-team playoff field."
-                    : "Regular-season last place. Pick owner below."}
+                    : kind === "future_win_total"
+                      ? "Over or under the win line. No pushes."
+                      : "Regular-season last place. Pick owner below."}
               </p>
             </div>
           </header>
@@ -62,7 +69,8 @@ export function SeasonFutures({
               .filter(
                 (m) =>
                   m.kind === kind &&
-                  (kind !== "future_playoffs" || m.side === "make"),
+                  (kind !== "future_playoffs" || m.side === "make") &&
+                  (kind !== "future_win_total" || m.side === "over"),
               )
               .sort(
                 (a, b) =>
@@ -104,18 +112,32 @@ export function SeasonFutures({
                       </div>
                     </div>
                     <div className="future-buttons">
-                      {kind === "future_playoffs"
+                      {["future_playoffs", "future_win_total"].includes(kind)
                         ? [
                             m,
                             markets.find(
                               (q) =>
                                 q.kind === kind &&
                                 q.team_id === m.team_id &&
-                                q.side === "miss",
+                                q.side ===
+                                  (kind === "future_win_total"
+                                    ? "under"
+                                    : "miss"),
                             ),
                           ]
                             .filter((q): q is Market => !!q)
-                            .map((q) => <span key={q.id}>{quote(q, q.side === "make" ? "Make" : "Miss")}</span>)
+                            .map((q) => (
+                              <span key={q.id}>
+                                {quote(
+                                  q,
+                                  kind === "future_win_total"
+                                    ? `${q.side === "over" ? "Over" : "Under"} ${q.line}`
+                                    : q.side === "make"
+                                      ? "Make"
+                                      : "Miss",
+                                )}
+                              </span>
+                            ))
                         : quote(m, "")}
                     </div>
                   </div>
@@ -276,10 +298,10 @@ export function FuturesAdmin({
         </p>
       )}
       <p>
-        League Winner and #1 Pick: singles · Make/Miss Playoffs: parlays only · Odds
-        rounded to 50, capped at ±10,000 · Record, then points for seeding ·
-        Seven playoff teams, #1 seed bye · 2027 first-round ownership from
-        Sleeper
+        League Winner and #1 Pick: singles · Make/Miss Playoffs: parlays only ·
+        Win totals: singles or win-total-only parlays · Odds rounded to 50,
+        capped at ±10,000 · Record, then points for seeding · Seven playoff
+        teams, #1 seed bye · 2027 first-round ownership from Sleeper
       </p>
       <SeasonFutures
         data={data}

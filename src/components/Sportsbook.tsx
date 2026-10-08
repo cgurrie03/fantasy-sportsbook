@@ -348,7 +348,7 @@ export function Sportsbook({
                       : "Season Futures Closed"}
                   </strong>
                   <span>Available throughout the week unless closed.</span>
-                  <span>Make/Miss Playoffs: Parlays only</span>
+                  <span>Make/Miss Playoffs: Parlays only</span><span>Win totals: Singles or win-total-only parlays</span>
                   <span>League Winner and #1 Pick: Single bets only</span>
                 </>
               ) : board ? (
