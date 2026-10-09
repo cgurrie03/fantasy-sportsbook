@@ -38,6 +38,8 @@ import {
   claimBy,
 } from "../lib/promotions";
 import { useStarterActivity } from "../lib/starter-activity";
+import { TeaserConversion } from "./TeaserConversion";
+import type { TeaserPreviewPrice } from "./TeaserConversion";
 import type { StarterSnapshot } from "../lib/starter-activity";
 
 export interface Standing {
@@ -57,6 +59,7 @@ export interface Standing {
   current_balance: number;
 }
 export interface BoardReview {
+  teaserPrices?: TeaserPreviewPrice[];
   starterActivity?: StarterSnapshot;
   simulateMovement?: boolean;
   board: Board;
@@ -101,6 +104,7 @@ export function Sportsbook({
     [fixedOffer, setFixedOffer] = useState<PromoOffer | null>(null),
     [boostId, setBoostId] = useState<string | null>(null),
     [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
+  const [teaserPreview, setTeaserPreview] = useState(false);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
   const appliedBoost = eligibleOffers.find((o) => o.id === boostId);
@@ -142,6 +146,7 @@ export function Sportsbook({
   }, [pendingOffer]);
   function fillFixed(o: PromoOffer) {
     if (busy) return;
+    setTeaserPreview(false);
     setFixedOffer(o);
     setBoostId(null);
     setPicks(o.terms.legs ?? []);
@@ -298,6 +303,9 @@ export function Sportsbook({
     else if (!open && dialog.current?.open) dialog.current.close();
   }, [open]);
   useEffect(() => {
+    dialog.current?.scrollTo({ top: 0 });
+  }, [teaserPreview]);
+  useEffect(() => {
     if (!open) return;
     const viewport = window.visualViewport;
     const update = () => {
@@ -342,6 +350,7 @@ export function Sportsbook({
     setPicks([...picks, m]);
   }
   async function submit() {
+    if (teaserPreview) return;
     if (!selectedBoard || !valid || busy || changedPicks || unavailablePicks)
       return;
     if (review) {
@@ -1161,15 +1170,23 @@ export function Sportsbook({
           <span className="slip-number">{picks.length}</span>
           <strong>Bet Slip</strong>
           <span className="slip-banner-price">
-            <strong>Odds {formatOdds(americanPrice(price))}</strong>
-            <small>$10 pays {money(10 * price)}</small>
+            <strong>
+              {teaserPreview
+                ? "Teaser preview"
+                : `Odds ${formatOdds(americanPrice(price))}`}
+            </strong>
+            <small>
+              {teaserPreview
+                ? "Betting unavailable"
+                : `$10 pays ${money(10 * price)}`}
+            </small>
           </span>
           <Chevron />
         </button>
       )}
       <dialog
         ref={dialog}
-        className="bet-slip-dialog"
+        className={`bet-slip-dialog${teaserPreview ? " teaser-preview" : ""}`}
         onCancel={() => setOpen(false)}
         onClose={() => {
           setOpen(false);
@@ -1195,7 +1212,9 @@ export function Sportsbook({
             {fixedOffer ? fixedOffer.title : "Bet Slip"}
           </h2>
           <strong className="slip-odds">
-            Odds {picks.length ? formatOdds(americanPrice(price)) : "—"}
+            {teaserPreview
+              ? "Research"
+              : `Odds ${picks.length ? formatOdds(americanPrice(price)) : "—"}`}
           </strong>
           <button
             disabled={busy}
@@ -1203,6 +1222,7 @@ export function Sportsbook({
               setPicks([]);
               setFixedOffer(null);
               setBoostId(null);
+              setTeaserPreview(false);
             }}
           >
             {fixedOffer ? "Discard promo" : "Clear All"}
@@ -1265,6 +1285,16 @@ export function Sportsbook({
             />
           </label>
         </div>
+        <TeaserConversion
+          picks={picks}
+          board={selectedBoard}
+          matchupCount={groups.length}
+          promotion={!!fixedOffer || !!boostId}
+          stake={Number.isFinite(wager) ? wager : 0}
+          active={teaserPreview}
+          onActive={setTeaserPreview}
+          previewPrices={review?.teaserPrices}
+        />
         {fixedOffer && (
           <p className="promo-expiry">
             Selections and lines locked · Claim by{" "}
@@ -1445,6 +1475,7 @@ export function Sportsbook({
         <button
           className="place-bet"
           disabled={
+            teaserPreview ||
             !valid ||
             changedPicks ||
             unavailablePicks ||
@@ -1456,9 +1487,17 @@ export function Sportsbook({
           onClick={() => void submit()}
         >
           <strong>
-            {busy ? "Placing Bet…" : `Place Bet ${money(wager || 0)}`}
+            {teaserPreview
+              ? "Teaser betting unavailable"
+              : busy
+                ? "Placing Bet…"
+                : `Place Bet ${money(wager || 0)}`}
           </strong>
-          <small>Total Payout: {money((wager || 0) * price)}</small>
+          <small>
+            {teaserPreview
+              ? "Research in progress"
+              : `Total Payout: ${money((wager || 0) * price)}`}
+          </small>
         </button>
       </dialog>
       <dialog

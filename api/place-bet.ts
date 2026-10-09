@@ -8,6 +8,33 @@ const json = (body: unknown, status = 200) =>
   });
 
 export async function POST(request: Request) {
+  let input: unknown;
+  try {
+    input = await request.json();
+  } catch {
+    return json({ error: "The bet request was invalid." }, 400);
+  }
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    return json({ error: "The bet request was invalid." }, 400);
+  const allowed = [
+    "board_id",
+    "revision",
+    "picks",
+    "stake",
+    "request_id",
+    "offer_id",
+    "offer_kind",
+  ];
+  // Fail closed: never silently accept a teaser payload as an ordinary parlay.
+  if (Object.keys(input).some((key) => !allowed.includes(key)))
+    return json(
+      {
+        error:
+          "Unsupported ticket terms. Teaser acceptance is disabled during research.",
+        code: "UNSUPPORTED_TICKET_TERMS",
+      },
+      400,
+    );
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey)
@@ -37,11 +64,7 @@ export async function POST(request: Request) {
     offer_id?: unknown;
     offer_kind?: unknown;
   };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return json({ error: "The bet request was invalid." }, 400);
-  }
+  body = input as typeof body;
   if (
     !body.board_id ||
     !Number.isInteger(body.revision) ||

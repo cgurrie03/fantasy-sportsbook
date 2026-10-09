@@ -52,6 +52,44 @@ try {
   const starterStatus = await import(
     pathToFileURL(path.join(root, "active-starters.js")).href
   );
+  const placement = await import(
+    pathToFileURL(path.join(root, "place-bet.js")).href
+  );
+  const plain = {
+    board_id: "b",
+    revision: 1,
+    picks: ["leg0", "leg1", "leg2"],
+    stake: 10,
+    request_id: "fixture",
+  };
+  const teaserGuardFetch = globalThis.fetch;
+  let rejectedNetworkCalls = 0;
+  globalThis.fetch = async () => {
+    rejectedNetworkCalls++;
+    throw new Error("Guard must not reach network");
+  };
+  try {
+    for (const terms of [
+      { ticket_type: "teaser" },
+      { adjustment: 9 },
+      { teaser_quote_id: "forged" },
+      { teaser: null },
+      { odds: 140 },
+      { payout: 100 },
+    ]) {
+      const result = await placement.POST(
+        new Request("https://fixture.invalid/api/place-bet", {
+          method: "POST",
+          body: JSON.stringify({ ...plain, ...terms }),
+        }),
+      );
+      assert.equal(result.status, 400);
+      assert.equal((await result.json()).code, "UNSUPPORTED_TICKET_TERMS");
+    }
+    assert.equal(rejectedNetworkCalls, 0);
+  } finally {
+    globalThis.fetch = teaserGuardFetch;
+  }
   assert.equal(
     (
       await starterStatus.GET(

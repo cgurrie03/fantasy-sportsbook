@@ -1,0 +1,18 @@
+{
+  "source": "Production forecast_snapshots, read-only Supabase SQL Editor extraction on 2026-10-09",
+  "snapshot_id": "d0b9c43d-caf8-4aa2-ae5e-5009a5b6322f",
+  "captured_at": "2026-10-08T20:21:30.188356Z",
+  "nfl_season": 2026,
+  "market_week": 5,
+  "generated_at": "2026-10-07T16:03:31.181Z",
+  "provenance": "Existing published terms; no new generation or reconstructed forecasts",
+  "limitations": ["No archived joint score draws, team standard deviations or player/game covariance", "Current week results are incomplete and excluded", "Source observation timestamps and lineup basis still need verification before a backtest"],
+  "matchups": [
+    {"matchup_key":"sleeper-5-1-8","home_roster":1,"away_roster":8,"home_projection":124,"away_projection":163,"home_spread":39,"away_spread":-39,"odds":-110},
+    {"matchup_key":"sleeper-5-10-11","home_roster":10,"away_roster":11,"home_projection":137,"away_projection":154.5,"home_spread":17.5,"away_spread":-17.5,"odds":-110},
+    {"matchup_key":"sleeper-5-2-6","home_roster":2,"away_roster":6,"home_projection":137,"away_projection":146.5,"home_spread":9.5,"away_spread":-9.5,"odds":-110},
+    {"matchup_key":"sleeper-5-3-9","home_roster":3,"away_roster":9,"home_projection":129.5,"away_projection":136,"home_spread":6.5,"away_spread":-6.5,"odds":-110},
+    {"matchup_key":"sleeper-5-4-12","home_roster":4,"away_roster":12,"home_projection":137,"away_projection":121.5,"home_spread":-15.5,"away_spread":15.5,"odds":-110},
+    {"matchup_key":"sleeper-5-5-7","home_roster":5,"away_roster":7,"home_projection":153.5,"away_projection":154,"home_spread":0.5,"away_spread":-0.5,"odds":-110}
+  ]
+}

@@ -1,0 +1,106 @@
+.teaser-conversion {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.teaser-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.teaser-conversion p {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #39465b;
+}
+.teaser-conversion fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0 6px;
+  min-width: 0;
+}
+.teaser-conversion legend {
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+.teaser-adjustments {
+  display: flex;
+  gap: 8px;
+}
+.teaser-adjustments button {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.teaser-adjustments button[aria-pressed="true"] {
+  background: #efd07d;
+  color: #172238;
+  font-weight: 700;
+}
+.teaser-conversion table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85rem;
+  table-layout: fixed;
+}
+.teaser-conversion caption {
+  text-align: left;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.teaser-conversion th,
+.teaser-conversion td {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.teaser-conversion th:first-child {
+  text-align: left;
+  width: 50%;
+  overflow-wrap: anywhere;
+}
+.teaser-conversion tbody th {
+  font-weight: 500;
+}
+.teaser-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.teaser-comparison div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.teaser-comparison strong {
+  font-size: 1.25rem;
+}
+.teaser-conversion small {
+  font-size: 0.75rem;
+}
+.teaser-conversion button:focus-visible {
+  outline: 2px solid #b99136;
+  outline-offset: 3px;
+}
+.bet-slip-dialog.teaser-preview[open] {
+  display: block;
+  height: auto;
+  max-height: calc(var(--slip-viewport-height, 100dvh) - 32px);
+  overflow-y: auto;
+}
+.bet-slip-dialog.teaser-preview .slip-legs {
+  max-height: 180px;
+  margin: 12px 0;
+}
+.bet-slip-dialog.teaser-preview .place-bet {
+  position: sticky;
+  bottom: -12px;
+}
+.bet-slip-dialog.teaser-preview .quick-wagers {
+  margin: 12px 0;
+}

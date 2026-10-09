@@ -1,0 +1,267 @@
+{
+  "captured_at": "2026-10-09T20:13:03.466Z",
+  "league": "1312126153980391424",
+  "source": "Sleeper matchup endpoint; completed weeks 1-4 only",
+  "weeks": [
+    {
+      "week": 1,
+      "teams": [
+        {
+          "id": "1",
+          "matchup": 6,
+          "points": 119.96
+        },
+        {
+          "id": "2",
+          "matchup": 5,
+          "points": 120.54
+        },
+        {
+          "id": "3",
+          "matchup": 2,
+          "points": 158
+        },
+        {
+          "id": "4",
+          "matchup": 3,
+          "points": 121.74
+        },
+        {
+          "id": "5",
+          "matchup": 3,
+          "points": 151.56
+        },
+        {
+          "id": "6",
+          "matchup": 2,
+          "points": 101.24
+        },
+        {
+          "id": "7",
+          "matchup": 1,
+          "points": 161.5
+        },
+        {
+          "id": "8",
+          "matchup": 4,
+          "points": 218.44
+        },
+        {
+          "id": "9",
+          "matchup": 5,
+          "points": 159.64
+        },
+        {
+          "id": "10",
+          "matchup": 6,
+          "points": 188
+        },
+        {
+          "id": "11",
+          "matchup": 4,
+          "points": 214.76
+        },
+        {
+          "id": "12",
+          "matchup": 1,
+          "points": 96.94
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "teams": [
+        {
+          "id": "1",
+          "matchup": 5,
+          "points": 114.02
+        },
+        {
+          "id": "2",
+          "matchup": 5,
+          "points": 110.48
+        },
+        {
+          "id": "3",
+          "matchup": 1,
+          "points": 137.62
+        },
+        {
+          "id": "4",
+          "matchup": 3,
+          "points": 100.58
+        },
+        {
+          "id": "5",
+          "matchup": 4,
+          "points": 171.46
+        },
+        {
+          "id": "6",
+          "matchup": 2,
+          "points": 110.14
+        },
+        {
+          "id": "7",
+          "matchup": 1,
+          "points": 225.68
+        },
+        {
+          "id": "8",
+          "matchup": 4,
+          "points": 115.48
+        },
+        {
+          "id": "9",
+          "matchup": 6,
+          "points": 157.68
+        },
+        {
+          "id": "10",
+          "matchup": 6,
+          "points": 121.3
+        },
+        {
+          "id": "11",
+          "matchup": 3,
+          "points": 150.88
+        },
+        {
+          "id": "12",
+          "matchup": 2,
+          "points": 129.02
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "teams": [
+        {
+          "id": "1",
+          "matchup": 6,
+          "points": 153.38
+        },
+        {
+          "id": "2",
+          "matchup": 5,
+          "points": 111.72
+        },
+        {
+          "id": "3",
+          "matchup": 2,
+          "points": 123.14
+        },
+        {
+          "id": "4",
+          "matchup": 3,
+          "points": 182.58
+        },
+        {
+          "id": "5",
+          "matchup": 4,
+          "points": 152.46
+        },
+        {
+          "id": "6",
+          "matchup": 1,
+          "points": 119.18
+        },
+        {
+          "id": "7",
+          "matchup": 1,
+          "points": 155.7
+        },
+        {
+          "id": "8",
+          "matchup": 3,
+          "points": 189.38
+        },
+        {
+          "id": "9",
+          "matchup": 6,
+          "points": 114.5
+        },
+        {
+          "id": "10",
+          "matchup": 5,
+          "points": 128.9
+        },
+        {
+          "id": "11",
+          "matchup": 4,
+          "points": 161.94
+        },
+        {
+          "id": "12",
+          "matchup": 2,
+          "points": 89.64
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "teams": [
+        {
+          "id": "1",
+          "matchup": 5,
+          "points": 100.04
+        },
+        {
+          "id": "2",
+          "matchup": 3,
+          "points": 155.94
+        },
+        {
+          "id": "3",
+          "matchup": 3,
+          "points": 119.92
+        },
+        {
+          "id": "4",
+          "matchup": 1,
+          "points": 151.24
+        },
+        {
+          "id": "5",
+          "matchup": 2,
+          "points": 199.9
+        },
+        {
+          "id": "6",
+          "matchup": 4,
+          "points": 181.54
+        },
+        {
+          "id": "7",
+          "matchup": 1,
+          "points": 153.88
+        },
+        {
+          "id": "8",
+          "matchup": 6,
+          "points": 167.66
+        },
+        {
+          "id": "9",
+          "matchup": 4,
+          "points": 135.44
+        },
+        {
+          "id": "10",
+          "matchup": 6,
+          "points": 113.64
+        },
+        {
+          "id": "11",
+          "matchup": 5,
+          "points": 156.1
+        },
+        {
+          "id": "12",
+          "matchup": 2,
+          "points": 126.5
+        }
+      ]
+    }
+  ]
+}
