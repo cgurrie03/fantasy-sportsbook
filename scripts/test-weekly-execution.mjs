@@ -105,6 +105,31 @@ const thresholdResults = {
 };
 const special = (kind, side, line) =>
   leg(kind, side, line, { expected_team_count: 3 });
+for (const [line, outcome] of [
+  [1, "WON"],
+  [2, "WON"],
+  [3, "LOST"],
+]) {
+  assert.equal(
+    settleLeg(special("weekly_count_150", `${line}+`, line), thresholdResults)
+      .status,
+    outcome,
+  );
+  assert.equal(
+    settleLeg(
+      leg("weekly_count_projection", `${line}+`, line, {
+        expected_team_count: 3,
+        projection_targets: { a: 105, b: 100, c: 75 },
+      }),
+      final,
+    ).status,
+    outcome,
+  );
+}
+assert.equal(
+  settleLeg(special("weekly_count_150", "unknown", 1), thresholdResults).status,
+  "OPEN",
+);
 assert.equal(
   settleLeg(special("weekly_count_150", "2", 2), thresholdResults).status,
   "WON",

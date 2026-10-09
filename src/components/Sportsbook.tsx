@@ -311,7 +311,7 @@ export function Sportsbook({
         aria-label={
           m.metadata.lineup_locked
             ? `${m.label}: Locked — incomplete projected lineup`
-            : short === ""
+            : short !== undefined
               ? `${m.label}: ${formatOdds(m.odds)}`
               : undefined
         }
@@ -829,11 +829,6 @@ export function Sportsbook({
                           ? "Highest Weekly Scorer"
                           : "Lowest Weekly Scorer"}
                       </MarketTitle>
-                      <p className="market-description">
-                        {kind === "weekly_high"
-                          ? "Pick the top-scoring team."
-                          : "Pick the lowest-scoring team."}
-                      </p>
                       <div className="special-quotes">
                         {markets
                           .filter((m) => m.kind === kind)
@@ -869,11 +864,6 @@ export function Sportsbook({
                             ? "League Average Score"
                             : "Highest Score Of The Week"}
                         </MarketTitle>
-                        <p className="market-description">
-                          {kind === "weekly_average"
-                            ? "Average final team score."
-                            : "Pick the highest team score."}
-                        </p>
                         <div>
                           {markets
                             .filter((m) => m.kind === kind)
@@ -895,11 +885,6 @@ export function Sportsbook({
                             ? "Will Any Team Score Below 100?"
                             : "Will Any Team Score 200+?"}
                         </MarketTitle>
-                        <p className="market-description">
-                          {kind === "weekly_any_below_100"
-                            ? "Any team finishes below 100."
-                            : "Any team scores 200+."}
-                        </p>
                         {markets.some(
                           (m) => m.kind === kind && m.metadata.lineup_locked,
                         ) && (

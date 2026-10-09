@@ -67,15 +67,11 @@ export function SeasonFutures({
                       ? "Regular-season Wins"
                       : "#1 Pick"}
               </MarketTitle>
-              <p className="market-description">
-                {kind === "future_champion"
-                  ? "Win the championship."
-                  : kind === "future_playoffs"
-                    ? "Make the playoffs."
-                    : kind === "future_win_total"
-                      ? "Over or under season wins."
-                      : "Finish last in regular season."}
-              </p>
+              {kind === "future_first_pick" && (
+                <p className="market-description">
+                  Finish last in regular season.
+                </p>
+              )}
             </div>
           </header>
           <div className="future-rows">

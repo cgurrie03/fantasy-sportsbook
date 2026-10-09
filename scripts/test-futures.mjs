@@ -670,6 +670,7 @@ try {
       projection_targets: Object.fromEntries(all.map((t) => [t.id, 150])),
     },
   }));
+  newSpecials.push({ ...newSpecials[0], id: randomUUID(), side: "6+", label: "At Least 6 Teams Beating Projection", odds: -125 });
   await rows(
     "select public.save_market_board($1,$2,9,now(),now()+interval '1 day',$3::jsonb,'published')",
     [weeklyBoard, league, JSON.stringify(newSpecials)],
@@ -679,6 +680,7 @@ try {
       weeklyBoard,
     ])
   )[0].revision;
+  await assert.rejects(() => rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)", [weeklyBoard, weeklyRevision, [newSpecials[0].id, newSpecials[3].id], randomUUID()]));
   for (const quote of newSpecials)
     await rows("select public.place_sportsbook_ticket($1,$2,$3,1,$4)", [
       weeklyBoard,
@@ -697,6 +699,7 @@ try {
       [newSpecials.map((q) => q.id)],
     );
   const beforeRefreshLegs = await acceptedWeekly();
+  assert(beforeRefreshLegs.some(l => l.settlement_context.side === "6+" && Number(l.accepted_line) === 6));
   const beforeRefreshTickets = await rows(
     "select t.* from public.tickets t where id in(select ticket_id from public.ticket_legs where market_quote_id=any($1)) order by t.id",
     [newSpecials.map((q) => q.id)],

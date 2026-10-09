@@ -66,8 +66,12 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
         )
           return pending("Accepted team count is missing.");
         actual = scores.filter((s) => s >= 150).length;
-        difference = actual === line ? 1 : -1;
-        evidence = `Actual: ${actual} ${actual === 1 ? "team" : "teams"} scored 150+. Exact count required.`;
+        if (![String(line), "exact", `${line}+`].includes(c.side))
+          return pending("Accepted count selection is invalid.");
+        difference = (c.side === `${line}+` ? actual >= line : actual === line)
+          ? 1
+          : -1;
+        evidence = `Actual: ${actual} ${actual === 1 ? "team" : "teams"} scored 150+. ${c.side === `${line}+` ? "At least" : "Exactly"} ${line} required.`;
       } else {
         if (!["yes", "no"].includes(c.side))
           return pending("Accepted Yes/No selection is missing.");
@@ -108,8 +112,16 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
         )
           return pending("Accepted projection targets are incomplete.");
         actual = rows.filter(([id, t]) => t.points > targets[id]).length;
-        difference = actual === line ? 1 : -1;
-        evidence = `Actual: ${actual} teams beat their accepted projection. Tied projections do not count.`;
+        if (
+          ![String(line), "exact", ...(line > 0 ? [`${line}+`] : [])].includes(
+            c.side,
+          )
+        )
+          return pending("Accepted count selection is invalid.");
+        difference = (c.side === `${line}+` ? actual >= line : actual === line)
+          ? 1
+          : -1;
+        evidence = `Actual: ${actual} teams beat their accepted projection. ${c.side === `${line}+` ? "At least" : "Exactly"} ${line} required. Tied projections do not count.`;
       } else {
         if (!["over", "under"].includes(c.side))
           return pending("Accepted Over/Under selection is unavailable.");

@@ -1,4 +1,16 @@
 import assert from "node:assert/strict";
+import { countOptions } from "../api/_lib/count-options.ts";
+const counts = countOptions([0.1, 0.2, 0.3, 0.4], 0);
+assert.equal(counts.find((q) => q.side === "1+").probability, 0.9);
+assert.equal(counts.find((q) => q.side === "2+").probability, 0.7);
+assert.equal(counts.find((q) => q.side === "3+").probability, 0.4);
+assert(!counts.some((q) => q.side === "0+"));
+assert(!countOptions([0.1, 0.9], 1).some((q) => q.count === 0));
+for (const option of counts.filter((q) => q.atLeast))
+  assert(
+    option.probability >=
+      counts.find((q) => q.side === String(option.count)).probability,
+  );
 import { writeFile, mkdir } from "node:fs/promises";
 import {
   bestLineup,
@@ -60,7 +72,20 @@ const rows = [
   },
 ];
 assert.equal(candidates(rows, { rec: 1 }, [])[0].expected, 0);
-assert.equal(candidates([{...rows[0],player_id:"doubtful",player:{position:"WR",injury_status:"Doubtful"}}],{rec:1},[])[0].expected,10);
+assert.equal(
+  candidates(
+    [
+      {
+        ...rows[0],
+        player_id: "doubtful",
+        player: { position: "WR", injury_status: "Doubtful" },
+      },
+    ],
+    { rec: 1 },
+    [],
+  )[0].expected,
+  10,
+);
 const preferred = bestLineup(
   [
     { ...player("higher-projection", ["WR"], 15), projection: 20 },
@@ -71,22 +96,42 @@ const preferred = bestLineup(
 );
 assert.equal(preferred[0].id, "higher-projection");
 const replacementRoster = [
-  player("bye-kicker", ["K"], 0), player("bench-kicker", ["K"], 7.5),
-  player("bye-rb", ["RB"], 0), player("rb1", ["RB"], 18),
-  player("bench-rb", ["RB"], 9), player("bench-wr", ["WR"], 14),
+  player("bye-kicker", ["K"], 0),
+  player("bench-kicker", ["K"], 7.5),
+  player("bye-rb", ["RB"], 0),
+  player("rb1", ["RB"], 18),
+  player("bench-rb", ["RB"], 9),
+  player("bench-wr", ["WR"], 14),
 ];
-const replacements = projectedLineup(replacementRoster, ["RB", "RB", "FLEX", "K"]);
+const replacements = projectedLineup(replacementRoster, [
+  "RB",
+  "RB",
+  "FLEX",
+  "K",
+]);
 assert.deepEqual(replacements.missingSlots, []);
 assert.equal(replacements.picks.length, 4);
-assert(replacements.picks.some(p => p.id === "bench-kicker"));
-assert(replacements.picks.some(p => p.id === "bench-rb"));
-const noActiveRb = projectedLineup(replacementRoster.filter(p => p.id !== "bench-rb"), ["RB", "RB", "FLEX", "K"]);
+assert(replacements.picks.some((p) => p.id === "bench-kicker"));
+assert(replacements.picks.some((p) => p.id === "bench-rb"));
+const noActiveRb = projectedLineup(
+  replacementRoster.filter((p) => p.id !== "bench-rb"),
+  ["RB", "RB", "FLEX", "K"],
+);
 assert.deepEqual(noActiveRb.missingSlots, ["RB 2"]);
-assert(!noActiveRb.picks.some(p => p.expected === 0));
+assert(!noActiveRb.picks.some((p) => p.expected === 0));
 // Re-evaluation clears a formerly missing kicker as soon as a rostered replacement exists.
-assert.deepEqual(projectedLineup([player("bye-kicker", ["K"], 0)], ["K"]).missingSlots, ["K"]);
+assert.deepEqual(
+  projectedLineup([player("bye-kicker", ["K"], 0)], ["K"]).missingSlots,
+  ["K"],
+);
 assert.deepEqual(projectedLineup(replacementRoster, ["K"]).missingSlots, []);
-assert.equal(projectedLineup([player("duplicate", ["RB"], 10), player("duplicate", ["RB"], 10)], ["RB", "RB"]).picks.length, 1);
+assert.equal(
+  projectedLineup(
+    [player("duplicate", ["RB"], 10), player("duplicate", ["RB"], 10)],
+    ["RB", "RB"],
+  ).picks.length,
+  1,
+);
 assert.equal(
   candidates(
     [

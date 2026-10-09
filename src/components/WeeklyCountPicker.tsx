@@ -8,10 +8,12 @@ export function WeeklyCountPicker({
   projection = false,
 }: {
   markets: Market[];
-  renderQuote: (market: Market) => ReactNode;
+  renderQuote: (market: Market, short?: string) => ReactNode;
   projection?: boolean;
 }) {
-  const options = [...markets].sort((a, b) => Number(a.line) - Number(b.line));
+  const options = markets
+    .filter((m) => !m.side.endsWith("+"))
+    .sort((a, b) => Number(a.line) - Number(b.line));
   const preferred = [...options].sort(
     (a, b) =>
       Math.abs(a.odds + 110) - Math.abs(b.odds + 110) ||
@@ -20,6 +22,11 @@ export function WeeklyCountPicker({
   const [selected, setSelected] = useState<string | null>(null);
   const wheel = useRef<HTMLDivElement>(null);
   const current = options.find((m) => m.id === selected) ?? preferred;
+  const atLeast =
+    current &&
+    markets.find(
+      (m) => m.line === current.line && m.side === `${current.line}+`,
+    );
   useEffect(() => {
     const node = wheel.current;
     const option = node?.querySelector<HTMLElement>(
@@ -49,11 +56,6 @@ export function WeeklyCountPicker({
           ? "How Many Teams Will Beat Their Projection?"
           : "How Many Teams Will Score 150+?"}
       </MarketTitle>
-      <p className="market-description">
-        {projection
-          ? "Count teams above saved projections."
-          : "Count teams scoring 150+."}
-      </p>
       {!current ? (
         <p>These markets are coming soon.</p>
       ) : (
@@ -106,10 +108,22 @@ export function WeeklyCountPicker({
               </button>
             ))}
           </div>
-          <small className="count-instruction">
-            Swipe or scroll to choose · Exact count
-          </small>
-          <div className="count-selection">{renderQuote(current)}</div>
+          <small className="count-instruction">Swipe or scroll to choose</small>
+          <div className="count-selection count-choices">
+            <div>{renderQuote(current, `Exactly ${current.line}`)}</div>
+            <div>
+              {atLeast ? (
+                renderQuote(atLeast, `At Least ${current.line}+`)
+              ) : (
+                <button type="button" className="market-quote" disabled>
+                  <strong>At Least {current.line}+</strong>
+                  <span>
+                    {Number(current.line) === 0 ? "Choose 1+" : "Coming soon"}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
         </>
       )}
     </article>

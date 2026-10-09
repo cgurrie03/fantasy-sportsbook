@@ -1,4 +1,5 @@
 import { isWorker } from "./_lib/worker-auth.js";
+import { countOptions } from "./_lib/count-options.js";
 import { createClient } from "@supabase/supabase-js";
 import {
   bestLineup,
@@ -850,14 +851,14 @@ export async function POST(request: Request) {
               : {}),
           },
         });
-      // One mutually exclusive exact-count market; zero is not offered.
-      for (let n = 1; n <= models.length; n++)
+      // Same market key prevents combining correlated Exact / At Least choices.
+      for (const option of countOptions(probabilities.counts150, 1))
         leagueQuote(
           "weekly_count_150",
-          String(n),
-          `${n} ${n === 1 ? "Team" : "Teams"} Scoring 150+`,
-          probabilities.counts150[n],
-          n,
+          option.side,
+          `${option.atLeast ? "At Least" : "Exactly"} ${option.count} ${option.count === 1 ? "Team" : "Teams"} Scoring 150+`,
+          option.probability,
+          option.count,
         );
       for (const [kind, p, threshold] of [
         ["weekly_any_below_100", probabilities.anyBelow100, 100],
@@ -866,13 +867,13 @@ export async function POST(request: Request) {
         leagueQuote(kind, "yes", "Yes", p, threshold);
         leagueQuote(kind, "no", "No", 1 - p, threshold);
       }
-      for (let n = 0; n <= models.length; n++)
+      for (const option of countOptions(probabilities.countsProjection, 0))
         leagueQuote(
           "weekly_count_projection",
-          String(n),
-          `${n} ${n === 1 ? "Team" : "Teams"} Beating Projection`,
-          probabilities.countsProjection[n],
-          n,
+          option.side,
+          `${option.atLeast ? "At Least" : "Exactly"} ${option.count} ${option.count === 1 ? "Team" : "Teams"} Beating Projection`,
+          option.probability,
+          option.count,
         );
       for (const [kind, samples] of [
         ["weekly_average", probabilities.averageScores],
