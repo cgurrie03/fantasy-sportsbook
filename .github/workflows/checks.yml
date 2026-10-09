@@ -20,5 +20,6 @@ jobs:
       - run: npm run test:import
       - run: npm run test:refresh
       - run: npm run test:starters
+      - run: npm run test:live
       - run: npm run test:weekly
       - run: npm run test:futures

@@ -61,6 +61,8 @@ export function parseScoreboard(value: any) {
       id: String(e.id),
       starts_at: e.date,
       state: normalizeGameStatus(e.status.type.name),
+      period: Number.isInteger(e.status.period) ? e.status.period : null,
+      clock_seconds: Number.isFinite(e.status.clock) ? e.status.clock : null,
       teams: (e.competitions?.[0]?.competitors ?? [])
         .map((c: any) => c.team?.abbreviation)
         .filter((t: unknown): t is string => typeof t === "string"),
@@ -71,6 +73,12 @@ export function parseScoreboard(value: any) {
   );
   return {
     games,
+    season_year: Number.isInteger(value.season?.year)
+      ? value.season.year
+      : null,
+    season_type: Number.isInteger(value.season?.type)
+      ? value.season.type
+      : null,
     any_in_progress: games.some((g: any) => g.state === "in_progress"),
     week_started: games.some((g: any) =>
       ["in_progress", "final", "suspended"].includes(g.state),
@@ -124,6 +132,8 @@ export async function fetchGameStatus(now = new Date()) {
   };
   return {
     games,
+    season_year: observations[0].season_year,
+    season_type: observations[0].season_type,
     any_in_progress: games.some((g) => g.state === "in_progress"),
     week_started: games.some(
       (g) =>

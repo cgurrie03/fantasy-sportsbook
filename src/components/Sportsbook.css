@@ -201,3 +201,7 @@
 .matchup-in-progress,.matchup-status-unavailable{display:block;padding:12px 18px 0;font-size:11px;line-height:1.4}
 .matchup-in-progress{color:#ff777b;font-weight:700}.matchup-in-progress>span{margin-right:4px}
 .matchup-status-unavailable{color:var(--muted)}
+.market-quote{position:relative}.market-quote .line-movement{position:absolute;top:5px;right:7px;font-size:16px;line-height:1;font-weight:800}
+.line-movement-up{color:#73dda7}.line-movement-down{color:#ff777b;transform:rotate(180deg)}
+.live-model-log{border:1px solid var(--border);padding:16px;border-radius:12px;margin:16px 0}.live-model-log h3{margin-top:0}.live-model-log table{display:block;overflow-x:auto}
+.line-movement{display:inline-block;margin-left:5px;vertical-align:middle;font-size:16px;line-height:1;font-weight:800}

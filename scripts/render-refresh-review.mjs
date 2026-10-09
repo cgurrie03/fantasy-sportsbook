@@ -90,6 +90,7 @@ try {
     active: true,
   }));
   const review = {
+    simulateMovement: true,
     board,
     markets,
     standings: [],
@@ -107,6 +108,48 @@ try {
   };
   const props = { data, member, review, refresh: async () => {} };
   const html = renderToString(React.createElement(Sportsbook, props));
+  const { LiveModelLog } = await server.ssrLoadModule(
+    "/src/components/LiveModelLog.tsx",
+  );
+  const modelProps = {
+    leagueId: "review",
+    review: true,
+    previewData: {
+      runs: [
+        {
+          id: "illustrative-revision",
+          captured_at: new Date().toISOString(),
+          market_week: 5,
+          status: "shadow",
+          payload: {
+            quotes: [
+              {
+                matchup_id: 1,
+                home_team_id: "a",
+                away_team_id: "b",
+                spread: -3.5,
+                total: 251.5,
+                home_odds: -140,
+                away_odds: 140,
+              },
+            ],
+            teams: [
+              { team_id: "a", name: teams[0].team_name },
+              { team_id: "b", name: teams[1].team_name },
+            ],
+            limitations: [
+              "Experimental clock-based estimates. Feed latency and remaining opportunity are still being verified.",
+            ],
+          },
+        },
+      ],
+      reviews: [],
+    },
+  };
+  fs.writeFileSync(
+    "stage1-live-model-review.html",
+    `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live Forecast History Preview</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"><link rel="stylesheet" href="/src/components/Sportsbook.css"></head><body><div class="app-shell"><p class="review-notice">Design review · illustrative shadow forecasts. Betting and email submission are disabled.</p><div id="root">${renderToString(React.createElement(LiveModelLog, modelProps))}</div></div><script id="props" type="application/json">${JSON.stringify(modelProps).replaceAll("<", "\\u003c")}</script><script type="module">import React from 'react';import{hydrateRoot}from'react-dom/client';import{LiveModelLog}from'/src/components/LiveModelLog.tsx';hydrateRoot(document.getElementById('root'),React.createElement(LiveModelLog,JSON.parse(document.getElementById('props').textContent)));</script></body></html>`,
+  );
   fs.writeFileSync(
     "stage1-refresh-review.html",
     `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scheduled Lines and Live Safety Preview</title><link rel="stylesheet" href="/src/index.css"><link rel="stylesheet" href="/src/App.css"><link rel="stylesheet" href="/src/components/Sportsbook.css"></head><body><div class="app-shell"><header class="masthead"><div class="brand"><div><strong>Goldy Plays Pretend With Men</strong><span>Fantasy Sportsbook</span></div></div></header><div id="root">${html}</div></div><script id="props" type="application/json">${JSON.stringify(props).replaceAll("<", "\\u003c")}</script><script type="module">import React from 'react';import{hydrateRoot}from'react-dom/client';import{Sportsbook}from'/src/components/Sportsbook.tsx';const props=JSON.parse(document.getElementById('props').textContent);hydrateRoot(document.getElementById('root'),React.createElement(Sportsbook,{...props,refresh:async()=>{}}));</script></body></html>`,

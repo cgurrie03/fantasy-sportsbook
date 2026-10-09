@@ -5,6 +5,7 @@ import { emailLabels, renderEmail, sampleEmail } from "../lib/emailTemplates";
 import type { EmailKind } from "../lib/emailTemplates";
 import "./Sportsbook.css";
 import { LineRefreshStatus } from "./LineRefreshStatus";
+import { LiveModelLog } from "./LiveModelLog";
 interface Settings {
   publication_paused: boolean;
   opening_email: boolean;
@@ -396,7 +397,10 @@ export function WeeklySchedule({
   return (
     <section className="weekly-schedule">
       {!exceptionsOnly && (
-        <LineRefreshStatus leagueId={leagueId} review={reviewMode} admin />
+        <>
+          <LineRefreshStatus leagueId={leagueId} review={reviewMode} admin />
+          <LiveModelLog leagueId={leagueId} review={reviewMode} />
+        </>
       )}
       {exceptionsOnly && (
         <>

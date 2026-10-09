@@ -15,6 +15,7 @@
     "test:weekly": "node scripts/test-weekly-execution.mjs",
     "test:refresh": "node scripts/test-refresh.mjs",
     "test:starters": "node scripts/test-active-starters.mjs",
+    "test:live": "node scripts/test-live-model.mjs",
     "test:reporting": "node scripts/test-reporting.mjs",
     "test:futures": "node scripts/test-futures.mjs",
     "format": "prettier --write src scripts"

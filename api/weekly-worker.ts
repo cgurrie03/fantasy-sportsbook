@@ -6,6 +6,7 @@ import { deliverEmails, queueEmail } from "./_lib/mail.js";
 import { renderEmail } from "./_lib/email-templates.js";
 import { randomUUID } from "node:crypto";
 import { fetchGameStatus } from "./_lib/game-status.js";
+import { collectLiveShadow, reviewLiveWeek } from "./_lib/live-pipeline.js";
 export const maxDuration = 60;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -192,6 +193,24 @@ export async function POST(request: Request) {
             )[0]
           : null;
         if (!runtime) throw new Error("Refresh status unavailable.");
+        let liveShadow: unknown = null;
+        if (
+          job.operation === "interval_matchups" &&
+          runtime.week_started &&
+          cycle.status === "staging"
+        ) {
+          liveShadow = await collectLiveShadow(
+            db,
+            job,
+            league,
+            await read(
+              db
+                .from("teams")
+                .select("id,roster_id,team_name")
+                .eq("league_id", job.league_id),
+            ),
+          );
+        }
         if (
           cycle.status === "staging" &&
           !runtime.week_started &&
@@ -247,7 +266,9 @@ export async function POST(request: Request) {
           p_quotes: quotes,
         });
         if (staged.error) throw new Error(staged.error.message);
-        summary = staged.data;
+        summary = { ...staged.data, live_shadow: liveShadow };
+      } else if (job.operation === "model_review") {
+        summary = await reviewLiveWeek(db, job, league);
       } else if (
         ["settlement", "recheck", "replenishment"].includes(job.operation)
       ) {
@@ -733,7 +754,11 @@ export async function POST(request: Request) {
           .eq("id", job.id)
           .eq("attempts", job.attempts)
           .eq("status", "running");
-      if (job && !job.operation.startsWith("interval_")) {
+      if (
+        job &&
+        !job.operation.startsWith("interval_") &&
+        job.operation !== "model_review"
+      ) {
         const admins = await read(
           db
             .from("league_memberships")

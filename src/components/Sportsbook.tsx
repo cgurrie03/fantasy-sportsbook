@@ -26,6 +26,7 @@ import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
 import { LineRefreshStatus } from "./LineRefreshStatus";
 import { StarterActivity } from "./StarterActivity";
+import { LineMovement } from "./LineMovement";
 import { useStarterActivity } from "../lib/starter-activity";
 import type { StarterSnapshot } from "../lib/starter-activity";
 
@@ -47,6 +48,7 @@ export interface Standing {
 }
 export interface BoardReview {
   starterActivity?: StarterSnapshot;
+  simulateMovement?: boolean;
   board: Board;
   markets: Market[];
   standings: Standing[];
@@ -283,6 +285,11 @@ export function Sportsbook({
         }
         onClick={() => toggle(m)}
       >
+        <LineMovement
+          value={Number(m.line ?? americanPrice(selectionPrice(m)))}
+          scope={`${m.board_id}:${week}`}
+          live={(isFuture(m) ? futureBoard : board)?.phase === "live"}
+        />
         {quoteUnavailable(m) ? (
           <>
             <svg
@@ -362,6 +369,29 @@ export function Sportsbook({
         <p className="review-notice">
           Design Review · Illustrative markets. Betting and email delivery are
           disabled.
+          {review.simulateMovement && (
+            <button
+              type="button"
+              onClick={() =>
+                setMarkets((before) =>
+                  before.map((m) =>
+                    m.line == null
+                      ? m
+                      : {
+                          ...m,
+                          line:
+                            Number(m.line) +
+                            (m.kind === "match_total" || m.side === "a"
+                              ? 1
+                              : -1),
+                        },
+                  ),
+                )
+              }
+            >
+              Preview live line movement
+            </button>
+          )}
         </p>
       )}
       {tab === "Home" && (
