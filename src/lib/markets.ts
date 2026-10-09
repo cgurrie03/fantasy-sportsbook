@@ -374,6 +374,7 @@ export async function placeTicket(
   picks: Market[],
   stake: number,
   requestId: string,
+  promotion?: { id: string; kind: "boost" | "fixed" },
 ) {
   if (!supabase) throw new Error("The account service is unavailable.");
   const session = (await supabase.auth.getSession()).data.session;
@@ -390,6 +391,9 @@ export async function placeTicket(
       picks: picks.map((p) => p.id),
       stake,
       request_id: requestId,
+      ...(promotion
+        ? { offer_id: promotion.id, offer_kind: promotion.kind }
+        : {}),
     }),
   });
   const result = (await response.json()) as {

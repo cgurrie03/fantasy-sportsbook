@@ -34,6 +34,8 @@ export async function POST(request: Request) {
     picks?: unknown;
     stake?: unknown;
     request_id?: unknown;
+    offer_id?: unknown;
+    offer_kind?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -52,13 +54,34 @@ export async function POST(request: Request) {
   const admin = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await userClient.rpc("place_sportsbook_ticket", {
-    p_board: body.board_id,
-    p_revision: body.revision,
-    p_picks: body.picks,
-    p_stake: Number(body.stake),
-    p_request: body.request_id,
-  });
+  if (
+    (body.offer_id !== undefined || body.offer_kind !== undefined) &&
+    (typeof body.offer_id !== "string" ||
+      !["boost", "fixed"].includes(String(body.offer_kind)))
+  )
+    return json({ error: "Invalid offer request." }, 400);
+  const rpcName =
+    body.offer_kind === "fixed"
+      ? "place_fixed_ticket"
+      : body.offer_kind === "boost"
+        ? "place_boosted_ticket"
+        : "place_sportsbook_ticket";
+  const args =
+    body.offer_kind === "fixed"
+      ? {
+          p_offer: body.offer_id,
+          p_stake: Number(body.stake),
+          p_request: body.request_id,
+        }
+      : {
+          p_board: body.board_id,
+          p_revision: body.revision,
+          p_picks: body.picks,
+          p_stake: Number(body.stake),
+          p_request: body.request_id,
+          ...(body.offer_id ? { p_offer: body.offer_id } : {}),
+        };
+  const { data, error } = await userClient.rpc(rpcName, args);
   if (error) {
     if (error.message.includes("Lines have changed")) {
       const latest = await userClient.rpc("sportsbook_quote_snapshot", {

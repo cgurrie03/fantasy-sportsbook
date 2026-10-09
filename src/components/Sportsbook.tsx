@@ -28,6 +28,15 @@ import { LineRefreshStatus } from "./LineRefreshStatus";
 import { StarterActivity } from "./StarterActivity";
 import { LineMovement } from "./LineMovement";
 import { MarketTitle } from "./MarketTitle";
+import { OfferCards } from "./OfferCards";
+import type { PromoOffer } from "../lib/promotions";
+import {
+  loadPromos,
+  claimPromo,
+  eligible,
+  profitPrice,
+  claimBy,
+} from "../lib/promotions";
 import { useStarterActivity } from "../lib/starter-activity";
 import type { StarterSnapshot } from "../lib/starter-activity";
 
@@ -88,6 +97,77 @@ export function Sportsbook({
     [stake, setStake] = useState("0"),
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
+  const [offers, setOffers] = useState<PromoOffer[]>([]),
+    [fixedOffer, setFixedOffer] = useState<PromoOffer | null>(null),
+    [boostId, setBoostId] = useState<string | null>(null),
+    [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
+  const replaceDialog = useRef<HTMLDialogElement>(null);
+  const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
+  const appliedBoost = eligibleOffers.find((o) => o.id === boostId);
+  const promoUnavailable =
+    !!fixedOffer &&
+    (!offers.some((o) => o.id === fixedOffer.id && !o.used) ||
+      clock >= Date.parse(fixedOffer.expires_at));
+  async function refreshOffers() {
+    if (review) return;
+    setOffers(await loadPromos(member.league_id));
+  }
+  useEffect(() => {
+    if (review) return;
+    let active = true;
+    const reload = () => {
+      void loadPromos(member.league_id)
+        .then((o) => {
+          if (active) setOffers(o);
+        })
+        .catch(() => {});
+    };
+    reload();
+    const timer = setInterval(reload, 10000);
+    const channel =
+      typeof BroadcastChannel !== "undefined"
+        ? new BroadcastChannel("sportsbook-promos")
+        : null;
+    if (channel) channel.onmessage = reload;
+    return () => {
+      active = false;
+      clearInterval(timer);
+      channel?.close();
+    };
+  }, [member.league_id, review]);
+  useEffect(() => {
+    if (pendingOffer && !replaceDialog.current?.open)
+      replaceDialog.current?.showModal();
+    else if (!pendingOffer) replaceDialog.current?.close();
+  }, [pendingOffer]);
+  function fillFixed(o: PromoOffer) {
+    if (busy) return;
+    setFixedOffer(o);
+    setBoostId(null);
+    setPicks(o.terms.legs ?? []);
+    setPickRevision(board?.revision ?? null);
+    setStake(String(o.terms.fixed_stake ?? 10));
+    setOpen(true);
+    setPendingOffer(null);
+    setNotice("");
+  }
+  async function chooseOffer(o: PromoOffer) {
+    if (busy) return;
+    if (o.kind === "fixed") {
+      if (picks.length) setPendingOffer(o);
+      else fillFixed(o);
+      return;
+    }
+    try {
+      await claimPromo(o.id);
+      await refreshOffers();
+      setNotice(
+        "Boost claimed. Build a qualifying slip, then choose whether to apply it.",
+      );
+    } catch (e) {
+      setNotice(errorMessage(e));
+    }
+  }
   const [pickRevision, setPickRevision] = useState<number | null>(null);
   const starterActivity = useStarterActivity(
     member.league_id,
@@ -101,12 +181,20 @@ export function Sportsbook({
       data.wallets.find((w) => w.team_id === member.team_id)?.balance ?? 0,
     ),
     wager = Number(stake),
-    price = combinedPrice(picks),
+    basePrice = combinedPrice(picks),
+    price = appliedBoost
+      ? profitPrice(basePrice, Number(appliedBoost.terms.percent))
+      : basePrice,
     valid =
       canPlacePicks(picks) &&
       wager >= 1 &&
       wager <= balance &&
-      Math.round(wager * 100) === wager * 100;
+      Math.abs(Math.round(wager * 100) - wager * 100) < 1e-7 &&
+      (!appliedBoost || wager <= Number(appliedBoost.terms.max_stake)) &&
+      (!fixedOffer?.terms.fixed_stake ||
+        wager === Number(fixedOffer.terms.fixed_stake)) &&
+      !promoUnavailable &&
+      (!boostId || !!appliedBoost);
   const team = (id: string | null) => data.teams.find((t) => t.id === id),
     owner = (id: string) =>
       data.memberships.find((m) => m.team_id === id)?.display_name ??
@@ -144,10 +232,12 @@ export function Sportsbook({
   const selectedBoard = picks.some(isFuture) ? futureBoard : board;
   const currentQuotes = picks.some(isFuture) ? futureMarkets : markets;
   const changedPicks =
-    picks.length > 0 && pickRevision !== selectedBoard?.revision;
-  const unavailablePicks = picks.some(
-    (p) => !currentQuotes.some((m) => m.id === p.id && !quoteUnavailable(m)),
-  );
+    !fixedOffer && picks.length > 0 && pickRevision !== selectedBoard?.revision;
+  const unavailablePicks =
+    !fixedOffer &&
+    picks.some(
+      (p) => !currentQuotes.some((m) => m.id === p.id && !quoteUnavailable(m)),
+    );
   const reloadQuotes = useCallback(async () => {
     const [r, f] = await Promise.all([
       loadMarketBoard(member.league_id),
@@ -189,7 +279,7 @@ export function Sportsbook({
     };
   }, [member.league_id, review, data.tickets]);
   useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 30000);
+    const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
@@ -229,6 +319,13 @@ export function Sportsbook({
     };
   }, [open]);
   function toggle(m: Market) {
+    if (fixedOffer) {
+      setNotice(
+        "This promo’s selections are locked. Discard the promo slip to build another ticket.",
+      );
+      setOpen(true);
+      return;
+    }
     if (busy || quoteUnavailable(m)) return;
     setNotice("");
     if (picks.some((p) => p.id === m.id)) {
@@ -258,6 +355,7 @@ export function Sportsbook({
       selectedBoard.revision,
       picks.map((p) => p.id),
       wager,
+      fixedOffer?.id ?? appliedBoost?.id ?? null,
     ]);
     if (request.current.key !== key)
       request.current = { key, id: crypto.randomUUID() };
@@ -267,8 +365,22 @@ export function Sportsbook({
         picks,
         wager,
         request.current.id,
+        fixedOffer
+          ? { id: fixedOffer.id, kind: "fixed" }
+          : appliedBoost
+            ? { id: appliedBoost.id, kind: "boost" }
+            : undefined,
       );
       setPicks([]);
+      setFixedOffer(null);
+      setBoostId(null);
+      await refreshOffers().catch(() => {});
+      const channel =
+        typeof BroadcastChannel !== "undefined"
+          ? new BroadcastChannel("sportsbook-promos")
+          : null;
+      channel?.postMessage("used");
+      channel?.close();
       setStake("0");
       setOpen(false);
       setNotice(
@@ -524,6 +636,13 @@ export function Sportsbook({
               </button>
             ))}
           </nav>
+          {category === "Matchups" && (
+            <OfferCards
+              offers={offers.filter((o) => clock < Date.parse(o.expires_at))}
+              onClaim={(o) => void chooseOffer(o)}
+              busy={busy}
+            />
+          )}
           {loading ? (
             <p role="status">Loading weekly markets…</p>
           ) : error ? (
@@ -1072,12 +1191,21 @@ export function Sportsbook({
       >
         <div className="slip-header">
           <span className="slip-number">{picks.length}</span>
-          <h2 id="bet-slip-title">Bet Slip</h2>
+          <h2 id="bet-slip-title">
+            {fixedOffer ? fixedOffer.title : "Bet Slip"}
+          </h2>
           <strong className="slip-odds">
             Odds {picks.length ? formatOdds(americanPrice(price)) : "—"}
           </strong>
-          <button disabled={busy} onClick={() => setPicks([])}>
-            Clear All
+          <button
+            disabled={busy}
+            onClick={() => {
+              setPicks([]);
+              setFixedOffer(null);
+              setBoostId(null);
+            }}
+          >
+            {fixedOffer ? "Discard promo" : "Clear All"}
           </button>
           <button aria-label="Collapse Bet Slip" onClick={() => setOpen(false)}>
             <Chevron />
@@ -1098,7 +1226,8 @@ export function Sportsbook({
                       <small>{marketType[m.kind]}</small>
                     </span>
                     <button
-                      disabled={busy}
+                      disabled={busy || !!fixedOffer}
+                      hidden={!!fixedOffer}
                       aria-label={`Remove ${m.label}`}
                       onClick={() =>
                         setPicks(picks.filter((p) => p.id !== m.id))
@@ -1131,16 +1260,88 @@ export function Sportsbook({
               max={balance}
               step="0.01"
               value={stake}
-              disabled={busy}
+              disabled={busy || !!fixedOffer?.terms.fixed_stake}
               onChange={(e) => setStake(e.target.value)}
             />
           </label>
         </div>
+        {fixedOffer && (
+          <p className="promo-expiry">
+            Selections and lines locked · Claim by{" "}
+            {claimBy(fixedOffer.expires_at)}
+          </p>
+        )}
+        {!fixedOffer && eligibleOffers.length > 0 && (
+          <section
+            className="promo-eligibility"
+            aria-label="Eligible profit boosts"
+          >
+            <strong>Your slip qualifies for a profit boost.</strong>
+            {eligibleOffers.map((o) => (
+              <label key={o.id}>
+                <span>{o.title}</span>
+                <input
+                  type="checkbox"
+                  aria-label={`Apply ${o.title}`}
+                  checked={boostId === o.id}
+                  disabled={busy}
+                  onChange={(e) => setBoostId(e.target.checked ? o.id : null)}
+                />
+              </label>
+            ))}
+          </section>
+        )}
+        {boostId && !appliedBoost && (
+          <p className="slip-feedback" role="status">
+            Your selected boost no longer qualifies, expired, or was used in
+            another tab.{" "}
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setBoostId(null)}
+            >
+              Continue without boost
+            </button>
+          </p>
+        )}
+        {appliedBoost && (
+          <section
+            className="promo-eligibility"
+            aria-label="Boost payout breakdown"
+          >
+            <div className="promo-price-row">
+              <span>Original odds</span>
+              <strong>
+                {formatOdds(americanPrice(basePrice))} · {basePrice.toFixed(4)}{" "}
+                decimal
+              </strong>
+            </div>
+            <div className="promo-price-row">
+              <span>Boosted effective odds</span>
+              <strong>
+                ≈ {formatOdds(americanPrice(price))} · {price.toFixed(4)}{" "}
+                decimal
+              </strong>
+            </div>
+            <div className="promo-price-row">
+              <span>Original profit</span>
+              <strong>{money(wager * (basePrice - 1))}</strong>
+            </div>
+            <div className="promo-price-row">
+              <span>Extra profit</span>
+              <strong>{money(wager * (price - basePrice))}</strong>
+            </div>
+            <div className="promo-price-row">
+              <span>Maximum wager</span>
+              <strong>{money(Number(appliedBoost.terms.max_stake))}</strong>
+            </div>
+          </section>
+        )}
         <div className="quick-wagers">
           {[10, 25].map((n) => (
             <button
               key={n}
-              disabled={busy}
+              disabled={busy || !!fixedOffer?.terms.fixed_stake}
               onClick={() =>
                 setStake(String(Math.min(balance, (Number(stake) || 0) + n)))
               }
@@ -1148,7 +1349,21 @@ export function Sportsbook({
               +${n}
             </button>
           ))}
-          <button disabled={busy} onClick={() => setStake(String(balance))}>
+          <button
+            disabled={busy || !!fixedOffer?.terms.fixed_stake}
+            onClick={() =>
+              setStake(
+                String(
+                  Math.min(
+                    balance,
+                    appliedBoost
+                      ? Number(appliedBoost.terms.max_stake)
+                      : balance,
+                  ),
+                ),
+              )
+            }
+          >
             Max
           </button>
         </div>
@@ -1157,7 +1372,7 @@ export function Sportsbook({
             ? picks.some(isFuture)
               ? "Choose at least 2 Make/Miss Playoffs picks."
               : "Choose at least 2 picks, or a Weekly Special single."
-            : `Enter a wager from $1 to ${money(balance)}.`}
+            : `Enter a wager from $1 to ${money(Math.min(balance, appliedBoost ? Number(appliedBoost.terms.max_stake) : balance))}.`}
         </p>
         {picks.some(isFuture) && (
           <p className="wager-help">
@@ -1234,7 +1449,9 @@ export function Sportsbook({
             changedPicks ||
             unavailablePicks ||
             busy ||
-            (!(picks.some(isFuture) ? futureAccepting : accepting) && !review)
+            (!fixedOffer &&
+              !(picks.some(isFuture) ? futureAccepting : accepting) &&
+              !review)
           }
           onClick={() => void submit()}
         >
@@ -1243,6 +1460,28 @@ export function Sportsbook({
           </strong>
           <small>Total Payout: {money((wager || 0) * price)}</small>
         </button>
+      </dialog>
+      <dialog
+        ref={replaceDialog}
+        className="promo-replace"
+        aria-labelledby="promo-replace-title"
+        onCancel={() => setPendingOffer(null)}
+      >
+        <h2 id="promo-replace-title">Replace your current slip?</h2>
+        <p>This offer replaces your selections with its locked ticket.</p>
+        <div className="promo-actions">
+          <button className="secondary" onClick={() => setPendingOffer(null)}>
+            Keep current slip
+          </button>
+          <button
+            className="primary"
+            onClick={() => {
+              if (pendingOffer) fillFixed(pendingOffer);
+            }}
+          >
+            Replace with promo
+          </button>
+        </div>
       </dialog>
     </main>
   );

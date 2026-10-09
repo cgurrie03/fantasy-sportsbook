@@ -21,7 +21,9 @@
     "test:futures": "node scripts/test-futures.mjs",
     "format": "prettier --write src scripts",
     "test:isolation": "node scripts/test-league-isolation.mjs",
-    "test:ux": "node scripts/test-ux.cjs"
+    "test:ux": "node scripts/test-ux.cjs",
+    "test:promos": "node scripts/test-promotions.mjs",
+    "test:promos:ux": "node scripts/test-promos-ux.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

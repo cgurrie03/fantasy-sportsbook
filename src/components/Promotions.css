@@ -1,0 +1,300 @@
+.promo-section {
+  margin: 0 0 24px;
+}
+.promo-offers {
+  display: grid;
+  gap: 16px;
+}
+.promo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.promo-image {
+  position: relative;
+}
+.promo-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1200/522;
+  object-fit: cover;
+  background: var(--surface2);
+}
+.promo-image-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.promo-claim {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  min-height: 44px;
+  padding: 10px 18px;
+  background: #f4c453 !important;
+  color: #12233d !important;
+  border: 1px solid #f4c453;
+  border-radius: 8px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px #0003;
+}
+.promo-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.promo-body h3 {
+  font-size: 18px;
+  margin: 0 0 7px;
+  overflow-wrap: anywhere;
+}
+.promo-body p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 15px;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.promo-body small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.promo-pagination {
+  display: none;
+}
+.promo-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+}
+.promo-panel {
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 24px;
+  background: var(--surface);
+  margin-bottom: 20px;
+}
+.promo-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.promo-form label {
+  font-size: 13px;
+  font-weight: 600;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+.promo-full {
+  grid-column: 1/-1;
+}
+.promo-form small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.promo-upload {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 15px;
+}
+.promo-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.promo-fixed-leg {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin: 12px 0;
+}
+.promo-fixed-leg input {
+  min-width: 0;
+}
+.promo-fixed-leg > button {
+  min-height: 44px;
+}
+.promo-eligibility {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  background: var(--surface2);
+  padding: 14px;
+  margin: 12px 0;
+}
+.promo-eligibility label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.promo-eligibility input[type="checkbox"] {
+  width: 24px;
+  min-height: 24px;
+  accent-color: #f4c453;
+}
+.promo-price-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 13px;
+  padding: 6px 0;
+}
+.promo-price-row strong {
+  font-variant-numeric: tabular-nums;
+}
+.promo-history {
+  overflow: auto;
+}
+.promo-history table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.promo-history td,
+.promo-history th {
+  text-align: left;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.promo-expiry {
+  color: var(--muted);
+  font-size: 13px;
+}
+.promo-errors {
+  color: var(--error);
+  line-height: 1.5;
+}
+.promo-status {
+  color: var(--muted);
+  font-size: 13px;
+}
+.promo-panel h2 {
+  margin-top: 0;
+}
+.promo-replace {
+  max-width: 480px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 24px;
+}
+.promo-replace::backdrop {
+  background: #0009;
+}
+.promo-crop {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.promo-preview-phone {
+  max-width: 358px;
+  margin: auto;
+}
+.promo-preview-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.promo-usage {
+  margin-top: 24px;
+}
+@media (max-width: 700px) {
+  .promo-offers {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    position: relative;
+    padding-bottom: 8px;
+  }
+  .promo-offers > .promo-card {
+    flex: 0 0 calc(100% - 24px);
+    scroll-snap-align: start;
+  }
+  .promo-offers > .promo-card:only-child {
+    flex-basis: 100%;
+  }
+  .promo-pagination {
+    display: flex;
+    width: max-content;
+    margin: 6px auto 0;
+    background: #e8eef7;
+    border-radius: 24px;
+    padding: 0 4px;
+  }
+  .promo-pagination button {
+    border: 0;
+    background: none;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+  }
+  .promo-pagination button:before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a7b6ca;
+  }
+  .promo-pagination button[aria-current="true"]:before {
+    background: #12233d;
+  }
+  .promo-admin-layout,
+  .promo-form {
+    grid-template-columns: 1fr;
+  }
+  .promo-full {
+    grid-column: auto;
+  }
+  .promo-panel {
+    padding: 18px;
+  }
+  .promo-fixed-leg {
+    grid-template-columns: 1fr 1fr;
+  }
+  .promo-fixed-leg > label:first-child {
+    grid-column: 1/-1;
+  }
+  .promo-history table {
+    min-width: 500px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo-offers {
+    scroll-behavior: auto;
+  }
+}
+
+.promo-panel .promo-art {
+  object-position: var(--crop-x, 50%) var(--crop-y, 50%);
+}
+.bet-slip-dialog:has([aria-label="Boost payout breakdown"]),
+.bet-slip-dialog:has(.promo-eligibility) {
+  height: auto;
+  max-height: calc(var(--slip-viewport-height, 90dvh) - 24px);
+  overflow-y: auto;
+}
+.bet-slip-dialog:has([aria-label="Boost payout breakdown"]) .slip-legs {
+  flex: 0 0 auto;
+  max-height: 30dvh;
+}
+.bet-slip-dialog .promo-eligibility {
+  color: #12233d;
+  background: #e8eef7;
+  margin: 0;
+  padding: 12px;
+  flex-shrink: 0;
+}

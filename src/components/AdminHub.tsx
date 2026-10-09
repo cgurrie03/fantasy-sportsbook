@@ -5,6 +5,9 @@ import { BettingLogs, Chevron, TicketHistory } from "./TicketHistory";
 import { MarketAdmin } from "./MarketAdmin";
 import { LeagueSettings } from "./LeagueSettings";
 import { Approvals } from "./Approvals";
+const PromoAdmin = lazy(() =>
+  import("./PromoAdmin").then((m) => ({ default: m.PromoAdmin })),
+);
 const Reports = lazy(() =>
   import("./Reports").then((module) => ({ default: module.Reports })),
 );
@@ -43,8 +46,8 @@ const categories = [
     id: "promos",
     group: "Markets",
     title: "Promos & Boosts",
-    description: "Game of the Week, Tank Bowl, and featured parlays.",
-    status: "Upcoming",
+    description: "Image offers, preset tickets, and claimed profit boosts.",
+    status: "Manage Offers",
   },
   {
     id: "approvals",
@@ -139,7 +142,15 @@ export function AdminHub({
                 />
               ) : selected === "logs" ? (
                 <BettingLogs tickets={tickets} owner={owner} />
-              ) : selected === "lines" || selected === "promos" ? (
+              ) : selected === "promos" ? (
+                <Suspense fallback={<p role="status">Loading offers…</p>}>
+                  <PromoAdmin
+                    data={data}
+                    leagueId={leagueId}
+                    reviewMode={reviewMode}
+                  />
+                </Suspense>
+              ) : selected === "lines" ? (
                 <MarketAdmin data={data} leagueId={leagueId} />
               ) : selected === "schedule" ? (
                 <WeeklySchedule

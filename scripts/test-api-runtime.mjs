@@ -30,6 +30,8 @@ try {
     "_lib/league-communications",
     "weekly-worker",
     "place-bet",
+    "promo-image",
+    "_lib/promo-image",
     "report-results",
     "report-avatar",
   ]) {

@@ -28,6 +28,7 @@ async function setup(browser, width, height, signedIn=true){
  if(signedIn)await context.addInitScript(({session})=>localStorage.setItem('sb-bmvjcdgxwxqalaohpsnw-auth-token',JSON.stringify(session)),{session});
  await context.route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url()), endpoint=url.pathname.split('/').at(-1);
+  if(url.protocol==='blob:'||url.protocol==='data:')return route.continue();
   const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   if(url.hostname.endsWith('supabase.co')){
    if(state.slow)await new Promise(r=>setTimeout(r,500));
@@ -39,6 +40,7 @@ async function setup(browser, width, height, signedIn=true){
    if(endpoint==='sportsbook_quote_snapshot'){
     const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
    }
+   if(endpoint==='list_promos')return json([]);
    if(endpoint==='league_leaderboard')return json([]);
    if(endpoint==='leagues')return json(leagues);
    if(endpoint==='teams')return json(teams);
@@ -64,7 +66,7 @@ async function setup(browser, width, height, signedIn=true){
    }
    return json({error:'Fixture route unavailable'},503);
   }
-  if(url.origin===origin)return route.continue();
+  if(url.origin===origin){const root=path.resolve('dist');let target=path.resolve(root,'.'+url.pathname);if(!target.startsWith(root+path.sep)&&target!==root)return route.abort();if(!fs.existsSync(target)||fs.statSync(target).isDirectory())target=path.join(root,'index.html');const ext=path.extname(target);return route.fulfill({status:200,contentType:({'.html':'text/html','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png'})[ext]||'application/octet-stream',body:fs.readFileSync(target)});}
   return route.abort(); // No external images, emails, analytics or live API writes.
  });
  const page=await context.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -72,7 +74,7 @@ async function setup(browser, width, height, signedIn=true){
 }
 async function geometry(page,label){const g=await page.evaluate(()=>({width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth}));assert(g.scroll<=g.width,`${label} overflow: ${JSON.stringify(g)}`);evidence.push({label,...g});}
 async function menu(page,item){await page.getByLabel('Open Account Options').click();await page.locator('.profile-options').getByRole('button',{name:item,exact:true}).click();}
-(async()=>{
+if(require.main===module)(async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.UX_BROWSER_PATH?{executablePath:process.env.UX_BROWSER_PATH}:{})});
  try{
   const sign=await setup(browser,390,844,false);assert(!await sign.page.getByText('Goldy',{exact:false}).count());
@@ -145,6 +147,7 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
   await menu(page,'Admin');await page.getByRole('button',{name:/Reports & Dashboard/}).click();await page.locator('.report-toolbar select').nth(0).waitFor();
   await page.locator('.report-toolbar select').nth(2).selectOption('4');await geometry(page,'reports-mobile');await page.screenshot({path:path.join(output,'reports-mobile.png'),fullPage:true});
   for(const [name,ext]of [['CSV Data','csv'],['PNG Image','png'],['PDF Document','pdf']]){
+   console.log(`Checking report export: ${ext}`);
    await page.getByRole('button',{name:'Export',exact:true}).click();const download=page.waitForEvent('download');await page.getByRole('button',{name}).click();const d=await download;await d.saveAs(path.join(output,`report-fixture.${ext}`));assert(fs.statSync(path.join(output,`report-fixture.${ext}`)).size>100);
   }
   await context.close();
@@ -159,3 +162,4 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
   console.log(`Passed measured viewports, both themes, long names/balance, native dialog, reduced height, revised-price approval, fixture ticket/history, league switch/admin roles, report exports and empty/suspended/loading/error retry. Evidence: ${output}`);
  }finally{await browser.close()}
 })().catch(e=>{console.error(e.stack);process.exit(1)});
+module.exports={setup,menu,A,B,boards,quotes,teams};
