@@ -293,7 +293,25 @@ fs.mkdirSync(output, { recursive: true });
         await f.page.getByLabel("League", { exact: true }).selectOption(A);
         const adminMarkets = [
           ...quotes(b),
-          ...points,
+          ...points.map((p, i) =>
+            i < 3
+              ? p
+              : {
+                  ...p,
+                  matchup_key: "second-matchup",
+                  home_team_id: p.away_team_id,
+                  away_team_id: p.home_team_id,
+                },
+          ),
+          ...quotes(b)
+            .filter((p) => p.kind === "moneyline")
+            .map((p, i) => ({
+              ...p,
+              id: "admin-moneyline-" + i,
+              boost_pct: 0,
+              odds: i ? 150 : -150,
+              label: "Win · " + p.label,
+            })),
           {
             ...points[0],
             id: "weekly-selection",
@@ -336,13 +354,11 @@ fs.mkdirSync(output, { recursive: true });
         await f.page
           .getByLabel("Readable offer terms", { exact: true })
           .fill(o.description);
-        await f.page
-          .locator('input[type="file"]')
-          .setInputFiles({
-            name: "fixture.png",
-            mimeType: "image/png",
-            buffer: Buffer.from(artwork, "base64"),
-          });
+        await f.page.locator('input[type="file"]').setInputFiles({
+          name: "fixture.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(artwork, "base64"),
+        });
         await f.page
           .getByRole("button", { name: "Save draft", exact: true })
           .click();
@@ -388,20 +404,70 @@ fs.mkdirSync(output, { recursive: true });
             .evaluateAll((nodes) => nodes.map((n) => n.label)),
           ["Matchups", "Player Projections", "Weekly Specials"],
         );
+        assert.deepEqual(
+          await categoryPicker
+            .locator("optgroup")
+            .first()
+            .locator("option")
+            .evaluateAll((nodes) => nodes.map((n) => n.value)),
+          ["moneyline", "spread", "match_total", "team_total"],
+        );
+        await categoryPicker.selectOption("moneyline");
+        await f.page.waitForFunction(() =>
+          document.querySelector('option[value="admin-moneyline-0"]'),
+        );
+        const moneylines = await selectionPicker
+          .locator("option")
+          .allTextContents();
+        assert.equal(moneylines.length, 3);
+        for (const label of moneylines.slice(1)) {
+          assert.match(label, / vs\. .*\([+-]150\)$/);
+          assert(!label.startsWith("Win"));
+        }
         await categoryPicker.selectOption("spread");
         await f.page.waitForFunction(() =>
           document.querySelector('option[value="board-0-q0"]'),
         );
         assert.equal(await selectionPicker.locator("option").count(), 3);
+        for (const label of (
+          await selectionPicker.locator("option").allTextContents()
+        ).slice(1))
+          assert.match(label, /\(-110\)$/);
         await selectionPicker.selectOption("board-0-q0");
         await categoryPicker.selectOption("player_points");
+        assert.equal(await selectionPicker.count(), 0);
+        const matchupPicker = f.page.getByLabel("Player Points matchup", {
+          exact: true,
+        });
+        assert.equal(await matchupPicker.locator("option").count(), 3);
+        await matchupPicker.selectOption("same-roster-numbers");
         assert.equal(await selectionPicker.inputValue(), "");
         assert(
           await f.page
             .getByRole("button", { name: "Add selection", exact: true })
             .isDisabled(),
         );
-        assert.equal(await selectionPicker.locator("option").count(), 7);
+        assert.equal(await selectionPicker.locator("option").count(), 4);
+        assert.equal(
+          await selectionPicker.locator('option[value="point-3"]').count(),
+          0,
+        );
+        assert.match(
+          await selectionPicker.locator('option[value="point-0"]').innerText(),
+          /\(\+100\)$/,
+        );
+        await selectionPicker.selectOption("point-0");
+        await matchupPicker.selectOption("second-matchup");
+        assert.equal(await selectionPicker.inputValue(), "");
+        assert.equal(
+          await selectionPicker.locator('option[value="point-0"]').count(),
+          0,
+        );
+        assert.equal(
+          await selectionPicker.locator('option[value="point-3"]').count(),
+          1,
+        );
+        await matchupPicker.selectOption("same-roster-numbers");
         await selectionPicker.selectOption("point-0");
         await f.page
           .getByRole("button", { name: "Add selection", exact: true })
@@ -417,9 +483,15 @@ fs.mkdirSync(output, { recursive: true });
           await selectionPicker.locator("option").last().getAttribute("value"),
           "weekly-selection",
         );
+        assert.match(
+          await selectionPicker.locator("option").last().innerText(),
+          /\(\+100\)$/,
+        );
         await categoryPicker.selectOption("team_total");
         assert(await selectionPicker.isDisabled());
         await categoryPicker.selectOption("player_points");
+        assert.equal(await matchupPicker.inputValue(), "");
+        await matchupPicker.selectOption("same-roster-numbers");
         await f.page.screenshot({
           path: path.join(output, `category-picker-${width}-${theme}.png`),
           fullPage: true,

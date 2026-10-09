@@ -3,7 +3,7 @@ import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
 import { supabase } from "../lib/supabase";
 import type { Market } from "../lib/markets";
-import { marketType } from "../lib/markets";
+import { formatOdds, marketType } from "../lib/markets";
 import type { PromoOffer, PromoTerms } from "../lib/promotions";
 import {
   criteria,
@@ -22,7 +22,7 @@ type FixedLeg = {
 const selectionCategories = [
   {
     label: "Matchups",
-    kinds: ["spread", "moneyline", "match_total", "team_total"],
+    kinds: ["moneyline", "spread", "match_total", "team_total"],
   },
   { label: "Player Projections", kinds: ["player_points"] },
   {
@@ -85,17 +85,65 @@ export function PromoAdmin({
     [legs, setLegs] = useState<FixedLeg[]>([]),
     [selected, setSelected] = useState(""),
     [selectionCategory, setSelectionCategory] = useState(""),
+    [selectionMatchup, setSelectionMatchup] = useState(""),
     [edit, setEdit] = useState<PromoOffer | null>(null),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [mobile, setMobile] = useState(false);
   const league = data.leagues.find((l) => l.id === leagueId);
+  const teamName = (id: string | null) =>
+    data.teams.find((t) => t.id === id && t.league_id === leagueId)?.team_name;
+  const matchupId = (m: Market) =>
+    m.matchup_key ||
+    (m.home_team_id && m.away_team_id
+      ? `${m.home_team_id}:${m.away_team_id}`
+      : "unmapped-matchup");
+  const matchupLabel = (m: Market) => {
+    const home = teamName(m.home_team_id),
+      away = teamName(m.away_team_id);
+    return home && away
+      ? `${home} vs. ${away}`
+      : m.subject || "Matchup unavailable";
+  };
+  const selectionLabel = (m: Market) => {
+    if (m.kind !== "moneyline") return m.label;
+    const id =
+      m.team_id ||
+      (m.side === "home"
+        ? m.home_team_id
+        : m.side === "away"
+          ? m.away_team_id
+          : null);
+    const opponent =
+      id === m.home_team_id
+        ? m.away_team_id
+        : id === m.away_team_id
+          ? m.home_team_id
+          : null;
+    return `${teamName(id) || m.label.replace(/^Win\s*[·:—-]\s*/i, "")} vs. ${teamName(opponent) || "Opponent unavailable"}`;
+  };
+  const playerMatchups = [
+    ...new Map(
+      markets
+        .filter((m) => m.kind === "player_points" && !m.boost_pct)
+        .map((m) => [matchupId(m), matchupLabel(m)] as const),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }));
   const availableSelections = markets.filter(
     (m) => !m.boost_pct && !legs.some((l) => l.id === m.id),
   );
   const categorySelections = availableSelections
-    .filter((m) => m.kind === selectionCategory)
-    .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+    .filter(
+      (m) =>
+        m.kind === selectionCategory &&
+        (selectionCategory !== "player_points" ||
+          matchupId(m) === selectionMatchup),
+    )
+    .sort((a, b) =>
+      selectionLabel(a).localeCompare(selectionLabel(b), undefined, {
+        numeric: true,
+      }),
+    );
   const reload = useCallback(async () => {
     if (reviewMode || !supabase) return;
     const [o, e, u] = await Promise.all([
@@ -246,6 +294,7 @@ export function PromoAdmin({
     }
   }
   function newDraft() {
+    setSelectionMatchup("");
     setSelected("");
     setSelectionCategory("");
     setEdit(null);
@@ -258,6 +307,7 @@ export function PromoAdmin({
     setNotice("");
   }
   function editDraft(o: PromoOffer) {
+    setSelectionMatchup("");
     setSelected("");
     setSelectionCategory("");
     setEdit(o);
@@ -311,6 +361,7 @@ export function PromoAdmin({
                   setLegs([]);
                   setSelected("");
                   setSelectionCategory("");
+                  setSelectionMatchup("");
                 }}
               />
             </label>
@@ -523,6 +574,7 @@ export function PromoAdmin({
                       onChange={(e) => {
                         setSelectionCategory(e.target.value);
                         setSelected("");
+                        setSelectionMatchup("");
                       }}
                     >
                       <option value="">Choose category</option>
@@ -537,28 +589,55 @@ export function PromoAdmin({
                       ))}
                     </select>
                   </label>
-                  {selectionCategory && (
+                  {selectionCategory === "player_points" && (
                     <label className="promo-selection-picker">
-                      Add an existing selection
+                      Player Points matchup
                       <select
-                        aria-label="Add an existing selection"
-                        value={selected}
-                        onChange={(e) => setSelected(e.target.value)}
-                        disabled={!categorySelections.length}
+                        aria-label="Player Points matchup"
+                        value={selectionMatchup}
+                        onChange={(e) => {
+                          setSelectionMatchup(e.target.value);
+                          setSelected("");
+                        }}
+                        disabled={!playerMatchups.length}
                       >
                         <option value="">
-                          {categorySelections.length
-                            ? "Choose selection"
-                            : "No available selections in this category"}
+                          {playerMatchups.length
+                            ? "Choose matchup"
+                            : "No Player Points matchups available"}
                         </option>
-                        {categorySelections.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.label}
+                        {playerMatchups.map(([id, label]) => (
+                          <option key={id} value={id}>
+                            {label}
                           </option>
                         ))}
                       </select>
                     </label>
                   )}
+                  {selectionCategory &&
+                    (selectionCategory !== "player_points" ||
+                      selectionMatchup) && (
+                      <label className="promo-selection-picker">
+                        Add an existing selection
+                        <select
+                          aria-label="Add an existing selection"
+                          value={selected}
+                          onChange={(e) => setSelected(e.target.value)}
+                          disabled={!categorySelections.length}
+                        >
+                          <option value="">
+                            {categorySelections.length
+                              ? "Choose selection"
+                              : "No available selections in this category"}
+                          </option>
+                          {categorySelections.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {selectionLabel(m)} ({formatOdds(m.odds)})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                   <button
                     className="secondary"
                     disabled={
@@ -573,7 +652,7 @@ export function PromoAdmin({
                           ...legs,
                           {
                             id: m.id,
-                            label: m.label,
+                            label: selectionLabel(m),
                             line: m.line,
                             odds: m.odds,
                           },
