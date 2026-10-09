@@ -4,6 +4,7 @@ import { errorMessage } from "../lib/accounts";
 import { emailLabels, renderEmail, sampleEmail } from "../lib/emailTemplates";
 import type { EmailKind } from "../lib/emailTemplates";
 import "./Sportsbook.css";
+import { LineRefreshStatus } from "./LineRefreshStatus";
 interface Settings {
   publication_paused: boolean;
   opening_email: boolean;
@@ -394,6 +395,9 @@ export function WeeklySchedule({
     );
   return (
     <section className="weekly-schedule">
+      {!exceptionsOnly && (
+        <LineRefreshStatus leagueId={leagueId} review={reviewMode} admin />
+      )}
       {exceptionsOnly && (
         <>
           <button disabled={busy || !ready} onClick={() => void review()}>

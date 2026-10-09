@@ -5,6 +5,7 @@ import { POST as execution } from "./weekly-execution.js";
 import { deliverEmails, queueEmail } from "./_lib/mail.js";
 import { renderEmail } from "./_lib/email-templates.js";
 import { randomUUID } from "node:crypto";
+import { fetchGameStatus } from "./_lib/game-status.js";
 export const maxDuration = 60;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -48,12 +49,18 @@ export function boardWindow(now: Date, opening: string, cutoff: string) {
     closes: easternTime(day(2), cutoff.slice(0, 5)),
   };
 }
-export function retainPublishedBoard(status: string | undefined, operation: string) {
+export function retainPublishedBoard(
+  status: string | undefined,
+  operation: string,
+) {
   return status === "published" && !operation.startsWith("refresh_");
 }
-export function publicationRefreshComplete(jobs: { operation: string; status: string }[]) {
+export function publicationRefreshComplete(
+  jobs: { operation: string; status: string }[],
+) {
   return ["refresh_matchups", "refresh_players", "refresh_specials"].every(
-    (operation) => jobs.some((job) => job.operation === operation && job.status === "done"),
+    (operation) =>
+      jobs.some((job) => job.operation === operation && job.status === "done"),
   );
 }
 export async function POST(request: Request) {
@@ -97,6 +104,23 @@ export async function POST(request: Request) {
         schedules: ready.data,
       });
     }
+    // Cadence detection never waits for the next two-hour pricing interval.
+    // A source outage suspends refresh/acceptance, but must not starve settlement.
+    let statusError: string | null = null;
+    try {
+      const observed = await fetchGameStatus();
+      const saved = await db.rpc("observe_line_refresh", {
+        p_status: observed,
+      });
+      if (saved.error) statusError = saved.error.message;
+    } catch (error) {
+      statusError =
+        error instanceof Error ? error.message : "NFL status unavailable.";
+      await db.rpc("observe_line_refresh", {
+        p_status: {},
+        p_error: statusError,
+      });
+    }
     const claimed = await db.rpc("claim_automation_job");
     if (claimed.error) throw new Error(claimed.error.message);
     job = claimed.data?.[0];
@@ -129,7 +153,104 @@ export async function POST(request: Request) {
           });
       };
       let summary: unknown = {};
-      if (["settlement", "recheck", "replenishment"].includes(job.operation)) {
+      if (job.operation.startsWith("interval_")) {
+        const category = (
+          {
+            interval_matchups: "Matchups",
+            interval_players: "Player Points",
+            interval_specials: "Weekly Specials",
+            interval_futures: "Season Futures",
+          } as Record<string, string>
+        )[job.operation];
+        if (!category) throw new Error("Unknown interval market family.");
+        const runtime = (
+          await read(
+            db
+              .from("line_refresh_runtime")
+              .select("*")
+              .eq("league_id", job.league_id),
+          )
+        )[0];
+        const cycle = (
+          await read(
+            db
+              .from("line_refresh_cycles")
+              .select("*")
+              .eq("id", job.refresh_cycle_id),
+          )
+        )[0];
+        let quotes: any[] = [];
+        const boardId =
+          category === "Season Futures"
+            ? cycle.future_board
+            : cycle.weekly_board;
+        const target = boardId
+          ? (
+              await read(
+                db.from("sportsbook_boards").select("*").eq("id", boardId),
+              )
+            )[0]
+          : null;
+        if (!runtime) throw new Error("Refresh status unavailable.");
+        if (
+          cycle.status === "staging" &&
+          !runtime.week_started &&
+          !runtime.last_error &&
+          target?.status === "published" &&
+          Date.parse(target.closes_at) > Date.now() &&
+          !schedule.publication_paused
+        ) {
+          const response = await generate(
+            internal("generate-markets", {
+              league_id: job.league_id,
+              week: job.market_week,
+              nfl_season: league.nfl_season,
+              category,
+              source_cycle_id: job.refresh_cycle_id,
+            }),
+          );
+          const result: any = await response.json();
+          if (!response.ok) throw new Error(result.error);
+          if (!result.quotes?.length)
+            throw new Error(`${category} returned no complete pricing inputs.`);
+          const prior = await read(
+            db.from("sportsbook_markets").select("*").eq("board_id", boardId),
+          );
+          quotes = result.quotes.map((q: any) => {
+            const old = prior.find(
+              (p: any) => p.market_key === q.market_key && p.side === q.side,
+            );
+            const featured = prior.find(
+              (p: any) =>
+                p.matchup_key === q.matchup_key && p.featured && p.active,
+            )?.featured;
+            if (category === "Matchups" && featured) {
+              q.featured = featured;
+              q.boost_pct =
+                (featured === "Game of the Week" && q.kind === "moneyline") ||
+                (featured === "Tank Bowl" &&
+                  (q.kind === "moneyline" ||
+                    (q.kind === "match_total" && q.side === "over")))
+                  ? 25
+                  : 0;
+            }
+            // Count-over-projection and season win benchmarks keep their
+            // original contract. Refreshing prices never changes that target.
+            if (old?.metadata.projection_targets)
+              q.metadata.projection_targets = old.metadata.projection_targets;
+            return { ...q, id: old?.id ?? q.id };
+          });
+        }
+        const staged = await db.rpc("stage_line_refresh", {
+          p_job: job.id,
+          p_attempt: job.attempts,
+          p_quotes: quotes,
+        });
+        if (staged.error) throw new Error(staged.error.message);
+        summary = staged.data;
+      } else if (
+        ["settlement", "recheck", "replenishment"].includes(job.operation)
+      ) {
         const r = await execution(
           internal("weekly-execution", {
             league_id: job.league_id,
@@ -202,7 +323,10 @@ export async function POST(request: Request) {
               },
             });
         }
-      } else if (job.operation === "generate_futures") {
+      } else if (
+        job.operation === "generate_futures" ||
+        job.operation === "refresh_futures"
+      ) {
         const board = (
           await read(
             db
@@ -260,6 +384,17 @@ export async function POST(request: Request) {
         job.operation.startsWith("generate_") ||
         job.operation.startsWith("refresh_")
       ) {
+        if (
+          ![
+            "generate_matchups",
+            "generate_players",
+            "generate_specials",
+            "refresh_matchups",
+            "refresh_players",
+            "refresh_specials",
+          ].includes(job.operation)
+        )
+          throw new Error("Unknown scheduled market operation.");
         const category = job.operation.endsWith("matchups")
           ? "Matchups"
           : job.operation.endsWith("players")
@@ -267,7 +402,7 @@ export async function POST(request: Request) {
             : "Weekly Specials";
         // Refresh standings used by featured selections and opening-email records.
         const rostersResponse = await fetch(
-          "https://api.sleeper.com/v1/league/1312126153980391424/rosters",
+          `https://api.sleeper.com/v1/league/${league.sleeper_league_id}/rosters`,
           { signal: AbortSignal.timeout(8000) },
         );
         if (!rostersResponse.ok)
@@ -395,11 +530,17 @@ export async function POST(request: Request) {
           accepted_tickets_preserved: true,
         };
         if (job.operation === "refresh_specials") {
-          const reasons = [...new Set<string>(generated
-            .filter((q: any) => q.metadata?.lineup_locked)
-            .map((q: any) => String(q.metadata.lock_reason)))];
+          const reasons = [
+            ...new Set<string>(
+              generated
+                .filter((q: any) => q.metadata?.lineup_locked)
+                .map((q: any) => String(q.metadata.lock_reason)),
+            ),
+          ];
           if (reasons.length) {
-            for (const admin of recipients.filter((m: any) => m.role === "admin")) {
+            for (const admin of recipients.filter(
+              (m: any) => m.role === "admin",
+            )) {
               const content = {
                 subject: `Incomplete Projected Lineups · Week ${job.market_week}`,
                 heading: "The Morning Refresh Needs Your Review",
@@ -409,7 +550,10 @@ export async function POST(request: Request) {
                   ...reasons,
                   "Affected selections remain locked. Review the roster or projection coverage and decide how to proceed. Other markets can open normally. Existing tickets have not changed.",
                 ],
-                details: [["Week", String(job.market_week)]] as [string, string][],
+                details: [["Week", String(job.market_week)]] as [
+                  string,
+                  string,
+                ][],
                 button: "Review Lines & Markets",
                 url: "https://sportsbook.coopergurrie.com/",
               };
@@ -422,9 +566,14 @@ export async function POST(request: Request) {
                 market_week: job.market_week,
                 payload: {
                   from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
-                  to: [admin.invited_email], subject: content.subject,
+                  to: [admin.invited_email],
+                  subject: content.subject,
                   html: renderEmail(content),
-                  text: [content.subject, ...content.paragraphs, content.url].join("\n\n"),
+                  text: [
+                    content.subject,
+                    ...content.paragraphs,
+                    content.url,
+                  ].join("\n\n"),
                 },
               });
             }
@@ -558,11 +707,14 @@ export async function POST(request: Request) {
           completed_at: new Date().toISOString(),
           last_error: null,
         })
-        .eq("id", job.id);
+        .eq("id", job.id)
+        .eq("attempts", job.attempts)
+        .eq("status", "running");
       if (save.error) throw new Error(save.error.message);
     }
     return json({
       job: job?.operation ?? null,
+      status_source_error: statusError,
       ...(job && /^(generate|refresh)_/.test(job.operation)
         ? { delivery_deferred: true }
         : await deliverEmails(db)),
@@ -578,8 +730,10 @@ export async function POST(request: Request) {
             last_error: error,
             lease_until: new Date(Date.now() + 300000).toISOString(),
           })
-          .eq("id", job.id);
-      if (job) {
+          .eq("id", job.id)
+          .eq("attempts", job.attempts)
+          .eq("status", "running");
+      if (job && !job.operation.startsWith("interval_")) {
         const admins = await read(
           db
             .from("league_memberships")

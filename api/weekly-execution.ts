@@ -107,11 +107,19 @@ export async function POST(request: Request) {
       if (!r.ok) throw new Error(`Sleeper results returned ${r.status}.`);
       return r.json();
     };
+    const configuration = await client
+      .from("leagues")
+      .select("sleeper_league_id")
+      .eq("id", input.league_id)
+      .single();
+    if (configuration.error || !configuration.data?.sleeper_league_id)
+      throw new Error("League Sleeper configuration is unavailable.");
+    const sleeperLeagueId = configuration.data.sleeper_league_id;
     const state = (await get("v1/state/nfl")) as {
       season: string;
       week: number;
     };
-    const league = (await get("v1/league/1312126153980391424")) as {
+    const league = (await get(`v1/league/${sleeperLeagueId}`)) as {
       scoring_settings: Record<string, number>;
       season: string;
       settings: {
@@ -166,7 +174,7 @@ export async function POST(request: Request) {
       const results: FinalResults = { final, teams: {}, players: {} };
       if (final) {
         const matchups = (await get(
-          `v1/league/1312126153980391424/matchups/${marketWeek}`,
+          `v1/league/${sleeperLeagueId}/matchups/${marketWeek}`,
         )) as { roster_id: number; points: number }[];
         for (const team of teams) {
           const result = matchups.find((m) => m.roster_id === team.roster_id);
@@ -283,7 +291,7 @@ export async function POST(request: Request) {
       // Reconstruct only the regular season so later playoff scores cannot alter draft order.
       const weeks = (await Promise.all(
         Array.from({ length: league.settings.playoff_week_start - 1 }, (_, i) =>
-          get(`v1/league/1312126153980391424/matchups/${i + 1}`),
+          get(`v1/league/${sleeperLeagueId}/matchups/${i + 1}`),
         ),
       )) as { roster_id: number; matchup_id: number; points: number }[][];
       const totals = teams.map((t) => ({
@@ -324,7 +332,7 @@ export async function POST(request: Request) {
           regularSeasonResults(totals, league.settings.playoff_teams),
         );
       const bracket = (await get(
-        "v1/league/1312126153980391424/winners_bracket",
+        `v1/league/${sleeperLeagueId}/winners_bracket`,
       )) as { p?: number; w?: number }[];
       const winner = bracket.find((g) => g.p === 1)?.w;
       seasonResults.champion = Number.isInteger(winner) ? winner! : null;

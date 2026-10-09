@@ -59,7 +59,23 @@ export async function POST(request: Request) {
     p_stake: Number(body.stake),
     p_request: body.request_id,
   });
-  if (error) return json({ error: error.message }, 400);
+  if (error) {
+    if (error.message.includes("Lines have changed")) {
+      const latest = await userClient.rpc("sportsbook_quote_snapshot", {
+        p_board: body.board_id,
+      });
+      return json(
+        {
+          error:
+            "Lines have changed. Review and explicitly approve the new prices.",
+          code: "QUOTE_CHANGED",
+          quote: latest.data,
+        },
+        409,
+      );
+    }
+    return json({ error: error.message }, 400);
+  }
   const result = data as {
     ticket_id?: string;
     balance?: number;

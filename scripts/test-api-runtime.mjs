@@ -16,6 +16,7 @@ try {
     "_lib/futures-settlement",
     "_lib/settlement",
     "_lib/worker-auth",
+    "_lib/game-status",
     "_lib/email-templates",
     "_lib/mail",
     "weekly-worker",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountData, Membership, Team } from "../lib/accounts";
 import { errorMessage, money } from "../lib/accounts";
 import type { Board, Market } from "../lib/markets";
@@ -16,12 +16,15 @@ import {
   canPlacePicks,
   loadFuturesBoard,
   isFuture,
+  boardAvailable,
+  quoteUnavailable,
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
 import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
+import { LineRefreshStatus } from "./LineRefreshStatus";
 
 export interface Standing {
   team_id: string;
@@ -78,6 +81,7 @@ export function Sportsbook({
     [stake, setStake] = useState("0"),
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
+  const [pickRevision, setPickRevision] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null),
     banner = useRef<HTMLButtonElement>(null),
     request = useRef({ key: "", id: "" });
@@ -123,17 +127,26 @@ export function Sportsbook({
     m.home_team_id && m.away_team_id
       ? `${team(m.home_team_id)?.team_name} vs. ${team(m.away_team_id)?.team_name}${m.featured ? " • " + m.featured : ""}`
       : m.subject;
-  const accepting =
-    !!board &&
-    board.status === "published" &&
-    clock >= Date.parse(board.opens_at) &&
-    clock < Date.parse(board.closes_at);
-  const futureAccepting =
-    !!futureBoard &&
-    futureBoard.status === "published" &&
-    clock >= Date.parse(futureBoard.opens_at) &&
-    clock < Date.parse(futureBoard.closes_at);
+  const accepting = boardAvailable(board, clock);
+  const futureAccepting = boardAvailable(futureBoard, clock);
   const selectedBoard = picks.some(isFuture) ? futureBoard : board;
+  const currentQuotes = picks.some(isFuture) ? futureMarkets : markets;
+  const changedPicks =
+    picks.length > 0 && pickRevision !== selectedBoard?.revision;
+  const unavailablePicks = picks.some(
+    (p) => !currentQuotes.some((m) => m.id === p.id && !quoteUnavailable(m)),
+  );
+  const reloadQuotes = useCallback(async () => {
+    const [r, f] = await Promise.all([
+      loadMarketBoard(member.league_id),
+      loadFuturesBoard(member.league_id),
+    ]);
+    setBoard(r.board);
+    setMarkets(r.markets);
+    setWeek(r.week);
+    setFutureBoard(f.board);
+    setFutureMarkets(f.markets);
+  }, [member.league_id]);
   useEffect(() => {
     if (review) return;
     let active = true;
@@ -168,11 +181,22 @@ export function Sportsbook({
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
+    if (review) return;
+    let active = true;
+    const timer = setInterval(() => {
+      if (active) void reloadQuotes().catch((e) => setNotice(errorMessage(e)));
+    }, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [reloadQuotes, review]);
+  useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
     else if (!open && dialog.current?.open) dialog.current.close();
   }, [open]);
   function toggle(m: Market) {
-    if (busy || m.metadata.lineup_locked) return;
+    if (busy || quoteUnavailable(m)) return;
     setNotice("");
     if (picks.some((p) => p.id === m.id)) {
       setPicks(picks.filter((p) => p.id !== m.id));
@@ -183,10 +207,13 @@ export function Sportsbook({
       setNotice(conflict);
       return;
     }
+    if (!picks.length)
+      setPickRevision((isFuture(m) ? futureBoard : board)?.revision ?? null);
     setPicks([...picks, m]);
   }
   async function submit() {
-    if (!selectedBoard || !valid || busy) return;
+    if (!selectedBoard || !valid || busy || changedPicks || unavailablePicks)
+      return;
     if (review) {
       setNotice("This is a local review. No bet was placed or email sent.");
       return;
@@ -203,7 +230,7 @@ export function Sportsbook({
       request.current = { key, id: crypto.randomUUID() };
     try {
       const result = await placeTicket(
-        selectedBoard,
+        { ...selectedBoard, revision: pickRevision ?? selectedBoard.revision },
         picks,
         wager,
         request.current.id,
@@ -219,6 +246,7 @@ export function Sportsbook({
       await refresh();
     } catch (e) {
       setNotice(errorMessage(e));
+      await reloadQuotes().catch(() => {});
     } finally {
       setBusy(false);
     }
@@ -230,9 +258,7 @@ export function Sportsbook({
       <button
         type="button"
         className={`market-quote${selected ? " selected" : ""}${m.boost_pct ? " boosted" : ""}`}
-        title={
-          m.metadata.lineup_locked ? String(m.metadata.lock_reason) : undefined
-        }
+        title={quoteUnavailable(m) || undefined}
         aria-label={
           m.metadata.lineup_locked
             ? `${m.label}: Locked — incomplete projected lineup`
@@ -242,13 +268,13 @@ export function Sportsbook({
         }
         aria-pressed={selected}
         disabled={
-          Boolean(m.metadata.lineup_locked) ||
+          Boolean(quoteUnavailable(m)) ||
           (!(isFuture(m) ? futureAccepting : accepting) && !review) ||
           busy
         }
         onClick={() => toggle(m)}
       >
-        {m.metadata.lineup_locked ? (
+        {quoteUnavailable(m) ? (
           <>
             <svg
               className="market-lock"
@@ -261,12 +287,12 @@ export function Sportsbook({
               <rect x="5" y="10" width="14" height="11" rx="3" />
               <path d="M8 10V7a4 4 0 0 1 8 0v3" />
             </svg>
-            <span>Locked</span>
+            <span>{m.metadata.lineup_locked ? "Locked" : "Suspended"}</span>
           </>
         ) : (
           short !== "" && <strong>{short ?? m.label}</strong>
         )}
-        {!m.metadata.lineup_locked &&
+        {!quoteUnavailable(m) &&
           (m.kind === "moneyline" ||
             weeklyKinds.includes(m.kind) ||
             isFuture(m) ||
@@ -331,6 +357,16 @@ export function Sportsbook({
       )}
       {tab === "Home" && (
         <>
+          <LineRefreshStatus leagueId={member.league_id} review={!!review} />
+          {(category === "Season Futures" ? futureBoard : board)
+            ?.suspension_reason && (
+            <p className="feedback" role="status">
+              {
+                (category === "Season Futures" ? futureBoard : board)
+                  ?.suspension_reason
+              }
+            </p>
+          )}
           <div className="board-heading">
             <div>
               <h1>
@@ -348,7 +384,8 @@ export function Sportsbook({
                       : "Season Futures Closed"}
                   </strong>
                   <span>Available throughout the week unless closed.</span>
-                  <span>Make/Miss Playoffs: Parlays only</span><span>Win totals: Singles or win-total-only parlays</span>
+                  <span>Make/Miss Playoffs: Parlays only</span>
+                  <span>Win totals: Singles or win-total-only parlays</span>
                   <span>League Winner and #1 Pick: Single bets only</span>
                 </>
               ) : board ? (
@@ -1060,10 +1097,53 @@ export function Sportsbook({
             {notice}
           </p>
         )}
+        {changedPicks && (
+          <section className="quote-review" aria-label="Changed prices">
+            <strong>Lines have changed</strong>
+            <p>
+              Your picks retain the prices you selected. Review these changes
+              before placing the ticket.
+            </p>
+            {picks.map((p) => {
+              const next = currentQuotes.find((m) => m.id === p.id);
+              return (
+                <p key={p.id}>
+                  {p.label}: {formatOdds(p.odds)}
+                  {next
+                    ? ` → ${next.label} (${formatOdds(next.odds)})`
+                    : " → Unavailable"}
+                  {next && quoteUnavailable(next)
+                    ? ` · ${quoteUnavailable(next)}`
+                    : ""}
+                </p>
+              );
+            })}
+            <button
+              disabled={busy || unavailablePicks}
+              onClick={() => {
+                setPicks(
+                  picks.map((p) => currentQuotes.find((m) => m.id === p.id)!),
+                );
+                setPickRevision(selectedBoard?.revision ?? null);
+                request.current = { key: "", id: "" };
+              }}
+            >
+              Approve updated lines and prices
+            </button>
+          </section>
+        )}
+        {unavailablePicks && (
+          <p className="slip-feedback" role="status">
+            A selected market is unavailable. Remove it to continue; your other
+            picks remain in the slip.
+          </p>
+        )}
         <button
           className="place-bet"
           disabled={
             !valid ||
+            changedPicks ||
+            unavailablePicks ||
             busy ||
             (!(picks.some(isFuture) ? futureAccepting : accepting) && !review)
           }

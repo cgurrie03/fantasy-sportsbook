@@ -37,7 +37,6 @@ const specialOdds = (p: number, step = 25) => {
     Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / step) * step)
   );
 };
-const SLEEPER_LEAGUE_ID = "1312126153980391424";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
@@ -88,6 +87,7 @@ export async function POST(request: Request) {
       week?: number;
       nfl_season?: number;
       category?: string;
+      source_cycle_id?: string;
     };
     try {
       input = (await request.json()) as typeof input;
@@ -142,6 +142,54 @@ export async function POST(request: Request) {
         400,
       );
 
+    const configuration = await userClient
+      .from("leagues")
+      .select("sleeper_league_id,nfl_season")
+      .eq("id", input.league_id)
+      .single();
+    if (
+      configuration.error ||
+      !configuration.data?.sleeper_league_id ||
+      configuration.data.nfl_season !== input.nfl_season
+    )
+      return json(
+        {
+          error:
+            "This league's season or Sleeper configuration is unavailable.",
+        },
+        409,
+      );
+    const sleeperLeagueId = configuration.data.sleeper_league_id;
+    if (input.source_cycle_id) {
+      if (!worker)
+        return json({ error: "Source snapshots are worker-only." }, 403);
+      const cycle = await userClient
+        .from("line_refresh_cycles")
+        .select("league_id,market_week,status,created_at")
+        .eq("id", input.source_cycle_id)
+        .single();
+      if (
+        cycle.error ||
+        cycle.data.league_id !== input.league_id ||
+        cycle.data.market_week !== input.week ||
+        cycle.data.status !== "staging" ||
+        Date.parse(cycle.data.created_at) < Date.now() - 600000
+      )
+        return json({ error: "Refresh source cycle expired or changed." }, 409);
+    }
+    const status = await userClient
+      .from("line_refresh_runtime")
+      .select("week_started,last_error,observed_at")
+      .eq("league_id", input.league_id)
+      .maybeSingle();
+    if (status.data?.week_started || status.data?.last_error)
+      return json(
+        {
+          error:
+            "Pregame forecasts cannot price started games. Live pricing remains disabled until its inputs are verified.",
+        },
+        409,
+      );
     const category = input.category ?? "Matchups";
     if (
       ![
@@ -156,6 +204,16 @@ export async function POST(request: Request) {
         409,
       );
     const fetchData = async (path: string) => {
+      if (input.source_cycle_id) {
+        const cached = await userClient
+          .from("line_refresh_sources")
+          .select("payload")
+          .eq("cycle_id", input.source_cycle_id)
+          .eq("path", path)
+          .maybeSingle();
+        if (cached.error) throw new Error(cached.error.message);
+        if (cached.data) return cached.data.payload;
+      }
       const response = await fetch(path, {
         cache: "no-store",
         signal: AbortSignal.timeout(25000),
@@ -164,21 +222,39 @@ export async function POST(request: Request) {
         throw new Error(
           `Sleeper returned ${response.status}. No replacement estimates were generated.`,
         );
-      return response.json();
+      const payload = await response.json();
+      if (input.source_cycle_id) {
+        const saved = await userClient
+          .from("line_refresh_sources")
+          .upsert(
+            { cycle_id: input.source_cycle_id, path, payload },
+            { onConflict: "cycle_id,path", ignoreDuplicates: true },
+          );
+        if (saved.error) throw new Error(saved.error.message);
+        const canonical = await userClient
+          .from("line_refresh_sources")
+          .select("payload")
+          .eq("cycle_id", input.source_cycle_id)
+          .eq("path", path)
+          .single();
+        if (canonical.error) throw new Error(canonical.error.message);
+        return canonical.data.payload;
+      }
+      return payload;
     };
     const sleeper = (path: string) =>
       fetchData(`https://api.sleeper.app/v1/${path}`);
     const [league, rosters, matchups, projections, historical] =
       (await Promise.all([
-        sleeper(`league/${SLEEPER_LEAGUE_ID}`),
-        sleeper(`league/${SLEEPER_LEAGUE_ID}/rosters`),
-        sleeper(`league/${SLEEPER_LEAGUE_ID}/matchups/${input.week}`),
+        sleeper(`league/${sleeperLeagueId}`),
+        sleeper(`league/${sleeperLeagueId}/rosters`),
+        sleeper(`league/${sleeperLeagueId}/matchups/${input.week}`),
         fetchData(
           `https://api.sleeper.com/projections/nfl/${input.nfl_season}/${input.week}?season_type=regular`,
         ),
         Promise.all(
           Array.from({ length: input.week! - 1 }, (_, i) =>
-            sleeper(`league/${SLEEPER_LEAGUE_ID}/matchups/${i + 1}`),
+            sleeper(`league/${sleeperLeagueId}/matchups/${i + 1}`),
           ),
         ),
       ])) as [
@@ -376,12 +452,10 @@ export async function POST(request: Request) {
           Array.from(
             { length: Math.max(0, playoffStart - input.week!) },
             (_, i) =>
-              sleeper(
-                `league/${SLEEPER_LEAGUE_ID}/matchups/${input.week! + i}`,
-              ),
+              sleeper(`league/${sleeperLeagueId}/matchups/${input.week! + i}`),
           ),
         ),
-        sleeper(`league/${SLEEPER_LEAGUE_ID}/traded_picks`),
+        sleeper(`league/${sleeperLeagueId}/traded_picks`),
       ])) as [{ roster_id: number; matchup_id: number }[][], TradedPick[]];
       const schedule = remaining.map((week) =>
         [
@@ -403,7 +477,7 @@ export async function POST(request: Request) {
       );
       const bracket = playoffPhase
         ? ((await sleeper(
-            `league/${SLEEPER_LEAGUE_ID}/winners_bracket`,
+            `league/${sleeperLeagueId}/winners_bracket`,
           )) as BracketGame[])
         : null;
       const playoffChampions = bracket

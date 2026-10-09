@@ -11,6 +11,10 @@ export interface Board {
   opens_at: string;
   closes_at: string;
   board_type?: "weekly" | "future";
+  phase?: "pregame" | "live";
+  source_observed_at?: string | null;
+  quote_valid_until?: string | null;
+  suspension_reason?: string | null;
 }
 export interface Market {
   id: string;
@@ -59,6 +63,31 @@ export interface Market {
     [key: string]: unknown;
   };
   active: boolean;
+  market_state?: "open" | "suspended" | "closed" | "settled";
+  suspension_reason?: string | null;
+}
+export function quoteUnavailable(m: Market) {
+  return (
+    m.suspension_reason ||
+    (m.market_state && m.market_state !== "open"
+      ? `Market ${m.market_state}.`
+      : "") ||
+    (m.metadata.resolved ? "Outcome resolved." : "") ||
+    (m.metadata.lineup_locked
+      ? String(m.metadata.lock_reason ?? "Incomplete projected lineup.")
+      : "")
+  );
+}
+export function boardAvailable(board: Board | null, now: number) {
+  return (
+    !!board &&
+    board.status === "published" &&
+    board.phase !== "live" &&
+    !board.suspension_reason &&
+    now >= Date.parse(board.opens_at) &&
+    now < Date.parse(board.closes_at) &&
+    (!board.quote_valid_until || now < Date.parse(board.quote_valid_until))
+  );
 }
 export const marketType = {
   spread: "Spread",
@@ -303,13 +332,15 @@ export async function loadMarketBoard(leagueId: string) {
   if (boards.error) throw boards.error;
   const board = boards.data?.[0] as Board | undefined;
   if (!board) return { board: null, markets: [], week };
-  const quotes = await supabase
-    .from("sportsbook_markets")
-    .select("*")
-    .eq("board_id", board.id)
-    .eq("active", true);
-  if (quotes.error) throw quotes.error;
-  return { board, markets: quotes.data as Market[], week };
+  const snapshot = await supabase.rpc("sportsbook_quote_snapshot", {
+    p_board: board.id,
+  });
+  if (snapshot.error) throw snapshot.error;
+  return {
+    board: snapshot.data?.board as Board | null,
+    markets: (snapshot.data?.markets ?? []) as Market[],
+    week,
+  };
 }
 
 export async function loadFuturesBoard(leagueId: string) {
@@ -324,13 +355,14 @@ export async function loadFuturesBoard(leagueId: string) {
   if (response.error) throw response.error;
   const board = response.data?.[0] as Board | undefined;
   if (!board) return { board: null, markets: [] as Market[] };
-  const quotes = await supabase
-    .from("sportsbook_markets")
-    .select("*")
-    .eq("board_id", board.id)
-    .eq("active", true);
-  if (quotes.error) throw quotes.error;
-  return { board, markets: quotes.data as Market[] };
+  const snapshot = await supabase.rpc("sportsbook_quote_snapshot", {
+    p_board: board.id,
+  });
+  if (snapshot.error) throw snapshot.error;
+  return {
+    board: snapshot.data?.board as Board | null,
+    markets: (snapshot.data?.markets ?? []) as Market[],
+  };
 }
 
 export async function placeTicket(
