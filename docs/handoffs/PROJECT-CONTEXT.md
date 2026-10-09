@@ -1,18 +1,20 @@
 # Shared Project Context
 
-Snapshot: October 8, 2026. Verify current code and deployment before implementation.
+Snapshot: October 8, 2026, after live shadow logging deployment. Verify current code and deployment before implementation.
+
+**Current product status:** 15-minute active-game / 120-minute inactive scheduling, pregame revision/acceptance safeguards, actual-starter matchup status, experimental live quote logs and automatic completed-week accuracy review are deployed. Experimental prices are not published for betting; all live acceptance remains disabled. No automatic launch next week or model promotion is promised. See the authoritative status and remaining gates at the top of handoff 01.
 
 ## Project
 
 - Checkout: `C:/Users/coope/Documents/Codex/2026-10-05/i/fantasy-sportsbook`.
 - Private repository: `cgurrie03/fantasy-sportsbook`.
 - Current working branch: `stage-1-accounts`; production branch: `main`.
-- Last deployment recorded in the preceding work: `574ab7d`, Vercel Ready. Recheck rather than assuming it remains latest.
+- Last verified production release: `1eb4123` (evidence documentation), Vercel Ready; application implementation `eb79c03`. See handoff 01 for deployment URLs and unattended job evidence. Recheck current production before development.
 - Production: https://sportsbook.coopergurrie.com.
 - Stack: React 19, TypeScript, Vite, Vercel functions, Supabase/Postgres, Sleeper data, HTML email delivery.
 - Supabase project: `bmvjcdgxwxqalaohpsnw`.
 - Current league UUID: `13121261-5398-4391-8240-000000000003`; Sleeper league: `1312126153980391424`.
-- Current display context: Season 3, NFL 2026, Week 5. These values must become configuration, not new hardcoded constants.
+- Recorded display context: Season 3, NFL 2026, Week 5. API league lookups now resolve configuration. Never add new hardcoded league/week constants.
 - This is a private fantasy sportsbook using pretend league currency.
 
 ## Existing Architecture to Inspect
@@ -58,6 +60,6 @@ Use preview/test data for acceptance and delivery tests; do not place live bets 
 
 Each completed chat must update its handoff with files changed, migrations applied, tests, deployment commit/status, remaining decisions and rollback approach. Runtime odds updates are database publications; only application changes need Git/Vercel deployment.
 
-Live follow-up: migration 029 adds immutable shadow histories and automatic completed-week accuracy reviews. The existing worker collects live experimental matchup forecasts; acceptance stays disabled pending freshness/model validation. Admin history and five-second green/red line movement indicators are implemented. See handoff 01 for scope, checks and remaining gates. Deployment/job evidence will be recorded with the verified release.
+Live follow-up: migration 029 adds immutable shadow histories and automatic completed-week accuracy reviews. The existing worker collects live experimental matchup forecasts; acceptance stays disabled pending freshness/model validation. Admin history and five-second green/red line movement indicators are implemented. See handoff 01 for scope, checks and remaining gates. Deployment/job evidence is recorded in handoff 01; all four 10:46–10:49 PM Eastern interval jobs completed unattended.
 
 Live logging production evidence: eb79c03 Vercel Ready at 10:39 PM Eastern. Unattended 10:46 PM cycle saved five experimental matchup forecasts at 10:47 PM. Weekly board closed; live freshness unverified and acceptance disabled. Immutable histories and automatic completed-week reviews are installed. See handoff 01.

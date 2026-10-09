@@ -2,6 +2,70 @@
 
 Read [shared context](PROJECT-CONTEXT.md) first.
 
+## Current handoff — October 8, 2026, after live logging deployment
+
+**Authoritative current status: scheduled refresh infrastructure, starter activity UI, experimental live pricing/logging and automatic weekly assessment are deployed. Live quote publication and live ticket acceptance are NOT enabled.** The detailed implementation history and original target specification below must not be mistaken for completed live betting.
+
+The user understands and accepts this staging: capability exists for collection, experimental estimates and evaluation; prices stay unavailable for betting until accuracy, source freshness and acceptance safeguards pass validation. There is no promised launch next week, automatic confidence threshold, automatic model promotion or automatic family enablement. One completed week may be insufficient. No paid NFL subscription is requested. Continue investigating the free sources without buying services.
+
+### Deployed and functional
+
+| Capability | Current production behavior |
+| --- | --- |
+| Scheduler | Existing Supabase Cron/pg_net heartbeat invokes the protected worker every minute. Cadence is 15 minutes when ANY NFL game is actually in progress, 120 minutes otherwise. Queue jobs run one family per worker invocation; the first kickoff is detected independently of that timer. |
+| Pregame refresh | Revisioned atomic publication of eligible published boards is implemented and regression tested. Closed/draft/paused boards stay closed. Actual unattended pregame publication still awaits verification in a safe pregame window. |
+| In-game refresh | After the week has started, the matchup job collects and archives shadow forecasts at each eligible cycle, including inactive gaps at the 120-minute cadence. The quote-publication cycle suspends live markets. It does not publish the experimental prices. |
+| Live inputs/model | Actual Sleeper weekly starters/points, scoring settings, prior projections, historical scores and ESPN clocks are captured. live-clock-shadow-v1 estimates final points as observed plus remaining output; finished players have zero remaining output. Invalid inputs suspend affected teams/matchups with logged reasons. Model assumptions are experimental. |
+| Logs | Append-only live_forecast_runs includes source inputs/hash, observed/capture times, frozen model configuration, per-team forecasts/reasons and matchup shadow prices. Published forecast_snapshots and live_model_reviews are also immutable. Admin reads are RLS protected; insert RPCs require the current service-worker lease. |
+| Accuracy review | model_review jobs are scheduled after the week advances, with explicit previous-week final-game confirmation (including week-18 postseason handling). Reports append on corrected outcome/forecast hashes and never rewrite an earlier assessment. Daily correction checks run during the following week. No actual completed-week live report has been observed yet. |
+| Review methodology | Latest valid team/matchup forecast per league-game progress quartile; MAE, RMSE, bias, 80% interval coverage, Brier/log loss, margin/total errors. Changed final lineups are excluded; ties/exclusions are recorded. Repeated snapshots/horizons are not treated as independent evidence. No futures accuracy is inferred. |
+| UI | Red In progress sits at the top-left BELOW Game of the Week/Tank Bowl banners when an actual starting player's NFL game is active. No player names/counts. Admin Weekly Schedule displays recent shadow revisions, unavailable prices and eventual accuracy results. |
+| Movement indicator | A numeric live line increase displays a small green upward caret; decrease displays a red downward caret relative to the previous visible value. Only the caret disappears after five seconds; the updated amount stays. Initial load/unchanged values/week changes do not animate. This behavior is deployed and preview verified; members currently have no enabled live prices to animate. |
+| Ticket safeguards | Server-authoritative revision/freshness/state checks, explicit approval of changed prices, immutable accepted terms, request idempotency and wallet locking are implemented. Live acceptance remains blocked independently of UI state. |
+| Preserved behavior | Existing Tuesday rollover/replenishment, Thursday pregame close/promo expiry, admin pause and settlement/email priorities. Interval refreshes do not resend opening emails. League configuration replaces hardcoded API league lookups. Runtime updates write to the database, without repeated Git pushes. |
+
+### Deployment and actual unattended evidence
+
+- Production: https://sportsbook.coopergurrie.com; Supabase project bmvjcdgxwxqalaohpsnw.
+- Application commit eb79c03568b51b6742caa4175b036dad155ddfb9: Vercel Ready/Production at October 8, 10:39:44 PM Eastern. Deployment https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/CFKrvST8hQKisYGERdQC5TjkfkXK.
+- Last verified repository release 1eb4123af4fc6caca87d9f0b6f8953b0b9edfa09 contains the evidence handoff only; also Vercel Ready, https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/5MaCuqREtTP8QchvgpBB88UdKebR. This handoff revision is documentation only. Verify current production on the next development chat; these are recorded observations, not a new health check.
+- Migrations 202610090027_revisioned_refresh.sql, 202610090028_refresh_cache_retention.sql and 202610090029_live_shadow_history.sql were applied successfully to production. Do not reapply or renumber them. New changes need a new migration.
+- Cron created the unattended cycle at October 8, 10:46:00 PM Eastern (October 9, 02:46 UTC). Futures completed 10:46 PM, matchups 10:47 PM, players 10:48 PM and specials 10:49 PM. All four jobs completed; the cycle finished suspended as intended. No manual worker invocation.
+- Matchup snapshot 9638b47d-dff9-4c5a-94b4-af3472386941 captured five shadow matchup prices and twelve roster input records at 10:47:01 PM Eastern. Weekly board remained closed and live_freshness_verified remained false. This proves unattended collection/logging and safe suspension, not live acceptance or model accuracy.
+- Week 5 was ongoing at verification. Automatic end-of-week report execution and actual accuracy remain pending final results. No live bets, purchases or bulk test emails were made.
+
+### Tests completed and their limits
+
+- test:refresh: kickoff/overlap/gap/halftime/overtime/final/delay/unknown/DST scheduling, deduplication/coalescing, staged atomic revisions, pause/closure preservation, quote expiry/source failure, explicit changed-price approval/race orderings, resolved-outcome rejection, ticket immutability/idempotent debit, lease fencing, roles and settlement with original accepted odds.
+- test:live: remaining-points boundaries/negative scoring/final players, actual-starter locks, missing/mismatched inputs and overtime suspension, final-week gating, latest-per-horizon deduplication and independently checked error metrics, corrected append-only assessments, RLS restrictions, idempotency and lost-lease rejection.
+- test:starters and production-like compiled test:api passed. Existing weekly, futures, reporting, line-model, account and import regressions passed during this work. Futures specifically checked immutable accepted odds/snapshots, refreshes, refunds, settlement and cash-floor rules.
+- TypeScript/production build passed. Lint passed with advisory warnings; no clean-zero-warning claim. CI includes refresh/live/starter and existing regression checks.
+- Desktop and measured 390×844 mobile previews passed without page overflow. Both caret directions and removal after five seconds were observed while the updated number remained. Review fixtures disable bets and emails.
+- PGlite races use sequential transactions in both orderings; simultaneous multi-connection hosted Postgres contention is NOT proven. Feed latency is NOT established by successful HTTP requests or a recent scoring record timestamp. Weekly assessment and unpaused pregame publication are installed/tested paths, not yet observed end-to-end in production.
+
+### Remaining work before enabling any live market
+
+1. Recheck production, heartbeat/queue health, stored shadow inputs and suspension reasons. Investigate scoring disagreements against league rules; do not fill missing observations with invented zeroes or substitute full pregame projections as remaining points.
+2. Observe the completed-week model_review job, confirm final outcome coverage/corrections and independently validate reported metrics. Keep enough independent completed-week evidence to evaluate accuracy and probability calibration; define evidence-based launch criteria. There is no agreed numeric accuracy threshold or launch date.
+3. Measure actual scoring/status lag and outage detection, distinguish unchanged stats from a stale feed, and choose an acceptance freshness budget. ESPN scoreboard and Sleeper stats/projection endpoints are best-effort/partly undocumented; there is no verified live SLA. Provider fetch times and per-record updated_at are not feed heartbeat evidence. Revisit a provider/product decision only if free sources cannot meet measured requirements.
+4. Validate remaining opportunity, uncertainty and shared-game correlations; handle overtime, injury/participation changes and legal lineup changes before kickoff. The current clock-rate prior (30 minutes), standard-deviation floor and normal independent uncertainty are uncalibrated. Actual starter snapshots protect started players but do not prove snap participation.
+5. Implement and test live pricing by market family. Current shadow quotes cover matchup spread/total/fair moneyline estimates only. Live team totals, player props, weekly specials and futures/provisional standings are not completed; known/impossible outcomes need family-specific checks.
+6. Deliberately implement the live board lifecycle after Thursday close without reviving a paused board or extending pregame promos. Wire validated atomic live publication and fresh server-authoritative acceptance, then exercise changed-price approval, simultaneous acceptance/publication races, retries, source outages and settlement in production-like tests. The current worker/stage/acceptance paths hard-block week_started; changing a family flag alone does NOT launch live betting.
+7. Enable each family individually only after those checks pass. No automatic enable job exists. Preserve accepted tickets, opening-email idempotency and higher-priority settlement/replenishment/email jobs.
+
+### Where the next chat should work
+
+Read PROJECT-CONTEXT.md, this current handoff, and (if present) 02-model-evaluation-and-calibration.md. Start with api/_lib/live-model.ts, live-pipeline.ts and live-review.ts; api/weekly-worker.ts; migrations 027–029; scripts/test-live-model.mjs and test-refresh.mjs. Frontend: LineMovement.tsx, LiveModelLog.tsx, Sportsbook.tsx/.css, active-starters helper/endpoint/hook and WeeklySchedule.tsx. Runtime import checks are in scripts/test-api-runtime.mjs; preview fixtures in scripts/render-refresh-review.mjs; commands in package.json and CI in .github/workflows/checks.yml.
+
+Use installed Supabase Postgres Best Practices before database work; React/frontend skills for UI; Statistical Analysis/Validate Data for accuracy claims. Never print secrets. Preserve unrelated dirty docs/promos-boosts-handoff.md and untracked data/, delivery-recovery notes and other handoff files. Stage only task changes. Normal application deployment uses main/Vercel; no CLI-only assumption and no new scheduler service required.
+
+Rollback the collector/UI application change if necessary while retaining immutable tables/logs and all ticket safeguards. Do not delete history or disable the existing settlement scheduler. Raw working source caches expire via migration 028; long-term shadow archive retention/storage growth still needs a deliberate policy compatible with append-only history.
+
+## Earlier implementation history and original target specification
+
+The sections below retain context. Prospective requirements are not additional claims of deployed functionality; the current status above takes precedence.
+
+
 ## Implementation update — October 8, 2026
 
 Status: refresh infrastructure and fail-closed live phase implemented. Migrations `202610090027_revisioned_refresh.sql` and `202610090028_refresh_cache_retention.sql` applied successfully to production through the Supabase SQL editor. Application releases `b1e068b` and `5dcce00` were verified Vercel Ready; the final cache-retention/documentation release follows through the same main-branch flow. Live acceptance is deliberately disabled for every family; this is not a completed live pricing launch.
@@ -63,7 +127,7 @@ Do not treat a delayed kickoff, halftime, overtime, weather suspension, postpone
 
 `docs/scheduler-bootstrap.sql` defines a once-per-minute protected worker dispatcher. `api/weekly-worker.ts` claims one job and runs it within a 60-second function limit. Generation/refresh operations and weekly settlement already exist. Reuse this pipeline after verifying actual Cron runs, worker authentication, and queue health.
 
-The worker currently fetches roster standings from a hardcoded Sleeper league at `api/weekly-worker.ts:270`. Resolve the requested job's league configuration instead. Do not replicate this constant in new jobs. Existing generation operations can retain published boards; intraday refresh operations must explicitly publish valid revisions without reopening a manually paused/closed board.
+Original gap, now fixed: worker/generator/settlement resolve the requested job's league configuration instead of a hardcoded Sleeper league. Do not reintroduce this constant in new jobs. Existing generation operations can retain published boards; intraday refresh operations must explicitly publish valid revisions without reopening a manually paused/closed board.
 
 The current projection model is pregame. It is **not** a live remaining-points model. Source full live inputs before offering live prices.
 
