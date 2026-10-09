@@ -637,9 +637,15 @@ export function assessWeek(
       published_snapshots: published.length,
       locked_forecasts: markets.filter((m) => m.locked).length,
       missing_starter_forecasts: excluded.filter((e) => !e.kind).length,
-      unknown_source_freshness: Object.values(
-        runs.flatMap((r) => Object.values(r.sources ?? {})),
-      ).filter((s: any) => !s.source_observed_at).length,
+      unknown_source_freshness: runs.reduce(
+        (n, r) =>
+          n +
+          (r.payload.source_quality?.unknown_observation_times ??
+            Object.values(r.sources ?? {}).filter(
+              (s: any) => !s.source_observed_at,
+            ).length),
+        0,
+      ),
       missing_families: [
         "Matchups",
         "Player Points",

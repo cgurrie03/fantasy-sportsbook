@@ -1,6 +1,6 @@
 # Model Assessment and Controlled Improvement
 
-Read [shared context](PROJECT-CONTEXT.md). Recommended additional skill: Statistical Analysis. Status: specifications, not automatic training enabled.
+Read [shared context](PROJECT-CONTEXT.md). Recommended additional skill: Statistical Analysis. Status: assessment and gated configuration implemented and deployed; initial baseline retained.
 
 ## Goal
 
@@ -65,4 +65,4 @@ Preflight production evidence: 47 tickets; 3 forecast snapshots (one published f
 
 Verified locally: assessment fixtures and append-only correction/rollback/idempotency tests; live, lines, weekly, futures, reporting, refresh, starters, isolation suites; compiled application/function build. Preview screenshots use 1440 and 390 pixel viewports and show no document overflow at 390. Existing advisory lint/main-bundle warnings remain. Hosted concurrency, capacity/outage behavior and actual production candidate power remain unproven.
 
-Deployment receipt and final verification are recorded below after release. Rollback: restore the prior application retaining additive schema and N+ settlement; configuration rollback restores the parent/baseline and pauses improvement. No live bets or bulk test emails are part of verification.
+Initial release `c1384e0` is Vercel Ready/Production at https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/HtX15LBtqyXEjbwPSTuyfQ8an3rs. Production postflight: all 47 tickets preserved, score/variance scales both 1, baseline active, no model events/reviews; six archive/control tables have RLS and direct admin writes/promotions are denied. Final archive-read optimization retrieves only replay payloads from the latest 52 completed league weeks while preserving full source archives. Rollback: restore the prior application retaining additive schema and N+ settlement; configuration rollback restores the parent/baseline and pauses improvement. No live bets or bulk test emails are part of verification.

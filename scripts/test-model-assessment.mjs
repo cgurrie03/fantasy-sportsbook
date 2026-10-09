@@ -331,6 +331,9 @@ const mockDb = {
       neq() {
         return b;
       },
+      in() {
+        return b;
+      },
       order() {
         return b;
       },

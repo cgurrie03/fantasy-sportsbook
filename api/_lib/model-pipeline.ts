@@ -19,11 +19,19 @@ async function source(url: string) {
   return (await r.json()) as any;
 }
 const sleeper = (path: string) => source(`https://api.sleeper.app/v1/${path}`);
-async function all(db: any, table: string, league: string, season?: number) {
+async function all(
+  db: any,
+  table: string,
+  league: string,
+  season?: number,
+  columns = "*",
+  category?: string,
+) {
   const rows: any[] = [];
   for (let offset = 0; offset < 30000; offset += 500) {
-    let query = db.from(table).select("*").eq("league_id", league);
+    let query = db.from(table).select(columns).eq("league_id", league);
     if (season !== undefined) query = query.eq("nfl_season", season);
+    if (category) query = query.eq("category", category);
     const r = await query
       .order(table === "model_weekly_reviews" ? "created_at" : "captured_at")
       .order("id")
@@ -44,7 +52,8 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     games,
     stats,
     teamsResult,
-    runs,
+    runMetadata,
+    futureRuns,
     published,
     reviews,
     controlResult,
@@ -63,7 +72,21 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .from("teams")
       .select("id,roster_id,team_name")
       .eq("league_id", job.league_id),
-    all(db, "model_forecast_runs", job.league_id),
+    all(
+      db,
+      "model_forecast_runs",
+      job.league_id,
+      undefined,
+      "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config",
+    ),
+    all(
+      db,
+      "model_forecast_runs",
+      job.league_id,
+      league.nfl_season,
+      "id,market_week,nfl_season,captured_at,category,quotes:payload->quotes",
+      "Season Futures",
+    ),
     all(db, "forecast_snapshots", job.league_id, league.nfl_season),
     all(db, "model_weekly_reviews", job.league_id),
     db
@@ -230,6 +253,69 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       fetch_note: "Current corrected final results; not prediction inputs.",
     },
   };
+  const latestForReplay = new Map<number, any>();
+  for (const review of reviews)
+    latestForReplay.set(review.nfl_season * 100 + review.market_week, review);
+  const replayReviews = [...latestForReplay.values()]
+    .filter(
+      (r) =>
+        r.nfl_season * 100 + r.market_week <
+        league.nfl_season * 100 + job.market_week,
+    )
+    .sort(
+      (a, b) =>
+        a.nfl_season * 100 + a.market_week - b.nfl_season * 100 - b.market_week,
+    )
+    .slice(-51);
+  const cutoffByPeriod = new Map(
+    replayReviews.map((r) => [
+      r.nfl_season * 100 + r.market_week,
+      r.report.cutoff,
+    ]),
+  );
+  cutoffByPeriod.set(league.nfl_season * 100 + job.market_week, cutoff);
+  const ids: string[] = [];
+  for (const [period, limit] of cutoffByPeriod) {
+    const meta = runMetadata
+      .filter(
+        (r) =>
+          r.nfl_season * 100 + r.market_week === period &&
+          r.phase === "pregame" &&
+          r.provenance === "as_of" &&
+          r.captured_at < limit,
+      )
+      .sort(
+        (a, b) =>
+          a.captured_at.localeCompare(b.captured_at) ||
+          a.id.localeCompare(b.id),
+      );
+    for (const category of [
+      "Matchups",
+      "Player Points",
+      "Weekly Specials",
+      "Season Futures",
+    ]) {
+      const group = meta.filter((r) => r.category === category);
+      if (group.length) ids.push(group[0].id, group.at(-1).id);
+    }
+  }
+  const unique = [...new Set(ids)],
+    runs: any[] = [];
+  const payloadPages = await Promise.all(
+    Array.from({ length: Math.ceil(unique.length / 20) }, (_, i) =>
+      db
+        .from("model_forecast_runs")
+        .select(
+          "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config,payload",
+        )
+        .eq("league_id", job.league_id)
+        .in("id", unique.slice(i * 20, i * 20 + 20)),
+    ),
+  );
+  for (const page of payloadPages) {
+    if (page.error) throw new Error(page.error.message);
+    runs.push(...page.data);
+  }
   const weekRuns = runs.filter(
     (r) =>
       r.nfl_season === league.nfl_season && r.market_week === job.market_week,
@@ -240,6 +326,10 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     outcome,
     cutoff,
   );
+  report.coverage.runs = runMetadata.filter(
+    (r) =>
+      r.nfl_season === league.nfl_season && r.market_week === job.market_week,
+  ).length;
   const live = await db
     .from("live_model_reviews")
     .select("id,report")
@@ -253,13 +343,13 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     live_horizons: live.data[0]?.report.horizons ?? [],
     live_review_id: live.data[0]?.id ?? null,
   });
-  const futureRows = runs
+  const futureRows = futureRuns
     .filter(
       (r) =>
         r.nfl_season === league.nfl_season && r.category === "Season Futures",
     )
     .flatMap((r) =>
-      r.payload.quotes.map((q: any) => {
+      (r.quotes ?? r.payload.quotes).map((q: any) => {
         const result = settleFuture(
           { id: q.id, accepted_line: q.line, settlement_context: q },
           seasonResults,
@@ -316,7 +406,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .single();
   if (version.error) throw new Error(version.error.message);
   const latest = new Map<number, any>();
-  for (const review of reviews)
+  for (const review of replayReviews)
     latest.set(review.nfl_season * 100 + review.market_week, review);
   const evidence: any[] = [];
   for (const [period, review] of latest) {

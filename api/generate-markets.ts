@@ -507,6 +507,12 @@ export async function POST(request: Request) {
           algorithm_version: "weekly-lineup-v3",
           assessment_version: "weekly-review-v1",
           simulation_seed: input.week,
+          source_quality: {
+            source_count: Object.keys(sources).length,
+            unknown_observation_times: Object.values(sources).filter(
+              (s: any) => !s.source_observed_at,
+            ).length,
+          },
           quotes,
           specials: archivedSpecials ?? null,
           model_config: config,
