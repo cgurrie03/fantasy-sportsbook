@@ -1,6 +1,65 @@
+# Sportsbook audit release handoff — current status, 9 October 2026
+
+This section is authoritative. The history below records earlier proposals and intermediate releases; its old pending-approval statements are superseded. User approved deployment with "okay deploy". Application release `0fba7f7f17d183b8a552cb28a2397a7e5de20d82` is verified **Ready / Production** at https://sportsbook.coopergurrie.com/. Vercel: https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/HdwEV6xXC5Wq3zeD5CPjBXvZZmHc (11:11:44 AM EDT). Subsequent documentation-only commits may rebuild this same application; recheck latest Vercel source before starting new work.
+
+## Deployed and functional
+
+- Mobile long-name formatting, visible balance, safe-area layout, light-theme contrast, native dialog resizing/scrolling, account retry, and right-aligned betting status/date rows. Desktop columns retained; native dialog/details patterns retained.
+- Compact public notice with trend icon: "Live line updates are in development and coming soon". Duplicate technical placeholder removed; genuine outage warnings and betting locks retained.
+- Eligibility appears once, beside each Futures/Weekly Specials title. Weekly copy: "Eligible for Singles and Parlays"; futures retain Singles-only, Playoff Parlays-only and Win-Total Parlays restrictions. Redundant descriptions removed; #1 Pick retains its last-place explanation.
+- Red/green down/up arrows appear directly beside displayed odds, expire after five seconds and carry accessible direction labels. Price-displaying quotes track displayed price changes.
+- CSV formula-prefix protection and league-specific export filenames; authorized local CSV/PNG/PDF exports.
+- League-configured branding/communications and send-time recipient, membership and ticket checks, including cached retry payloads. Bet-confirmation delivery claims only its own ticket.
+- Production migrations **030 and 031 already applied**: composite league constraints, market/report guards, service-scoped outbox claims, default-off new league operations and a private owner-bound launch-approval boundary. Existing league remains active. Do not reapply or renumber these migrations.
+- Existing approved-email memberships support more than one league; existing switch clears slip/admin state and preserves league-specific balance/roles. No new onboarding or switching workflow was added.
+
+## Deployed code, awaiting normal board regeneration
+
+Both "How Many Teams Will Score 150+?" and "How Many Teams Will Beat Their Projection?" now render **Exactly N** and **At Least N+** quote buttons. New generation creates N+ quotes using the inclusive probability tail of the same simulation as Exact pricing. Existing published boards were NOT regenerated in this chat: if N+ is absent, its button is disabled as Coming soon. Normal admin/worker regeneration must produce/publish these prices; an application deploy alone does not add database market rows. Actual production authenticated acceptance/settlement of an N+ bet was not exercised.
+
+- Sides are `String(N)` for Exact and `${N}+` for At Least; both share the original market_key. Existing unique(board_id,market_key,side) and upsert behavior require no new migration.
+- Client/server reject combining Exact and At Least choices (or different counts from the same market) in a Parlay. Users remove their existing pick before choosing another.
+- Settlement uses immutable accepted side/line, expected league team count and saved projection targets. Exactly requires equality; At Least includes equality and larger counts. 150 counts; a tied projection does not. Incomplete results remain OPEN. Historical numeric-side Exact bets are preserved.
+- Zero is Exact-only for projection count; At Least zero is not priced because it always wins. The 150+ card retains its existing minimum count of one. Maximum N+ and Exact N describe the same outcome and cannot be combined.
+- Short visual labels retain full scoring/projection context in accessible quote names and stored ticket labels.
+
+## Completed checks and evidence
+
+Latest release: `npm run build` (TypeScript and compiled API runtime), `npm run lint`, `test:lines`, `test:weekly`, `test:futures`, `test:isolation`, and `node scripts/test-ux.cjs` passed. Earlier foundation release passed all 11 regression suites; those earlier results are not a claim that every suite was rerun for the final copy/count change. Lint has seven existing advisory warnings; main bundle remains approximately 506 kB.
+
+- Count tests cover inclusive-tail pricing, monotonic probabilities, Exact/At Least equality and above/below settlement, saved targets, malformed selections and no guaranteed 0+ quote.
+- In-memory Postgres acceptance rejects correlated selections, persists N+ side/line, and preserves accepted snapshots/wallets during repricing. Isolation tests use two disconnected leagues with overlapping identities/roster IDs and cover roles, wallets, markets, debit/refund, reports, recipients, cached payloads and jobs.
+- Built-app Chromium fixture journeys measure 360/390/430/768/1024/1440 pixels in light/dark themes. Futures/count choices receive extra 360/390/1440 checks. Long names, balance, right-aligned dates, title eligibility, no clipping/overflow, selection rejection, timed arrows, native dialog, quote-reapproval, history, exports and empty/loading/error/suspended states pass.
+- Keyboard-space check uses a reduced 390x420 viewport; **no actual OS keyboard, physical phone, landscape device, screen-reader certification or authenticated live member journey was tested**. PNG inspected; PDF downloaded, not fully pagination-inspected.
+- Production GET returned 200 and byte-identical tested JS/CSS (`index-DjqXJi0N.js`, `index-CP7cShl8.css`). Worker/bet/generation unauthenticated smoke calls returned 401 without invoking jobs, bets or email. This does not prove authenticated production generation or worker capacity. Public sign-in rendered successfully in the browser.
+- Evidence directory: `C:/Users/coope/Documents/Codex/2026-10-08/audit-and-improve-the-fantasy-sportsbook/outputs/screenshots/`. `deployment-ready-count-options.png` is production Vercel evidence; `odds-arrow-390.png`, futures/specials/home/slip screenshots and viewport-evidence.json use intercepted test data.
+
+## Still planned / remaining issues
+
+**Critical before another live league:** hosted simultaneous debit/refund/outbox-claim tests, worker backlog/capacity and source-outage recovery checks, verified provider/scoring/playoff settings, owner-reviewed rollout. PGlite sequential tests do not establish hosted contention safety. Last recorded worker health snapshot was 0 failed/expired jobs and last completion 2026-10-09 13:28 UTC; it was not refreshed in this deployment and is not continuous health evidence.
+
+**Not implemented:** owner-only league creation/launch admin menu and end-to-end onboarding process; new league switch design; second live league activation; private uploads/storage; offers/redemption. Database owner/activation constraints are deployed foundations, not a functioning admin launch flow. Do not enable another league before isolation/capacity gates and explicit rollout approval.
+
+**Live pricing remains experimental and unavailable for betting.** Shadow histories/reviews exist from earlier work; do not enable acceptance based on the coming-soon notice or these arrows. Source freshness, observed starters, validated remaining-points pricing, calibrated joint pricing and settlement gates still apply.
+
+**Important next:** user's deployed formatting review on devices; screen-reader/OS-keyboard checks; URL-backed navigation/report filters; operational last/next run and retries; notification preferences; exposure/search and model history. Any private-file or offer flow needs league-scoped schema/RLS/tests before launch.
+
+**Nice to have:** close-game counts, margin bands and league-score totals only after fixed definitions, calibrated archived inputs, explicit pricing/vig/limits, equality/push/void rules, contradiction/correlation checks and backtests. Do not treat dependent selections as independent Parlay legs.
+
+## Next-chat instructions and rollback
+
+Start with PROJECT-CONTEXT.md, this current summary and relevant handoff 01. Checkout is `C:/Users/coope/Documents/Codex/2026-10-05/i/fantasy-sportsbook`, working branch `stage-1-accounts`, deployment via explicit normal `git push origin HEAD:main`. Keep unrelated modified `docs/promos-boosts-handoff.md`, untracked data/other handoffs/recovery notes and work/ out of commits. Never expose environment/credential values. Use local intercepted fixtures for betting/mail tests; no live bets, bulk emails or paid services were authorized or performed.
+
+Latest changed files: `MarketTitle.tsx`, `WeeklyCountPicker.tsx`, `SeasonFutures.tsx`, `Sportsbook.tsx`, `Sportsbook.css`, `LineMovement.tsx`, `api/generate-markets.ts`, `api/_lib/count-options.ts`, `api/_lib/settlement.ts`, and API/line/weekly/futures/UX test scripts. No new SQL migration for count markets.
+
+Rollback requires care: **once N+ tickets are accepted, do not restore a pre-N+ settlement worker**, which would treat those sides as Exact and could pay incorrectly. Retain or backport the N+ settlement handler, pause affected settlement/generation if needed, and review accepted snapshots. Retain additive league/owner database guards. Before N+ tickets exist, the previous Vercel application `0e86e66` is the prior app baseline. Existing Exact tickets must remain immutable.
+
+---
+
+## Historical audit and rollout notes (superseded statuses)
 # Sportsbook audit and proposed release — 9 October 2026
 
-Status: implemented locally; production migration and application deployment await explicit user approval. No second league enabled, live bets placed, bulk test emails sent, or paid services added.
+Historical initial status (superseded by current summary): implemented locally; production migration and application deployment awaited explicit user approval. No second league enabled, live bets placed, bulk test emails sent, or paid services added.
 
 ## Findings and changes
 

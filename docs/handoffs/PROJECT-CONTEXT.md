@@ -1,6 +1,6 @@
 # Shared Project Context
 
-Snapshot: October 8, 2026, after live shadow logging deployment. Verify current code and deployment before implementation.
+Snapshot: October 9, 2026, after approved UX/isolation/count-market deployment. Read the authoritative current summary in handoff 06; earlier rollout notes are history. Verify latest Vercel source before new work.
 
 **Current product status:** 15-minute active-game / 120-minute inactive scheduling, pregame revision/acceptance safeguards, actual-starter matchup status, experimental live quote logs and automatic completed-week accuracy review are deployed. Experimental prices are not published for betting; all live acceptance remains disabled. No automatic launch next week or model promotion is promised. See the authoritative status and remaining gates at the top of handoff 01.
 
@@ -9,7 +9,7 @@ Snapshot: October 8, 2026, after live shadow logging deployment. Verify current 
 - Checkout: `C:/Users/coope/Documents/Codex/2026-10-05/i/fantasy-sportsbook`.
 - Private repository: `cgurrie03/fantasy-sportsbook`.
 - Current working branch: `stage-1-accounts`; production branch: `main`.
-- Last verified production release: `1eb4123` (evidence documentation), Vercel Ready; application implementation `eb79c03`. See handoff 01 for deployment URLs and unattended job evidence. Recheck current production before development.
+- Last verified application release: `0fba7f7f17d183b8a552cb28a2397a7e5de20d82`, Vercel Ready/Production at https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/HdwEV6xXC5Wq3zeD5CPjBXvZZmHc. Subsequent documentation-only commits may rebuild the same application. See handoff 06 for current state and handoff 01 for live-model gates.
 - Production: https://sportsbook.coopergurrie.com.
 - Stack: React 19, TypeScript, Vite, Vercel functions, Supabase/Postgres, Sleeper data, HTML email delivery.
 - Supabase project: `bmvjcdgxwxqalaohpsnw`.
@@ -63,3 +63,9 @@ Each completed chat must update its handoff with files changed, migrations appli
 Live follow-up: migration 029 adds immutable shadow histories and automatic completed-week accuracy reviews. The existing worker collects live experimental matchup forecasts; acceptance stays disabled pending freshness/model validation. Admin history and five-second green/red line movement indicators are implemented. See handoff 01 for scope, checks and remaining gates. Deployment/job evidence is recorded in handoff 01; all four 10:46–10:49 PM Eastern interval jobs completed unattended.
 
 Live logging production evidence: eb79c03 Vercel Ready at 10:39 PM Eastern. Unattended 10:46 PM cycle saved five experimental matchup forecasts at 10:47 PM. Weekly board closed; live freshness unverified and acceptance disabled. Immutable histories and automatic completed-week reviews are installed. See handoff 01.
+
+## Current audit release boundary — 9 October 2026
+
+Handoff 06 is authoritative for completed UX, database migrations 030/031, recipient isolation and count-market work. Title-right eligibility, compact live notice, adjacent odds arrows and removal of redundant descriptions are deployed. Exact and At Least N+ generation/settlement code is deployed; existing published boards were not regenerated, so N+ buttons remain disabled until new quotes are published by the normal admin/worker flow. Test data is not proof of live N+ acceptance. Do not roll back to an Exact-only settlement worker after N+ tickets exist.
+
+Owner-only onboarding/activation menu and new switching workflow remain planned. Database constraints reserve owner approval; no second live league is enabled. Existing approved dual-membership switching is preserved and tested. Private files and offers are not implemented. Hosted concurrent transaction, worker capacity/outage checks and physical-device formatting review remain outstanding. Experimental live acceptance remains disabled. No live bets or bulk test emails were performed. See handoff 06 for exact tests, production evidence, priorities and safe rollback.
