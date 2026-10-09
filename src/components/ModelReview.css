@@ -1,0 +1,90 @@
+.model-review {
+  margin: 1.2rem 0;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+}
+.model-review-header,
+.model-review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.model-review h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.model-review p {
+  max-width: 80ch;
+  line-height: 1.5;
+}
+.model-review-actions span {
+  flex: 1;
+  min-width: 180px;
+}
+.model-review-scroll {
+  overflow-x: auto;
+  width: 100%;
+}
+.model-review table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.model-review th,
+.model-review td {
+  padding: 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.model-review details {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border);
+}
+.model-review summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.model-review-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.model-review-charts figure {
+  margin: 0;
+  min-width: 0;
+}
+.model-review-charts figcaption {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.model-review-charts svg {
+  width: 100%;
+  max-height: 180px;
+}
+.model-review-json {
+  max-height: 320px;
+  overflow: auto;
+  font-size: 0.78rem;
+  background: var(--background);
+  padding: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .model-review {
+    padding: 0.8rem;
+  }
+  .model-review-actions button {
+    flex: 1;
+  }
+  .model-review-header span {
+    font-size: 0.85rem;
+  }
+}

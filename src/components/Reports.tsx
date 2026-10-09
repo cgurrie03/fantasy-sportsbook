@@ -1,4 +1,6 @@
 import { csvCell } from "../lib/csv";
+import { ModelReview } from "./ModelReview";
+import "./ModelReview.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage, money, loadAccounts } from "../lib/accounts";
@@ -1360,6 +1362,7 @@ export function Reports({
         </p>
       )}
       <div ref={exportNode} className="report-export-surface">
+        {report === 13 && !previewData && <ModelReview key={leagueId} leagueId={leagueId} />}
         <div className="report-export-context">
           <strong>{league.name}</strong>
           <span>{season}</span>

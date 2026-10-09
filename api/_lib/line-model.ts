@@ -152,6 +152,7 @@ export function deviation(scores: number[], projection: number) {
 export function highLowProbabilities(
   teams: { mean: number; sd: number }[],
   seed = 42,
+  projectionTargets = teams.map(t => t.mean),
 ) {
   const high = teams.map(() => 1),
     low = teams.map(() => 1),
@@ -177,7 +178,7 @@ export function highLowProbabilities(
     high[scores.indexOf(Math.max(...scores))]++;
     low[scores.indexOf(Math.min(...scores))]++;
     counts150[scores.filter((s) => s >= 150).length]++;
-    countsProjection[scores.filter((s, i) => s > teams[i].mean).length]++;
+    countsProjection[scores.filter((s, i) => s > projectionTargets[i]).length]++;
     averageScores.push(scores.reduce((a, b) => a + b, 0) / teams.length);
     highestScores.push(Math.max(...scores));
     if (scores.some((s) => s < 100)) anyBelow100++;

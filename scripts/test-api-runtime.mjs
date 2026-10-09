@@ -12,6 +12,8 @@ try {
     "generate-markets",
     "weekly-execution",
     "_lib/line-model",
+    "_lib/model-assessment",
+    "_lib/model-pipeline",
     "_lib/count-options",
     "_lib/futures-model",
     "_lib/futures-settlement",

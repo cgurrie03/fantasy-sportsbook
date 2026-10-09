@@ -8,6 +8,7 @@ import { renderEmail } from "./_lib/email-templates.js";
 import { randomUUID } from "node:crypto";
 import { fetchGameStatus } from "./_lib/game-status.js";
 import { collectLiveShadow, reviewLiveWeek } from "./_lib/live-pipeline.js";
+import { reviewModelWeek } from "./_lib/model-pipeline.js";
 export const maxDuration = 60;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -135,7 +136,10 @@ export async function POST(request: Request) {
       const league = (
         await read(db.from("leagues").select("*").eq("id", job.league_id))
       )[0];
-      if (!league?.operations_enabled) throw new Error("League operations are disabled pending verified rollout.");
+      if (!league?.operations_enabled)
+        throw new Error(
+          "League operations are disabled pending verified rollout.",
+        );
       const identity = communicationIdentity(league);
       const recipients = await read(
         db
@@ -271,7 +275,17 @@ export async function POST(request: Request) {
         if (staged.error) throw new Error(staged.error.message);
         summary = { ...staged.data, live_shadow: liveShadow };
       } else if (job.operation === "model_review") {
-        summary = await reviewLiveWeek(db, job, league);
+        // Live review errors must not prevent the broader completed-week review.
+        let live: unknown;
+        try {
+          live = await reviewLiveWeek(db, job, league);
+        } catch (error) {
+          live = {
+            error:
+              error instanceof Error ? error.message : "Live review deferred.",
+          };
+        }
+        summary = { live, weekly: await reviewModelWeek(db, job, league) };
       } else if (
         ["settlement", "recheck", "replenishment"].includes(job.operation)
       ) {
@@ -581,7 +595,7 @@ export async function POST(request: Request) {
                 ][],
                 button: "Review Lines & Markets",
                 url: identity.url,
-            brand: identity.brand,
+                brand: identity.brand,
               };
               await queueEmail(db, {
                 league_id: job.league_id,
@@ -771,7 +785,11 @@ export async function POST(request: Request) {
             .eq("league_id", job.league_id)
             .eq("role", "admin"),
         );
-        const identity = communicationIdentity((await read(db.from("leagues").select("*").eq("id", job.league_id)))[0]);
+        const identity = communicationIdentity(
+          (
+            await read(db.from("leagues").select("*").eq("id", job.league_id))
+          )[0],
+        );
         for (const m of admins) {
           const content = {
             subject: "Weekly Automation Needs Attention",

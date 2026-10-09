@@ -1,5 +1,6 @@
 import { isWorker } from "./_lib/worker-auth.js";
 import { countOptions } from "./_lib/count-options.js";
+import { BASELINE, fairProbability } from "./_lib/model-assessment.js";
 import { createClient } from "@supabase/supabase-js";
 import {
   bestLineup,
@@ -204,16 +205,60 @@ export async function POST(request: Request) {
         { error: "Season Futures generation is not available yet." },
         409,
       );
+    const control = await userClient
+      .from("model_controls")
+      .select("active_id")
+      .eq("league_id", input.league_id)
+      .single();
+    if (control.error)
+      throw new Error(
+        "Model configuration unavailable; existing lines retained.",
+      );
+    const version = await userClient
+      .from("model_config_versions")
+      .select("id,config")
+      .eq("id", control.data.active_id)
+      .eq("league_id", input.league_id)
+      .single();
+    if (version.error) throw new Error("Active model version unavailable.");
+    const config =
+      category === "Matchups" || category === "Weekly Specials"
+        ? version.data.config
+        : BASELINE;
+    const sources: Record<string, unknown> = {};
+    const recordSource = (
+      path: string,
+      payload: any,
+      cached = false,
+      fetchedAt?: string,
+    ) => {
+      sources[path] = {
+        payload,
+        fetched_at: fetchedAt ?? new Date().toISOString(),
+        archive_retrieved_at: new Date().toISOString(),
+        cached_from_cycle: cached ? input.source_cycle_id : null,
+        source_observed_at: null,
+        observation_note:
+          "Provider observation time unavailable; fetch time is not freshness proof.",
+      };
+      return payload;
+    };
     const fetchData = async (path: string) => {
       if (input.source_cycle_id) {
         const cached = await userClient
           .from("line_refresh_sources")
-          .select("payload")
+          .select("payload,fetched_at")
           .eq("cycle_id", input.source_cycle_id)
           .eq("path", path)
           .maybeSingle();
         if (cached.error) throw new Error(cached.error.message);
-        if (cached.data) return cached.data.payload;
+        if (cached.data)
+          return recordSource(
+            path,
+            cached.data.payload,
+            true,
+            cached.data.fetched_at,
+          );
       }
       const response = await fetch(path, {
         cache: "no-store",
@@ -234,14 +279,19 @@ export async function POST(request: Request) {
         if (saved.error) throw new Error(saved.error.message);
         const canonical = await userClient
           .from("line_refresh_sources")
-          .select("payload")
+          .select("payload,fetched_at")
           .eq("cycle_id", input.source_cycle_id)
           .eq("path", path)
           .single();
         if (canonical.error) throw new Error(canonical.error.message);
-        return canonical.data.payload;
+        return recordSource(
+          path,
+          canonical.data.payload,
+          true,
+          canonical.data.fetched_at,
+        );
       }
-      return payload;
+      return recordSource(path, payload);
     };
     const sleeper = (path: string) =>
       fetchData(`https://api.sleeper.app/v1/${path}`);
@@ -300,7 +350,36 @@ export async function POST(request: Request) {
         });
     }
     const allHistory = historical.flat();
-    const pool = candidates(projections, league.scoring_settings, allHistory);
+    const pool = candidates(
+      projections,
+      league.scoring_settings,
+      allHistory,
+    ).map((p) => {
+      const past = allHistory
+        .flatMap((h) =>
+          h.players_points?.[p.id] != null
+            ? [Number(h.players_points[p.id])]
+            : [],
+        )
+        .filter(Number.isFinite);
+      const center = past.length
+        ? past.reduce((a, b) => a + b, 0) / past.length
+        : p.expected;
+      const variance =
+        past.length > 1
+          ? past.reduce((s, v) => s + (v - center) ** 2, 0) / (past.length - 1)
+          : (p.projection * 0.5) ** 2;
+      const weight = past.length / (past.length + 8);
+      return {
+        ...p,
+        assessment_sd: Math.sqrt(
+          Math.max(
+            4,
+            weight * variance + (1 - weight) * (p.projection * 0.5) ** 2,
+          ),
+        ),
+      };
+    });
     const models = teams.map((team) => {
       const roster = rosters.find((r) => r.roster_id === team.roster_id);
       if (!roster)
@@ -329,14 +408,14 @@ export async function POST(request: Request) {
           .map((p) => ({ id: p.id, name: p.name, positions: p.positions })),
         lineup,
         missing_slots: selection.missingSlots,
-        mean,
+        mean: mean * config.score_scale,
         season_mean: scores.length
           ? roundHalf(
               (scores.reduce((a, b) => a + b, 0) / scores.length) * 0.6 +
                 mean * 0.4,
             )
           : mean,
-        sd: deviation(scores, mean),
+        sd: deviation(scores, mean) * config.variance_scale,
         unfilled_slots:
           league.roster_positions.filter(
             (p) => !["BN", "IR", "TAXI"].includes(p),
@@ -345,6 +424,100 @@ export async function POST(request: Request) {
     });
     const quotes: Market[] = [],
       generatedAt = new Date().toISOString();
+    const assessmentRun = crypto.randomUUID();
+    const rosteredIds = new Set(rosters.flatMap((r) => r.players));
+    let archivedSpecials: ReturnType<typeof highLowProbabilities> | undefined;
+    const archive = async () => {
+      if (
+        models.some((m) => ![m.mean, m.sd].every(Number.isFinite)) ||
+        pool.some((p) => ![p.projection, p.expected].every(Number.isFinite))
+      )
+        throw new Error(
+          "Forecast input contains invalid numbers; existing lines retained.",
+        );
+      for (const q of quotes) {
+        if (q.kind === "player_points") {
+          const player = pool.find((p) => p.id === q.metadata.player_id);
+          q.metadata = {
+            ...q.metadata,
+            player_distribution: player
+              ? {
+                  mean: player.expected,
+                  sd: player.assessment_sd,
+                  method: "shadow-normal-variance-v1",
+                  shrinkage_observations: 8,
+                  minimum_sd: 2,
+                }
+              : null,
+          };
+        }
+        q.metadata = {
+          ...q.metadata,
+          assessment_run_id: assessmentRun,
+          config_version: version.data.id,
+          model_config: config,
+          fair_probability: fairProbability(
+            q,
+            models,
+            BASELINE,
+            archivedSpecials,
+          ),
+          uncertainty_method:
+            q.kind === "player_points"
+              ? "Shadow normal diagnostic; shrunk historical variance, availability mixture unvalidated"
+              : "Original model distribution assumptions; uncalibrated",
+          price_policy:
+            "Original displayed prices archived independently; fixed -110 includes a margin. Promotions do not change fair probability.",
+          price_rounding_step: q.kind.startsWith("future_")
+            ? 50
+            : q.kind.startsWith("weekly_")
+              ? 25
+              : 10,
+        };
+      }
+      const saved = await userClient.rpc("save_model_forecast", {
+        p_run: assessmentRun,
+        p_league: input.league_id,
+        p_season: input.nfl_season,
+        p_week: input.week,
+        p_category: category,
+        p_version: version.data.id,
+        p_sources: Object.fromEntries(
+          Object.entries(sources).map(([path, value]) => {
+            const source = value as { payload: any };
+            return [
+              path,
+              path.includes("/projections/nfl/") &&
+              Array.isArray(source.payload)
+                ? {
+                    ...source,
+                    payload: source.payload.filter((p) =>
+                      rosteredIds.has(p.player_id),
+                    ),
+                    filter_note:
+                      "All rostered players retained, including bench/IR/Taxi; unrostered players cannot affect these forecasts.",
+                  }
+                : source,
+            ];
+          }),
+        ),
+        p_payload: {
+          models,
+          pool: pool.filter((p) => rosteredIds.has(p.id)),
+          algorithm_version: "weekly-lineup-v3",
+          assessment_version: "weekly-review-v1",
+          simulation_seed: input.week,
+          quotes,
+          specials: archivedSpecials ?? null,
+          model_config: config,
+          generated_at: generatedAt,
+        },
+      });
+      if (saved.error)
+        throw new Error(
+          "Immutable forecast archive failed; existing lines retained.",
+        );
+    };
     const base = {
       board_id: "generated",
       boost_pct: 0,
@@ -570,6 +743,7 @@ export async function POST(request: Request) {
           });
         }
       });
+      await archive();
       return json({
         quotes,
         warnings: [
@@ -751,6 +925,7 @@ export async function POST(request: Request) {
         models.map((t) => ({ mean: t.mean, sd: t.sd })),
         input.week,
       );
+      archivedSpecials = probabilities;
       const fields = weeklyScorerFields(probabilities.high, probabilities.low);
       models.forEach((team, index) => {
         for (const kind of ["weekly_high", "weekly_low"] as const) {
@@ -942,6 +1117,7 @@ export async function POST(request: Request) {
       throw new Error(
         "No markets were generated; existing markets were retained.",
       );
+    await archive();
     return json({
       week: input.week,
       quotes,
