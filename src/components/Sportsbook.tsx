@@ -25,6 +25,9 @@ import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
 import { LineRefreshStatus } from "./LineRefreshStatus";
+import { StarterActivity } from "./StarterActivity";
+import { useStarterActivity } from "../lib/starter-activity";
+import type { StarterSnapshot } from "../lib/starter-activity";
 
 export interface Standing {
   team_id: string;
@@ -43,6 +46,7 @@ export interface Standing {
   current_balance: number;
 }
 export interface BoardReview {
+  starterActivity?: StarterSnapshot;
   board: Board;
   markets: Market[];
   standings: Standing[];
@@ -82,6 +86,11 @@ export function Sportsbook({
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
   const [pickRevision, setPickRevision] = useState<number | null>(null);
+  const starterActivity = useStarterActivity(
+    member.league_id,
+    review?.starterActivity,
+    !!review,
+  );
   const dialog = useRef<HTMLDialogElement>(null),
     banner = useRef<HTMLButtonElement>(null),
     request = useRef({ key: "", id: "" });
@@ -470,6 +479,15 @@ export function Sportsbook({
                         className={`matchup-card${first.featured ? " featured-match" : ""}`}
                         key={first.matchup_key}
                       >
+                        <StarterActivity
+                          rosterIds={[h?.roster_id, a?.roster_id]}
+                          {...starterActivity}
+                          now={
+                            review?.starterActivity
+                              ? Date.parse(review.starterActivity.observed_at)
+                              : clock
+                          }
+                        />
                         {first.featured && (
                           <div className="featured-strip">
                             <strong>

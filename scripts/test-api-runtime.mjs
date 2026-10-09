@@ -17,6 +17,8 @@ try {
     "_lib/settlement",
     "_lib/worker-auth",
     "_lib/game-status",
+    "_lib/active-starters",
+    "active-starters",
     "_lib/email-templates",
     "_lib/mail",
     "weekly-worker",
@@ -37,6 +39,17 @@ try {
   await writeFile(path.join(root, "package.json"), '{"type":"module"}');
   const { POST } = await import(
     pathToFileURL(path.join(root, "generate-markets.js")).href
+  );
+  const starterStatus = await import(
+    pathToFileURL(path.join(root, "active-starters.js")).href
+  );
+  assert.equal(
+    (
+      await starterStatus.GET(
+        new Request("https://example.invalid/api/active-starters"),
+      )
+    ).status,
+    401,
   );
   const response = await POST(
     new Request("https://example.invalid/api/generate-markets", {

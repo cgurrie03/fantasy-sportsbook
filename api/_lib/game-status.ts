@@ -61,6 +61,9 @@ export function parseScoreboard(value: any) {
       id: String(e.id),
       starts_at: e.date,
       state: normalizeGameStatus(e.status.type.name),
+      teams: (e.competitions?.[0]?.competitors ?? [])
+        .map((c: any) => c.team?.abbreviation)
+        .filter((t: unknown): t is string => typeof t === "string"),
     };
   });
   const uncertain = games.some((g: any) =>

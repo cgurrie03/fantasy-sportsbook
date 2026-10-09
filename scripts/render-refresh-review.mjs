@@ -89,7 +89,22 @@ try {
     metadata: {},
     active: true,
   }));
-  const review = { board, markets, standings: [] };
+  const review = {
+    board,
+    markets,
+    standings: [],
+    starterActivity: {
+      observed_at: new Date().toISOString(),
+      rosters: [
+        {
+          roster_id: 1,
+          playing: [{ id: "illustrative", name: "Starting quarterback" }],
+          incomplete: false,
+        },
+        { roster_id: 2, playing: [], incomplete: false },
+      ],
+    },
+  };
   const props = { data, member, review, refresh: async () => {} };
   const html = renderToString(React.createElement(Sportsbook, props));
   fs.writeFileSync(

@@ -198,3 +198,7 @@
  .quote-review p {font-size:.85rem;line-height:1.5;}
  .quote-review button {width:100%;min-height:44px;}
  @media(max-width:600px) {.line-refresh-status {display:block;} .line-refresh-status span {display:block;margin-top:.4rem;}}
+.matchup-in-progress,.matchup-status-unavailable{display:block;padding:12px 18px 0;font-size:11px;line-height:1.4}
+.matchup-in-progress{color:#ff777b;font-weight:700}.matchup-in-progress>span{margin-right:4px}
+.matchup-status-unavailable{color:var(--muted)}
+.matchup-in-progress+.featured-strip,.matchup-status-unavailable+.featured-strip{margin-top:10px}

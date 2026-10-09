@@ -44,6 +44,15 @@ Changed: `api/_lib/game-status.ts`, generator/worker/settlement/placement APIs, 
 
 Rollback: redeploy the prior application commit and stop only interval enqueueing by restoring `observe_line_refresh` to a service-only no-op. Preserve all accepted tickets and new archives. Do not delete tickets, replay emails, or roll back the existing settlement scheduler. Keep live acceptance disabled; do not remove freshness/immutability guards just to reopen markets. Migration 028 releases raw source caches when a cycle completes or is superseded, and the heartbeat cleans expired working responses. Published forecasts and accepted snapshots retain their existing archives.
 
+## Starter activity follow-up — October 8, 2026
+
+Added a read-only, membership-protected `/api/active-starters` endpoint and a red In progress badge in the top-left of each matchup card when either team has an active starter. It reads the current regular-season NFL week, actual Sleeper matchup starters (not projected optimal lineups), the public player directory and current ESPN game states. Bench players do not trigger badges. Halftime/end-period count as active; final, delayed and suspended games do not. Team abbreviation aliases and defense IDs are mapped. Known Out/IR/PUP/Suspended entries are excluded; missing mappings are labelled incomplete. This means the starter's NFL game is underway, not confirmed participation in the current snap. Player names and counts are not displayed, per the confirmed UI preference. It never changes odds or enables live acceptance.
+
+The browser checks once per minute, removes stale badges after three minutes and displays unavailable status on source failures. The public player directory is cached up to 24 hours per warm function instance, consistent with Sleeper's documented directory guidance; roster and game checks are fresh per request. Provider timestamps/participation are still not a live betting feed SLA.
+
+Verification: `test:starters`, compiled `test:api`, build, lint (existing warnings only), and refresh regressions passed. Real read-only sources returned NFL 2026 week 5, DAL/TB in progress, 12 fantasy rosters, six with active starters and zero missing mappings. Mobile preview measured width/scroll width 390. No schema migration, bets or emails were needed. Added files: starter endpoint/helper, frontend hook/component and targeted tests; updated scoreboard team extraction, Sportsbook styles, review fixture, runtime check and CI.
+
+The 15-minute/120-minute timer is functional, but in-game cycles still suspend rather than publish unsafe pregame-derived live prices. All live acceptance gates above remain. Application deployment uses the established main/Vercel flow; the final receipt in the chat outputs records the verified release.
 ## Confirmed Behavior
 
 Generate and publish all supported betting lines automatically every 15 minutes while **any NFL game is in progress**, every two hours otherwise. Tuesday's scheduled rollover remains the only automatic week transition. Live betting is explicitly requested. Published boards must also refresh; previously accepted tickets retain their terms.
