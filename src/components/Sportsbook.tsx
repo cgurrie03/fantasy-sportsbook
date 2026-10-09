@@ -479,15 +479,6 @@ export function Sportsbook({
                         className={`matchup-card${first.featured ? " featured-match" : ""}`}
                         key={first.matchup_key}
                       >
-                        <StarterActivity
-                          rosterIds={[h?.roster_id, a?.roster_id]}
-                          {...starterActivity}
-                          now={
-                            review?.starterActivity
-                              ? Date.parse(review.starterActivity.observed_at)
-                              : clock
-                          }
-                        />
                         {first.featured && (
                           <div className="featured-strip">
                             <strong>
@@ -512,6 +503,15 @@ export function Sportsbook({
                             <span>25% PROFIT BOOST</span>
                           </div>
                         )}
+                        <StarterActivity
+                          rosterIds={[h?.roster_id, a?.roster_id]}
+                          {...starterActivity}
+                          now={
+                            review?.starterActivity
+                              ? Date.parse(review.starterActivity.observed_at)
+                              : clock
+                          }
+                        />
                         <div className="match-grid">
                           <span />
                           <span className="market-column-label">Spread</span>

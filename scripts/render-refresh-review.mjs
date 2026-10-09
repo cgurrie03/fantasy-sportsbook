@@ -85,7 +85,7 @@ try {
     home_projection: 127.5,
     away_projection: 123,
     boost_pct: 0,
-    featured: "",
+    featured: "Game of the Week",
     metadata: {},
     active: true,
   }));
