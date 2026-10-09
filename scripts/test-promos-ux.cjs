@@ -3,7 +3,7 @@ const { chromium } = require("playwright"),
   fs = require("node:fs"),
   path = require("node:path");
 const { setup, menu, A, B, boards, quotes } = require("./test-ux.cjs");
-const { validatePng } = require('../api/_lib/promo-image.ts');
+const { validatePng } = require("../api/_lib/promo-image.ts");
 const output = path.resolve(process.env.PROMO_UX_OUTPUT || "work/promo-ux");
 fs.mkdirSync(output, { recursive: true });
 (async () => {
@@ -14,18 +14,45 @@ fs.mkdirSync(output, { recursive: true });
       for (const theme of ["dark", "light"]) {
         const f = await setup(browser, width, 900);
         const artwork = await f.page.evaluate(() => {
-          const c = document.createElement('canvas'); c.width=1200;c.height=522;
-          const x=c.getContext('2d');const g=x.createLinearGradient(0,0,1200,522);
-          g.addColorStop(0,'#11253f');g.addColorStop(1,'#305e69');x.fillStyle=g;x.fillRect(0,0,1200,522);
-          x.fillStyle='#f8ce63';x.font='bold 76px sans-serif';x.fillText('WEEKLY EXCLUSIVES',65,170);
-          x.fillStyle='#fff';x.font='34px sans-serif';x.fillText('YOUR LEAGUE. YOUR EDGE.',70,245);
-          x.strokeStyle='#f8ce63';x.lineWidth=8;x.beginPath();x.ellipse(920,235,155,92,-.55,0,Math.PI*2);x.stroke();
-          return c.toDataURL('image/png').split(',')[1];
+          const c = document.createElement("canvas");
+          c.width = 1200;
+          c.height = 522;
+          const x = c.getContext("2d");
+          const g = x.createLinearGradient(0, 0, 1200, 522);
+          g.addColorStop(0, "#11253f");
+          g.addColorStop(1, "#305e69");
+          x.fillStyle = g;
+          x.fillRect(0, 0, 1200, 522);
+          x.fillStyle = "#f8ce63";
+          x.font = "bold 76px sans-serif";
+          x.fillText("WEEKLY EXCLUSIVES", 65, 170);
+          x.fillStyle = "#fff";
+          x.font = "34px sans-serif";
+          x.fillText("YOUR LEAGUE. YOUR EDGE.", 70, 245);
+          x.strokeStyle = "#f8ce63";
+          x.lineWidth = 8;
+          x.beginPath();
+          x.ellipse(920, 235, 155, 92, -0.55, 0, Math.PI * 2);
+          x.stroke();
+          return c.toDataURL("image/png").split(",")[1];
         });
-        assert.equal(validatePng(artwork),artwork);
-        const damaged=Buffer.from(artwork,'base64');damaged[20]^=1;
-        assert.throws(()=>validatePng(damaged.toString('base64')),/checksum/);
-        assert.throws(()=>validatePng(Buffer.concat([Buffer.from(artwork,'base64'),Buffer.from('<script>')]).toString('base64')),/ending/);
+        assert.equal(validatePng(artwork), artwork);
+        const damaged = Buffer.from(artwork, "base64");
+        damaged[20] ^= 1;
+        assert.throws(
+          () => validatePng(damaged.toString("base64")),
+          /checksum/,
+        );
+        assert.throws(
+          () =>
+            validatePng(
+              Buffer.concat([
+                Buffer.from(artwork, "base64"),
+                Buffer.from("<script>"),
+              ]).toString("base64"),
+            ),
+          /ending/,
+        );
         const b = boards[0];
         const points = Array.from({ length: 6 }, (_, i) => ({
           ...quotes(b)[0],
@@ -89,7 +116,8 @@ fs.mkdirSync(output, { recursive: true });
           { ...o, id: "other-fixture", slot: 3, title: "Another weekly offer" },
         ];
         let calls = 0,
-          received, saved;
+          received,
+          saved;
         await f.context.route("**/rest/v1/rpc/**", async (route) => {
           const endpoint = new URL(route.request().url()).pathname
             .split("/")
@@ -112,7 +140,10 @@ fs.mkdirSync(output, { recursive: true });
             return json({ board: b, markets: [...quotes(b), ...points] });
           if (endpoint === "promo_offers") return json([]);
           if (endpoint === "promo_usage") return json([]);
-          if (endpoint === "save_promo") {saved=body.p_offer; return json('draft-fixture');}
+          if (endpoint === "save_promo") {
+            saved = body.p_offer;
+            return json("draft-fixture");
+          }
           return route.fallback();
         });
         await f.context.route("**/api/place-bet", async (route) => {
@@ -194,8 +225,11 @@ fs.mkdirSync(output, { recursive: true });
         await f.page.getByLabel("Wager", { exact: true }).fill("21");
         assert(await f.page.locator(".place-bet").isDisabled());
         await f.page.getByLabel("Wager", { exact: true }).fill("10");
-        await f.page.screenshot({path:path.join(output,`boost-${width}-${theme}.png`),fullPage:true});
-        await f.page.locator('.slip-legs').evaluate(el=>el.scrollTop=0);
+        await f.page.screenshot({
+          path: path.join(output, `boost-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        await f.page.locator(".slip-legs").evaluate((el) => (el.scrollTop = 0));
         await f.page.locator(".slip-leg button").first().click();
         assert.equal(await toggle.count(), 0);
         await f.page.keyboard.press("Escape");
@@ -252,31 +286,152 @@ fs.mkdirSync(output, { recursive: true });
         assert.equal(received.offer_kind, "boost");
         assert.equal(o.used, true);
         await f.page.getByLabel("League", { exact: true }).selectOption(B);
-      await menu(f.page,"Home");
+        await menu(f.page, "Home");
         await f.page.getByRole("heading", { name: /SEASON 9/ }).waitFor();
         assert.equal(await f.page.locator(".promo-card").count(), 0);
         assert.equal(await f.page.locator(".slip-banner").count(), 0);
-        await f.page.getByLabel('League',{exact:true}).selectOption(A);
-        await menu(f.page,'Admin');
-        await f.page.getByRole('button',{name:/Promos & Boosts/}).click();
-        await f.page.getByRole('heading',{name:'Offer details',exact:true}).waitFor();
-        await f.context.route('**/api/promo-image',async route=>{
-          const body=route.request().postDataJSON();assert.equal(body.league_id,A);
+        await f.page.getByLabel("League", { exact: true }).selectOption(A);
+        const adminMarkets = [
+          ...quotes(b),
+          ...points,
+          {
+            ...points[0],
+            id: "weekly-selection",
+            kind: "weekly_high",
+            label: "Weekly high scorer",
+          },
+        ];
+        await f.context.route("**/rest/v1/sportsbook_boards**", (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify([b]),
+          }),
+        );
+        await f.context.route("**/rest/v1/sportsbook_markets**", (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(adminMarkets),
+          }),
+        );
+        await menu(f.page, "Admin");
+        await f.page.getByRole("button", { name: /Promos & Boosts/ }).click();
+        await f.page
+          .getByRole("heading", { name: "Offer details", exact: true })
+          .waitFor();
+        await f.context.route("**/api/promo-image", async (route) => {
+          const body = route.request().postDataJSON();
+          assert.equal(body.league_id, A);
           validatePng(body.png);
-          return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'image-fixture'})});
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ id: "image-fixture" }),
+          });
         });
-        await f.page.getByLabel('Title',{exact:true}).fill('50% Player Points boost');
-        await f.page.getByLabel('Readable offer terms',{exact:true}).fill(o.description);
-        await f.page.locator('input[type="file"]').setInputFiles({name:'fixture.png',mimeType:'image/png',buffer:Buffer.from(artwork,'base64')});
-        await f.page.getByRole('button',{name:'Save draft',exact:true}).click();
-        await f.page.getByText('Draft saved. It is not public.',{exact:true}).waitFor();
-        assert.equal(saved.terms.max_stake,20);assert.equal(saved.terms.criterion,'points_min');assert.equal(saved.terms.count,5);
-        assert.equal(saved.status,'draft');assert(!Object.keys(saved.terms).some(k=>/cap|profit_limit/.test(k)));
-        assert.equal(await f.page.getByText(/extra profit cap/i).count(),0);
-        assert.equal(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-        await f.page.screenshot({path:path.join(output,`admin-${width}-${theme}.png`),fullPage:true});
-        await f.page.getByRole('button',{name:'Schedule offer',exact:true}).click();
-        await f.page.getByText(/Offer scheduled. It appears/).waitFor();assert.equal(saved.status,'scheduled');
+        await f.page
+          .getByLabel("Title", { exact: true })
+          .fill("50% Player Points boost");
+        await f.page
+          .getByLabel("Readable offer terms", { exact: true })
+          .fill(o.description);
+        await f.page
+          .locator('input[type="file"]')
+          .setInputFiles({
+            name: "fixture.png",
+            mimeType: "image/png",
+            buffer: Buffer.from(artwork, "base64"),
+          });
+        await f.page
+          .getByRole("button", { name: "Save draft", exact: true })
+          .click();
+        await f.page
+          .getByText("Draft saved. It is not public.", { exact: true })
+          .waitFor();
+        assert.equal(saved.terms.max_stake, 20);
+        assert.equal(saved.terms.criterion, "points_min");
+        assert.equal(saved.terms.count, 5);
+        assert.equal(saved.status, "draft");
+        assert(
+          !Object.keys(saved.terms).some((k) => /cap|profit_limit/.test(k)),
+        );
+        assert.equal(await f.page.getByText(/extra profit cap/i).count(), 0);
+        assert.equal(
+          await f.page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth,
+          ),
+          false,
+        );
+        await f.page.screenshot({
+          path: path.join(output, `admin-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        await f.page
+          .getByRole("button", { name: "Schedule offer", exact: true })
+          .click();
+        await f.page.getByText(/Offer scheduled. It appears/).waitFor();
+        assert.equal(saved.status, "scheduled");
+        await f.page
+          .getByLabel("Offer type", { exact: true })
+          .selectOption("fixed");
+        const categoryPicker = f.page.getByLabel("Selection category", {
+          exact: true,
+        });
+        const selectionPicker = f.page.getByLabel("Add an existing selection", {
+          exact: true,
+        });
+        assert.equal(await selectionPicker.count(), 0);
+        assert.deepEqual(
+          await categoryPicker
+            .locator("optgroup")
+            .evaluateAll((nodes) => nodes.map((n) => n.label)),
+          ["Matchups", "Player Projections", "Weekly Specials"],
+        );
+        await categoryPicker.selectOption("spread");
+        await f.page.waitForFunction(() =>
+          document.querySelector('option[value="board-0-q0"]'),
+        );
+        assert.equal(await selectionPicker.locator("option").count(), 3);
+        await selectionPicker.selectOption("board-0-q0");
+        await categoryPicker.selectOption("player_points");
+        assert.equal(await selectionPicker.inputValue(), "");
+        assert(
+          await f.page
+            .getByRole("button", { name: "Add selection", exact: true })
+            .isDisabled(),
+        );
+        assert.equal(await selectionPicker.locator("option").count(), 7);
+        await selectionPicker.selectOption("point-0");
+        await f.page
+          .getByRole("button", { name: "Add selection", exact: true })
+          .click();
+        assert.equal(await f.page.locator(".promo-fixed-leg").count(), 1);
+        assert.equal(
+          await selectionPicker.locator('option[value="point-0"]').count(),
+          0,
+        );
+        await categoryPicker.selectOption("weekly_high");
+        assert.equal(await selectionPicker.locator("option").count(), 2);
+        assert.equal(
+          await selectionPicker.locator("option").last().getAttribute("value"),
+          "weekly-selection",
+        );
+        await categoryPicker.selectOption("team_total");
+        assert(await selectionPicker.isDisabled());
+        await categoryPicker.selectOption("player_points");
+        await f.page.screenshot({
+          path: path.join(output, `category-picker-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        assert.equal(
+          await f.page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth,
+          ),
+          false,
+        );
+        await f.page.getByLabel("Week", { exact: true }).fill("6");
+        assert.equal(await selectionPicker.count(), 0);
         assert.deepEqual(f.errors, []);
         evidence.push({
           width,
@@ -293,6 +448,7 @@ fs.mkdirSync(output, { recursive: true });
             "fixed immutability",
             "fixture acceptance",
             "league isolation",
+            "categorized admin selection picker",
           ],
         });
         await f.context.close();

@@ -3,6 +3,7 @@ import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
 import { supabase } from "../lib/supabase";
 import type { Market } from "../lib/markets";
+import { marketType } from "../lib/markets";
 import type { PromoOffer, PromoTerms } from "../lib/promotions";
 import {
   criteria,
@@ -18,6 +19,26 @@ type FixedLeg = {
   odds: number;
   label: string;
 };
+const selectionCategories = [
+  {
+    label: "Matchups",
+    kinds: ["spread", "moneyline", "match_total", "team_total"],
+  },
+  { label: "Player Projections", kinds: ["player_points"] },
+  {
+    label: "Weekly Specials",
+    kinds: [
+      "weekly_high",
+      "weekly_low",
+      "weekly_count_150",
+      "weekly_count_projection",
+      "weekly_average",
+      "weekly_highest_score",
+      "weekly_any_below_100",
+      "weekly_any_200",
+    ],
+  },
+] as const;
 export function PromoAdmin({
   data,
   leagueId,
@@ -63,11 +84,18 @@ export function PromoAdmin({
     [fixedStake, setFixedStake] = useState(""),
     [legs, setLegs] = useState<FixedLeg[]>([]),
     [selected, setSelected] = useState(""),
+    [selectionCategory, setSelectionCategory] = useState(""),
     [edit, setEdit] = useState<PromoOffer | null>(null),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [mobile, setMobile] = useState(false);
   const league = data.leagues.find((l) => l.id === leagueId);
+  const availableSelections = markets.filter(
+    (m) => !m.boost_pct && !legs.some((l) => l.id === m.id),
+  );
+  const categorySelections = availableSelections
+    .filter((m) => m.kind === selectionCategory)
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
   const reload = useCallback(async () => {
     if (reviewMode || !supabase) return;
     const [o, e, u] = await Promise.all([
@@ -209,7 +237,7 @@ export function PromoAdmin({
       setNotice(
         status === "draft"
           ? "Draft saved. It is not public."
-          : "Offer scheduled. It appears after this week’s successful publication.",
+          : "Offer scheduled. It appears during the selected week once its board is published and open. For the current week, an already-open board makes it appear immediately.",
       );
     } catch (e) {
       setNotice(errorMessage(e));
@@ -218,6 +246,8 @@ export function PromoAdmin({
     }
   }
   function newDraft() {
+    setSelected("");
+    setSelectionCategory("");
     setEdit(null);
     setTitle("");
     setDescription("");
@@ -228,6 +258,8 @@ export function PromoAdmin({
     setNotice("");
   }
   function editDraft(o: PromoOffer) {
+    setSelected("");
+    setSelectionCategory("");
     setEdit(o);
     setWeek(o.market_week);
     setSlot(o.slot);
@@ -277,6 +309,8 @@ export function PromoAdmin({
                 onChange={(e) => {
                   setWeek(Number(e.target.value));
                   setLegs([]);
+                  setSelected("");
+                  setSelectionCategory("");
                 }}
               />
             </label>
@@ -296,6 +330,7 @@ export function PromoAdmin({
             <label className="promo-full">
               Offer type
               <select
+                aria-label="Offer type"
                 value={kind}
                 onChange={(e) => setKind(e.target.value as typeof kind)}
               >
@@ -481,29 +516,58 @@ export function PromoAdmin({
               <>
                 <div className="promo-full">
                   <label>
-                    Add an existing selection
+                    Selection category
                     <select
-                      value={selected}
-                      onChange={(e) => setSelected(e.target.value)}
+                      aria-label="Selection category"
+                      value={selectionCategory}
+                      onChange={(e) => {
+                        setSelectionCategory(e.target.value);
+                        setSelected("");
+                      }}
                     >
-                      <option value="">Choose selection</option>
-                      {markets
-                        .filter(
-                          (m) =>
-                            !m.boost_pct && !legs.some((l) => l.id === m.id),
-                        )
-                        .map((m) => (
+                      <option value="">Choose category</option>
+                      {selectionCategories.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.kinds.map((kind) => (
+                            <option key={kind} value={kind}>
+                              {marketType[kind]}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                  {selectionCategory && (
+                    <label className="promo-selection-picker">
+                      Add an existing selection
+                      <select
+                        aria-label="Add an existing selection"
+                        value={selected}
+                        onChange={(e) => setSelected(e.target.value)}
+                        disabled={!categorySelections.length}
+                      >
+                        <option value="">
+                          {categorySelections.length
+                            ? "Choose selection"
+                            : "No available selections in this category"}
+                        </option>
+                        {categorySelections.map((m) => (
                           <option key={m.id} value={m.id}>
                             {m.label}
                           </option>
                         ))}
-                    </select>
-                  </label>
+                      </select>
+                    </label>
+                  )}
                   <button
                     className="secondary"
-                    disabled={!selected}
+                    disabled={
+                      !categorySelections.some((m) => m.id === selected)
+                    }
                     onClick={() => {
-                      const m = markets.find((p) => p.id === selected);
+                      const m = categorySelections.find(
+                        (p) => p.id === selected,
+                      );
                       if (m)
                         setLegs([
                           ...legs,
@@ -622,6 +686,11 @@ export function PromoAdmin({
               Schedule offer
             </button>
           </div>
+          <p className="promo-status">
+            Schedule offer appears on Home during the selected week, once its
+            board is published and open. For the current week, an already-open
+            board makes the offer appear immediately.
+          </p>
           {notice && (
             <p className="promo-errors" role="status">
               {notice}

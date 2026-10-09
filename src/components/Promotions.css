@@ -120,6 +120,9 @@
 .promo-fixed-leg input {
   min-width: 0;
 }
+.promo-selection-picker {
+  margin: 14px 0;
+}
 .promo-fixed-leg > button {
   min-height: 44px;
 }
