@@ -155,6 +155,10 @@ try {
     [cycle.id],
   );
   assert.equal(jobs.length, 4);
+  await rows(
+    "insert into line_refresh_sources(cycle_id,path,payload) values($1,$2,$3)",
+    [cycle.id, "public:test-feed", "{}"],
+  );
   await rows("select observe_line_refresh($1)", [
     JSON.stringify(parseScoreboard(feed(["STATUS_SCHEDULED"]))),
   ]);
@@ -175,6 +179,10 @@ try {
     if (i < 3) assert.equal(await rev(), originalRev);
   }
   assert.equal(await rev(), originalRev + 1);
+  assert.equal(
+    (await rows("select count(*) as n from line_refresh_sources"))[0].n,
+    0,
+  );
   assert.deepEqual(
     await rows("select * from ticket_legs where ticket_id=$1", [
       ticket.ticket_id,
