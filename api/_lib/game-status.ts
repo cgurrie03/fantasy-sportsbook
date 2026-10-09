@@ -76,11 +76,57 @@ export function parseScoreboard(value: any) {
   };
 }
 export async function fetchGameStatus(now = new Date()) {
-  const response = await fetch(
-    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${scoreboardWindow(now)}&limit=1000`,
-    { cache: "no-store", signal: AbortSignal.timeout(6000) },
+  const local = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const yesterday = new Date(local + "T12:00:00Z");
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  // NFL rejects the range form of dates. Current-week + today/yesterday
+  // covers overnight games and week boundaries without guessing kickoffs.
+  const urls = [
+    "",
+    `?dates=${local.replaceAll("-", "")}`,
+    `?dates=${yesterday.toISOString().slice(0, 10).replaceAll("-", "")}`,
+  ];
+  const observations = await Promise.all(
+    urls.map(async (query) => {
+      const response = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard${query}`,
+        { cache: "no-store", signal: AbortSignal.timeout(6000) },
+      );
+      if (!response.ok)
+        throw new Error(`NFL status source returned ${response.status}.`);
+      return parseScoreboard(await response.json());
+    }),
   );
-  if (!response.ok)
-    throw new Error(`NFL status source returned ${response.status}.`);
-  return parseScoreboard(await response.json());
+  const games = [
+    ...new Map(
+      observations.flatMap((o) => o.games).map((g) => [g.id, g]),
+    ).values(),
+  ];
+  const [start, end] = scoreboardWindow(now).split("-");
+  const inWindow = (date: string) => {
+    const day = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .format(new Date(date))
+      .replaceAll("-", "");
+    return day >= start && day <= end;
+  };
+  return {
+    games,
+    any_in_progress: games.some((g) => g.state === "in_progress"),
+    week_started: games.some(
+      (g) =>
+        inWindow(g.starts_at) &&
+        ["in_progress", "final", "suspended"].includes(g.state),
+    ),
+    reason: observations.find((o) => o.reason)?.reason ?? null,
+  };
 }

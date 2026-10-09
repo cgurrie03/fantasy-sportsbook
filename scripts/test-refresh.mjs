@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import {
+  fetchGameStatus,
   normalizeGameStatus,
   parseScoreboard,
   scoreboardWindow,
@@ -51,6 +52,27 @@ assert.equal(
   "20261103-20261109",
 );
 const db = new PGlite();
+const originalFetch = globalThis.fetch;
+try {
+  const requests = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return new Response(
+      JSON.stringify(feed(["STATUS_IN_PROGRESS", "STATUS_SCHEDULED"])),
+      { headers: { "content-type": "application/json" } },
+    );
+  };
+  const observed = await fetchGameStatus(new Date("2026-10-09T01:00:00Z"));
+  assert.equal(requests.length, 3);
+  assert(requests.some((url) => url.endsWith("?dates=20261008")));
+  assert(requests.some((url) => url.endsWith("?dates=20261007")));
+  assert.equal(observed.games.length, 2); // duplicate game IDs are coalesced
+  assert.equal(observed.any_in_progress, true);
+  globalThis.fetch = async () => new Response("{}", { status: 503 });
+  await assert.rejects(() => fetchGameStatus(), /503/);
+} finally {
+  globalThis.fetch = originalFetch;
+}
 const rows = async (sql, args = []) => (await db.query(sql, args)).rows;
 const league = "13121261-5398-4391-8240-000000000003",
   admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
