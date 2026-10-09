@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Market } from "../lib/markets";
+import { MarketTitle } from "./MarketTitle";
 
 export function WeeklyCountPicker({
   markets,
@@ -43,11 +44,11 @@ export function WeeklyCountPicker({
   }, [Boolean(current)]);
   return (
     <article className="prop-card count-special">
-      <h2>
+      <MarketTitle eligibility="Singles or parlays">
         {projection
           ? "How Many Teams Will Beat Their Projection?"
           : "How Many Teams Will Score 150+?"}
-      </h2>
+      </MarketTitle>
       <p>
         {projection
           ? "Choose the exact count. Teams must exceed the published projections saved with your ticket. A tied projection does not count."

@@ -27,6 +27,7 @@ import "./Sportsbook.css";
 import { LineRefreshStatus } from "./LineRefreshStatus";
 import { StarterActivity } from "./StarterActivity";
 import { LineMovement } from "./LineMovement";
+import { MarketTitle } from "./MarketTitle";
 import { useStarterActivity } from "../lib/starter-activity";
 import type { StarterSnapshot } from "../lib/starter-activity";
 
@@ -286,6 +287,22 @@ export function Sportsbook({
   function quote(m: Market | undefined, short?: string) {
     if (!m) return <span className="quote-empty">—</span>;
     const selected = picks.some((p) => p.id === m.id);
+    const showsPrice =
+      m.kind === "moneyline" ||
+      weeklyKinds.includes(m.kind) ||
+      isFuture(m) ||
+      m.boost_pct > 0;
+    const movement = (
+      <LineMovement
+        value={
+          showsPrice
+            ? americanPrice(selectionPrice(m))
+            : Number(m.line ?? m.odds)
+        }
+        scope={`${m.board_id}:${week}`}
+        live={(isFuture(m) ? futureBoard : board)?.phase === "live"}
+      />
+    );
     return (
       <button
         type="button"
@@ -306,11 +323,6 @@ export function Sportsbook({
         }
         onClick={() => toggle(m)}
       >
-        <LineMovement
-          value={Number(m.line ?? americanPrice(selectionPrice(m)))}
-          scope={`${m.board_id}:${week}`}
-          live={(isFuture(m) ? futureBoard : board)?.phase === "live"}
-        />
         {quoteUnavailable(m) ? (
           <>
             <svg
@@ -327,20 +339,22 @@ export function Sportsbook({
             <span>{m.metadata.lineup_locked ? "Locked" : "Suspended"}</span>
           </>
         ) : (
-          short !== "" && <strong>{short ?? m.label}</strong>
+          short !== "" && (
+            <strong>
+              {short ?? m.label}
+              {!showsPrice && movement}
+            </strong>
+          )
         )}
-        {!quoteUnavailable(m) &&
-          (m.kind === "moneyline" ||
-            weeklyKinds.includes(m.kind) ||
-            isFuture(m) ||
-            m.boost_pct > 0) && (
-            <span>
-              {m.boost_pct > 0 && m.kind === "moneyline" && (
-                <del>{formatOdds(m.odds)}</del>
-              )}{" "}
-              {formatOdds(americanPrice(selectionPrice(m)))}
-            </span>
-          )}
+        {!quoteUnavailable(m) && showsPrice && (
+          <span className="quote-price">
+            {m.boost_pct > 0 && m.kind === "moneyline" && (
+              <del>{formatOdds(m.odds)}</del>
+            )}{" "}
+            {formatOdds(americanPrice(selectionPrice(m)))}
+            {movement}
+          </span>
+        )}
       </button>
     );
   }
@@ -368,7 +382,8 @@ export function Sportsbook({
   const selectionGroups = [
     ...new Set(picks.map((p) => p.matchup_key ?? p.subject)),
   ];
-  const suspensionReason = (category === "Season Futures" ? futureBoard : board)?.suspension_reason;
+  const suspensionReason = (category === "Season Futures" ? futureBoard : board)
+    ?.suspension_reason;
   return (
     <main className="sportsbook">
       <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">
@@ -424,11 +439,12 @@ export function Sportsbook({
       {tab === "Home" && (
         <>
           <LineRefreshStatus leagueId={member.league_id} review={!!review} />
-          {suspensionReason && !suspensionReason.startsWith("Live pricing unavailable:") && (
-            <p className="feedback" role="status">
-              {suspensionReason}
-            </p>
-          )}
+          {suspensionReason &&
+            !suspensionReason.startsWith("Live pricing unavailable:") && (
+              <p className="feedback" role="status">
+                {suspensionReason}
+              </p>
+            )}
           <div className="board-heading">
             <div>
               <h1>
@@ -577,7 +593,12 @@ export function Sportsbook({
                             <div className="match-team-row" key={t?.id ?? i}>
                               <div className="match-team">
                                 {t?.avatar_url && (
-                                  <img src={t.avatar_url} width={32} height={32} alt="" />
+                                  <img
+                                    src={t.avatar_url}
+                                    width={32}
+                                    height={32}
+                                    alt=""
+                                  />
                                 )}
                                 <div>
                                   <strong>{t?.team_name}</strong>
@@ -803,11 +824,11 @@ export function Sportsbook({
                 <div className="props-grid">
                   {["weekly_high", "weekly_low"].map((kind) => (
                     <article className="prop-card" key={kind}>
-                      <h2>
+                      <MarketTitle eligibility="Singles or parlays">
                         {kind === "weekly_high"
                           ? "Highest Weekly Scorer"
                           : "Lowest Weekly Scorer"}
-                      </h2>
+                      </MarketTitle>
                       <p>
                         Choose the team you think will finish{" "}
                         {kind === "weekly_high" ? "highest" : "lowest"} this
@@ -843,11 +864,11 @@ export function Sportsbook({
                   {(["weekly_average", "weekly_highest_score"] as const).map(
                     (kind) => (
                       <article className="prop-card" key={kind}>
-                        <h2>
+                        <MarketTitle eligibility="Singles or parlays">
                           {kind === "weekly_average"
                             ? "League Average Score"
                             : "Highest Score Of The Week"}
-                        </h2>
+                        </MarketTitle>
                         <p>
                           {kind === "weekly_average"
                             ? "Final points across all 12 teams, divided by 12."
@@ -869,11 +890,11 @@ export function Sportsbook({
                   {(["weekly_any_below_100", "weekly_any_200"] as const).map(
                     (kind) => (
                       <article className="prop-card" key={kind}>
-                        <h2>
+                        <MarketTitle eligibility="Singles or parlays">
                           {kind === "weekly_any_below_100"
                             ? "Will Any Team Score Below 100?"
                             : "Will Any Team Score 200+?"}
-                        </h2>
+                        </MarketTitle>
                         <p>
                           {kind === "weekly_any_below_100"
                             ? "At least one team must finish below 100 points for Yes to win."

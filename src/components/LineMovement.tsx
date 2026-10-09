@@ -34,7 +34,7 @@ export function LineMovement({
       role="img"
       aria-label={`Line moved ${direction} from its previous value`}
     >
-      <span aria-hidden="true">⌃</span>
+      <span aria-hidden="true">{direction === "up" ? "↑" : "↓"}</span>
     </span>
   );
 }

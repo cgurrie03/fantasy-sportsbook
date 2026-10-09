@@ -14,6 +14,7 @@ const boards=[A,B].map((league_id,i)=>({id:`board-${i}`,league_id,board_type:'we
 const futureBoards=boards.map(b=>({...b,id:`${b.id}-future`,board_type:'future'}));
 function futureQuotes(b){return teams.filter(t=>t.league_id===b.league_id).flatMap(t=>['future_win_total','future_playoffs','future_champion','future_first_pick'].flatMap(kind=>(kind==='future_win_total'?['over','under']:kind==='future_playoffs'?['make','miss']:['yes']).map(side=>({id:`${b.id}-${t.id}-${kind}-${side}`,board_id:b.id,market_key:`${kind}:${t.id}`,kind,side,line:kind==='future_win_total'?8.5:null,odds:110,boost_pct:0,label:t.team_name,subject:t.team_name,team_id:t.id,active:true,market_state:'open',metadata:{expected_wins:8.5,simulated_probability:0.5}}))))}
 function quotes(b){const t=teams.filter(t=>t.league_id===b.league_id);return [['spread',t[0].id,-4.5,-110],['spread',t[1].id,4.5,-110],['moneyline',t[0].id,null,-150],['moneyline',t[1].id,null,130],['match_total','over',250.5,-110],['match_total','under',250.5,-110]].map(([kind,side,line,odds],i)=>({id:`${b.id}-q${i}`,board_id:b.id,market_key:kind,matchup_key:'same-roster-numbers',kind,side,line,odds,label:kind==='match_total'?`${side} ${line}`:`${t.find(t=>t.id===side).team_name} ${line??'Win'}`,subject:'Fixture league',team_id:kind==='match_total'?null:side,home_team_id:t[0].id,away_team_id:t[1].id,home_projection:127.5,away_projection:123,featured:'Game of the Week',boost_pct:kind==='moneyline'?25:0,metadata:{},active:true,market_state:'open'}))}
+function specialQuotes(b,state){return ['weekly_high','weekly_low','weekly_count_150','weekly_count_projection','weekly_average','weekly_highest_score','weekly_any_below_100','weekly_any_200'].map(kind=>({id:`${b.id}-${kind}`,board_id:b.id,market_key:kind,kind,side:kind.startsWith('weekly_count')?'exact':'yes',line:kind.startsWith('weekly_count')?4:150,odds:300+(state.movement||0)*20,boost_pct:0,label:kind==='weekly_count_150'?'4 Teams Scoring 150+':kind==='weekly_count_projection'?'4 Teams Beating Projection':'Fixture selection',subject:'Fixture league',team_id:null,active:true,market_state:'open',metadata:{}}))}
 const evidence=[];
 async function setup(browser, width, height, signedIn=true){
  const context=await browser.newContext({viewport:{width,height},isMobile:width<768,hasTouch:width<768,acceptDownloads:true});
@@ -30,7 +31,7 @@ async function setup(browser, width, height, signedIn=true){
    if(endpoint==='claim_memberships')return json(2);
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
    if(endpoint==='sportsbook_quote_snapshot'){
-    const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):quotes(b)});
+    const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.specials?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
    }
    if(endpoint==='league_leaderboard')return json([]);
    if(endpoint==='leagues')return json(leagues);
@@ -95,13 +96,24 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
    assert.equal(await f.page.getByText(/Live pricing unavailable:/).count(),0);assert.equal(await f.page.locator('.line-updates-coming-soon svg').count(),1);
    await f.page.getByRole('button',{name:'Season Futures',exact:true}).click();await f.page.locator('.future-row').first().waitFor();
    assert.equal(await f.page.locator('.board-window').getByText(/parlay|single/i).count(),0);
-   assert.equal(await f.page.locator('.future-eligibility').count(),8);
+   assert.equal(await f.page.locator('.market-eligibility').count(),4);
+   for(const title of await f.page.locator('.market-title').all()){
+    const g=await title.evaluate(el=>({titleRight:el.querySelector('h2').getBoundingClientRect().right,labelLeft:el.querySelector('.market-eligibility').getBoundingClientRect().left}));assert(g.labelLeft>g.titleRight);
+   }
    for(const row of await f.page.locator('.future-row').all()){
-    const details=await row.evaluate(el=>{const label=el.querySelector('.future-eligibility'),name=el.querySelector('.future-team strong'),actions=el.querySelector('.future-actions');return {label:label.textContent,align:getComputedStyle(label).textAlign,right:label.getBoundingClientRect().right,rowRight:el.getBoundingClientRect().right,nameRight:name.getBoundingClientRect().right,actionsLeft:actions.getBoundingClientRect().left,textFits:name.scrollWidth<=name.clientWidth}});
-    assert.match(details.label,/Playoff parlays only|Singles or win-total parlays|Singles only/);assert.equal(details.align,'right');assert(Math.abs(details.right-details.rowRight)<2);
+    assert.equal(await row.locator('.market-eligibility').count(),0);
+    const details=await row.evaluate(el=>{const name=el.querySelector('.future-team strong'),actions=el.querySelector('.future-actions');return {nameRight:name.getBoundingClientRect().right,actionsLeft:actions.getBoundingClientRect().left,textFits:name.scrollWidth<=name.clientWidth}});
     assert(details.textFits && details.nameRight<details.actionsLeft,'Long team names must not overlap futures odds');
    }
    for(const theme of ['dark','light']){await f.page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await f.page.waitForTimeout(250);await geometry(f.page,`futures-${width}-${theme}`);await f.page.screenshot({path:path.join(output,`futures-${width}-${theme}.png`),fullPage:true});}
+   f.state.specials=true;await f.page.clock.install();await f.page.reload();await f.page.getByRole('button',{name:'Weekly Specials',exact:true}).click();await f.page.locator('.count-selection .market-quote').first().waitFor();
+   assert.equal(await f.page.locator('.market-eligibility').count(),8);for(const label of await f.page.locator('.market-eligibility').all())assert.equal(await label.innerText(),'Singles or parlays');
+   for(const title of await f.page.locator('.market-title').all()){const g=await title.evaluate(el=>({right:el.getBoundingClientRect().right,labelRight:el.querySelector('.market-eligibility').getBoundingClientRect().right,titleRight:el.querySelector('h2').getBoundingClientRect().right,labelLeft:el.querySelector('.market-eligibility').getBoundingClientRect().left}));assert(g.labelLeft>g.titleRight&&Math.abs(g.right-g.labelRight)<2);}
+   for(const theme of ['dark','light']){await f.page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await f.page.waitForTimeout(250);await geometry(f.page,`specials-${width}-${theme}`);await f.page.screenshot({path:path.join(output,`specials-${width}-${theme}.png`),fullPage:true});}
+   const price=f.page.locator('.count-selection .quote-price').first();assert.match(await price.innerText(),/\+300/);f.state.movement=1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-up').waitFor();assert.match(await price.innerText(),/\+320.*↑/s);
+   const arrow=await price.locator('.line-movement').evaluate(el=>({position:getComputedStyle(el).position,right:el.getBoundingClientRect().right,parentRight:el.parentElement.getBoundingClientRect().right}));assert.notEqual(arrow.position,'absolute');assert(Math.abs(arrow.right-arrow.parentRight)<2);
+   await f.page.locator('.count-special').first().screenshot({path:path.join(output,`odds-arrow-${width}.png`)});
+   await f.page.clock.fastForward(5100);assert.equal(await price.locator('.line-movement').count(),0);f.state.movement=-1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-down').waitFor();assert.match(await price.innerText(),/\+280.*↓/s);
    assert.deepEqual(f.errors,[]);await f.context.close();
   }
   const {context,page,state,errors}=await setup(browser,390,844);

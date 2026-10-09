@@ -1997,9 +1997,6 @@
   position: relative;
 }
 .market-quote .line-movement {
-  position: absolute;
-  top: 5px;
-  right: 7px;
   font-size: 16px;
   line-height: 1;
   font-weight: 800;
@@ -2009,7 +2006,6 @@
 }
 .line-movement-down {
   color: #ff777b;
-  transform: rotate(180deg);
 }
 .live-model-log {
   border: 1px solid var(--border);
@@ -2089,4 +2085,9 @@
 .line-updates-coming-soon svg { flex-shrink: 0; align-self: center; }
 .future-actions { flex-shrink: 0; display: grid; justify-items: end; gap: 6px; }
 .future-team > div { min-width: 0; overflow-wrap: anywhere; }
-.future-eligibility { color: var(--muted); font-size: 11px; line-height: 1.4; text-align: right; max-width: 148px; }
+.market-title, .prop-card > .market-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.market-title h2 { flex: 1; min-width: 0; margin: 0; }
+.market-eligibility { flex-shrink: 0; max-width: 45%; color: var(--muted); font-size: 11px; line-height: 1.4; text-align: right; }
+.season-future-card > header > div { flex: 1; min-width: 0; }
+.market-quote .quote-price { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+.line-movement > span { font-size: inherit; }

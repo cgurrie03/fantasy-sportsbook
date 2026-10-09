@@ -3,6 +3,7 @@ import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
 import type { Board, Market } from "../lib/markets";
 import { formatOdds, futureKinds, loadFuturesBoard } from "../lib/markets";
+import { MarketTitle } from "./MarketTitle";
 import { supabase } from "../lib/supabase";
 
 export function SeasonFutures({
@@ -49,7 +50,15 @@ export function SeasonFutures({
                     : "#1"}
             </span>
             <div>
-              <h2>
+              <MarketTitle
+                eligibility={
+                  kind === "future_playoffs"
+                    ? "Playoff parlays only"
+                    : kind === "future_win_total"
+                      ? "Singles or win-total parlays"
+                      : "Singles only"
+                }
+              >
                 {kind === "future_champion"
                   ? "League Winner"
                   : kind === "future_playoffs"
@@ -57,7 +66,7 @@ export function SeasonFutures({
                     : kind === "future_win_total"
                       ? "Regular-season Wins"
                       : "#1 Pick"}
-              </h2>
+              </MarketTitle>
               <p>
                 {kind === "future_champion"
                   ? "Win the league championship."
@@ -154,13 +163,6 @@ export function SeasonFutures({
                               ))
                           : quote(m, "")}
                       </div>
-                      <small className="future-eligibility">
-                        {kind === "future_playoffs"
-                          ? "Playoff parlays only"
-                          : kind === "future_win_total"
-                            ? "Singles or win-total parlays"
-                            : "Singles only"}
-                      </small>
                     </div>
                   </div>
                 );
