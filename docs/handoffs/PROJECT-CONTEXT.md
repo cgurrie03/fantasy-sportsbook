@@ -59,3 +59,5 @@ Use preview/test data for acceptance and delivery tests; do not place live bets 
 Each completed chat must update its handoff with files changed, migrations applied, tests, deployment commit/status, remaining decisions and rollback approach. Runtime odds updates are database publications; only application changes need Git/Vercel deployment.
 
 Live follow-up: migration 029 adds immutable shadow histories and automatic completed-week accuracy reviews. The existing worker collects live experimental matchup forecasts; acceptance stays disabled pending freshness/model validation. Admin history and five-second green/red line movement indicators are implemented. See handoff 01 for scope, checks and remaining gates. Deployment/job evidence will be recorded with the verified release.
+
+Live logging production evidence: eb79c03 Vercel Ready at 10:39 PM Eastern. Unattended 10:46 PM cycle saved five experimental matchup forecasts at 10:47 PM. Weekly board closed; live freshness unverified and acceptance disabled. Immutable histories and automatic completed-week reviews are installed. See handoff 01.
