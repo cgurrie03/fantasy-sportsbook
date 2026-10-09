@@ -124,34 +124,43 @@ export function SeasonFutures({
                         </small>
                       </div>
                     </div>
-                    <div className="future-buttons">
-                      {["future_playoffs", "future_win_total"].includes(kind)
-                        ? [
-                            m,
-                            markets.find(
-                              (q) =>
-                                q.kind === kind &&
-                                q.team_id === m.team_id &&
-                                q.side ===
-                                  (kind === "future_win_total"
-                                    ? "under"
-                                    : "miss"),
-                            ),
-                          ]
-                            .filter((q): q is Market => !!q)
-                            .map((q) => (
-                              <span key={q.id}>
-                                {quote(
-                                  q,
-                                  kind === "future_win_total"
-                                    ? `${q.side === "over" ? "Over" : "Under"} ${q.line}`
-                                    : q.side === "make"
-                                      ? "Make"
-                                      : "Miss",
-                                )}
-                              </span>
-                            ))
-                        : quote(m, "")}
+                    <div className="future-actions">
+                      <div className="future-buttons">
+                        {["future_playoffs", "future_win_total"].includes(kind)
+                          ? [
+                              m,
+                              markets.find(
+                                (q) =>
+                                  q.kind === kind &&
+                                  q.team_id === m.team_id &&
+                                  q.side ===
+                                    (kind === "future_win_total"
+                                      ? "under"
+                                      : "miss"),
+                              ),
+                            ]
+                              .filter((q): q is Market => !!q)
+                              .map((q) => (
+                                <span key={q.id}>
+                                  {quote(
+                                    q,
+                                    kind === "future_win_total"
+                                      ? `${q.side === "over" ? "Over" : "Under"} ${q.line}`
+                                      : q.side === "make"
+                                        ? "Make"
+                                        : "Miss",
+                                  )}
+                                </span>
+                              ))
+                          : quote(m, "")}
+                      </div>
+                      <small className="future-eligibility">
+                        {kind === "future_playoffs"
+                          ? "Playoff parlays only"
+                          : kind === "future_win_total"
+                            ? "Singles or win-total parlays"
+                            : "Singles only"}
+                      </small>
                     </div>
                   </div>
                 );

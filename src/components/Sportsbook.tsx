@@ -368,6 +368,7 @@ export function Sportsbook({
   const selectionGroups = [
     ...new Set(picks.map((p) => p.matchup_key ?? p.subject)),
   ];
+  const suspensionReason = (category === "Season Futures" ? futureBoard : board)?.suspension_reason;
   return (
     <main className="sportsbook">
       <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">
@@ -423,13 +424,9 @@ export function Sportsbook({
       {tab === "Home" && (
         <>
           <LineRefreshStatus leagueId={member.league_id} review={!!review} />
-          {(category === "Season Futures" ? futureBoard : board)
-            ?.suspension_reason && (
+          {suspensionReason && !suspensionReason.startsWith("Live pricing unavailable:") && (
             <p className="feedback" role="status">
-              {
-                (category === "Season Futures" ? futureBoard : board)
-                  ?.suspension_reason
-              }
+              {suspensionReason}
             </p>
           )}
           <div className="board-heading">
@@ -455,9 +452,6 @@ export function Sportsbook({
                       : "Season Futures Closed"}
                   </strong>
                   <span>Available throughout the week unless closed.</span>
-                  <span>Make/Miss Playoffs: Parlays only</span>
-                  <span>Win totals: Singles or win-total-only parlays</span>
-                  <span>League Winner and #1 Pick: Single bets only</span>
                 </>
               ) : board ? (
                 <>

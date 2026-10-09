@@ -11,6 +11,8 @@ const teams=[A,B].flatMap((league_id,j)=>names.map((team_name,i)=>({id:`${j?'bbb
 const memberships=[A,B].map((league_id,j)=>({id:`member-${j}`,league_id,team_id:teams[j*2].id,user_id:userId,invited_email:'fixture@example.test',display_name:'Long Fixture Owner',role:j?'member':'admin'}));
 const session={access_token:`${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.fixture`,refresh_token:'fixture-only',token_type:'bearer',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,user:{id:userId,email:'fixture@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}};
 const boards=[A,B].map((league_id,i)=>({id:`board-${i}`,league_id,board_type:'weekly',market_week:5,nfl_season:2026,league_season:i?9:3,status:'published',phase:'pregame',revision:1,opens_at:new Date(Date.now()-3600000).toISOString(),closes_at:new Date(Date.now()+86400000).toISOString()}));
+const futureBoards=boards.map(b=>({...b,id:`${b.id}-future`,board_type:'future'}));
+function futureQuotes(b){return teams.filter(t=>t.league_id===b.league_id).flatMap(t=>['future_win_total','future_playoffs','future_champion','future_first_pick'].flatMap(kind=>(kind==='future_win_total'?['over','under']:kind==='future_playoffs'?['make','miss']:['yes']).map(side=>({id:`${b.id}-${t.id}-${kind}-${side}`,board_id:b.id,market_key:`${kind}:${t.id}`,kind,side,line:kind==='future_win_total'?8.5:null,odds:110,boost_pct:0,label:t.team_name,subject:t.team_name,team_id:t.id,active:true,market_state:'open',metadata:{expected_wins:8.5,simulated_probability:0.5}}))))}
 function quotes(b){const t=teams.filter(t=>t.league_id===b.league_id);return [['spread',t[0].id,-4.5,-110],['spread',t[1].id,4.5,-110],['moneyline',t[0].id,null,-150],['moneyline',t[1].id,null,130],['match_total','over',250.5,-110],['match_total','under',250.5,-110]].map(([kind,side,line,odds],i)=>({id:`${b.id}-q${i}`,board_id:b.id,market_key:kind,matchup_key:'same-roster-numbers',kind,side,line,odds,label:kind==='match_total'?`${side} ${line}`:`${t.find(t=>t.id===side).team_name} ${line??'Win'}`,subject:'Fixture league',team_id:kind==='match_total'?null:side,home_team_id:t[0].id,away_team_id:t[1].id,home_projection:127.5,away_projection:123,featured:'Game of the Week',boost_pct:kind==='moneyline'?25:0,metadata:{},active:true,market_state:'open'}))}
 const evidence=[];
 async function setup(browser, width, height, signedIn=true){
@@ -28,7 +30,7 @@ async function setup(browser, width, height, signedIn=true){
    if(endpoint==='claim_memberships')return json(2);
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
    if(endpoint==='sportsbook_quote_snapshot'){
-    const b=boards.find(b=>b.id===body.p_board);return json({board:{...b,...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{})},markets:quotes(b)});
+    const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):quotes(b)});
    }
    if(endpoint==='league_leaderboard')return json([]);
    if(endpoint==='leagues')return json(leagues);
@@ -37,7 +39,7 @@ async function setup(browser, width, height, signedIn=true){
    if(endpoint==='wallets')return json(memberships.map(m=>({team_id:m.team_id,balance:100-state.tickets.filter(t=>t.team_id===m.team_id).reduce((n,t)=>n+t.stake,0)})));
    if(endpoint==='tickets')return json(state.tickets);
    if(endpoint==='ticket_legs')return json(state.legs);
-   if(endpoint==='sportsbook_boards')return json(state.empty||url.searchParams.get('board_type')==='eq.future'?[]:boards.filter(b=>url.searchParams.get('league_id')===`eq.${b.league_id}`));
+   if(endpoint==='sportsbook_boards')return json(state.empty?[]:(url.searchParams.get('board_type')==='eq.future'?(state.futures?futureBoards:[]):boards).filter(b=>url.searchParams.get('league_id')===`eq.${b.league_id}`));
    if(endpoint==='league_result_weeks')return json([{nfl_season:2026,market_week:4,final:true,fetched_at:new Date().toISOString(),results:Object.fromEntries(teams.filter(t=>t.league_id===A).map((t,i)=>[t.id,{name:t.team_name,points:120+i*10,projection:125,projection_basis:'Fixture archived forecast',matchup_id:1,players_points:{}}]))}]);
    if(endpoint==='weekly_schedule')return json({automation_enabled:false,publication_paused:false,job_times:{}});
    if(req.method()!=='GET'){assert(['sportsbook_period','sportsbook_quote_snapshot','league_leaderboard','claim_memberships'].includes(endpoint),`Unexpected mutation ${endpoint}`);}
@@ -70,7 +72,7 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
   await sign.page.getByLabel('Email Address').fill('fixture@example.test');await sign.page.getByRole('button',{name:'Email Me A Sign-In Link'}).click();await sign.page.getByRole('heading',{name:'Check Your Email'}).waitFor();assert(sign.state.authCalls>0);await sign.context.close();
   for(const width of (process.env.UX_SKIP_MATRIX?[]:[360,390,430,768,1024,1440])){
    const {context,page,state,errors}=await setup(browser,width,844);
-   await page.getByRole('heading',{name:/SEASON/}).waitFor();assert.equal(await page.locator('.line-updates-coming-soon').innerText(),'Live Line Updates are in development and coming soon!');assert.equal(await page.locator('.line-refresh-status').count(),0);
+   await page.getByRole('heading',{name:/SEASON/}).waitFor();assert.equal(await page.locator('.line-updates-coming-soon').innerText(),'Live line updates are in development and coming soon');assert.equal(await page.locator('.line-refresh-status').count(),0);
    for(const theme of ['dark','light']){
     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await page.waitForTimeout(250);await geometry(page,`${width}-${theme}-home`);
     const balance=page.locator('.profile-copy small');assert(await balance.isVisible());assert.match(await balance.innerText(),/100\.00/);
@@ -87,6 +89,20 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
    await page.getByRole('heading',{name:/SEASON 9/}).waitFor();assert.equal(await page.locator('.slip-banner').count(),0);
    await page.getByLabel('Open Account Options').click();assert.equal(await page.locator('.profile-options').getByRole('button',{name:'Admin',exact:true}).count(),0);await page.keyboard.press('Escape');
    assert.equal(state.betCalls,0);assert.deepEqual(errors,[]);await context.close();
+  }
+  for(const width of [360,390,1440]){
+   const f=await setup(browser,width,844);f.state.futures=true;f.state.liveDevelopment=true;await f.page.reload();await f.page.getByRole('heading',{name:/SEASON/}).waitFor();
+   assert.equal(await f.page.getByText(/Live pricing unavailable:/).count(),0);assert.equal(await f.page.locator('.line-updates-coming-soon svg').count(),1);
+   await f.page.getByRole('button',{name:'Season Futures',exact:true}).click();await f.page.locator('.future-row').first().waitFor();
+   assert.equal(await f.page.locator('.board-window').getByText(/parlay|single/i).count(),0);
+   assert.equal(await f.page.locator('.future-eligibility').count(),8);
+   for(const row of await f.page.locator('.future-row').all()){
+    const details=await row.evaluate(el=>{const label=el.querySelector('.future-eligibility'),name=el.querySelector('.future-team strong'),actions=el.querySelector('.future-actions');return {label:label.textContent,align:getComputedStyle(label).textAlign,right:label.getBoundingClientRect().right,rowRight:el.getBoundingClientRect().right,nameRight:name.getBoundingClientRect().right,actionsLeft:actions.getBoundingClientRect().left,textFits:name.scrollWidth<=name.clientWidth}});
+    assert.match(details.label,/Playoff parlays only|Singles or win-total parlays|Singles only/);assert.equal(details.align,'right');assert(Math.abs(details.right-details.rowRight)<2);
+    assert(details.textFits && details.nameRight<details.actionsLeft,'Long team names must not overlap futures odds');
+   }
+   for(const theme of ['dark','light']){await f.page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await f.page.waitForTimeout(250);await geometry(f.page,`futures-${width}-${theme}`);await f.page.screenshot({path:path.join(output,`futures-${width}-${theme}.png`),fullPage:true});}
+   assert.deepEqual(f.errors,[]);await f.context.close();
   }
   const {context,page,state,errors}=await setup(browser,390,844);
   await page.locator('.market-quote').nth(0).click();await page.locator('.market-quote').nth(1).click();await page.getByRole('button',{name:/Bet Slip/}).click();await page.getByLabel('Wager',{exact:true}).fill('10');
@@ -105,6 +121,7 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
   await context.close();
   for(const mode of ['empty','suspended','slow','fail']){
    const f=await setup(browser,360,740);f.state[mode]=true;await f.page.reload();await f.page.waitForLoadState('networkidle');await geometry(f.page,`${mode}-mobile`);await f.page.screenshot({path:path.join(output,`${mode}-mobile.png`),fullPage:true});
+   if(mode==='suspended'){assert(await f.page.getByText('Fixture source outage; markets wait for fresh data.').isVisible());assert(await f.page.locator('.market-quote').first().isDisabled());}
    if(mode==='fail'){await f.page.getByRole('heading',{name:'Could Not Load Your Account'}).waitFor();f.state.fail=false;await f.page.getByRole('button',{name:'Try Again'}).click();await f.page.locator('.market-quote').first().waitFor();}
    if(mode==='slow'){await f.page.reload();await f.page.getByRole('status').filter({hasText:/Loading/}).first().waitFor();await f.page.screenshot({path:path.join(output,'loading-mobile.png')});}
    await f.context.close();

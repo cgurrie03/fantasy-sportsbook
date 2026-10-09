@@ -2085,4 +2085,8 @@
  .place-bet { min-height: 52px; position: sticky; bottom: -12px; }
  .place-bet:disabled { opacity: 1; background: #e0e5ed; color: #52637c; }
 }
-.line-updates-coming-soon { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.line-updates-coming-soon { display: flex; align-items: baseline; gap: 8px; margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.line-updates-coming-soon svg { flex-shrink: 0; align-self: center; }
+.future-actions { flex-shrink: 0; display: grid; justify-items: end; gap: 6px; }
+.future-team > div { min-width: 0; overflow-wrap: anywhere; }
+.future-eligibility { color: var(--muted); font-size: 11px; line-height: 1.4; text-align: right; max-width: 148px; }
