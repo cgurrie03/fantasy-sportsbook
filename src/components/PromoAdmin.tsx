@@ -106,6 +106,10 @@ export function PromoAdmin({
       : m.subject || "Matchup unavailable";
   };
   const selectionLabel = (m: Market) => {
+    if (m.kind === "match_total")
+      return `${matchupLabel(m)} — ${m.side === "over" ? "Over" : "Under"} ${m.line}`;
+    if (m.kind === "team_total")
+      return `${teamName(m.team_id) || m.subject} — ${m.side === "over" ? "Over" : "Under"} ${m.line}`;
     if (m.kind !== "moneyline") return m.label;
     const id =
       m.team_id ||
@@ -125,12 +129,12 @@ export function PromoAdmin({
   const playerMatchups = [
     ...new Map(
       markets
-        .filter((m) => m.kind === "player_points" && !m.boost_pct)
+        .filter((m) => m.active && m.kind === "player_points" && !m.boost_pct)
         .map((m) => [matchupId(m), matchupLabel(m)] as const),
     ).entries(),
   ].sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }));
   const availableSelections = markets.filter(
-    (m) => !m.boost_pct && !legs.some((l) => l.id === m.id),
+    (m) => m.active && !m.boost_pct && !legs.some((l) => l.id === m.id),
   );
   const categorySelections = availableSelections
     .filter(
@@ -139,11 +143,55 @@ export function PromoAdmin({
         (selectionCategory !== "player_points" ||
           matchupId(m) === selectionMatchup),
     )
-    .sort((a, b) =>
-      selectionLabel(a).localeCompare(selectionLabel(b), undefined, {
-        numeric: true,
-      }),
-    );
+    .sort((a, b) => {
+      const compare = (x: string, y: string) =>
+        x.localeCompare(y, undefined, { numeric: true });
+      const group =
+        compare(matchupLabel(a), matchupLabel(b)) ||
+        compare(matchupId(a), matchupId(b));
+      if (group) return group;
+      if (
+        selectionCategory === "team_total" ||
+        selectionCategory === "player_points"
+      ) {
+        const subject = compare(
+          selectionCategory === "team_total"
+            ? teamName(a.team_id) || a.subject
+            : a.subject,
+          selectionCategory === "team_total"
+            ? teamName(b.team_id) || b.subject
+            : b.subject,
+        );
+        if (subject) return subject;
+      }
+      const sideOrder = (m: Market) =>
+        m.side === "over"
+          ? 0
+          : m.side === "under"
+            ? 1
+            : m.side === "home" || m.team_id === m.home_team_id
+              ? 0
+              : 1;
+      return (
+        sideOrder(a) - sideOrder(b) ||
+        compare(selectionLabel(a), selectionLabel(b))
+      );
+    });
+  const groupedSelections = [
+    ...new Map(
+      categorySelections.map((m) => [matchupId(m), matchupLabel(m)] as const),
+    ).entries(),
+  ].map(([id, label]) => ({
+    id,
+    label,
+    selections: categorySelections.filter((m) => matchupId(m) === id),
+  }));
+  const groupByMatchup = [
+    "moneyline",
+    "spread",
+    "match_total",
+    "team_total",
+  ].includes(selectionCategory);
   const reload = useCallback(async () => {
     if (reviewMode || !supabase) return;
     const [o, e, u] = await Promise.all([
@@ -202,6 +250,7 @@ export function PromoAdmin({
               .from("sportsbook_markets")
               .select("*")
               .eq("board_id", b.data.id)
+              .eq("active", true)
           : { data: [], error: null };
         if (r.error) throw r.error;
         if (active) setMarkets(r.data ?? []);
@@ -630,11 +679,21 @@ export function PromoAdmin({
                               ? "Choose selection"
                               : "No available selections in this category"}
                           </option>
-                          {categorySelections.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {selectionLabel(m)} ({formatOdds(m.odds)})
-                            </option>
-                          ))}
+                          {groupByMatchup
+                            ? groupedSelections.map((group) => (
+                                <optgroup key={group.id} label={group.label}>
+                                  {group.selections.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {selectionLabel(m)} ({formatOdds(m.odds)})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))
+                            : categorySelections.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {selectionLabel(m)} ({formatOdds(m.odds)})
+                                </option>
+                              ))}
                         </select>
                       </label>
                     )}

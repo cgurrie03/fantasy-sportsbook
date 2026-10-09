@@ -318,6 +318,54 @@ fs.mkdirSync(output, { recursive: true });
             kind: "weekly_high",
             label: "Weekly high scorer",
           },
+          ...["over", "under"].map((side) => ({
+            ...quotes(b)[0],
+            id: "team-total-" + side,
+            kind: "team_total",
+            side,
+            line: 163,
+            label: "Legacy team total label",
+          })),
+          ...quotes(b)
+            .filter((p) => p.kind === "match_total")
+            .map((p) => ({
+              ...p,
+              id: p.id + "-second",
+              matchup_key: "second-matchup",
+              home_team_id: p.away_team_id,
+              away_team_id: p.home_team_id,
+              line: 280.5,
+            })),
+          {
+            ...quotes(b)[2],
+            id: "inactive-moneyline",
+            active: false,
+            boost_pct: 0,
+            odds: -390,
+            label: "Win · Old price",
+          },
+          {
+            ...quotes(b)[0],
+            id: "inactive-team-total",
+            active: false,
+            kind: "team_total",
+            side: "over",
+            line: 71.5,
+            label: "Old total",
+          },
+          {
+            ...quotes(b)[4],
+            id: "inactive-match-total",
+            active: false,
+            line: 77.5,
+            label: "Old match total",
+          },
+          {
+            ...points[0],
+            id: "inactive-player",
+            active: false,
+            matchup_key: "retired-matchup",
+          },
         ];
         await f.context.route("**/rest/v1/sportsbook_boards**", (route) =>
           route.fulfill({
@@ -326,13 +374,17 @@ fs.mkdirSync(output, { recursive: true });
             body: JSON.stringify([b]),
           }),
         );
-        await f.context.route("**/rest/v1/sportsbook_markets**", (route) =>
-          route.fulfill({
+        await f.context.route("**/rest/v1/sportsbook_markets**", (route) => {
+          assert.equal(
+            new URL(route.request().url()).searchParams.get("active"),
+            "eq.true",
+          );
+          return route.fulfill({
             status: 200,
             contentType: "application/json",
             body: JSON.stringify(adminMarkets),
-          }),
-        );
+          });
+        });
         await menu(f.page, "Admin");
         await f.page.getByRole("button", { name: /Promos & Boosts/ }).click();
         await f.page
@@ -420,6 +472,19 @@ fs.mkdirSync(output, { recursive: true });
           .locator("option")
           .allTextContents();
         assert.equal(moneylines.length, 3);
+        assert.equal(
+          await selectionPicker
+            .locator('option[value="inactive-moneyline"]')
+            .count(),
+          0,
+        );
+        assert.equal(await selectionPicker.locator("optgroup").count(), 1);
+        assert.deepEqual(
+          await selectionPicker
+            .locator("optgroup option")
+            .evaluateAll((nodes) => nodes.map((n) => n.value)),
+          ["admin-moneyline-0", "admin-moneyline-1"],
+        );
         for (const label of moneylines.slice(1)) {
           assert.match(label, / vs\. .*\([+-]150\)$/);
           assert(!label.startsWith("Win"));
@@ -487,7 +552,35 @@ fs.mkdirSync(output, { recursive: true });
           await selectionPicker.locator("option").last().innerText(),
           /\(\+100\)$/,
         );
+        await categoryPicker.selectOption("match_total");
+        assert.equal(await selectionPicker.locator("optgroup").count(), 2);
+        for (const group of await selectionPicker.locator("optgroup").all()) {
+          assert.match(await group.getAttribute("label"), / vs\. /);
+          const labels = await group.locator("option").allTextContents();
+          assert.equal(labels.length, 2);
+          assert.match(labels[0], / vs\. .* — Over /);
+          assert.match(labels[1], / vs\. .* — Under /);
+        }
+        assert.equal(
+          await selectionPicker
+            .locator('option[value="inactive-match-total"]')
+            .count(),
+          0,
+        );
         await categoryPicker.selectOption("team_total");
+        const totals = await selectionPicker
+          .locator("optgroup option")
+          .allTextContents();
+        assert.equal(totals.length, 2);
+        assert.match(totals[0], / — Over 163 \(-110\)/);
+        assert.match(totals[1], / — Under 163 \(-110\)/);
+        assert.equal(
+          await selectionPicker
+            .locator('option[value="inactive-team-total"]')
+            .count(),
+          0,
+        );
+        await categoryPicker.selectOption("weekly_low");
         assert(await selectionPicker.isDisabled());
         await categoryPicker.selectOption("player_points");
         assert.equal(await matchupPicker.inputValue(), "");
