@@ -44,15 +44,15 @@ export function WeeklyCountPicker({
   }, [Boolean(current)]);
   return (
     <article className="prop-card count-special">
-      <MarketTitle eligibility="Singles or parlays">
+      <MarketTitle eligibility="Eligible for Singles and Parlays">
         {projection
           ? "How Many Teams Will Beat Their Projection?"
           : "How Many Teams Will Score 150+?"}
       </MarketTitle>
-      <p>
+      <p className="market-description">
         {projection
-          ? "Choose the exact count. Teams must exceed the published projections saved with your ticket. A tied projection does not count."
-          : "Choose the exact count. Each qualifying team must score at least 150 points."}
+          ? "Count teams above saved projections."
+          : "Count teams scoring 150+."}
       </p>
       {!current ? (
         <p>These markets are coming soon.</p>

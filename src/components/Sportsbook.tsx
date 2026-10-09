@@ -824,15 +824,15 @@ export function Sportsbook({
                 <div className="props-grid">
                   {["weekly_high", "weekly_low"].map((kind) => (
                     <article className="prop-card" key={kind}>
-                      <MarketTitle eligibility="Singles or parlays">
+                      <MarketTitle eligibility="Eligible for Singles and Parlays">
                         {kind === "weekly_high"
                           ? "Highest Weekly Scorer"
                           : "Lowest Weekly Scorer"}
                       </MarketTitle>
-                      <p>
-                        Choose the team you think will finish{" "}
-                        {kind === "weekly_high" ? "highest" : "lowest"} this
-                        week.
+                      <p className="market-description">
+                        {kind === "weekly_high"
+                          ? "Pick the top-scoring team."
+                          : "Pick the lowest-scoring team."}
                       </p>
                       <div className="special-quotes">
                         {markets
@@ -864,15 +864,15 @@ export function Sportsbook({
                   {(["weekly_average", "weekly_highest_score"] as const).map(
                     (kind) => (
                       <article className="prop-card" key={kind}>
-                        <MarketTitle eligibility="Singles or parlays">
+                        <MarketTitle eligibility="Eligible for Singles and Parlays">
                           {kind === "weekly_average"
                             ? "League Average Score"
                             : "Highest Score Of The Week"}
                         </MarketTitle>
-                        <p>
+                        <p className="market-description">
                           {kind === "weekly_average"
-                            ? "Final points across all 12 teams, divided by 12."
-                            : "The highest final score by any team this week."}
+                            ? "Average final team score."
+                            : "Pick the highest team score."}
                         </p>
                         <div>
                           {markets
@@ -890,15 +890,15 @@ export function Sportsbook({
                   {(["weekly_any_below_100", "weekly_any_200"] as const).map(
                     (kind) => (
                       <article className="prop-card" key={kind}>
-                        <MarketTitle eligibility="Singles or parlays">
+                        <MarketTitle eligibility="Eligible for Singles and Parlays">
                           {kind === "weekly_any_below_100"
                             ? "Will Any Team Score Below 100?"
                             : "Will Any Team Score 200+?"}
                         </MarketTitle>
-                        <p>
+                        <p className="market-description">
                           {kind === "weekly_any_below_100"
-                            ? "At least one team must finish below 100 points for Yes to win."
-                            : "At least one team must finish with 200 or more points for Yes to win."}
+                            ? "Any team finishes below 100."
+                            : "Any team scores 200+."}
                         </p>
                         {markets.some(
                           (m) => m.kind === kind && m.metadata.lineup_locked,

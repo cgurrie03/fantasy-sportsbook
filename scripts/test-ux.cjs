@@ -16,6 +16,12 @@ function futureQuotes(b){return teams.filter(t=>t.league_id===b.league_id).flatM
 function quotes(b){const t=teams.filter(t=>t.league_id===b.league_id);return [['spread',t[0].id,-4.5,-110],['spread',t[1].id,4.5,-110],['moneyline',t[0].id,null,-150],['moneyline',t[1].id,null,130],['match_total','over',250.5,-110],['match_total','under',250.5,-110]].map(([kind,side,line,odds],i)=>({id:`${b.id}-q${i}`,board_id:b.id,market_key:kind,matchup_key:'same-roster-numbers',kind,side,line,odds,label:kind==='match_total'?`${side} ${line}`:`${t.find(t=>t.id===side).team_name} ${line??'Win'}`,subject:'Fixture league',team_id:kind==='match_total'?null:side,home_team_id:t[0].id,away_team_id:t[1].id,home_projection:127.5,away_projection:123,featured:'Game of the Week',boost_pct:kind==='moneyline'?25:0,metadata:{},active:true,market_state:'open'}))}
 function specialQuotes(b,state){return ['weekly_high','weekly_low','weekly_count_150','weekly_count_projection','weekly_average','weekly_highest_score','weekly_any_below_100','weekly_any_200'].map(kind=>({id:`${b.id}-${kind}`,board_id:b.id,market_key:kind,kind,side:kind.startsWith('weekly_count')?'exact':'yes',line:kind.startsWith('weekly_count')?4:150,odds:300+(state.movement||0)*20,boost_pct:0,label:kind==='weekly_count_150'?'4 Teams Scoring 150+':kind==='weekly_count_projection'?'4 Teams Beating Projection':'Fixture selection',subject:'Fixture league',team_id:null,active:true,market_state:'open',metadata:{}}))}
 const evidence=[];
+async function oneLineCopy(page){
+ for(const item of await page.locator('.market-description, .market-eligibility').all()){
+  const fit=await item.evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);return {text:el.textContent,lines:range.getClientRects().length,fits:el.scrollWidth<=el.clientWidth+1};});
+  assert(fit.lines===1&&fit.fits,`Market copy must fit one line: ${fit.text}`);
+ }
+}
 async function setup(browser, width, height, signedIn=true){
  const context=await browser.newContext({viewport:{width,height},isMobile:width<768,hasTouch:width<768,acceptDownloads:true});
  const state={tickets:[],legs:[],fail:false,slow:false,empty:false,suspended:false,changed:false,betCalls:0,authCalls:0};
@@ -97,6 +103,7 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
    await f.page.getByRole('button',{name:'Season Futures',exact:true}).click();await f.page.locator('.future-row').first().waitFor();
    assert.equal(await f.page.locator('.board-window').getByText(/parlay|single/i).count(),0);
    assert.equal(await f.page.locator('.market-eligibility').count(),4);
+   await oneLineCopy(f.page);
    for(const title of await f.page.locator('.market-title').all()){
     const g=await title.evaluate(el=>({titleRight:el.querySelector('h2').getBoundingClientRect().right,labelLeft:el.querySelector('.market-eligibility').getBoundingClientRect().left}));assert(g.labelLeft>g.titleRight);
    }
@@ -107,7 +114,8 @@ async function menu(page,item){await page.getByLabel('Open Account Options').cli
    }
    for(const theme of ['dark','light']){await f.page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await f.page.waitForTimeout(250);await geometry(f.page,`futures-${width}-${theme}`);await f.page.screenshot({path:path.join(output,`futures-${width}-${theme}.png`),fullPage:true});}
    f.state.specials=true;await f.page.clock.install();await f.page.reload();await f.page.getByRole('button',{name:'Weekly Specials',exact:true}).click();await f.page.locator('.count-selection .market-quote').first().waitFor();
-   assert.equal(await f.page.locator('.market-eligibility').count(),8);for(const label of await f.page.locator('.market-eligibility').all())assert.equal(await label.innerText(),'Singles or parlays');
+   assert.equal(await f.page.locator('.market-eligibility').count(),8);for(const label of await f.page.locator('.market-eligibility').all())assert.equal(await label.innerText(),'Eligible for Singles and Parlays');
+   await oneLineCopy(f.page);
    for(const title of await f.page.locator('.market-title').all()){const g=await title.evaluate(el=>({right:el.getBoundingClientRect().right,labelRight:el.querySelector('.market-eligibility').getBoundingClientRect().right,titleRight:el.querySelector('h2').getBoundingClientRect().right,labelLeft:el.querySelector('.market-eligibility').getBoundingClientRect().left}));assert(g.labelLeft>g.titleRight&&Math.abs(g.right-g.labelRight)<2);}
    for(const theme of ['dark','light']){await f.page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await f.page.waitForTimeout(250);await geometry(f.page,`specials-${width}-${theme}`);await f.page.screenshot({path:path.join(output,`specials-${width}-${theme}.png`),fullPage:true});}
    const price=f.page.locator('.count-selection .quote-price').first();assert.match(await price.innerText(),/\+300/);f.state.movement=1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-up').waitFor();assert.match(await price.innerText(),/\+320.*↑/s);

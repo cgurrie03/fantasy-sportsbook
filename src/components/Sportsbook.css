@@ -2087,7 +2087,8 @@
 .future-team > div { min-width: 0; overflow-wrap: anywhere; }
 .market-title, .prop-card > .market-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .market-title h2 { flex: 1; min-width: 0; margin: 0; }
-.market-eligibility { flex-shrink: 0; max-width: 45%; color: var(--muted); font-size: 11px; line-height: 1.4; text-align: right; }
+.market-eligibility { flex-shrink: 0; white-space: nowrap; color: var(--muted); font-size: 11px; line-height: 1.4; text-align: right; }
+.market-description { white-space: nowrap; }
 .season-future-card > header > div { flex: 1; min-width: 0; }
 .market-quote .quote-price { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
 .line-movement > span { font-size: inherit; }

@@ -53,10 +53,10 @@ export function SeasonFutures({
               <MarketTitle
                 eligibility={
                   kind === "future_playoffs"
-                    ? "Playoff parlays only"
+                    ? "Eligible for Playoff Parlays"
                     : kind === "future_win_total"
-                      ? "Singles or win-total parlays"
-                      : "Singles only"
+                      ? "Singles / Win-Total Parlays"
+                      : "Eligible for Singles"
                 }
               >
                 {kind === "future_champion"
@@ -67,14 +67,14 @@ export function SeasonFutures({
                       ? "Regular-season Wins"
                       : "#1 Pick"}
               </MarketTitle>
-              <p>
+              <p className="market-description">
                 {kind === "future_champion"
-                  ? "Win the league championship."
+                  ? "Win the championship."
                   : kind === "future_playoffs"
-                    ? "Qualify for the seven-team playoff field."
+                    ? "Make the playoffs."
                     : kind === "future_win_total"
-                      ? "Over or under the win line. No pushes."
-                      : "Regular-season last place. Pick owner below."}
+                      ? "Over or under season wins."
+                      : "Finish last in regular season."}
               </p>
             </div>
           </header>
