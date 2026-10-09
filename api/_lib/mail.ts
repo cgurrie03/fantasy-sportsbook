@@ -1,3 +1,4 @@
+import { communicationIdentity, validateDeliveryScope, validatePayloadRecipient } from "./league-communications.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderEmail, openingWeekStories } from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
@@ -49,17 +50,20 @@ export async function buildEmail(
   ]);
   const member = members.find((m) => m.team_id === row.team_id),
     league = leagues[0];
+  if (!member || !league) throw new Error("League email membership unavailable.");
+  const identity = communicationIdentity(league);
   const balance = wallets[0]?.balance;
   const base = {
-    greeting: `Hi ${member?.display_name ?? "Cooper"},`,
-    url: "https://sportsbook.coopergurrie.com/",
+    greeting: `Hi ${member.display_name},`,
+    url: identity.url,
+    brand: identity.brand,
     paragraphs: [],
     details: [],
     button: "Open Your Sportsbook",
   };
   if (row.kind === "confirmation") {
     const ticket = (
-      await read(db.from("tickets").select("*").eq("id", row.ticket_id))
+      await read(db.from("tickets").select("*").eq("id", row.ticket_id).eq("league_id", row.league_id).eq("team_id", row.team_id))
     )[0];
     if (!ticket) throw new Error("Accepted ticket unavailable.");
     const legs = await read(
@@ -195,7 +199,7 @@ export async function buildEmail(
       : [];
     return {
       ...base,
-      subject: `Week ${row.market_week} Is Open · Goldy Fantasy Sportsbook`,
+      subject: `Week ${row.market_week} Is Open · ${identity.brand}`,
       heading: `Season ${league.league_season} • Week ${row.market_week} Is Open`,
       paragraphs: [
         "The board is ready. Bring your picks, your rivalries, and your wildly misplaced confidence.",
@@ -451,14 +455,15 @@ export async function buildEmail(
     button: "View Results & Leaderboard",
   };
 }
-export async function deliverEmails(db: SupabaseClient) {
+export async function deliverEmails(db: SupabaseClient, ticketId: string | null = null) {
   if (!process.env.RESEND_API_KEY)
     throw new Error("Email delivery requires RESEND_API_KEY.");
-  const claim = await db.rpc("claim_outbound_emails");
+  const claim = await db.rpc("claim_scoped_outbound_emails", { p_ticket: ticketId });
   if (claim.error) throw new Error(claim.error.message);
   let sent = 0;
   for (const row of claim.data ?? []) {
     try {
+      await validateDeliveryScope(db, row);
       if (row.kind === "reminder") {
         const w = await read(
           db.from("wallets").select("balance").eq("team_id", row.team_id),
@@ -497,7 +502,7 @@ export async function deliverEmails(db: SupabaseClient) {
           c.button + ": " + c.url,
         ].join("\n\n");
         payload = {
-          from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+          from: communicationIdentity((await read(db.from("leagues").select("*").eq("id", row.league_id)))[0]).from,
           to: [row.recipient],
           subject: c.subject,
           html: renderEmail(c),
@@ -509,6 +514,7 @@ export async function deliverEmails(db: SupabaseClient) {
           .eq("id", row.id);
         if (save.error) throw new Error(save.error.message);
       }
+      validatePayloadRecipient(payload, row.recipient);
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {

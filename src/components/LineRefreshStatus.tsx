@@ -26,7 +26,7 @@ export function LineRefreshStatus({
       : null,
   );
   useEffect(() => {
-    if (review || !supabase) return;
+    if (!admin || review || !supabase) return;
     let active = true;
     const load = async () => {
       const r = await supabase!
@@ -42,7 +42,8 @@ export function LineRefreshStatus({
       active = false;
       clearInterval(timer);
     };
-  }, [leagueId, review]);
+  }, [leagueId, review, admin]);
+  if (!admin) return <p className="line-updates-coming-soon">Live Line Updates are in development and coming soon!</p>;
   const time = (v: string | null) =>
     v
       ? new Date(v).toLocaleString("en-US", {

@@ -143,6 +143,7 @@ export function AdminHub({
                 <MarketAdmin data={data} leagueId={leagueId} />
               ) : selected === "schedule" ? (
                 <WeeklySchedule
+                  league={data.leagues.find((l) => l.id === leagueId)}
                   leagueId={leagueId}
                   reviewMode={reviewMode}
                   onApplied={refresh}

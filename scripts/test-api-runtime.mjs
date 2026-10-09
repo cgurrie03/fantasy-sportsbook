@@ -24,6 +24,7 @@ try {
     "active-starters",
     "_lib/email-templates",
     "_lib/mail",
+    "_lib/league-communications",
     "weekly-worker",
     "place-bet",
     "report-results",
@@ -284,7 +285,7 @@ try {
                 : table === "wallets"
                   ? [{ balance: 173.25 }]
                   : table === "leagues"
-                    ? [{ nfl_season: 2026, league_season: 3 }]
+                    ? [{ name: "Test League", sportsbook_url: "https://test.example.invalid/", email_sender: "test@example.invalid", nfl_season: 2026, league_season: 3 }]
                     : table === "sportsbook_boards"
                       ? [
                           filters.board_type === "future"
@@ -352,6 +353,9 @@ try {
       data: [
         {
           id: "mail",
+          league_id: "test",
+          team_id: "team0",
+          recipient: "test@example.invalid",
           event_key: "confirmation:test",
           kind: "confirmation",
           ticket_id: "ticket",
@@ -361,6 +365,10 @@ try {
       ],
     }),
     from: (table) => ({
+      select: () => {
+        const query = { eq: () => query, maybeSingle: async () => ({ data: { id: "fixture", role: "member" }, error: null }) };
+        return query;
+      },
       update: (patch) => ({
         eq: async () => {
           changes.push({ table, patch });

@@ -1,3 +1,7 @@
+import { csvCell } from "../src/lib/csv.ts";
+assert(csvCell('=HYPERLINK("https://bad.test")').startsWith(`"'=`));
+assert.equal(csvCell(-12.5), '"-12.5"');
+assert.equal(csvCell('Team, "Long"'), '"Team, ""Long"""');
 import assert from "node:assert/strict";
 import { readAllRows } from "../src/lib/pagination.ts";
 const pages = [];

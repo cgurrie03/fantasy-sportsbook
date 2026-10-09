@@ -1,3 +1,4 @@
+import { csvCell } from "../lib/csv";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage, money, loadAccounts } from "../lib/accounts";
@@ -1181,7 +1182,7 @@ export function Reports({
     try {
       await exportReport(
         exportNode.current,
-        `goldy-${titles[report].toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${season}${week ? `-week-${week}` : ""}`,
+        `league-${leagueId}-${titles[report].toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${season}${week ? `-week-${week}` : ""}`,
         format,
       );
       setNotice(
@@ -1222,9 +1223,7 @@ export function Reports({
     setExportOpen(false);
     const csv = [columns, ...table]
       .map((row) =>
-        row
-          .map((cell) => '"' + String(cell).replaceAll('"', '""') + '"')
-          .join(","),
+        row.map(csvCell).join(","),
       )
       .join("\r\n");
     const url = URL.createObjectURL(
@@ -1232,7 +1231,7 @@ export function Reports({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `league-report-${season}-${report}.csv`;
+    link.download = `league-${leagueId}-report-${season}-${report}${week ? `-week-${week}` : ""}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };

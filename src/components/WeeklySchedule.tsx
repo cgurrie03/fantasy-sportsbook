@@ -1,3 +1,4 @@
+import type { League } from "../lib/accounts";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
@@ -66,11 +67,13 @@ interface Preview {
   note: string;
 }
 export function WeeklySchedule({
+  league,
   leagueId,
   reviewMode = false,
   onApplied,
   exceptionsOnly = false,
 }: {
+  league?: League;
   leagueId: string;
   reviewMode?: boolean;
   onApplied?: () => Promise<void>;
@@ -108,7 +111,7 @@ export function WeeklySchedule({
     Record<string, { status: string; actual_value: string; evidence: string }>
   >({});
   const [emailKind, setEmailKind] = useState<EmailKind | "">("");
-  const email = sampleEmail(emailKind || "opening");
+  const email = { ...sampleEmail(emailKind || "opening"), brand: league ? `${league.name} · Fantasy Sportsbook` : "Fantasy Sportsbook", url: league?.sportsbook_url ?? "https://example.invalid/" };
   function emailButton(kind: EmailKind) {
     return (
       <button
@@ -758,8 +761,8 @@ export function WeeklySchedule({
                 </p>
                 <div className="email-envelope">
                   <span>
-                    <strong>From:</strong> Goldy Fantasy Sportsbook
-                    &lt;sportsbook@coopergurrie.com&gt;
+                    <strong>From:</strong> {league?.name ?? "League"} · Fantasy Sportsbook
+                    &lt;{league?.email_sender ?? "Configure a verified sender"}&gt;
                   </span>
                   <span>
                     <strong>To:</strong>{" "}

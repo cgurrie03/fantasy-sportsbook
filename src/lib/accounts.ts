@@ -1,6 +1,9 @@
 import { supabase } from "./supabase";
 import { readAllRows } from "./pagination";
 export interface League {
+  sportsbook_url?: string | null;
+  email_sender?: string | null;
+  operations_enabled?: boolean;
   sleeper_league_id?: string;
   id: string;
   name: string;

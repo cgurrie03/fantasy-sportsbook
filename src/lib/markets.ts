@@ -320,7 +320,11 @@ export async function loadMarketBoard(leagueId: string) {
     p_league: leagueId,
   });
   if (period.error) throw period.error;
-  const week = Number(period.data?.[0]?.week ?? 5);
+  const week = Number(period.data?.[0]?.week);
+  if (!Number.isInteger(week) || week < 1 || week > 18)
+    throw new Error(
+      "League period is unavailable. Try refreshing your account.",
+    );
   const boards = await supabase
     .from("sportsbook_boards")
     .select("*")

@@ -1,3 +1,4 @@
+import { communicationIdentity } from "./_lib/league-communications.js";
 import { createClient } from "@supabase/supabase-js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { POST as generate } from "./generate-markets.js";
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     return r.data ?? [];
   };
   const internal = (path: string, body: unknown) =>
-    new Request("https://sportsbook.coopergurrie.com/api/" + path, {
+    new Request(new URL("/api/" + path, request.url), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -134,6 +135,8 @@ export async function POST(request: Request) {
       const league = (
         await read(db.from("leagues").select("*").eq("id", job.league_id))
       )[0];
+      if (!league?.operations_enabled) throw new Error("League operations are disabled pending verified rollout.");
+      const identity = communicationIdentity(league);
       const recipients = await read(
         db
           .from("league_memberships")
@@ -301,7 +304,7 @@ export async function POST(request: Request) {
           const content = {
             subject: "Season Futures Need Review",
             heading: "A Final Season Result Needs Your Attention",
-            greeting: "Hi Cooper,",
+            greeting: "Hi league administrator,",
             paragraphs: [
               "These season tickets have a final-result ambiguity. Their stakes remain committed; the normal futures cash-floor rule still applies.",
             ],
@@ -316,7 +319,8 @@ export async function POST(request: Request) {
                 ] as [string, string],
             ),
             button: "Review Weekly Execution",
-            url: "https://sportsbook.coopergurrie.com/",
+            url: identity.url,
+            brand: identity.brand,
           };
           for (const m of recipients.filter((m: any) => m.role === "admin"))
             await queueEmail(db, {
@@ -327,7 +331,7 @@ export async function POST(request: Request) {
               team_id: m.team_id,
               market_week: job.market_week,
               payload: {
-                from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+                from: identity.from,
                 to: [m.invited_email],
                 subject: content.subject,
                 html: renderEmail(content),
@@ -565,7 +569,7 @@ export async function POST(request: Request) {
               const content = {
                 subject: `Incomplete Projected Lineups · Week ${job.market_week}`,
                 heading: "The Morning Refresh Needs Your Review",
-                greeting: `Hi ${admin.display_name ?? "Cooper"},`,
+                greeting: `Hi ${admin.display_name ?? "league administrator"},`,
                 paragraphs: [
                   "The scheduled morning recalculation finished, but some teams still lack a complete eligible lineup with positive projections.",
                   ...reasons,
@@ -576,7 +580,8 @@ export async function POST(request: Request) {
                   string,
                 ][],
                 button: "Review Lines & Markets",
-                url: "https://sportsbook.coopergurrie.com/",
+                url: identity.url,
+            brand: identity.brand,
               };
               await queueEmail(db, {
                 league_id: job.league_id,
@@ -586,7 +591,7 @@ export async function POST(request: Request) {
                 team_id: admin.team_id,
                 market_week: job.market_week,
                 payload: {
-                  from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+                  from: identity.from,
                   to: [admin.invited_email],
                   subject: content.subject,
                   html: renderEmail(content),
@@ -766,18 +771,20 @@ export async function POST(request: Request) {
             .eq("league_id", job.league_id)
             .eq("role", "admin"),
         );
+        const identity = communicationIdentity((await read(db.from("leagues").select("*").eq("id", job.league_id)))[0]);
         for (const m of admins) {
           const content = {
             subject: "Weekly Automation Needs Attention",
             heading: "An Automated Step Needs Review",
-            greeting: "Hi Cooper,",
+            greeting: "Hi league administrator,",
             paragraphs: [error],
             details: [
               ["Operation", job.operation],
               ["Week", String(job.market_week)],
             ] as [string, string][],
             button: "Review Weekly Execution",
-            url: "https://sportsbook.coopergurrie.com/",
+            url: identity.url,
+            brand: identity.brand,
           };
           await queueEmail(db, {
             league_id: job.league_id,
@@ -787,7 +794,7 @@ export async function POST(request: Request) {
             team_id: m.team_id,
             market_week: job.market_week,
             payload: {
-              from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+              from: identity.from,
               to: [m.invited_email],
               subject: content.subject,
               html: renderEmail(content),

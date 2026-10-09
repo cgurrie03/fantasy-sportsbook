@@ -525,7 +525,7 @@ try {
   );
   await rows("select public.save_report_results($1,2026,1,true,$2::jsonb)", [
     league,
-    JSON.stringify({ test: { points: 120 } }),
+    JSON.stringify({ [team]: { points: 120 } }),
   ]);
   assert.equal(
     (

@@ -533,7 +533,7 @@ try {
     [league],
   );
   await rows(
-    "insert into public.email_deliveries(ticket_id,recipient) values($1,'test@example.invalid')",
+    "insert into public.email_deliveries(ticket_id,recipient) select t.id,m.invited_email from public.tickets t join public.league_memberships m on m.team_id=t.team_id and m.league_id=t.league_id where t.id=$1",
     [voidId],
   );
   await db.exec(

@@ -27,7 +27,15 @@
   --border: #ccd7e6;
   --success: #156c40;
   --error: #ac2435;
+  --gold: #896000;
+  --surface-2: var(--surface2);
 }
+:root { --surface-2: var(--surface2); }
+:root[data-theme="light"] .primary { background: #f4c453; border-color: #f4c453; }
+.skip-link { position: absolute; top: -100px; left: 16px; z-index: 30; padding: 12px; background: var(--surface); color: var(--text); }
+.skip-link:focus { top: 12px; }
+summary:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+h1, h2, h3 { text-wrap: balance; }
 * {
   box-sizing: border-box;
 }
@@ -109,5 +117,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   // The database queued this message atomically with ticket acceptance.
   // Failed immediate delivery remains queued for the scheduled worker to retry.
   try {
-    await deliverEmails(admin);
+    await deliverEmails(admin, result.ticket_id);
   } catch {
     /* accepted bet remains valid */
   }

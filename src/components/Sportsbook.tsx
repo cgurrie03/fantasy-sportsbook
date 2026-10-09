@@ -75,7 +75,7 @@ export function Sportsbook({
     ),
     [board, setBoard] = useState<Board | null>(review?.board ?? null),
     [markets, setMarkets] = useState<Market[]>(review?.markets ?? []),
-    [week, setWeek] = useState(review?.board.market_week ?? 5),
+    [week, setWeek] = useState(review?.board.market_week ?? null),
     [standings, setStandings] = useState<Standing[]>(review?.standings ?? []),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -205,6 +205,27 @@ export function Sportsbook({
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
     else if (!open && dialog.current?.open) dialog.current.close();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const viewport = window.visualViewport;
+    const update = () => {
+      dialog.current?.style.setProperty(
+        "--slip-viewport-height",
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+      dialog.current?.style.setProperty(
+        "--slip-viewport-bottom",
+        `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`,
+      );
+    };
+    update();
+    viewport?.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
+    return () => {
+      viewport?.removeEventListener("resize", update);
+      viewport?.removeEventListener("scroll", update);
+    };
   }, [open]);
   function toggle(m: Market) {
     if (busy || quoteUnavailable(m)) return;
@@ -372,7 +393,12 @@ export function Sportsbook({
           {review.simulateMovement && (
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                setBoard((before) =>
+                  before
+                    ? { ...before, revision: before.revision + 1 }
+                    : before,
+                );
                 setMarkets((before) =>
                   before.map((m) =>
                     m.line == null
@@ -386,8 +412,8 @@ export function Sportsbook({
                               : -1),
                         },
                   ),
-                )
-              }
+                );
+              }}
             >
               Preview live line movement
             </button>
@@ -409,9 +435,15 @@ export function Sportsbook({
           <div className="board-heading">
             <div>
               <h1>
-                <span>SEASON {board?.league_season ?? 3}</span>
+                <span>
+                  SEASON{" "}
+                  {board?.league_season ??
+                    data.leagues.find((l) => l.id === member.league_id)
+                      ?.league_season ??
+                    "—"}
+                </span>
                 <span className="season-divider"> • </span>
-                <span>WEEK {week}</span>
+                <span>WEEK {week ?? "—"}</span>
               </h1>
             </div>
             <div className="board-window">
@@ -543,7 +575,7 @@ export function Sportsbook({
                           }
                         />
                         <div className="match-grid">
-                          <span />
+                          <span className="market-column-spacer" />
                           <span className="market-column-label">Spread</span>
                           <span className="market-column-label">Total</span>
                           <span className="market-column-label">Moneyline</span>
@@ -551,7 +583,7 @@ export function Sportsbook({
                             <div className="match-team-row" key={t?.id ?? i}>
                               <div className="match-team">
                                 {t?.avatar_url && (
-                                  <img src={t.avatar_url} alt="" />
+                                  <img src={t.avatar_url} width={32} height={32} alt="" />
                                 )}
                                 <div>
                                   <strong>{t?.team_name}</strong>
@@ -883,7 +915,13 @@ export function Sportsbook({
               )}
               {category === "Season Futures" && (
                 <section className="empty futures-placeholder">
-                  <p className="eyebrow">SEASON {board?.league_season ?? 3}</p>
+                  <p className="eyebrow">
+                    SEASON{" "}
+                    {board?.league_season ??
+                      data.leagues.find((l) => l.id === member.league_id)
+                        ?.league_season ??
+                      "—"}
+                  </p>
                   <h2>Season Futures</h2>
                   <p>
                     Season-long markets are being prepared. Potential categories
@@ -983,7 +1021,7 @@ export function Sportsbook({
       )}
       {tab === "Season Futures" && (
         <section className="empty futures-placeholder">
-          <p className="eyebrow">SEASON 3</p>
+          <p className="eyebrow">Season {board?.league_season ?? "—"}</p>
           <h1>Season Futures</h1>
           <p>
             Season-long markets are being prepared. Potential categories include
@@ -1086,6 +1124,9 @@ export function Sportsbook({
             <input
               aria-label="Wager"
               type="number"
+              name="stake"
+              inputMode="decimal"
+              autoComplete="off"
               min="0"
               max={balance}
               step="0.01"

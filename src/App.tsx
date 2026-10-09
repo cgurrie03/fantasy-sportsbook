@@ -13,14 +13,18 @@ const AdminHub = lazy(() =>
 import { ThemeIcon } from "./components/ThemeIcon";
 import { buildBalanceHistory } from "./lib/balanceHistory";
 import { Sportsbook } from "./components/Sportsbook";
-const leagueAvatar =
-  "https://sleepercdn.com/avatars/bac95664e269132b2a43e889f980a3e2";
 function Avatar({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   return (
     <span className="avatar">
       {src && !failed ? (
-        <img src={src} alt="" onError={() => setFailed(true)} />
+        <img
+          src={src}
+          width={54}
+          height={54}
+          alt=""
+          onError={() => setFailed(true)}
+        />
       ) : (
         name.slice(0, 1).toUpperCase()
       )}
@@ -28,23 +32,6 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
   );
 }
 function SignIn() {
-  const [period, setPeriod] = useState({ league_season: 3, week: 5 });
-  useEffect(() => {
-    let active = true;
-    const update = async () => {
-      if (!supabase) return;
-      const { data, error } = await supabase.rpc("sportsbook_period", {
-        p_league: "13121261-5398-4391-8240-000000000003",
-      });
-      if (active && !error && data?.[0]) setPeriod(data[0]);
-    };
-    void update();
-    const timer = setInterval(update, 60000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, []);
   const [email, setEmail] = useState(""),
     [sent, setSent] = useState(false),
     [busy, setBusy] = useState(false),
@@ -81,21 +68,12 @@ function SignIn() {
   return (
     <main className="signin-layout">
       <section className="league-intro">
-        <div className="season">
-          Season {period.league_season} • Week {period.week}
-        </div>
         <h1>
           Fake Football.
           <br />
           Fake Betting.
         </h1>
         <p>Welcome to your Fantasy Sportsbook.</p>
-        <div className="league-signature">
-          <Avatar src={leagueAvatar} name="Goldy" />
-          <div>
-            <strong>Goldy Plays Pretend With Men</strong>
-          </div>
-        </div>
       </section>
       <section className="signin-card">
         <span className="entry-icon" aria-hidden="true">
@@ -117,6 +95,8 @@ function SignIn() {
           <input
             id="signin-email"
             type="email"
+            name="email"
+            spellCheck={false}
             autoComplete="email"
             required
             value={email}
@@ -533,7 +513,10 @@ export default function App() {
     [leagueId, setLeagueId] = useState("");
   const [light, setLight] = useState(() => {
     try {
-      return localStorage.getItem("goldy-theme") === "light";
+      return (
+        (localStorage.getItem("sportsbook-theme") ??
+          localStorage.getItem("goldy-theme")) === "light"
+      );
     } catch {
       return false;
     }
@@ -541,7 +524,7 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = light ? "light" : "dark";
     try {
-      localStorage.setItem("goldy-theme", light ? "light" : "dark");
+      localStorage.setItem("sportsbook-theme", light ? "light" : "dark");
     } catch {
       /* Theme Still Works Without Storage. */
     }
@@ -608,11 +591,13 @@ export default function App() {
   async function refresh() {
     const next = await loadAccounts();
     setData(next);
+    setLeagueId((current) => next.leagues.some((league) => league.id === current) ? current : (next.leagues[0]?.id ?? ""));
   }
   const member = data?.memberships.find(
       (m) => m.user_id === userId && m.league_id === leagueId,
     ),
-    team = data?.teams.find((t) => t.id === member?.team_id);
+    team = data?.teams.find((t) => t.id === member?.team_id),
+    league = data?.leagues.find((l) => l.id === member?.league_id);
   async function signOut() {
     const r = await supabase?.auth.signOut();
     if (r?.error) setError(errorMessage(r.error));
@@ -623,18 +608,18 @@ export default function App() {
   }
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <header className="masthead">
         <div className="brand">
           <Avatar
-            src={
-              data?.leagues.find((l) => l.id === leagueId)?.avatar_url ??
-              leagueAvatar
-            }
-            name="Goldy"
+            src={league?.avatar_url ?? null}
+            name={league?.name ?? "Fantasy Sportsbook"}
           />
           <div>
-            <strong>Goldy Plays Pretend With Men</strong>
-            <span>Fantasy Sportsbook</span>
+            <strong>{league?.name ?? "Fantasy Sportsbook"}</strong>
+            {league && <span>Fantasy Sportsbook</span>}
           </div>
         </div>
         <div className="account-tools">
@@ -668,11 +653,8 @@ export default function App() {
                     <small>
                       Balance:{" "}
                       {money(
-                        Number(
-                          data?.wallets.find(
-                            (w) => w.team_id === member?.team_id,
-                          )?.balance ?? 0,
-                        ),
+                        data?.wallets.find((w) => w.team_id === member?.team_id)
+                          ?.balance,
                       )}
                     </small>
                   </span>
@@ -719,92 +701,108 @@ export default function App() {
           )}
         </div>
       </header>
-      {!ready ? (
-        <main className="empty" role="status">
-          Loading Your Account…
-        </main>
-      ) : !session ? (
-        <>
-          <SignIn />
-          {error && (
-            <p className="feedback error" role="alert">
-              {error}
-            </p>
-          )}
-        </>
-      ) : (
-        <>
-          {data && member && data.leagues.length > 1 && (
-            <nav className="account-nav" aria-label="Account Navigation">
-              {data.leagues.length > 1 && (
-                <select
-                  aria-label="League"
-                  value={leagueId}
-                  onChange={(e) => {
-                    setLeagueId(e.target.value);
-                    setPage("account");
+      <div id="main-content" tabIndex={-1}>
+        {!ready ? (
+          <main className="empty" role="status">
+            Loading Your Account…
+          </main>
+        ) : !session ? (
+          <>
+            <SignIn />
+            {error && (
+              <p className="feedback error" role="alert">
+                {error}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            {data && member && data.leagues.length > 1 && (
+              <nav className="account-nav" aria-label="Account Navigation">
+                {data.leagues.length > 1 && (
+                  <select
+                    aria-label="League"
+                    value={leagueId}
+                    onChange={(e) => {
+                      setLeagueId(e.target.value);
+                      setPage("account");
+                    }}
+                  >
+                    {data.leagues.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </nav>
+            )}
+            {error ? (
+              <main className="empty">
+                <h1>Could Not Load Your Account</h1>
+                <p role="alert">{error}</p>
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setError("");
+                    setLoading(true);
+                    refresh()
+                      .catch((e) => setError(errorMessage(e)))
+                      .finally(() => setLoading(false));
                   }}
                 >
-                  {data.leagues.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </nav>
-          )}
-          {error ? (
-            <main className="empty">
-              <h1>Could Not Load Your Account</h1>
-              <p role="alert">{error}</p>
-              <button
-                className="primary"
-                onClick={() => {
-                  setError("");
-                  setLoading(true);
-                  refresh()
-                    .catch((e) => setError(errorMessage(e)))
-                    .finally(() => setLoading(false));
-                }}
-              >
-                Try Again
-              </button>
-            </main>
-          ) : loading ? (
-            <main className="empty" role="status">
-              Loading Your League…
-            </main>
-          ) : data && member && team ? (
-            page === "home" ? (
-              <Sportsbook data={data} member={member} refresh={refresh} />
-            ) : page === "admin" && member.role === "admin" ? (
-              <Admin data={data} leagueId={leagueId} refresh={refresh} />
+                  Try Again
+                </button>
+              </main>
+            ) : loading ? (
+              <main className="empty" role="status">
+                Loading Your League…
+              </main>
+            ) : data && member && team ? (
+              page === "home" ? (
+                <Sportsbook
+                  key={member.id}
+                  data={data}
+                  member={member}
+                  refresh={refresh}
+                />
+              ) : page === "admin" && member.role === "admin" ? (
+                <Admin
+                  key={member.id}
+                  data={data}
+                  leagueId={leagueId}
+                  refresh={refresh}
+                />
+              ) : (
+                <Account data={data} member={member} team={team} />
+              )
             ) : (
-              <Account data={data} member={member} team={team} />
-            )
-          ) : (
-            <main className="empty">
-              <h1>Membership Pending</h1>
-              <p>{session.user.email}</p>
-              <p>
-                Ask Cooper to approve this email for your Sleeper team, then
-                refresh your account.
-              </p>
-              <button
-                className="primary"
-                onClick={() => {
-                  setError("");
-                  refresh().catch((e) => setError(errorMessage(e)));
-                }}
-              >
-                Refresh Account
-              </button>
-            </main>
-          )}
-        </>
-      )}
-      <footer>Goldy Fantasy Sportsbook</footer>
+              <main className="empty">
+                <h1>Membership Pending</h1>
+                <p>{session.user.email}</p>
+                <p>
+                  Ask your league administrator to approve this email for your
+                  team, then refresh your account.
+                </p>
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setError("");
+                    refresh().catch((e) => setError(errorMessage(e)));
+                  }}
+                >
+                  Refresh Account
+                </button>
+              </main>
+            )}
+          </>
+        )}
+      </div>
+      <footer>
+        {league?.name
+          ? `${league.name} · Fantasy Sportsbook`
+          : "Fantasy Sportsbook"}
+      </footer>
     </div>
   );
 }
