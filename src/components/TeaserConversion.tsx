@@ -1,133 +1,139 @@
-import { useState } from "react";
-import type { Board, Market } from "../lib/markets";
-import { combinedPrice, americanPrice, formatOdds } from "../lib/markets";
-import { adjustedSpread, teaserEligibility } from "../lib/teaser-eligibility";
-import { money } from "../lib/accounts";
+import { useEffect, useRef, useState } from "react";
+import { formatOdds } from "../lib/markets";
 import "./TeaserConversion.css";
-
 export interface TeaserPreviewPrice {
   adjustment: number;
   decimal: number;
   odds: number;
 }
 export function TeaserConversion({
-  picks,
-  board,
-  matchupCount,
-  promotion,
-  stake,
   active,
   onActive,
-  previewPrices,
+  adjustment,
+  onAdjustment,
+  reason,
+  prices,
+  odds,
 }: {
-  picks: Market[];
-  board: Board | null;
-  matchupCount: number;
-  promotion: boolean;
-  stake: number;
   active: boolean;
   onActive: (active: boolean) => void;
-  previewPrices?: TeaserPreviewPrice[];
+  adjustment: number;
+  onAdjustment: (value: number) => void;
+  reason: string;
+  prices?: TeaserPreviewPrice[];
+  odds: string;
 }) {
-  const [adjustment, setAdjustment] = useState(9);
-  const reason = teaserEligibility(picks, board, matchupCount, promotion);
+  const [expanded, setExpanded] = useState(false);
+  const picker = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (expanded && active && !reason) picker.current?.showModal();
+    else picker.current?.close();
+  }, [expanded, active, reason]);
   if (reason && !active) return null;
-  // Research quote fixtures are injected only by the local review entrypoint.
-  const quote = !reason
-    ? previewPrices?.find((p) => p.adjustment === adjustment)
-    : undefined;
-  const base = combinedPrice(picks);
-  const spread = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(1)}`;
   return (
-    <section className="teaser-conversion" aria-label="Spread teaser">
-      {!active ? (
+    <section className="teaser-conversion" aria-label="Ticket type">
+      <div
+        className="slip-tabs"
+        role="tablist"
+        aria-label="Ticket type"
+        onKeyDown={(e) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
+            return;
+          e.preventDefault();
+          const next =
+            e.key === "Home" ? false : e.key === "End" ? true : !active;
+          onActive(next);
+          setExpanded(false);
+          e.currentTarget
+            .querySelectorAll<HTMLButtonElement>("button")
+            [next ? 1 : 0]?.focus();
+        }}
+      >
         <button
-          type="button"
-          className="secondary"
+          role="tab"
+          id="parlay-tab"
+          aria-controls="slip-picks"
+          tabIndex={active ? -1 : 0}
+          aria-selected={!active}
+          onClick={() => {
+            onActive(false);
+            setExpanded(false);
+          }}
+        >
+          Parlay
+        </button>
+        <button
+          role="tab"
+          id="teaser-tab"
+          aria-controls="slip-picks"
+          tabIndex={active ? 0 : -1}
+          aria-selected={active}
           onClick={() => onActive(true)}
         >
-          Convert to Teaser
+          Teaser
         </button>
-      ) : (
-        <>
-          <div className="teaser-heading">
-            <strong>Spread teaser preview</strong>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => onActive(false)}
-            >
-              Convert back to parlay
-            </button>
-          </div>
-          <p>This week is for research. Teaser betting is unavailable.</p>
-          <fieldset disabled={!!reason}>
-            <legend>Move every spread in your favor</legend>
-            <div className="teaser-adjustments">
-              {[6, 9, 12].map((n) => (
-                <button
-                  type="button"
-                  key={n}
-                  aria-pressed={n === adjustment}
-                  onClick={() => setAdjustment(n)}
-                >
-                  +{n} points
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <small>
-            Provisional choices; this week’s results may change the range.
-          </small>
-          {reason ? (
-            <p role="status">{reason} Convert back to review your parlay.</p>
-          ) : (
-            <>
-              <table>
-                <caption>Original and adjusted spreads</caption>
-                <thead>
-                  <tr>
-                    <th>Selection</th>
-                    <th>Original</th>
-                    <th>Teaser</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {picks.map((p) => (
-                    <tr key={p.id}>
-                      <th>{p.subject}</th>
-                      <td>{spread(p.line!)}</td>
-                      <td>{spread(adjustedSpread(p.line!, adjustment))}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="teaser-comparison">
-                <div>
-                  <span>Original parlay</span>
-                  <strong>{formatOdds(americanPrice(base))}</strong>
-                  <small>Pays {money(stake * base)}</small>
-                </div>
-                <div>
-                  <span>Teaser {quote ? "(fixture)" : ""}</span>
-                  <strong>
-                    {quote ? formatOdds(quote.odds) : "Price pending"}
-                  </strong>
-                  <small>
-                    {quote
-                      ? `Pays ${money(stake * quote.decimal)}`
-                      : "Payout pending validation"}
-                  </small>
-                </div>
-              </div>
-              <p>
-                Any loss loses the ticket. Pushes and voided legs are removed;
-                one or more winning legs can cash at saved odds. No remaining
-                legs: stake refunded.
-              </p>
-            </>
-          )}
-        </>
+      </div>
+      <div className="ticket-price-row">
+        {active ? (
+          <button
+            className="teaser-picker-toggle"
+            aria-expanded={expanded}
+            aria-controls="teaser-point-choices"
+            disabled={!!reason}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {adjustment}-Point Teaser{" "}
+            <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+          </button>
+        ) : (
+          <strong>{"Parlay"}</strong>
+        )}
+        <strong className="ticket-total-odds" aria-label="Total odds">
+          {odds}
+        </strong>
+      </div>
+      <dialog
+        ref={picker}
+        id="teaser-point-choices"
+        className="teaser-point-choices"
+        aria-label="Choose your point adjustment"
+        onCancel={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setExpanded(false);
+        }}
+        onClose={(e) => e.stopPropagation()}
+      >
+        <fieldset>
+          <legend>Choose your point adjustment</legend>
+          {[6, 9, 12].map((n) => (
+            <label key={n}>
+              <input
+                type="radio"
+                name="teaser-adjustment"
+                checked={adjustment === n}
+                onChange={() => onAdjustment(n)}
+              />
+              <span>{n}-Point Teaser</span>
+              <strong>
+                {prices?.find((p) => p.adjustment === n)
+                  ? formatOdds(prices.find((p) => p.adjustment === n)!.odds)
+                  : "Pending"}
+              </strong>
+            </label>
+          ))}
+        </fieldset>
+        <button
+          className="teaser-picker-done"
+          onClick={() => setExpanded(false)}
+        >
+          Done
+        </button>
+      </dialog>
+      {active && (
+        <p className="teaser-research-note" role="status">
+          {reason || "Research preview · Betting unavailable"}
+        </p>
       )}
     </section>
   );

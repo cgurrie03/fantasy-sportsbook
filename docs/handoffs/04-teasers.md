@@ -1,5 +1,16 @@
 # Fantasy Spread Teasers
 
+## Slip design update — October 10, 2026
+
+The user’s DraftKings screenshots are visual references only; NFL payout values and adjustment choices are not copied. Qualifying slips now use Parlay / Teaser tabs, a native modal points picker with 6/9/12 fantasy-point choices and total odds, and one pick list showing original spread / points / new line. The selected tab controls total odds and payout; returning to Parlay preserves original selections and prices. Research rules live under a collapsed Teaser details disclosure. Mobile hides quick-wager shortcuts in the teaser view.
+
+Wagers start and reset as an empty value with a visible 0 placeholder. Focusing an actual zero clears it; typing 10 produces 10. Decimal stakes, fixed promo stakes, normal acceptance and revisions retain their existing behavior.
+
+Validated desktop 1440×1000 and mobile 390×844, both themes, adjustment changes and sample payouts, one list without duplicate picks, keyboard tab arrows, picker Escape without dismissing the slip, conversion back, invalidation after removing a pick, and unpriced disabled acceptance. No external fixture requests or browser errors. Build/API fixtures, teaser pricing/settlement fixtures and ordinary-slip UX regression fixtures passed. Existing lint warnings remain. Screenshots and checks are saved in outputs/slip-redesign.
+
+Teaser price/acceptance remain disabled in production. Local review sample prices are not launch prices. The final adjustment range and fair pricing still require this week’s results and the validation gates below. Normal UI release deployment evidence will be recorded after production verification.
+
+
 ## Current research release — October 9, 2026
 
 Read [shared context](PROJECT-CONTEXT.md) and [the completed research/validation/acceptance specification](../research/teaser-pricing.md). **This week is data collection and research. Teaser prices and acceptance remain disabled. No teaser migration or production settlement RPC was introduced.** The historical brief below is superseded by this section wherever the rules differ.
@@ -50,7 +61,9 @@ These are research/conversion/pure-settlement and fail-closed rejection fixtures
 
 ### Deployment and rollback
 
-The tested preview/guard release is being deployed by normal Git/Vercel. Final commit/production postflight will be recorded below. Acceptance and prices remain disabled. Preserve unrelated concurrent promo edits and pre-existing documentation/data/work changes; stage only this workstream's files.
+The tested preview/guard application commit **`31e00d4a5f92f6ec2e0c0095722df8d8c9ddcb26`** is deployed through normal Git/Vercel to production. [Vercel release](https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/6XR6T1zBEC9UbgHCyScnModUcCSf): Ready / Production, October 9 at 4:38 PM Eastern, 21-second build. Postflight at 4:38:40 PM Eastern byte-matched the production Home/Admin/Promo/Reports assets to the tested build. Teaser/adjustment/forged-quote/odds/payout requests return 400 `UNSUPPORTED_TICKET_TERMS`; ordinary anonymous placement, generation, worker and image endpoints retain 401. No authenticated bet, email or database migration occurred. Acceptance and prices remain disabled.
+
+Production evidence is in this chat's `outputs/production-verification.json`; research, Week 5 benchmark, preview checks and desktop/mobile screenshots are also copied to outputs. This postflight documentation update is local and does not introduce another application deployment. Concurrent promo commits through `c31910e` were retained; unrelated dirty documentation/data/work files remain untouched by the release commit.
 
 Rollback reverts this application release only. No database rollback or teaser-ticket settlement repair is necessary because no accepted teasers exist. Do not roll back unrelated promo/model releases. Removing a guard or flipping a UI flag is not a launch process.
 

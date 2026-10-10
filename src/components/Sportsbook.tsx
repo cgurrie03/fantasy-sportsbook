@@ -24,6 +24,7 @@ import { Chevron, TicketHistory } from "./TicketHistory";
 import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
+import { adjustedSpread, teaserEligibility } from "../lib/teaser-eligibility";
 import { LineRefreshStatus } from "./LineRefreshStatus";
 import { StarterActivity } from "./StarterActivity";
 import { LineMovement } from "./LineMovement";
@@ -97,7 +98,7 @@ export function Sportsbook({
     [matchup, setMatchup] = useState("all"),
     [picks, setPicks] = useState<Market[]>([]),
     [open, setOpen] = useState(false),
-    [stake, setStake] = useState("0"),
+    [stake, setStake] = useState(""),
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
   const [offers, setOffers] = useState<PromoOffer[]>([]),
@@ -105,6 +106,7 @@ export function Sportsbook({
     [boostId, setBoostId] = useState<string | null>(null),
     [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
   const [teaserPreview, setTeaserPreview] = useState(false);
+  const [teaserAdjustment, setTeaserAdjustment] = useState(9);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
   const appliedBoost = eligibleOffers.find((o) => o.id === boostId);
@@ -235,6 +237,25 @@ export function Sportsbook({
   const accepting = boardAvailable(board, clock);
   const futureAccepting = boardAvailable(futureBoard, clock);
   const selectedBoard = picks.some(isFuture) ? futureBoard : board;
+  const teaserReason = teaserEligibility(
+    picks,
+    selectedBoard,
+    groups.length,
+    !!fixedOffer || !!boostId,
+  );
+  const teaserPrice = !teaserReason
+    ? review?.teaserPrices?.find((p) => p.adjustment === teaserAdjustment)
+    : undefined;
+  const ticketOdds = teaserPreview
+    ? teaserPrice
+      ? formatOdds(teaserPrice.odds)
+      : "Price pending"
+    : formatOdds(americanPrice(price));
+  const ticketPayout = teaserPreview
+    ? teaserPrice
+      ? money((wager || 0) * teaserPrice.decimal)
+      : "Pending validation"
+    : money((wager || 0) * price);
   const currentQuotes = picks.some(isFuture) ? futureMarkets : markets;
   const changedPicks =
     !fixedOffer && picks.length > 0 && pickRevision !== selectedBoard?.revision;
@@ -390,7 +411,7 @@ export function Sportsbook({
           : null;
       channel?.postMessage("used");
       channel?.close();
-      setStake("0");
+      setStake("");
       setOpen(false);
       setNotice(
         result.email_status === "sent"
@@ -1186,7 +1207,7 @@ export function Sportsbook({
       )}
       <dialog
         ref={dialog}
-        className={`bet-slip-dialog${teaserPreview ? " teaser-preview" : ""}`}
+        className={`bet-slip-dialog${!teaserReason || teaserPreview ? " teaser-capable" : ""}${teaserPreview ? " teaser-preview" : ""}`}
         onCancel={() => setOpen(false)}
         onClose={() => {
           setOpen(false);
@@ -1212,8 +1233,8 @@ export function Sportsbook({
             {fixedOffer ? fixedOffer.title : "Bet Slip"}
           </h2>
           <strong className="slip-odds">
-            {teaserPreview
-              ? "Research"
+            {!teaserReason || teaserPreview
+              ? ""
               : `Odds ${picks.length ? formatOdds(americanPrice(price)) : "—"}`}
           </strong>
           <button
@@ -1231,20 +1252,67 @@ export function Sportsbook({
             <Chevron />
           </button>
         </div>
-        <div className="slip-legs">
+        <TeaserConversion
+          active={teaserPreview}
+          onActive={setTeaserPreview}
+          adjustment={teaserAdjustment}
+          onAdjustment={setTeaserAdjustment}
+          reason={teaserReason}
+          prices={!teaserReason ? review?.teaserPrices : undefined}
+          odds={ticketOdds}
+        />
+        {teaserPreview && (
+          <div className="teaser-column-headings">
+            <span>Picks</span>
+            <span>Points</span>
+            <span>New line</span>
+            <span />
+          </div>
+        )}
+        <div
+          className="slip-legs"
+          id="slip-picks"
+          role={!teaserReason || teaserPreview ? "tabpanel" : undefined}
+          aria-labelledby={
+            !teaserReason || teaserPreview
+              ? teaserPreview
+                ? "teaser-tab"
+                : "parlay-tab"
+              : undefined
+          }
+        >
           {selectionGroups.map((key) => {
             const selections = picks.filter(
               (p) => (p.matchup_key ?? p.subject) === key,
             );
             return (
               <section key={key}>
-                <strong>{name(selections[0])}</strong>
+                {!teaserPreview && <strong>{name(selections[0])}</strong>}
                 {selections.map((m) => (
                   <div className="slip-leg" key={m.id}>
                     <span>
-                      {m.label}
-                      <small>{marketType[m.kind]}</small>
+                      {teaserPreview && m.kind === "spread" && m.line != null
+                        ? `${m.subject} ${m.line > 0 ? "+" : ""}${m.line.toFixed(1)}`
+                        : m.label}
+                      <small>
+                        {teaserPreview ? name(m) : marketType[m.kind]}
+                      </small>
                     </span>
+                    {teaserPreview && (
+                      <>
+                        <strong className="teaser-points">
+                          +{teaserAdjustment}
+                        </strong>
+                        <strong className="teaser-new-line">
+                          {m.kind === "spread" && m.line != null
+                            ? ((n: number) =>
+                                n > 0 ? "+" + n.toFixed(1) : n.toFixed(1))(
+                                adjustedSpread(m.line, teaserAdjustment),
+                              )
+                            : "—"}
+                        </strong>
+                      </>
+                    )}
                     <button
                       disabled={busy || !!fixedOffer}
                       hidden={!!fixedOffer}
@@ -1279,29 +1347,35 @@ export function Sportsbook({
               min="0"
               max={balance}
               step="0.01"
+              placeholder="0"
               value={stake}
+              onFocus={() => {
+                if (Number(stake) === 0) setStake("");
+              }}
               disabled={busy || !!fixedOffer?.terms.fixed_stake}
               onChange={(e) => setStake(e.target.value)}
             />
           </label>
         </div>
-        <TeaserConversion
-          picks={picks}
-          board={selectedBoard}
-          matchupCount={groups.length}
-          promotion={!!fixedOffer || !!boostId}
-          stake={Number.isFinite(wager) ? wager : 0}
-          active={teaserPreview}
-          onActive={setTeaserPreview}
-          previewPrices={review?.teaserPrices}
-        />
+        {teaserPreview && (
+          <details className="teaser-details">
+            <summary>Teaser details</summary>
+            <p>
+              Provisional adjustments: 6, 9 or 12 fantasy points. This week’s
+              results may change these choices. Any loss loses the ticket.
+              Pushes and voided legs are removed; remaining winning legs cash at
+              saved odds. No remaining legs: stake refunded.
+            </p>
+            {teaserPrice && <p>Local review uses sample prices.</p>}
+          </details>
+        )}
         {fixedOffer && (
           <p className="promo-expiry">
             Selections and lines locked · Claim by{" "}
             {claimBy(fixedOffer.expires_at)}
           </p>
         )}
-        {!fixedOffer && eligibleOffers.length > 0 && (
+        {!teaserPreview && !fixedOffer && eligibleOffers.length > 0 && (
           <section
             className="promo-eligibility"
             aria-label="Eligible profit boosts"
@@ -1493,11 +1567,7 @@ export function Sportsbook({
                 ? "Placing Bet…"
                 : `Place Bet ${money(wager || 0)}`}
           </strong>
-          <small>
-            {teaserPreview
-              ? "Research in progress"
-              : `Total Payout: ${money((wager || 0) * price)}`}
-          </small>
+          <small>{`Total Payout: ${ticketPayout}`}</small>
         </button>
       </dialog>
       <dialog
