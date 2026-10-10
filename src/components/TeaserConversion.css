@@ -29,16 +29,43 @@
   padding: 14px 0 6px;
 }
 .teaser-picker-toggle {
-  border: 0;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #cdd8ea;
+  border-radius: 10px;
+  background: #fff;
   color: #12233d;
-  padding: 0;
-  min-height: 44px;
+  padding: 0 12px;
+  min-height: 46px;
   font-size: 16px;
   font-weight: 700;
+  cursor: pointer;
 }
-.teaser-picker-toggle span {
-  margin-left: 8px;
+.teaser-picker-chevron {
+  flex-shrink: 0;
+  color: #52647e;
+  transition: transform 0.15s ease;
+}
+.teaser-picker-toggle[aria-expanded="true"] .teaser-picker-chevron {
+  transform: rotate(180deg);
+}
+.teaser-picker-toggle:hover:not(:disabled) {
+  border-color: #b99136;
+  background: #fffaf0;
+}
+.teaser-picker-toggle:focus-visible {
+  outline: 2px solid #b99136;
+  outline-offset: 3px;
+}
+.teaser-picker-toggle:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .teaser-picker-chevron {
+    transition: none;
+  }
 }
 .ticket-total-odds {
   font-size: 18px;

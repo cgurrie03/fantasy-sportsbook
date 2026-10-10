@@ -1359,14 +1359,17 @@ export function Sportsbook({
         </div>
         {teaserPreview && (
           <details className="teaser-details">
-            <summary>Teaser details</summary>
+            <summary>How teasers work</summary>
             <p>
-              Provisional adjustments: 6, 9 or 12 fantasy points. This week’s
-              results may change these choices. Any loss loses the ticket.
-              Pushes and voided legs are removed; remaining winning legs cash at
-              saved odds. No remaining legs: stake refunded.
+              The chosen fantasy points are added to every spread in your favor.
+              For example, a −8.5 spread becomes +0.5 with a 9-point teaser.
             </p>
-            {teaserPrice && <p>Local review uses sample prices.</p>}
+            <p>
+              Every remaining pick must win. A losing pick loses the ticket.
+              Pushed or voided picks are removed, and the payout is recalculated
+              using saved prices. One or two winning picks can still cash. If no
+              picks remain, your stake is refunded.
+            </p>
           </details>
         )}
         {fixedOffer && (

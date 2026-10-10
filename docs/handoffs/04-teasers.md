@@ -1,5 +1,9 @@
 # Fantasy Spread Teasers
 
+## Dropdown refinement — October 10, 2026
+
+The point selector now uses a 46px outlined button with an SVG chevron, expanded rotation, visible keyboard focus and dialog semantics. “Teaser details” is renamed “How teasers work,” with a spread example and concise saved-price settlement explanation. Research notes are removed from that disclosure; the disabled research status stays visible. Build/API fixtures and desktop/mobile conversion/points/keyboard checks passed; lint has existing warnings only. Normal UI release pending production verification; no pricing, acceptance or settlement behavior changes.
+
 ## Slip design update — October 10, 2026
 
 The user’s DraftKings screenshots are visual references only; NFL payout values and adjustment choices are not copied. Qualifying slips now use Parlay / Teaser tabs, a native modal points picker with 6/9/12 fantasy-point choices and total odds, and one pick list showing original spread / points / new line. The selected tab controls total odds and payout; returning to Parlay preserves original selections and prices. Research rules live under a collapsed Teaser details disclosure. Mobile hides quick-wager shortcuts in the teaser view.
@@ -8,7 +12,7 @@ Wagers start and reset as an empty value with a visible 0 placeholder. Focusing 
 
 Validated desktop 1440×1000 and mobile 390×844, both themes, adjustment changes and sample payouts, one list without duplicate picks, keyboard tab arrows, picker Escape without dismissing the slip, conversion back, invalidation after removing a pick, and unpriced disabled acceptance. No external fixture requests or browser errors. Build/API fixtures, teaser pricing/settlement fixtures and ordinary-slip UX regression fixtures passed. Existing lint warnings remain. Screenshots and checks are saved in outputs/slip-redesign.
 
-Teaser price/acceptance remain disabled in production. Local review sample prices are not launch prices. The final adjustment range and fair pricing still require this week’s results and the validation gates below. Normal UI release deployment evidence will be recorded after production verification.
+Teaser price/acceptance remain disabled in production. Local review sample prices are not launch prices. The final adjustment range and fair pricing still require this week’s results and the validation gates below. UI release **19b325a721c3d7edafeab9453e0dfc5a27ed3a38** is deployed to production. [Vercel release](https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/CArrAZ7WLC3Y3ZU8k796ebPkSi6H) was Ready / Production October 10 at 6:08:12 PM Eastern (24-second build). Postflight at 6:08:16 PM Eastern byte-matched the served Home/Admin/Promo/Reports assets to the tested build and verified unsupported teaser terms still reject with 400 and protected ordinary endpoints retain 401. No authenticated bet, email or database migration occurred. This final postflight note is local; the design and verification plan were committed with the application release.
 
 
 ## Current research release — October 9, 2026

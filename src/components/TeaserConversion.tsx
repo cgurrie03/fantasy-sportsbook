@@ -79,11 +79,27 @@ export function TeaserConversion({
             className="teaser-picker-toggle"
             aria-expanded={expanded}
             aria-controls="teaser-point-choices"
+            aria-haspopup="dialog"
             disabled={!!reason}
             onClick={() => setExpanded(!expanded)}
           >
-            {adjustment}-Point Teaser{" "}
-            <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+            <span>{adjustment}-Point Teaser</span>
+            <svg
+              className="teaser-picker-chevron"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         ) : (
           <strong>{"Parlay"}</strong>
