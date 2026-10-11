@@ -1,6 +1,6 @@
 # Next Betting Features — October 11, 2026
 
-Read PROJECT-CONTEXT.md and current release handoffs first. This records the user's next feature directions; it does not enable new markets, tracking feeds or acceptance rules.
+Read PROJECT-CONTEXT.md and current release handoffs first. Implementation status: receipts and the futures win counter were deployed in 365188b; Head to Head, milestones, winning margins and scheduled ticket-score observations were deployed in 24d6369. See docs/reviews/2026-10-11-extra-markets.md for implemented rules, tests and remaining provider/live-pricing limits. The specifications below preserve the original decisions; dedicated correlated pricing, physical-device sharing verification and unvalidated live acceptance remain future work.
 
 ## Head to Head — Confirmed Layout
 
@@ -30,11 +30,11 @@ Add one collapsed Winning Margin section near Team Totals inside each matchup ca
 
 Store the selected team and immutable exact lower/upper boundaries; selection text cannot be the settlement parser. Price each band's probability from the joint margin simulation. Prevent opposite teams or overlapping bands in the same ticket, and initially reject same-matchup combinations with ML/spread unless a dedicated correlated-price engine supports them. Compact segmented controls/chips should maintain readable odds and touch targets on mobile.
 
-## Futures Win Counter — Local Change
+## Futures Win Counter — Deployed
 
 On open regular-season win-total ticket legs, show Current wins: N. Read the selected subject team's current standings, never the bettor's team. Require the matching league and NFL season. Missing mapping/season/data displays unavailable rather than zero. Settled tickets keep final actual results. Preserve accepted line/odds/payout and wallet state.
 
-Local change made in src/lib/accounts.ts and src/components/TicketHistory.tsx: project the accepted settlement context's kind/team ID into account reads and pass the counter to the shared leg renderer. No schema migration or production write. TypeScript, compiled API fixtures and production build passed; the existing large-bundle warning remains. This handoff does not claim deployment or an authenticated production preview.
+Local change made in src/lib/accounts.ts and src/components/TicketHistory.tsx: project the accepted settlement context's kind/team ID into account reads and pass the counter to the shared leg renderer. No schema migration or production write. TypeScript, compiled API fixtures and production build passed; the existing large-bundle warning remains. This counter was subsequently deployed and verified by the receipt release; the subject-team lookup has dedicated browser coverage.
 
 ## Receipt and Shareable Images
 

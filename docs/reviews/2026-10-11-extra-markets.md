@@ -28,3 +28,5 @@ The browser polls cached database observations once a minute while visible, dedu
 - Browser/native share APIs are intercepted in tests. Physical-device message delivery and provider/model calibration remain empirical verification, not guaranteed by fixtures.
 
 Next review: populated new markets after permitted regeneration, physical-phone image/caption behavior, first scheduled score snapshot and newly settled market outcomes.
+
+Production verification: main JS/CSS assets byte-match the tested build. The hosted score table, acceptance trigger and all three shape constraints were verified. The scheduled worker independently populated one tracked-week score snapshot at 2026-10-11 15:44:01 UTC; no manual worker trigger or production ticket placement was used.
