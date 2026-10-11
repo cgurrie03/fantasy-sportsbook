@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import type { AccountData, Ticket, TicketLeg } from "../lib/accounts";
 import { money } from "../lib/accounts";
+import { TicketShare } from "./TicketShare";
 
 export function Chevron({ left = false }: { left?: boolean }) {
   return (
@@ -400,9 +401,41 @@ export function TicketHistory({
                         </button>
                       </section>
                     )}
-                    {legs.map((l) => (
-                      <TicketLegDetails key={l.id} leg={l} />
-                    ))}
+                    {legs.map((l) => {
+                      const tracksWins =
+                        t.ticket_type === "future" &&
+                        t.status === "OPEN" &&
+                        l.status === "OPEN" &&
+                        (l.market_kind === "future_win_total" ||
+                          l.market_type === "Regular-season Wins");
+                      const league = data.leagues.find(
+                        (item) => item.id === t.league_id,
+                      );
+                      const subject = data.teams.find(
+                        (team) =>
+                          team.id === l.subject_team_id &&
+                          team.league_id === t.league_id,
+                      );
+                      const hasWins =
+                        league != null &&
+                        league.nfl_season === t.nfl_season &&
+                        subject != null &&
+                        Number.isInteger(subject.wins) &&
+                        subject.wins >= 0;
+                      return (
+                        <TicketLegDetails
+                          key={l.id}
+                          leg={l}
+                          progress={
+                            tracksWins
+                              ? hasWins
+                                ? `Current wins: ${subject!.wins}`
+                                : "Current wins unavailable"
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                     <div className="ticket-foot">
                       <span>
                         Bet ID: {t.legacy_ticket_id ?? t.id.slice(0, 8)}
@@ -413,6 +446,11 @@ export function TicketHistory({
                           : "Awaiting results"}
                       </span>
                     </div>
+                    <TicketShare
+                      data={data}
+                      ticket={t}
+                      owner={owner(t.team_id)}
+                    />
                     <p className={"ticket-meta " + t.status.toLowerCase()}>
                       {t.status !== "OPEN" &&
                         "Net Profit: " +
@@ -531,7 +569,13 @@ function BettingLogTable({
   );
 }
 
-export function TicketLegDetails({ leg: l }: { leg: TicketLeg }) {
+export function TicketLegDetails({
+  leg: l,
+  progress,
+}: {
+  leg: TicketLeg;
+  progress?: string;
+}) {
   return (
     <div className={"history-leg " + l.status.toLowerCase()} key={l.id}>
       <span
@@ -569,6 +613,7 @@ export function TicketLegDetails({ leg: l }: { leg: TicketLeg }) {
           {l.market_type} · {title(l.status)}
         </small>
         <small className="leg-actual">{legResult(l)}</small>
+        {progress && <small className="leg-progress">{progress}</small>}
       </div>
     </div>
   );

@@ -66,6 +66,13 @@ export interface AccountData {
   ledger: Ledger[];
   tickets?: Ticket[];
   legs?: TicketLeg[];
+  ticketPromotions?: TicketPromotion[];
+}
+export interface TicketPromotion {
+  ticket_id: string;
+  kind: "boost" | "fixed";
+  boost_pct: number | string;
+  base_decimal: number | string;
 }
 export interface Ticket {
   nfl_season?: number;
@@ -90,6 +97,8 @@ export interface TicketLeg {
   leg_number: number;
   selection: string;
   market_type: string;
+  market_kind?: string | null;
+  subject_team_id?: string | null;
   actual_value?: number | string | null;
   result_evidence?: string;
   matchup: string | null;
@@ -126,7 +135,7 @@ export async function loadAccounts(): Promise<AccountData> {
       supabase!
         .from("ticket_legs")
         .select(
-          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence",
+          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id",
         )
         .order("leg_number")
         .order("id")
@@ -140,6 +149,13 @@ export async function loadAccounts(): Promise<AccountData> {
         .order("id")
         .range(from, to),
     ),
+    readAllRows((from, to) =>
+      supabase!
+        .from("ticket_promotions")
+        .select("ticket_id,kind,boost_pct,base_decimal")
+        .order("ticket_id")
+        .range(from, to),
+    ),
   ]);
   for (const result of results) if (result.error) throw result.error;
   return {
@@ -151,6 +167,7 @@ export async function loadAccounts(): Promise<AccountData> {
     ledger: results[7].data as Ledger[],
     tickets: results[5].data as Ticket[],
     legs: results[6].data as TicketLeg[],
+    ticketPromotions: results[8].data as TicketPromotion[],
   };
 }
 export const money = (value: number | string | null | undefined) =>

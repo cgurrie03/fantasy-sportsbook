@@ -1,0 +1,282 @@
+.ticket-share-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface-2);
+  font-weight: 700;
+}
+.ticket-share-trigger:focus-visible,
+.ticket-share-dialog button:focus-visible {
+  outline: 2px solid #f4c453;
+  outline-offset: 3px;
+}
+.ticket-share-dialog {
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.ticket-share-dialog::backdrop {
+  background: #0009;
+}
+.ticket-share-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ticket-share-heading h2 {
+  font-size: 21px;
+  margin: 0;
+}
+.ticket-share-heading button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 26px;
+}
+.ticket-share-preview {
+  overflow: hidden;
+}
+.share-receipt {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 22px;
+  background: #101c30;
+  color: #f6f8fc;
+  border: 1px solid #34445f;
+  border-radius: 14px;
+  text-align: left;
+  font-family: Arial, sans-serif;
+}
+.share-receipt small {
+  display: block;
+  color: #b9cce5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.receipt-brand {
+  font-size: 15px;
+  font-weight: 700;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #34445f;
+  overflow-wrap: anywhere;
+}
+.receipt-brand small {
+  margin-top: 4px;
+  font-weight: 400;
+}
+.receipt-owner {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-top: 16px;
+}
+.receipt-owner > div {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.receipt-avatar {
+  display: grid;
+  position: relative;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  background: #263952;
+  border-radius: 50%;
+  overflow: hidden;
+  font-weight: 700;
+}
+.receipt-avatar img {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+}
+.receipt-status {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #273951;
+  color: #d5e0ee;
+}
+.receipt-status.open {
+  background: #463f20;
+  color: #ffdd78;
+}
+.receipt-status.won {
+  background: #174d40;
+  color: #9ce9c7;
+}
+.receipt-status.lost {
+  background: #542c36;
+  color: #ffb4bf;
+}
+.receipt-title {
+  font-size: 12px;
+  color: #b9cce5;
+  margin: 12px 0 16px;
+}
+.receipt-values {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 1.3fr;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #34445f;
+}
+.receipt-values strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+  white-space: nowrap;
+}
+.receipt-values > div:last-child {
+  text-align: right;
+}
+.receipt-legs {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0;
+}
+.receipt-leg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.receipt-leg-number {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  font-size: 13px;
+  border: 1px solid #a5b7cc;
+  border-radius: 50%;
+}
+.receipt-leg-number.won {
+  color: #91e1bd;
+  border-color: #91e1bd;
+}
+.receipt-leg-number.lost {
+  color: #ff9da9;
+  border-color: #ff9da9;
+}
+.receipt-leg > div {
+  min-width: 0;
+}
+.receipt-leg strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.receipt-leg small {
+  margin-top: 3px;
+}
+.share-receipt footer {
+  border-top: 1px solid #34445f;
+  padding-top: 14px;
+  color: #b9cce5;
+  font-size: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.receipt-profit {
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+.ticket-share-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.ticket-share-actions button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.ticket-share-actions button:first-child {
+  grid-column: 1/-1;
+}
+.ticket-share-dialog p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ticket-share-help {
+  color: var(--muted);
+}
+.receipt-text summary {
+  font-size: 12px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+.receipt-text pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+.receipt-placement {
+  margin: 8px 0 18px;
+}
+@media (max-width: 480px) {
+  .ticket-share-dialog {
+    padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .share-receipt {
+    padding: 16px;
+  }
+  .receipt-values strong {
+    font-size: 16px;
+  }
+  .receipt-owner strong {
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticket-share-dialog * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.ticket-share-preview {
+  max-height: 48dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 14px;
+}
+.share-receipt {
+  border-top: 3px solid #f4c453;
+}
+.ticket-share-actions button:not(.primary) {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+}

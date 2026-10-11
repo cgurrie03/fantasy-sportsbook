@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:receipts": "node scripts/test-ticket-receipts.cjs",
     "test:teasers": "node scripts/test-teasers.mjs",
     "test:teasers:ux": "node scripts/test-teasers-ux.mjs",
     "research:teasers": "node scripts/research-teasers.mjs",

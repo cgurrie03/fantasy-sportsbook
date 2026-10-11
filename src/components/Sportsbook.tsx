@@ -21,6 +21,7 @@ import {
 } from "../lib/markets";
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
+import { TicketShare } from "./TicketShare";
 import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
@@ -106,6 +107,7 @@ export function Sportsbook({
     [boostId, setBoostId] = useState<string | null>(null),
     [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
   const [teaserPreview, setTeaserPreview] = useState(false);
+  const [placedTicketId, setPlacedTicketId] = useState<string | null>(null);
   const [teaserAdjustment, setTeaserAdjustment] = useState(9);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
@@ -401,6 +403,7 @@ export function Sportsbook({
             ? { id: appliedBoost.id, kind: "boost" }
             : undefined,
       );
+      setPlacedTicketId(result.ticket_id);
       setPicks([]);
       setFixedOffer(null);
       setBoostId(null);
@@ -544,6 +547,16 @@ export function Sportsbook({
           {notice}
         </p>
       )}
+      {placedTicketId &&
+        data.tickets
+          ?.filter(
+            (t) => t.id === placedTicketId && t.league_id === member.league_id,
+          )
+          .map((t) => (
+            <div className="receipt-placement" key={t.id}>
+              <TicketShare data={data} ticket={t} owner={member.display_name} />
+            </div>
+          ))}
       {review && (
         <p className="review-notice">
           Design Review · Illustrative markets. Betting and email delivery are
