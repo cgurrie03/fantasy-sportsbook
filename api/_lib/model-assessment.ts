@@ -134,6 +134,17 @@ export function fairProbability(
   config: Config = BASELINE,
   specials?: any,
 ): number | null {
+  if (
+    [
+      "player_h2h",
+      "player_milestone",
+      "team_milestone",
+      "winning_margin",
+    ].includes(q.kind)
+  )
+    return Number.isFinite(q.metadata?.simulated_probability)
+      ? q.metadata.simulated_probability
+      : null;
   const home = models.find((m) => m.id === q.home_team_id),
     away = models.find((m) => m.id === q.away_team_id),
     team = models.find((m) => m.id === q.team_id);

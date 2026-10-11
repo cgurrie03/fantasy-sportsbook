@@ -141,9 +141,16 @@ export function MarketAdmin({
     now < Date.parse(board.closes_at);
   const categoryKinds =
     category === "Matchups"
-      ? ["spread", "moneyline", "match_total", "team_total"]
+      ? [
+          "spread",
+          "moneyline",
+          "match_total",
+          "team_total",
+          "team_milestone",
+          "winning_margin",
+        ]
       : category === "Player Points"
-        ? ["player_points"]
+        ? ["player_points", "player_milestone", "player_h2h"]
         : weeklyKinds;
   const hasGeneratedLines = markets.some((m) => categoryKinds.includes(m.kind));
 
@@ -205,9 +212,16 @@ export function MarketAdmin({
           : normalized;
       const replacedKinds =
         category === "Matchups"
-          ? ["spread", "moneyline", "match_total", "team_total"]
+          ? [
+              "spread",
+              "moneyline",
+              "match_total",
+              "team_total",
+              "team_milestone",
+              "winning_margin",
+            ]
           : category === "Player Points"
-            ? ["player_points"]
+            ? ["player_points", "player_milestone", "player_h2h"]
             : weeklyKinds;
       setMarkets([
         ...markets.filter((m) => !replacedKinds.includes(m.kind)),
@@ -711,6 +725,26 @@ export function MarketAdmin({
                   );
                 })}
               </div>
+            )}
+            {["Matchups", "Player Points"].includes(category) && (
+              <details className="extra-market">
+                <summary>
+                  {category === "Matchups"
+                    ? "Milestones & Winning Margins"
+                    : "Head to Head & Player Milestones"}
+                </summary>
+                <p>
+                  Generated with this category. Recalculate and publish to
+                  update these markets. Head to Head uses actual starting slots.
+                </p>
+                {renderQuotes(
+                  markets.filter((m) =>
+                    category === "Matchups"
+                      ? ["team_milestone", "winning_margin"].includes(m.kind)
+                      : ["player_h2h", "player_milestone"].includes(m.kind),
+                  ),
+                )}
+              </details>
             )}
             {category === "Weekly Specials" && (
               <div className="props-grid">

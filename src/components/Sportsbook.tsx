@@ -22,6 +22,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { Chevron, TicketHistory } from "./TicketHistory";
 import { TicketShare } from "./TicketShare";
+import { HeadToHead, Milestones, WinningMargins } from "./ExtraMarkets";
 import { WeeklyCountPicker } from "./WeeklyCountPicker";
 import { SeasonFutures } from "./SeasonFutures";
 import "./Sportsbook.css";
@@ -667,6 +668,7 @@ export function Sportsbook({
             {[
               "Matchups",
               "Player Points",
+              "Head to Head",
               "Weekly Specials",
               "Season Futures",
             ].map((c) => (
@@ -848,6 +850,24 @@ export function Sportsbook({
                             ))}
                           </div>
                         </details>
+                        {[h, a].map((t) => (
+                          <Milestones
+                            key={t?.id}
+                            markets={g.filter(
+                              (m) =>
+                                m.kind === "team_milestone" &&
+                                m.team_id === t?.id,
+                            )}
+                            quote={(m, label) =>
+                              quote(m, `${t?.team_name} ${label}`)
+                            }
+                          />
+                        ))}
+                        <WinningMargins
+                          markets={g.filter((m) => m.kind === "winning_margin")}
+                          data={data}
+                          quote={quote}
+                        />
                         <button
                           className="projections-link"
                           onClick={() => {
@@ -861,6 +881,15 @@ export function Sportsbook({
                     );
                   })}
                 </div>
+              )}
+              {category === "Head to Head" && (
+                <HeadToHead
+                  groups={groups}
+                  selected={selectedMatchup}
+                  onSelect={setMatchup}
+                  data={data}
+                  quote={quote}
+                />
               )}
               {category === "Player Points" && (
                 <>
@@ -966,6 +995,16 @@ export function Sportsbook({
                                 </span>
                               ))}
                             </div>
+                            <Milestones
+                              markets={markets.filter(
+                                (p) =>
+                                  p.kind === "player_milestone" &&
+                                  p.metadata.player_id ===
+                                    m.metadata.player_id &&
+                                  p.matchup_key === m.matchup_key,
+                              )}
+                              quote={quote}
+                            />
                           </article>
                         );
                       })}

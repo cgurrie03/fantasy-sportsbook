@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:extra-markets": "node scripts/test-extra-markets.mjs",
+    "test:extra-markets:ux": "node scripts/test-extra-markets-ux.cjs",
     "test:receipts": "node scripts/test-ticket-receipts.cjs",
     "test:teasers": "node scripts/test-teasers.mjs",
     "test:teasers:ux": "node scripts/test-teasers-ux.mjs",

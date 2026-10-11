@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { fetchGameStatus } from "./_lib/game-status.js";
 import { collectLiveShadow, reviewLiveWeek } from "./_lib/live-pipeline.js";
 import { reviewModelWeek } from "./_lib/model-pipeline.js";
+import { refreshTicketProgress } from "./_lib/ticket-progress.js";
 export const maxDuration = 60;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -112,6 +113,22 @@ export async function POST(request: Request) {
     let statusError: string | null = null;
     try {
       const observed = await fetchGameStatus();
+      // Read-only score observations never alter settlement, accepted quotes or wallets.
+      const activeLeagues = await read(
+        db
+          .from("leagues")
+          .select("id,sleeper_league_id,nfl_season")
+          .eq("operations_enabled", true),
+      );
+      await Promise.all(
+        activeLeagues.map(async (league: any) => {
+          try {
+            await refreshTicketProgress(db, league, observed);
+          } catch {
+            /* Retain the previous observation; clients mark it delayed. */
+          }
+        }),
+      );
       const saved = await db.rpc("observe_line_refresh", {
         p_status: observed,
       });
@@ -506,9 +523,16 @@ export async function POST(request: Request) {
           : [];
         const kinds =
           category === "Matchups"
-            ? ["spread", "moneyline", "match_total", "team_total"]
+            ? [
+                "spread",
+                "moneyline",
+                "match_total",
+                "team_total",
+                "team_milestone",
+                "winning_margin",
+              ]
             : category === "Player Points"
-              ? ["player_points"]
+              ? ["player_points", "player_milestone", "player_h2h"]
               : [
                   "weekly_high",
                   "weekly_low",

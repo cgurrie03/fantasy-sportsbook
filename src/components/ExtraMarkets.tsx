@@ -1,0 +1,223 @@
+import type { ReactNode } from "react";
+import type { AccountData } from "../lib/accounts";
+import type { Market } from "../lib/markets";
+import { formatOdds } from "../lib/markets";
+import "./ExtraMarkets.css";
+type Quote = (market: Market | undefined, label?: string) => ReactNode;
+export function Milestones({
+  markets,
+  quote,
+}: {
+  markets: Market[];
+  quote: Quote;
+}) {
+  if (!markets.length) return null;
+  return (
+    <details className="extra-market">
+      <summary>
+        Milestones <span>Hit a points target</span>
+      </summary>
+      <p>Reach this score or higher. A player who does not play pushes.</p>
+      <div className="milestone-options">
+        {markets.map((m) => (
+          <div key={m.id}>
+            {quote(m, `${m.line}+`)}
+            <small>{formatOdds(m.odds)}</small>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+export function WinningMargins({
+  markets,
+  data,
+  quote,
+}: {
+  markets: Market[];
+  data: AccountData;
+  quote: Quote;
+}) {
+  if (!markets.length) return null;
+  return (
+    <details className="extra-market">
+      <summary>
+        Winning Margin <span>Choose a winner and range</span>
+      </summary>
+      <p>A tied matchup pushes. Each range excludes its upper boundary.</p>
+      {[...new Set(markets.map((m) => m.team_id))].map((id) => (
+        <section className="margin-team" key={id}>
+          <strong>{data.teams.find((t) => t.id === id)?.team_name}</strong>
+          <div className="milestone-options">
+            {markets
+              .filter((m) => m.team_id === id)
+              .map((m) => (
+                <div key={m.id}>
+                  {quote(
+                    m,
+                    Number(m.metadata.margin_lower) === 0
+                      ? "Under 10"
+                      : m.metadata.margin_upper == null
+                        ? "30+"
+                        : `${m.metadata.margin_lower}–<${m.metadata.margin_upper}`,
+                  )}
+                  <small>{formatOdds(m.odds)}</small>
+                </div>
+              ))}
+          </div>
+        </section>
+      ))}
+    </details>
+  );
+}
+interface PlayerIdentity {
+  id: string;
+  name: string;
+  projection: number;
+  average: number | null;
+  team: string;
+  position: string;
+  game: string;
+  kickoff: string | null;
+}
+function Player({ value, right }: { value: PlayerIdentity; right?: boolean }) {
+  const kickoff =
+    value.kickoff && Number.isFinite(Date.parse(value.kickoff))
+      ? new Date(value.kickoff).toLocaleString("en-US", {
+          timeZone: "America/New_York",
+          weekday: "short",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
+  return (
+    <div className={`duel-player${right ? " right" : ""}`}>
+      {/^\d+$/.test(value.id) && (
+        <img
+          src={`https://sleepercdn.com/content/nfl/players/${value.id}.jpg`}
+          alt=""
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      )}
+      <strong>{value.name}</strong>
+      <span>
+        {value.position} · {value.team || "—"}
+      </span>
+      <div className="duel-stat">
+        <span>
+          Projected <b>{value.projection.toFixed(1)}</b>
+        </span>
+        <span>
+          Average <b>{value.average?.toFixed(1) ?? "—"}</b>
+        </span>
+      </div>
+      <small>
+        {value.game.replace(/^\S+\s*/, "")}
+        {kickoff ? ` · ${kickoff} ET` : " · Game unavailable"}
+      </small>
+    </div>
+  );
+}
+export function HeadToHead({
+  groups,
+  selected,
+  onSelect,
+  data,
+  quote,
+}: {
+  groups: Market[][];
+  selected: string;
+  onSelect: (value: string) => void;
+  data: AccountData;
+  quote: Quote;
+}) {
+  const group = groups.find((g) => g[0].matchup_key === selected) ?? [],
+    match = group[0];
+  const team = (id: string | null) => data.teams.find((t) => t.id === id);
+  const duels = group
+    .filter((m) => m.kind === "player_h2h" && m.side === "home")
+    .sort(
+      (a, b) => Number(a.metadata.slot_index) - Number(b.metadata.slot_index),
+    );
+  return (
+    <section className="head-to-head">
+      <label className="matchup-picker">
+        Matchup
+        <select value={selected} onChange={(e) => onSelect(e.target.value)}>
+          {groups.map((g) => (
+            <option key={g[0].matchup_key} value={g[0].matchup_key ?? ""}>
+              {team(g[0].home_team_id)?.team_name} vs.{" "}
+              {team(g[0].away_team_id)?.team_name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {match && (
+        <div className="duel-team-header">
+          {[match.home_team_id, match.away_team_id].map((id, i) => {
+            const t = team(id);
+            return (
+              <div className={i ? "right" : ""} key={id}>
+                {t?.avatar_url && <img src={t.avatar_url} alt="" />}
+                <strong>{t?.team_name}</strong>
+                <span>
+                  {data.memberships.find((m) => m.team_id === id)
+                    ?.display_name ?? t?.sportsbook_owner_name}{" "}
+                  · {t?.wins}–{t?.losses}
+                  {t?.ties ? `–${t.ties}` : ""}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="duel-help">
+        Same starting slot, player vs. player. Ties or either player not playing
+        push the leg.
+      </p>
+      {!duels.length && (
+        <p>
+          Head-to-head lines will appear after Player Points is regenerated and
+          published.
+        </p>
+      )}
+      {duels.map((m) => (
+        <article className="duel-row" key={m.market_key}>
+          <div>
+            <Player
+              value={m.metadata.left_player as unknown as PlayerIdentity}
+            />
+            {quote(m, "Score More")}
+            <small className="duel-price">{formatOdds(m.odds)}</small>
+          </div>
+          <div className="duel-slot">
+            {String(m.metadata.slot).replaceAll("_", " ")}
+            <small>vs.</small>
+          </div>
+          <div>
+            <Player
+              value={m.metadata.right_player as unknown as PlayerIdentity}
+              right
+            />
+            {quote(
+              group.find(
+                (q) => q.market_key === m.market_key && q.side === "away",
+              ),
+              "Score More",
+            )}
+            <small className="duel-price">
+              {formatOdds(
+                group.find(
+                  (q) => q.market_key === m.market_key && q.side === "away",
+                )?.odds ?? 0,
+              )}
+            </small>
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}

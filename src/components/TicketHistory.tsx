@@ -5,6 +5,11 @@ import type { ReactNode } from "react";
 import type { AccountData, Ticket, TicketLeg } from "../lib/accounts";
 import { money } from "../lib/accounts";
 import { TicketShare } from "./TicketShare";
+import {
+  useTicketProgress,
+  observedLegProgress,
+  TicketProgressNotice,
+} from "./TicketProgress";
 
 export function Chevron({ left = false }: { left?: boolean }) {
   return (
@@ -184,6 +189,14 @@ function TicketFilters({
 
 const legResult = (leg: TicketLeg) => {
   if (leg.status === "VOIDED") return "Wager refunded";
+  if (
+    ["Head to Head", "Winning Margin"].includes(leg.market_type) &&
+    leg.status !== "OPEN"
+  )
+    return (
+      leg.result_evidence ||
+      (leg.status === "PUSH" ? "Leg pushed" : "Confirmed result")
+    );
   if (leg.actual_value == null)
     return leg.status === "OPEN"
       ? "Awaiting result"
@@ -233,6 +246,7 @@ export function TicketHistory({
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const observations = useTicketProgress(tickets[0]?.league_id, tickets);
   async function cancelTicket() {
     if (!voiding || !reason.trim() || saving || !supabase) return;
     setSaving(true);
@@ -273,6 +287,12 @@ export function TicketHistory({
               const legs = (data.legs ?? [])
                 .filter((l) => l.ticket_id === t.id)
                 .sort((a, b) => a.leg_number - b.leg_number);
+              const observation = observations.rows.find(
+                (r) =>
+                  r.league_id === t.league_id &&
+                  r.market_week === t.market_week &&
+                  r.nfl_season === t.nfl_season,
+              );
               return (
                 <details key={t.id} className="history-ticket">
                   <summary>
@@ -365,6 +385,14 @@ export function TicketHistory({
                     </div>
                   </summary>
                   <div className="ticket-body">
+                    {t.status === "OPEN" && t.ticket_type !== "future" && (
+                      <TicketProgressNotice
+                        row={observation}
+                        loading={observations.loading}
+                        error={observations.error}
+                        now={observations.now}
+                      />
+                    )}
                     {voiding?.id === t.id && (
                       <section
                         className="void-confirmation"
@@ -431,7 +459,7 @@ export function TicketHistory({
                               ? hasWins
                                 ? `Current wins: ${subject!.wins}`
                                 : "Current wins unavailable"
-                              : undefined
+                              : observedLegProgress(l, observation)
                           }
                         />
                       );

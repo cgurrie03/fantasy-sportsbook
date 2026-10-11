@@ -185,7 +185,13 @@ export async function POST(request: Request) {
             points: result.points,
           };
         }
-        if (legs.some((l) => l.settlement_context?.kind === "player_points")) {
+        if (
+          legs.some((l) =>
+            ["player_points", "player_milestone", "player_h2h"].includes(
+              l.settlement_context?.kind ?? "",
+            ),
+          )
+        ) {
           const stats = (await get(
             `stats/nfl/${season}/${marketWeek}?season_type=regular`,
           )) as { player_id: string; stats: Record<string, number> }[];

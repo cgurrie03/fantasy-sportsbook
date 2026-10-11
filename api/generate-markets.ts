@@ -1,5 +1,12 @@
 import { isWorker } from "./_lib/worker-auth.js";
 import { countOptions } from "./_lib/count-options.js";
+import {
+  extraMatchups,
+  playerExtras,
+  milestones,
+  oddsFor,
+} from "./_lib/extra-markets.js";
+import { cdf } from "./_lib/model-assessment.js";
 import { BASELINE, fairProbability } from "./_lib/model-assessment.js";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -325,6 +332,7 @@ export async function POST(request: Request) {
             fpts_decimal?: number;
           };
           players: string[];
+          starters?: string[];
           reserve?: string[];
           taxi?: string[];
         }[],
@@ -886,6 +894,7 @@ export async function POST(request: Request) {
         }
         for (const side of ["over", "under"])
           add("match_total", side, "Match Total", total, -110, null);
+        quotes.push(...extraMatchups(context, home, away, historical));
       } else if (category === "Player Points") {
         const top = [
           ...home.lineup.map((p) => ({ ...p, owner: home })),
@@ -897,7 +906,7 @@ export async function POST(request: Request) {
           )
           .sort((a, b) => b.expected - a.expected)
           .slice(0, 12);
-        for (const player of top)
+        for (const player of top) {
           for (const side of ["over", "under"])
             add(
               "player_points",
@@ -924,6 +933,52 @@ export async function POST(request: Request) {
                 },
               },
             );
+          const sd = pool.find((p) => p.id === player.id)!.assessment_sd;
+          for (const target of milestones(player.expected, 5)) {
+            const probability = 1 - cdf((target - player.expected) / sd);
+            const kickoff = projections.find(
+              (p) => p.player_id === player.id,
+            )?.date;
+            add(
+              "player_milestone",
+              "at_least",
+              player.name,
+              target,
+              oddsFor(probability),
+              player.owner.id,
+              {
+                market_key: `${key}:player_milestone:${player.id}:${target}`,
+                label: `${player.name} ${target}+ points`,
+                metadata: {
+                  player_id: player.id,
+                  threshold: target,
+                  cutoff_at: kickoff,
+                  projection: player.projection,
+                  season_average: player.average,
+                  simulated_probability: probability,
+                  fair_probability: probability,
+                  pricing_method: "normal-tail-shrinkage-v1",
+                },
+              },
+            );
+          }
+        }
+        const slots = league.roster_positions.filter(
+          (s) => !["BN", "IR", "TAXI"].includes(s),
+        );
+        quotes.push(
+          ...playerExtras(
+            context,
+            home,
+            away,
+            rosters.find((r) => r.roster_id === home.roster_id)?.starters ?? [],
+            rosters.find((r) => r.roster_id === away.roster_id)?.starters ?? [],
+            slots,
+            pool,
+            projections,
+            historical,
+          ),
+        );
       }
     }
     if (category === "Weekly Specials") {

@@ -9,6 +9,9 @@ export interface LegInput {
     away_team_id: string | null;
     metadata?: {
       player_id?: string;
+      opponent_player_id?: string;
+      margin_lower?: number;
+      margin_upper?: number | null;
       expected_team_count?: number;
       projection_targets?: Record<string, number>;
     };
@@ -46,6 +49,74 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
   let difference: number;
   let evidence: string;
   switch (c.kind) {
+    case "player_h2h": {
+      const left = results.players[c.metadata?.player_id ?? ""],
+        right = results.players[c.metadata?.opponent_player_id ?? ""];
+      if (!left || !right || !["home", "away"].includes(c.side))
+        return pending("Both player participation results are required.");
+      if (!left.played || !right.played)
+        return {
+          id: leg.id,
+          status: "PUSH",
+          actual_value: null,
+          evidence: "A head-to-head player did not play; leg pushed.",
+        };
+      actual = (c.side === "home" ? 1 : -1) * (left.points - right.points);
+      difference = actual;
+      evidence = `Selected player: ${(c.side === "home" ? left : right).points.toFixed(2)} points · Opponent: ${(c.side === "home" ? right : left).points.toFixed(2)} points. A tie pushes the leg.`;
+      break;
+    }
+    case "player_milestone": {
+      const player = results.players[c.metadata?.player_id ?? ""];
+      if (!player || line == null)
+        return pending("Player participation or milestone is unconfirmed.");
+      if (!player.played)
+        return {
+          id: leg.id,
+          status: "PUSH",
+          actual_value: 0,
+          evidence: "Player did not play; milestone leg pushed.",
+        };
+      actual = player.points;
+      difference = actual >= line ? 1 : -1;
+      evidence = `Actual player points: ${actual.toFixed(2)}. Milestone ${line}+ includes equality.`;
+      break;
+    }
+    case "team_milestone":
+      if (!team || line == null)
+        return pending("Team score or milestone is missing.");
+      actual = team.points;
+      difference = actual >= line ? 1 : -1;
+      evidence = `Actual team points: ${actual.toFixed(2)}. Milestone ${line}+ includes equality.`;
+      break;
+    case "winning_margin": {
+      if (!team || !home || !away)
+        return pending("Both matchup scores are required.");
+      const lo = c.metadata?.margin_lower,
+        hi = c.metadata?.margin_upper;
+      if (
+        !Number.isFinite(lo) ||
+        lo! < 0 ||
+        (hi !== null && (!Number.isFinite(hi) || hi! <= lo!))
+      )
+        return pending("Accepted margin boundaries are missing.");
+      actual =
+        Math.round(
+          (team.points - (c.team_id === c.home_team_id ? away : home).points) *
+            100,
+        ) / 100;
+      if (actual === 0)
+        return {
+          id: leg.id,
+          status: "PUSH",
+          actual_value: 0,
+          evidence: "The fantasy matchup tied; winning-margin leg pushed.",
+        };
+      difference =
+        actual > 0 && actual >= lo! && (hi === null || actual < hi!) ? 1 : -1;
+      evidence = `${team.name} winning margin: ${actual.toFixed(2)}. Accepted range ${lo} to ${hi ?? "no upper limit"} (upper boundary excluded).`;
+      break;
+    }
     case "weekly_count_150":
     case "weekly_any_below_100":
     case "weekly_any_200": {

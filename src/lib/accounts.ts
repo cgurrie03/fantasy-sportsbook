@@ -98,6 +98,8 @@ export interface TicketLeg {
   selection: string;
   market_type: string;
   market_kind?: string | null;
+  accepted_line?: number | string | null;
+  settlement_context?: import("../../api/_lib/settlement").LegInput["settlement_context"];
   subject_team_id?: string | null;
   actual_value?: number | string | null;
   result_evidence?: string;
@@ -135,7 +137,7 @@ export async function loadAccounts(): Promise<AccountData> {
       supabase!
         .from("ticket_legs")
         .select(
-          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id",
+          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,accepted_line,settlement_context,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id",
         )
         .order("leg_number")
         .order("id")

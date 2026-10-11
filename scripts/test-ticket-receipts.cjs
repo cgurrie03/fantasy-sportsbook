@@ -140,6 +140,8 @@ fs.mkdirSync(output, { recursive: true });
               window.__receiptShared = {
                 names: payload.files.map((f) => f.name),
                 types: payload.files.map((f) => f.type),
+                text: payload.text,
+                url: payload.url,
               };
             },
           });
@@ -158,6 +160,8 @@ fs.mkdirSync(output, { recursive: true });
           .click();
         const shared = await f.page.evaluate(() => window.__receiptShared);
         assert.equal(shared.types[0], "image/png");
+        assert.match(shared.text, /Follow the action/);
+        assert.equal(shared.url, "https://fixture.example.test/");
         const downloadEvent = f.page.waitForEvent("download");
         await dialog
           .getByRole("button", { name: "Save image", exact: true })
@@ -248,11 +252,15 @@ fs.mkdirSync(output, { recursive: true });
       .click();
     await placed.page.locator(".ticket-share-dialog").waitFor();
     assert.match(
-      await placed.page.locator(".ticket-share-dialog .receipt-values").innerText(),
+      await placed.page
+        .locator(".ticket-share-dialog .receipt-values")
+        .innerText(),
       /\$10\.00/,
     );
     assert.match(
-      await placed.page.locator(".ticket-share-dialog .receipt-title").innerText(),
+      await placed.page
+        .locator(".ticket-share-dialog .receipt-title")
+        .innerText(),
       /2 Pick Parlay/,
     );
     assert.deepEqual(placed.errors, []);

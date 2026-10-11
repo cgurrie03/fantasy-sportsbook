@@ -1,0 +1,205 @@
+.extra-market {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  background: var(--surface);
+}
+.extra-market summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 32px;
+  line-height: 1.5;
+}
+.extra-market summary span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 8px;
+}
+.extra-market p,
+.duel-help {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.milestone-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.milestone-options > div {
+  min-width: 0;
+  text-align: center;
+}
+.milestone-options .market-quote {
+  width: 100%;
+  min-height: 48px;
+}
+.milestone-options small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.margin-team + section {
+  margin-top: 14px;
+}
+.margin-team > strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.duel-team-header,
+.duel-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.duel-team-header {
+  border-bottom: 2px solid var(--gold);
+  padding: 18px 0;
+}
+.duel-team-header > div {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.duel-team-header > div.right {
+  grid-column: 3;
+  text-align: right;
+  align-items: flex-end;
+}
+.duel-team-header img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.duel-team-header strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.duel-team-header span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.duel-row {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin: 12px 0;
+}
+.duel-row > div {
+  min-width: 0;
+}
+.duel-slot {
+  text-align: center;
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 13px;
+}
+.duel-slot small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.duel-player {
+  display: grid;
+  gap: 6px;
+  position: relative;
+  min-height: 150px;
+}
+.duel-player.right {
+  text-align: right;
+}
+.duel-player img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+.duel-player.right img {
+  justify-self: end;
+}
+.duel-player strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.duel-player span,
+.duel-player small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.duel-stat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.duel-player.right .duel-stat {
+  justify-content: flex-end;
+}
+.duel-stat b {
+  color: var(--text);
+}
+.duel-row .market-quote {
+  width: 100%;
+  margin-top: 10px;
+}
+.duel-price {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+@media (max-width: 480px) {
+  .duel-row,
+  .duel-team-header {
+    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .duel-row {
+    padding: 12px;
+  }
+  .duel-team-header strong {
+    font-size: 14px;
+  }
+  .duel-player {
+    min-height: 145px;
+    gap: 4px;
+  }
+  .duel-stat {
+    display: grid;
+    gap: 2px;
+  }
+  .milestone-options {
+    gap: 5px;
+  }
+  .extra-market summary span {
+    display: block;
+    margin-left: 0;
+  }
+  .milestone-options .market-quote {
+    font-size: 12px;
+    padding: 8px 4px;
+  }
+}
+.ticket-progress-notice {
+  display: block;
+  padding: 10px 0;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.ticket-progress-notice span {
+  display: block;
+}

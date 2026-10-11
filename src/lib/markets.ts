@@ -27,6 +27,10 @@ export interface Market {
     | "match_total"
     | "team_total"
     | "player_points"
+    | "player_h2h"
+    | "player_milestone"
+    | "team_milestone"
+    | "winning_margin"
     | "weekly_high"
     | "weekly_low"
     | "weekly_count_150"
@@ -68,6 +72,10 @@ export interface Market {
 }
 export function quoteUnavailable(m: Market) {
   return (
+    (m.metadata.cutoff_at &&
+    Date.parse(String(m.metadata.cutoff_at)) <= Date.now()
+      ? "This player market has reached kickoff."
+      : "") ||
     m.suspension_reason ||
     (m.market_state && m.market_state !== "open"
       ? `Market ${m.market_state}.`
@@ -95,6 +103,10 @@ export const marketType = {
   match_total: "Match Total",
   team_total: "Team Total",
   player_points: "Player Points",
+  player_h2h: "Head to Head",
+  player_milestone: "Player Milestone",
+  team_milestone: "Team Milestone",
+  winning_margin: "Winning Margin",
   weekly_high: "Weekly High Scorer",
   weekly_low: "Weekly Low Scorer",
   weekly_count_150: "Teams Scoring 150+",
@@ -173,8 +185,27 @@ export const canPlacePicks = (picks: Market[]) =>
           ? picks.length >= 1
           : picks.length === 1)
     : picks.length >= 2 ||
-      (picks.length === 1 && weeklyKinds.includes(picks[0].kind));
+      (picks.length === 1 &&
+        (weeklyKinds.includes(picks[0].kind) ||
+          [
+            "player_h2h",
+            "player_milestone",
+            "team_milestone",
+            "winning_margin",
+          ].includes(picks[0].kind)));
 export function specialConflict(a: Market, b: Market) {
+  const advanced = [
+    "player_h2h",
+    "player_milestone",
+    "team_milestone",
+    "winning_margin",
+  ];
+  if (
+    (advanced.includes(a.kind) || advanced.includes(b.kind)) &&
+    a.matchup_key &&
+    a.matchup_key === b.matchup_key
+  )
+    return true;
   const highest =
     a.kind === "weekly_highest_score"
       ? a

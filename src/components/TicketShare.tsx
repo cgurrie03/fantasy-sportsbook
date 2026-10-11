@@ -139,7 +139,12 @@ export function TicketShare({
     setNotice("");
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
+        await navigator.share({
+          files: [file],
+          title: `${owner}'s sportsbook ticket`,
+          text: `${owner} placed a ${model.title.toLowerCase()} — ${money(shown.stake)} at ${model.price}. Follow the action:`,
+          url: model.league?.sportsbook_url || window.location.origin,
+        });
         setNotice("Receipt handed to your sharing app.");
       } else {
         setNotice(
@@ -157,7 +162,9 @@ export function TicketShare({
   }
   async function copy() {
     try {
-      await navigator.clipboard.writeText(model.text);
+      await navigator.clipboard.writeText(
+        `${model.text}\n${model.league?.sportsbook_url || window.location.origin}`,
+      );
       setNotice("Ticket text copied. Paste it into your message.");
     } catch {
       setNotice("Copy is unavailable. Select and copy the text below.");
@@ -322,8 +329,9 @@ export function TicketShare({
             </button>
           </div>
           <p className="ticket-share-help">
-            Choose Messages in your phone's sharing menu. Available apps depend
-            on your device.
+            Shares the image with a short message and website link. Choose
+            Messages in your phone's sharing menu. If your messaging app omits
+            the caption, Copy text includes the link.
           </p>
           <p role="status" aria-live="polite">
             {notice ||
