@@ -310,7 +310,12 @@ export function mondayTickets(
             : "neutral") as "watch" | "won" | "lost" | "neutral",
       summary: `${money(ticket.stake)} wager${official && ticket.actual_payout !== null && ticket.actual_payout !== undefined && Number.isFinite(Number(ticket.actual_payout)) ? ` · ${money(ticket.actual_payout)} ${status === "VOIDED" || status === "PUSH" ? "returned" : "paid"}` : status === "OPEN" || status === "WON" ? ` · ${money(ticket.accepted_potential_payout)} original potential payout` : ""}`,
       legs: ticketLegs.map((l, i) => ({
-        selection: l.selection,
+        selection:
+          l.settlement_context?.kind === "weekly_high"
+            ? `Highest Weekly Scorer · ${l.selection}`
+            : l.settlement_context?.kind === "weekly_low"
+              ? `Lowest Weekly Scorer · ${l.selection}`
+              : l.selection,
         detail: `${l.matchup ? l.matchup + "\n" : ""}${l.accepted_line !== null && l.accepted_line !== undefined ? `Accepted ${/count/.test(l.settlement_context?.kind ?? "") ? (/\+$/.test(l.settlement_context?.side ?? "") ? "count: At least " : "count: Exactly ") : "line: "}${["over", "under"].includes(l.settlement_context?.side) ? `${l.settlement_context.side === "over" ? "Over" : "Under"} ` : ""}${l.accepted_line}\n` : ""}${results[i].status === "OPEN" ? (lost ? "Remaining Leg · Ticket Already Lost" : "Still Open") : results[i].status}${results[i].evidence ? " · " + results[i].evidence : ""}`,
         teams: "teams" in results[i] ? results[i].teams : undefined,
       })),
