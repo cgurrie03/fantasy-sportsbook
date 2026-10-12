@@ -745,6 +745,9 @@ export async function POST(request: Request) {
           !schedule.publication_paused
         )
           await enqueue("reminder", job.market_week);
+      } else if (job.operation === "monday_watch") {
+        await enqueue("monday_watch", job.market_week);
+        summary = { message: "Personal Monday ticket watch queued for league members.", week: job.market_week };
       } else if (
         job.operation === "recap" &&
         schedule.recap_email &&

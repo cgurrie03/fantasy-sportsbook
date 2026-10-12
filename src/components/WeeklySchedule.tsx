@@ -111,7 +111,13 @@ export function WeeklySchedule({
     Record<string, { status: string; actual_value: string; evidence: string }>
   >({});
   const [emailKind, setEmailKind] = useState<EmailKind | "">("");
-  const email = { ...sampleEmail(emailKind || "opening"), brand: league ? `${league.name} · Fantasy Sportsbook` : "Fantasy Sportsbook", url: league?.sportsbook_url ?? "https://example.invalid/" };
+  const email = {
+    ...sampleEmail(emailKind || "opening"),
+    brand: league
+      ? `${league.name} · Fantasy Sportsbook`
+      : "Fantasy Sportsbook",
+    url: league?.sportsbook_url ?? "https://example.invalid/",
+  };
   function emailButton(kind: EmailKind) {
     return (
       <button
@@ -300,6 +306,14 @@ export function WeeklySchedule({
     toggle?: "opening_email" | "reminder_email" | "recap_email";
     who: string;
   }[] = [
+    {
+      key: "monday_watch",
+      day: "Monday · 5:00 PM",
+      description:
+        "Send personal tickets to watch tonight, decided results, or a no-bets message",
+      email: "monday_watch",
+      who: "All league members; each receives only their own weekly tickets",
+    },
     {
       key: "settlement",
       day: "Tuesday",
@@ -761,8 +775,9 @@ export function WeeklySchedule({
                 </p>
                 <div className="email-envelope">
                   <span>
-                    <strong>From:</strong> {league?.name ?? "League"} · Fantasy Sportsbook
-                    &lt;{league?.email_sender ?? "Configure a verified sender"}&gt;
+                    <strong>From:</strong> {league?.name ?? "League"} · Fantasy
+                    Sportsbook &lt;
+                    {league?.email_sender ?? "Configure a verified sender"}&gt;
                   </span>
                   <span>
                     <strong>To:</strong>{" "}

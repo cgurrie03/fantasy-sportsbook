@@ -29,6 +29,7 @@ try {
     "active-starters",
     "_lib/email-templates",
     "_lib/mail",
+    "_lib/monday-watch",
     "_lib/league-communications",
     "weekly-worker",
     "place-bet",

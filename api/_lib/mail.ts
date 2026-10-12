@@ -2,6 +2,7 @@ import { communicationIdentity, validateDeliveryScope, validatePayloadRecipient 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderEmail, openingWeekStories } from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
+import { mondayEmail } from "./monday-watch.js";
 const money = (v: unknown) => "$" + Number(v ?? 0).toFixed(2);
 const odds = (v: number) => (v > 0 ? "+" + v : String(v));
 const date = (v: string) =>
@@ -61,6 +62,7 @@ export async function buildEmail(
     details: [],
     button: "Open Your Sportsbook",
   };
+  if (row.kind === "monday_watch") return mondayEmail(db, row, league, teams, base);
   if (row.kind === "confirmation") {
     const ticket = (
       await read(db.from("tickets").select("*").eq("id", row.ticket_id).eq("league_id", row.league_id).eq("team_id", row.team_id))
@@ -486,6 +488,7 @@ export async function deliverEmails(db: SupabaseClient, ticketId: string | null 
           c.heading,
           c.greeting,
           ...c.paragraphs,
+          ...(c.tickets ?? []).map((t) => `${t.status}\nTicket ${t.id} · ${t.summary}\n${t.legs.map((l, i) => `${i + 1}. ${l.selection}\n${l.detail}`).join("\n\n")}`),
           ...(c.stories ?? []).map((s) => s.title + "\n" + s.text),
           ...c.details.map((d) => d.join(": ")),
           ...(c.featured ?? []).flatMap((f) => [

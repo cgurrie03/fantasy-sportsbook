@@ -1,5 +1,11 @@
 export type EmailKind =
-  "opening" | "reminder" | "confirmation" | "recap" | "attention" | "signin";
+  | "opening"
+  | "reminder"
+  | "confirmation"
+  | "recap"
+  | "attention"
+  | "signin"
+  | "monday_watch";
 export const emailLabels: Record<EmailKind, string> = {
   opening: "Opening Email",
   reminder: "Betting Reminder",
@@ -7,6 +13,7 @@ export const emailLabels: Record<EmailKind, string> = {
   recap: "Weekly Recap",
   attention: "Admin Attention",
   signin: "Sign-In Link",
+  monday_watch: "Monday Night Ticket Watch",
 };
 export function reminderEligible(balance: number | string | null) {
   return (
@@ -35,6 +42,13 @@ export interface EmailContent {
     boostedOver?: string;
   }[];
   stories?: { title: string; text: string }[];
+  tickets?: {
+    id: string;
+    status: string;
+    tone: "watch" | "won" | "lost" | "neutral";
+    summary: string;
+    legs: { selection: string; detail: string }[];
+  }[];
   compactDetails?: boolean;
   button: string;
   url: string;
@@ -49,9 +63,7 @@ const escape = (s: string) =>
       ]!,
   );
 export function renderEmail(content: EmailContent) {
-  const safeUrl = /^https:\/\//.test(content.url)
-    ? content.url
-    : "";
+  const safeUrl = /^https:\/\//.test(content.url) ? content.url : "";
   const stories =
     content.stories
       ?.map(
@@ -80,12 +92,23 @@ export function renderEmail(content: EmailContent) {
       )
       .join("") ?? "";
   const groups = new Map<string, NonNullable<EmailContent["legs"]>>();
+  const tickets = (content.tickets ?? [])
+    .map((t) => {
+      const color = {
+        watch: "#926000",
+        won: "#087248",
+        lost: "#ad3030",
+        neutral: "#52617a",
+      }[t.tone];
+      return `<table role="presentation" style="width:100%;margin:18px 0;border-collapse:collapse;border:1px solid #dce3ed"><tr><td style="padding:14px;background:#f3f6fb"><strong style="color:${color};font-size:15px">${escape(t.status)}</strong><div style="font-size:12px;color:#52617a;margin-top:6px">Ticket ${escape(t.id)} · ${escape(t.summary)}</div></td></tr><tr><td style="padding:14px"><div style="font-weight:bold;font-size:14px;margin-bottom:12px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:#f3c85f;text-align:center;margin-right:7px">${t.legs.length}</span>${t.legs.length === 1 ? "Single" : "Leg Parlay"}</div>${t.legs.map((l) => `<div style="margin:12px 0 12px 12px;border-left:2px solid #dce3ed;padding-left:10px"><strong style="font-size:14px">${escape(l.selection)}</strong><p style="font-size:12px;line-height:1.6;color:#52617a;margin:5px 0">${escape(l.detail).replace(/\n/g, "<br>")}</p></div>`).join("")}</td></tr></table>`;
+    })
+    .join("");
   for (const leg of content.legs ?? [])
     groups.set(leg.matchup, [...(groups.get(leg.matchup) ?? []), leg]);
   const legs = content.legs?.length
     ? `<h2 style="font-size:16px;margin:24px 0 16px"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#f3c85f;color:#14233c;margin-right:8px">${content.legs.length}</span> Bet Slip</h2>${[...groups].map(([matchup, picks]) => `<p style="font-size:14px;font-weight:bold;margin:16px 0 8px">${escape(matchup)}</p>${picks.map((p) => `<div style="margin:8px 0 12px 16px;padding-left:10px"><strong style="font-size:14px">${escape(p.selection)}</strong><p style="font-size:12px;color:#52617a;margin:4px 0">${escape(p.type)} · Open</p></div>`).join("")}`).join("")}`
     : "";
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">${escape((content.brand ?? "Fantasy Sportsbook").slice(0, 1))}</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">${escape(content.brand ?? "Fantasy Sportsbook")}</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">${escape((content.brand ?? "Fantasy Sportsbook").slice(0, 1))}</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">${escape(content.brand ?? "Fantasy Sportsbook")}</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}${tickets}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
 }
 // Use the published board snapshot so email highlights agree with accepted markets.
 export function openingWeekStories(
@@ -144,6 +167,66 @@ export function sampleEmail(kind: EmailKind): EmailContent {
     sample: true,
   };
   switch (kind) {
+    case "monday_watch":
+      return {
+        ...common,
+        subject: "Your Monday Night Ticket Watch · Week 5",
+        heading: "Monday Night. Your Tickets. 🏈",
+        paragraphs: [
+          "One more game, one more chance. Here’s what to watch in your weekly tickets.",
+          "Apparent results await official settlement and may change with stat corrections.",
+        ],
+        details: [
+          ["Week", "Season 3 • Week 5"],
+          ["Tonight", "BUF at LAR · Mon, 8:15 PM Eastern"],
+          ["Scores checked", "Mon, 5:00 PM Eastern"],
+        ],
+        tickets: [
+          {
+            id: "53b91843",
+            status: "🏈 Monday Watch",
+            tone: "watch",
+            summary: "$20.00 wager · $72.40 original potential payout",
+            legs: [
+              {
+                selection: "Highest Score Under 195.5",
+                detail:
+                  "Highest score so far: 190.5. Remaining starters include Josh Allen and Puka Nacua.",
+              },
+              {
+                selection: "Any Team Below 100 · Yes",
+                detail:
+                  "Lowest current score: 84.9. Remaining starter: Blake Corum.",
+              },
+            ],
+          },
+          {
+            id: "07f6c069",
+            status: "✅ Appears Won · Awaiting Settlement",
+            tone: "won",
+            summary: "$10.00 wager · $28.00 original potential payout",
+            legs: [
+              {
+                selection: "Team A Moneyline",
+                detail: "Both lineups finished. Final score: 128.0–118.3.",
+              },
+            ],
+          },
+          {
+            id: "c05b36a2",
+            status: "❌ Already Lost · Awaiting Settlement",
+            tone: "lost",
+            summary: "$10.00 wager",
+            legs: [
+              {
+                selection: "Bijan Robinson Over 23",
+                detail: "NFL game finished. Actual player points: 15.8.",
+              },
+            ],
+          },
+        ],
+        button: "Follow Your Tickets",
+      };
     case "opening":
       return {
         ...common,

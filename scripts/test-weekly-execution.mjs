@@ -169,6 +169,14 @@ try {
   for (const file of fs.readdirSync("supabase/migrations").sort())
     await db.exec(fs.readFileSync(`supabase/migrations/${file}`, "utf8"));
   const rows = async (sql, args = []) => (await db.query(sql, args)).rows;
+  const scheduler = (await rows("select pg_get_functiondef('public.claim_automation_job()'::regprocedure) as definition"))[0].definition;
+  assert.match(scheduler, /\('monday_watch','17:00'::time,1\)/);
+  assert.match(scheduler, /America\/New_York/);
+  assert.match(scheduler, /auth.role\(\).*service_role/);
+  assert.match(scheduler, /skip locked/i);
+  const mondayConstraint = (await rows("select pg_get_constraintdef(oid) as definition from pg_constraint where conname='outbound_emails_kind_check'"))[0].definition;
+  assert.match(mondayConstraint, /monday_watch/);
+  assert.equal((await rows("select (timestamptz '2026-10-12 21:00:00+00' at time zone 'America/New_York')::time as summer, (timestamptz '2026-12-07 22:00:00+00' at time zone 'America/New_York')::time as winter"))[0].summer, "17:00:00");
   const league = "13121261-5398-4391-8240-000000000003",
     admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const team = (await rows("select id from public.teams where roster_id=1"))[0]
