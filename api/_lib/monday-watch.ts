@@ -70,7 +70,30 @@ export function mondayTickets(
         ];
     const missing = !ids.length || ids.some((id) => !playerGame(s, id));
     const pending = ids.filter((id) => playerGame(s, id)?.state !== "final");
-    const info = legProgress(leg, progress);
+    let info = legProgress(leg, progress);
+    if (c.kind.startsWith("weekly_")) {
+      const rows = Object.values(s.teams);
+      const high = [...rows].sort((a, b) => b.points - a.points)[0];
+      const low = [...rows].sort((a, b) => a.points - b.points)[0];
+      if (
+        ["weekly_high", "weekly_any_200", "weekly_highest_score"].includes(
+          c.kind,
+        ) &&
+        high
+      )
+        info = `Highest score so far: ${high.name} · ${high.points.toFixed(1)}.`;
+      if (["weekly_low", "weekly_any_below_100"].includes(c.kind) && low)
+        info = `Lowest score so far: ${low.name} · ${low.points.toFixed(1)}.`;
+      if (c.kind === "weekly_count_150")
+        info = `Currently ${rows.filter((t) => t.points >= 150).length} teams have scored 150+.`;
+      if (c.kind === "weekly_average" && rows.length)
+        info = `League average so far: ${(rows.reduce((n, t) => n + t.points, 0) / rows.length).toFixed(1)} points.`;
+      if (
+        c.kind === "weekly_count_projection" &&
+        c.metadata?.projection_targets
+      )
+        info = `Currently ${Object.entries(s.teams).filter(([id, t]) => Number.isFinite(c.metadata.projection_targets[id]) && t.points > c.metadata.projection_targets[id]).length} teams are above their accepted projections.`;
+    }
     if (missing || pending.length)
       return {
         status: "OPEN",
