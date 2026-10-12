@@ -2,7 +2,12 @@ import type { League } from "../lib/accounts";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
-import { emailLabels, renderEmail, sampleEmail } from "../lib/emailTemplates";
+import {
+  emailLabels,
+  emailTemplateGroups,
+  renderEmail,
+  sampleEmail,
+} from "../lib/emailTemplates";
 import type { EmailKind } from "../lib/emailTemplates";
 import "./Sportsbook.css";
 import { LineRefreshStatus } from "./LineRefreshStatus";
@@ -760,10 +765,14 @@ export function WeeklySchedule({
                 onChange={(e) => setEmailKind(e.target.value as EmailKind | "")}
               >
                 <option value="">Choose A Template…</option>
-                {(Object.keys(emailLabels) as EmailKind[]).map((kind) => (
-                  <option key={kind} value={kind}>
-                    {emailLabels[kind]}
-                  </option>
+                {emailTemplateGroups.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.kinds.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {emailLabels[kind]}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

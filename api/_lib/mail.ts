@@ -1,6 +1,6 @@
 import { communicationIdentity, validateDeliveryScope, validatePayloadRecipient } from "./league-communications.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { renderEmail, openingWeekStories } from "./email-templates.js";
+import { renderEmail, openingWeekStories, teamWatchText } from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
 import { mondayEmail } from "./monday-watch.js";
 const money = (v: unknown) => "$" + Number(v ?? 0).toFixed(2);
@@ -488,7 +488,7 @@ export async function deliverEmails(db: SupabaseClient, ticketId: string | null 
           c.heading,
           c.greeting,
           ...c.paragraphs,
-          ...(c.tickets ?? []).map((t) => `${t.status}\nTicket ${t.id} · ${t.summary}\n${t.legs.map((l, i) => `${i + 1}. ${l.selection}\n${l.detail}`).join("\n\n")}`),
+          ...(c.tickets ?? []).map((t) => `${t.status}\nTicket ${t.id} · ${t.summary}\n${t.legs.map((l, i) => `${i + 1}. ${l.selection}\n${l.detail}\n${(l.teams ?? []).map(teamWatchText).join("\n\n")}`).join("\n\n")}`),
           ...(c.stories ?? []).map((s) => s.title + "\n" + s.text),
           ...c.details.map((d) => d.join(": ")),
           ...(c.featured ?? []).flatMap((f) => [

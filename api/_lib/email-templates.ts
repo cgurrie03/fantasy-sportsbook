@@ -15,6 +15,17 @@ export const emailLabels: Record<EmailKind, string> = {
   signin: "Sign-In Link",
   monday_watch: "Monday Night Ticket Watch",
 };
+// Scheduled templates follow the betting week; event-triggered messages have no fixed time.
+export const emailTemplateGroups: { label: string; kinds: EmailKind[] }[] = [
+  {
+    label: "Weekly Schedule · Eastern",
+    kinds: ["opening", "reminder", "monday_watch", "attention", "recap"],
+  },
+  {
+    label: "Sent On Request / Bet Placement",
+    kinds: ["signin", "confirmation"],
+  },
+];
 export function reminderEligible(balance: number | string | null) {
   return (
     balance !== null && Number.isFinite(Number(balance)) && Number(balance) > 0
@@ -47,12 +58,21 @@ export interface EmailContent {
     status: string;
     tone: "watch" | "won" | "lost" | "neutral";
     summary: string;
-    legs: { selection: string; detail: string }[];
+    legs: { selection: string; detail: string; teams?: EmailTeamWatch[] }[];
   }[];
   compactDetails?: boolean;
   button: string;
   url: string;
   sample?: boolean;
+}
+export interface EmailTeamWatch {
+  name: string;
+  current: number;
+  projected: number | null;
+  remaining: string[];
+  finished: boolean;
+  leader: boolean;
+  selected: boolean;
 }
 const escape = (s: string) =>
   s.replace(
@@ -62,6 +82,17 @@ const escape = (s: string) =>
         c
       ]!,
   );
+export function teamWatchText(t: EmailTeamWatch) {
+  return `${t.name}${t.leader ? " · Current Leader" : ""}${t.selected ? " · Your Pick" : ""}\n${t.finished ? `Likely final: ${t.current.toFixed(1)} points` : `Current: ${t.current.toFixed(1)} · Projected finish: ${t.projected === null ? "Unavailable" : t.projected.toFixed(1)}`}${!t.finished && t.remaining.length ? `\nRemaining starters: ${t.remaining.join(", ")}` : ""}`;
+}
+function renderTeamWatch(teams: EmailTeamWatch[] = []) {
+  return teams
+    .map(
+      (t) =>
+        `<div style="margin:9px 0;padding:10px 12px;background:${t.leader ? "#fff7df" : "#f3f6fb"};border-left:3px solid ${t.leader ? "#e5b73e" : "#dce3ed"};border-radius:6px;font-size:13px;line-height:1.6"><strong style="color:#182640">${escape(t.name)}</strong>${t.leader || t.selected ? `<div style="font-size:11px;color:#745100;font-weight:bold">${[t.leader ? "Current Leader" : "", t.selected ? "Your Pick" : ""].filter(Boolean).join(" · ")}</div>` : ""}<div style="color:#42516a">${t.finished ? `<strong>Likely final: ${t.current.toFixed(1)} points</strong>` : `Current: <strong>${t.current.toFixed(1)}</strong> · Projected finish: <strong>${t.projected === null ? "Unavailable" : t.projected.toFixed(1)}</strong>`}</div>${!t.finished && t.remaining.length ? `<div style="color:#52617a;font-size:12px;margin-top:4px">Remaining starters: ${escape(t.remaining.join(", "))}</div>` : ""}</div>`,
+    )
+    .join("");
+}
 export function renderEmail(content: EmailContent) {
   const safeUrl = /^https:\/\//.test(content.url) ? content.url : "";
   const stories =
@@ -93,14 +124,18 @@ export function renderEmail(content: EmailContent) {
       .join("") ?? "";
   const groups = new Map<string, NonNullable<EmailContent["legs"]>>();
   const tickets = (content.tickets ?? [])
-    .map((t) => {
+    .map((t, index, all) => {
       const color = {
         watch: "#926000",
         won: "#087248",
         lost: "#ad3030",
         neutral: "#52617a",
       }[t.tone];
-      return `<table role="presentation" style="width:100%;margin:18px 0;border-collapse:collapse;border:1px solid #dce3ed"><tr><td style="padding:14px;background:#f3f6fb"><strong style="color:${color};font-size:15px">${escape(t.status)}</strong><div style="font-size:12px;color:#52617a;margin-top:6px">Ticket ${escape(t.id)} · ${escape(t.summary)}</div></td></tr><tr><td style="padding:14px"><div style="font-weight:bold;font-size:14px;margin-bottom:12px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:#f3c85f;text-align:center;margin-right:7px">${t.legs.length}</span>${t.legs.length === 1 ? "Single" : "Leg Parlay"}</div>${t.legs.map((l) => `<div style="margin:12px 0 12px 12px;border-left:2px solid #dce3ed;padding-left:10px"><strong style="font-size:14px">${escape(l.selection)}</strong><p style="font-size:12px;line-height:1.6;color:#52617a;margin:5px 0">${escape(l.detail).replace(/\n/g, "<br>")}</p></div>`).join("")}</td></tr></table>`;
+      const section =
+        index === 0 || all[index - 1].tone !== t.tone
+          ? `<h2 style="font-size:17px;margin:24px 0 10px;color:#182640">${{ watch: "Tonight’s Watch", won: "Wins &amp; Likely Wins", lost: "Losses &amp; Eliminated Tickets", neutral: "Pushes, Voids &amp; Review" }[t.tone]}</h2>`
+          : "";
+      return `${section}<table role="presentation" style="width:100%;margin:18px 0;border-collapse:collapse;border:1px solid #dce3ed"><tr><td style="padding:14px;background:#f3f6fb"><strong style="color:${color};font-size:15px">${escape(t.status)}</strong><div style="font-size:12px;color:#52617a;margin-top:6px">Ticket ${escape(t.id)} · ${escape(t.summary)}</div></td></tr><tr><td style="padding:14px"><div style="font-weight:bold;font-size:14px;margin-bottom:12px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:#f3c85f;text-align:center;margin-right:7px">${t.legs.length}</span>${t.legs.length === 1 ? "Single" : "Leg Parlay"}</div>${t.legs.map((l) => `<div style="margin:12px 0 12px 12px;border-left:2px solid #dce3ed;padding-left:10px"><strong style="font-size:14px">${escape(l.selection)}</strong><p style="font-size:12px;line-height:1.6;color:#52617a;margin:5px 0">${escape(l.detail).replace(/\n/g, "<br>")}</p>${renderTeamWatch(l.teams)}</div>`).join("")}</td></tr></table>`;
     })
     .join("");
   for (const leg of content.legs ?? [])
@@ -108,7 +143,7 @@ export function renderEmail(content: EmailContent) {
   const legs = content.legs?.length
     ? `<h2 style="font-size:16px;margin:24px 0 16px"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#f3c85f;color:#14233c;margin-right:8px">${content.legs.length}</span> Bet Slip</h2>${[...groups].map(([matchup, picks]) => `<p style="font-size:14px;font-weight:bold;margin:16px 0 8px">${escape(matchup)}</p>${picks.map((p) => `<div style="margin:8px 0 12px 16px;padding-left:10px"><strong style="font-size:14px">${escape(p.selection)}</strong><p style="font-size:12px;color:#52617a;margin:4px 0">${escape(p.type)} · Open</p></div>`).join("")}`).join("")}`
     : "";
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">${escape((content.brand ?? "Fantasy Sportsbook").slice(0, 1))}</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">${escape(content.brand ?? "Fantasy Sportsbook")}</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}${tickets}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
+  return `<!doctype html><html lang="en"><head><style>@media only screen and (max-width:480px){.email-body{padding:18px!important}.email-header{padding:20px 18px!important}}td,p,div{overflow-wrap:anywhere}</style><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td class="email-header" style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">${escape((content.brand ?? "Fantasy Sportsbook").slice(0, 1))}</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">${escape(content.brand ?? "Fantasy Sportsbook")}</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td class="email-body" style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}${tickets}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
 }
 // Use the published board snapshot so email highlights agree with accepted markets.
 export function openingWeekStories(
@@ -190,13 +225,60 @@ export function sampleEmail(kind: EmailKind): EmailContent {
             legs: [
               {
                 selection: "Highest Score Under 195.5",
-                detail:
-                  "Highest score so far: 190.5. Remaining starters include Josh Allen and Puka Nacua.",
+                detail: "Still Open · Accepted total: Under 195.5",
+                teams: [
+                  {
+                    name: "Diabloo",
+                    current: 190.5,
+                    projected: 190.5,
+                    remaining: [],
+                    finished: true,
+                    leader: true,
+                    selected: false,
+                  },
+                  {
+                    name: "Thank you josh allen",
+                    current: 155.6,
+                    projected: 194.0,
+                    remaining: ["Josh Allen", "DJ Moore"],
+                    finished: false,
+                    leader: false,
+                    selected: false,
+                  },
+                  {
+                    name: "Hellbean",
+                    current: 137.3,
+                    projected: 172.0,
+                    remaining: ["Matthew Stafford", "Dalton Kincaid"],
+                    finished: false,
+                    leader: false,
+                    selected: false,
+                  },
+                ],
               },
               {
                 selection: "Any Team Below 100 · Yes",
-                detail:
-                  "Lowest current score: 84.9. Remaining starter: Blake Corum.",
+                detail: "Still Open · Accepted outcome: Yes",
+                teams: [
+                  {
+                    name: "Team ‘the boy n shit’",
+                    current: 84.9,
+                    projected: 92.0,
+                    remaining: ["Blake Corum"],
+                    finished: false,
+                    leader: true,
+                    selected: false,
+                  },
+                  {
+                    name: "Kis Emeka",
+                    current: 85.8,
+                    projected: 104.0,
+                    remaining: ["James Cook"],
+                    finished: false,
+                    leader: false,
+                    selected: false,
+                  },
+                ],
               },
             ],
           },
