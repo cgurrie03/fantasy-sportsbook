@@ -294,6 +294,12 @@ try {
     await db.exec(await fs.readFile(`supabase/migrations/${file}`, "utf8"));
   const league = "13121261-5398-4391-8240-000000000003",
     admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  // Shadow/review fixtures below target Weeks 5 and 4. Anchor only the test
+  // league so the real calendar cannot invalidate their week guards.
+  await db.query(
+    "update leagues set active_week=5,week_anchor=now() where id=$1",
+    [league],
+  );
   await db.exec(
     `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select claim_memberships();reset role;set request.jwt.claim.role='service_role';`,
   );

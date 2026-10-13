@@ -82,6 +82,12 @@ try {
   );
   for (const file of fs.readdirSync("supabase/migrations").sort())
     await db.exec(fs.readFileSync(`supabase/migrations/${file}`, "utf8"));
+  // This scenario uses Week 5 boards/jobs. Keep its isolated league in Week 5
+  // regardless of the runner's calendar; test calendar rollover separately.
+  await db.query(
+    "update leagues set active_week=5,week_anchor=now() where id=$1",
+    [league],
+  );
   await db.exec(
     `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;`,
   );
