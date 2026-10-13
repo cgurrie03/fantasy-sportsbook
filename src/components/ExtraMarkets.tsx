@@ -2,29 +2,55 @@ import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
 import type { Market } from "../lib/markets";
 import { formatOdds } from "../lib/markets";
+import { Chevron } from "./TicketHistory";
 import "./ExtraMarkets.css";
 type Quote = (market: Market | undefined, label?: string) => ReactNode;
 export function Milestones({
   markets,
   quote,
+  data,
 }: {
   markets: Market[];
   quote: Quote;
+  data?: AccountData;
 }) {
   if (!markets.length) return null;
   return (
-    <details className="extra-market">
+    <details className="team-totals extra-market">
       <summary>
-        Milestones <span>Hit a points target</span>
+        <strong>Milestones</strong>
+        <Chevron />
       </summary>
-      <p>Reach this score or higher. A player who does not play pushes.</p>
-      <div className="milestone-options">
-        {markets.map((m) => (
-          <div key={m.id}>
-            {quote(m, `${m.line}+`)}
-            <small>{formatOdds(m.odds)}</small>
-          </div>
-        ))}
+      <p>
+        {data
+          ? "Reach this team score or higher."
+          : "Reach this score or higher. A player who does not play pushes."}
+      </p>
+      <div className={data ? "extra-team-grid" : "milestone-options"}>
+        {data
+          ? [...new Set(markets.map((m) => m.team_id))].map((id) => (
+              <section className="margin-team" key={id}>
+                <strong>
+                  {data.teams.find((t) => t.id === id)?.team_name}
+                </strong>
+                <div className="milestone-options">
+                  {markets
+                    .filter((m) => m.team_id === id)
+                    .map((m) => (
+                      <div key={m.id}>
+                        {quote(m, `${m.line}+`)}
+                        <small>{formatOdds(m.odds)}</small>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            ))
+          : markets.map((m) => (
+              <div key={m.id}>
+                {quote(m, `${m.line}+`)}
+                <small>{formatOdds(m.odds)}</small>
+              </div>
+            ))}
       </div>
     </details>
   );
@@ -40,33 +66,36 @@ export function WinningMargins({
 }) {
   if (!markets.length) return null;
   return (
-    <details className="extra-market">
+    <details className="team-totals extra-market">
       <summary>
-        Winning Margin <span>Choose a winner and range</span>
+        <strong>Winning Margin</strong>
+        <Chevron />
       </summary>
       <p>A tied matchup pushes. Each range excludes its upper boundary.</p>
-      {[...new Set(markets.map((m) => m.team_id))].map((id) => (
-        <section className="margin-team" key={id}>
-          <strong>{data.teams.find((t) => t.id === id)?.team_name}</strong>
-          <div className="milestone-options">
-            {markets
-              .filter((m) => m.team_id === id)
-              .map((m) => (
-                <div key={m.id}>
-                  {quote(
-                    m,
-                    Number(m.metadata.margin_lower) === 0
-                      ? "Under 10"
-                      : m.metadata.margin_upper == null
-                        ? "30+"
-                        : `${m.metadata.margin_lower}–<${m.metadata.margin_upper}`,
-                  )}
-                  <small>{formatOdds(m.odds)}</small>
-                </div>
-              ))}
-          </div>
-        </section>
-      ))}
+      <div className="extra-team-grid">
+        {[...new Set(markets.map((m) => m.team_id))].map((id) => (
+          <section className="margin-team" key={id}>
+            <strong>{data.teams.find((t) => t.id === id)?.team_name}</strong>
+            <div className="milestone-options">
+              {markets
+                .filter((m) => m.team_id === id)
+                .map((m) => (
+                  <div key={m.id}>
+                    {quote(
+                      m,
+                      Number(m.metadata.margin_lower) === 0
+                        ? "Under 10"
+                        : m.metadata.margin_upper == null
+                          ? "30+"
+                          : `${m.metadata.margin_lower} - ${m.metadata.margin_upper}`,
+                    )}
+                    <small>{formatOdds(m.odds)}</small>
+                  </div>
+                ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </details>
   );
 }
@@ -176,7 +205,8 @@ export function HeadToHead({
       )}
       <p className="duel-help">
         Same starting slot, player vs. player. Ties or either player not playing
-        push the leg.
+        push the leg. Bet one duel as a single, or combine picks from different
+        fantasy matchups.
       </p>
       {!duels.length && (
         <p>
@@ -186,10 +216,12 @@ export function HeadToHead({
       )}
       {duels.map((m) => (
         <article className="duel-row" key={m.market_key}>
-          <div>
+          <div className="duel-side duel-left">
             <Player
               value={m.metadata.left_player as unknown as PlayerIdentity}
             />
+          </div>
+          <div className="duel-choice duel-choice-left">
             {quote(m, "Score More")}
             <small className="duel-price">{formatOdds(m.odds)}</small>
           </div>
@@ -197,11 +229,7 @@ export function HeadToHead({
             {String(m.metadata.slot).replaceAll("_", " ")}
             <small>vs.</small>
           </div>
-          <div>
-            <Player
-              value={m.metadata.right_player as unknown as PlayerIdentity}
-              right
-            />
+          <div className="duel-choice duel-choice-right">
             {quote(
               group.find(
                 (q) => q.market_key === m.market_key && q.side === "away",
@@ -215,6 +243,12 @@ export function HeadToHead({
                 )?.odds ?? 0,
               )}
             </small>
+          </div>
+          <div className="duel-side duel-right">
+            <Player
+              value={m.metadata.right_player as unknown as PlayerIdentity}
+              right
+            />
           </div>
         </article>
       ))}

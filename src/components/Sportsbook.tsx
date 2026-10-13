@@ -850,19 +850,11 @@ export function Sportsbook({
                             ))}
                           </div>
                         </details>
-                        {[h, a].map((t) => (
-                          <Milestones
-                            key={t?.id}
-                            markets={g.filter(
-                              (m) =>
-                                m.kind === "team_milestone" &&
-                                m.team_id === t?.id,
-                            )}
-                            quote={(m, label) =>
-                              quote(m, `${t?.team_name} ${label}`)
-                            }
-                          />
-                        ))}
+                        <Milestones
+                          markets={g.filter((m) => m.kind === "team_milestone")}
+                          data={data}
+                          quote={quote}
+                        />
                         <WinningMargins
                           markets={g.filter((m) => m.kind === "winning_margin")}
                           data={data}

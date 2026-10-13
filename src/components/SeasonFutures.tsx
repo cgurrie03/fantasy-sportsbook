@@ -53,10 +53,10 @@ export function SeasonFutures({
               <MarketTitle
                 eligibility={
                   kind === "future_playoffs"
-                    ? "Eligible for Playoff Parlays"
+                    ? "Parlays Only"
                     : kind === "future_win_total"
                       ? "Singles / Win-Total Parlays"
-                      : "Eligible for Singles"
+                      : "Single Bets Only"
                 }
               >
                 {kind === "future_champion"

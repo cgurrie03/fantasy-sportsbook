@@ -133,7 +133,7 @@ fs.mkdirSync(output, { recursive: true });
           .click();
         await f.page
           .locator(".extra-market")
-          .filter({ hasText: "Hit a points target" })
+          .filter({ hasText: "Milestones" })
           .first()
           .locator("summary")
           .click();
