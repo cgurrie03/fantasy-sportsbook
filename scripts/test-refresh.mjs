@@ -422,6 +422,23 @@ try {
   assert.equal((await rows("select sportsbook_quote_snapshot($1) as snapshot", [board]))[0].snapshot.board.id, board);
   assert.deepEqual((await rows("select * from tickets where id=$1", [ticket.ticket_id]))[0], savedTicket);
   assert.deepEqual(await rows("select * from wallets order by team_id"), savedWallets);
+  // An expired staging cycle can recover in the same cadence slot. Its source
+  // timestamps are never extended; the retry receives a new cycle and inputs.
+  await db.exec("reset role;set request.jwt.claim.role='service_role';");
+  const scheduled = JSON.stringify(parseScoreboard(feed(["STATUS_SCHEDULED"])));
+  await rows("select observe_line_refresh($1)", [scheduled]);
+  const abandoned = (await rows("select * from line_refresh_cycles where market_week=6 and status='staging'"))[0];
+  assert(abandoned);
+  await rows("update line_refresh_cycles set created_at=now()-interval '21 minutes' where id=$1", [abandoned.id]);
+  await rows("select observe_line_refresh($1)", [scheduled]);
+  const recovered = await rows("select * from line_refresh_cycles where market_week=6 and slot=$1", [abandoned.slot]);
+  assert.equal(recovered.length, 2);
+  assert.equal(recovered.filter(c => c.status==='superseded').length, 1);
+  assert.equal(recovered.filter(c => c.status==='staging').length, 1);
+  assert.notEqual(recovered.find(c => c.status==='staging').id, abandoned.id);
+  assert.equal((await rows("select count(*)::int n from automation_jobs where refresh_cycle_id=$1 and status='done'", [abandoned.id]))[0].n, 4);
+  await rows("select observe_line_refresh($1)", [scheduled]);
+  assert.equal((await rows("select count(*)::int n from line_refresh_cycles where market_week=6 and slot=$1", [abandoned.slot]))[0].n, 2);
   console.log(
     "Passed kickoff/overlap/gaps/halftime/overtime/final/delay/suspension/cancellation/DST, interval coalescing, atomic four-stage publication, stale revision approval, request retry/debit once, immutable terms, resolved outcome refusal, feed outage, lease fencing and accepted-odds settlement. Live acceptance stays disabled.",
   );
