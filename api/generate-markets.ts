@@ -46,7 +46,7 @@ const specialOdds = (p: number, step = 25) => {
     Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / step) * step)
   );
 };
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   try {

@@ -10,7 +10,7 @@ import { fetchGameStatus } from "./_lib/game-status.js";
 import { collectLiveShadow, reviewLiveWeek } from "./_lib/live-pipeline.js";
 import { reviewModelWeek } from "./_lib/model-pipeline.js";
 import { refreshTicketProgress } from "./_lib/ticket-progress.js";
-export const maxDuration = 60;
+export const maxDuration = 120;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
