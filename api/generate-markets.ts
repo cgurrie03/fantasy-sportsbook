@@ -48,6 +48,15 @@ const specialOdds = (p: number, step = 25) => {
 };
 export const maxDuration = 120;
 
+export function sharedRefreshSource(path: string, league: string, season: number, week: number) {
+  const base = `https://api.sleeper.app/v1/league/${league}`;
+  if (path === base || path === `${base}/rosters`) return true;
+  if (path === `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular`) return true;
+  if (!path.startsWith(`${base}/matchups/`)) return false;
+  const matchupWeek = Number(path.slice(`${base}/matchups/`.length));
+  return Number.isInteger(matchupWeek) && matchupWeek >= 1 && matchupWeek <= week;
+}
+
 export async function POST(request: Request) {
   try {
     const url = process.env.SUPABASE_URL,
@@ -251,7 +260,10 @@ export async function POST(request: Request) {
       return payload;
     };
     const fetchData = async (path: string) => {
-      if (input.source_cycle_id) {
+      // Freeze inputs shared by multiple families. Futures-only feeds are still
+      // archived below, but need no extra database round trips or shared cache.
+      const sharedCycle = input.source_cycle_id && sharedRefreshSource(path, sleeperLeagueId, input.nfl_season!, input.week!);
+      if (sharedCycle) {
         const cached = await userClient
           .from("line_refresh_sources")
           .select("payload,fetched_at")
@@ -276,7 +288,7 @@ export async function POST(request: Request) {
           `Sleeper returned ${response.status}. No replacement estimates were generated.`,
         );
       const payload = await response.json();
-      if (input.source_cycle_id) {
+      if (sharedCycle) {
         const saved = await userClient
           .from("line_refresh_sources")
           .upsert(

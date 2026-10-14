@@ -49,9 +49,15 @@ try {
     await writeFile(path.join(root, `${file}.js`), outputText);
   }
   await writeFile(path.join(root, "package.json"), '{"type":"module"}');
-  const { POST } = await import(
+  const { POST, sharedRefreshSource } = await import(
     pathToFileURL(path.join(root, "generate-markets.js")).href
   );
+  const sourceLeague = 'fixture-league';
+  const sourceBase = `https://api.sleeper.app/v1/league/${sourceLeague}`;
+  for (const source of [sourceBase, `${sourceBase}/rosters`, `${sourceBase}/matchups/1`, `${sourceBase}/matchups/6`, 'https://api.sleeper.com/projections/nfl/2026/6?season_type=regular'])
+    assert.equal(sharedRefreshSource(source, sourceLeague, 2026, 6), true);
+  for (const source of [`${sourceBase}/matchups/7`, `${sourceBase}/traded_picks`, 'https://api.sleeper.com/projections/nfl/2026/7?season_type=regular', `${sourceBase}/matchups/NaN`])
+    assert.equal(sharedRefreshSource(source, sourceLeague, 2026, 6), false);
   const starterStatus = await import(
     pathToFileURL(path.join(root, "active-starters.js")).href
   );
