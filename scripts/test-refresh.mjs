@@ -439,6 +439,19 @@ try {
   assert.equal((await rows("select count(*)::int n from automation_jobs where refresh_cycle_id=$1 and status='done'", [abandoned.id]))[0].n, 4);
   await rows("select observe_line_refresh($1)", [scheduled]);
   assert.equal((await rows("select count(*)::int n from line_refresh_cycles where market_week=6 and slot=$1", [abandoned.slot]))[0].n, 2);
+  // Scheduled opening retires an old transport suspension only after all latest
+  // category jobs and the current pregame observation have been verified.
+  await rows("update sportsbook_boards set market_week=6,status='published',phase='pregame',suspension_reason='Gateway Timeout' where id=$1", [board]);
+  await rows("update sportsbook_markets set metadata=metadata||jsonb_build_object('generated_at',now(),'lineup_locked',true) where board_id=$1", [board]);
+  await rows("insert into automation_jobs(league_id,event_key,operation,market_week,status) select $1,'confirm:'||op,op,6,'done' from unnest(array['refresh_matchups','refresh_players','refresh_specials']) op", [league]);
+  assert.equal((await rows("select confirm_scheduled_publication($1) ok", [board]))[0].ok, true);
+  assert.equal((await rows("select suspension_reason from sportsbook_boards where id=$1", [board]))[0].suspension_reason, null);
+  assert.equal((await rows("select metadata->>'lineup_locked' locked from sportsbook_markets where id=$1", [quoteId]))[0].locked, 'true');
+  await rows("update line_refresh_runtime set last_error='Provider outage' where league_id=$1", [league]);
+  assert.equal((await rows("select confirm_scheduled_publication($1) ok", [board]))[0].ok, false);
+  await rows("update line_refresh_runtime set last_error=null where league_id=$1", [league]);
+  await rows("insert into automation_jobs(league_id,event_key,operation,market_week,status,created_at) values($1,'confirm:new-failure','refresh_players',6,'failed',now()+interval '1 second')", [league]);
+  assert.equal((await rows("select confirm_scheduled_publication($1) ok", [board]))[0].ok, false);
   console.log(
     "Passed kickoff/overlap/gaps/halftime/overtime/final/delay/suspension/cancellation/DST, interval coalescing, atomic four-stage publication, stale revision approval, request retry/debit once, immutable terms, resolved outcome refusal, feed outage, lease fencing and accepted-odds settlement. Live acceptance stays disabled.",
   );

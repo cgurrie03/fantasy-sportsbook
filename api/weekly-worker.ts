@@ -715,6 +715,9 @@ export async function POST(request: Request) {
           });
           if (r.error) throw new Error(r.error.message);
         }
+        const confirmed = await db.rpc("confirm_scheduled_publication", { p_board: board.id });
+        if (confirmed.error) throw new Error(confirmed.error.message);
+        if (!confirmed.data) throw new Error("Publication held: current pregame source and complete fresh quotes are required.");
         if (schedule.opening_email) await enqueue("opening", job.market_week);
         summary = { published: true };
       } else if (job.operation === "cutoff") {
@@ -781,6 +784,14 @@ export async function POST(request: Request) {
         .eq("attempts", job.attempts)
         .eq("status", "running");
       if (save.error) throw new Error(save.error.message);
+      if (job.operation === "refresh_futures") {
+        const futures = await read(db.from("sportsbook_boards").select("id")
+          .eq("league_id", job.league_id).eq("nfl_season", league.nfl_season).eq("board_type", "future"));
+        for (const board of futures) {
+          const confirmed = await db.rpc("confirm_scheduled_publication", { p_board: board.id });
+          if (confirmed.error) console.error("Futures availability confirmation failed", confirmed.error);
+        }
+      }
     }
     return json({
       job: job?.operation ?? null,

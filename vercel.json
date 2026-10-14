@@ -3,6 +3,10 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/weekly-worker.ts": { "maxDuration": 120 },
+    "api/generate-markets.ts": { "maxDuration": 120 }
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",
