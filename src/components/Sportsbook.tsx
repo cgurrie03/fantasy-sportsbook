@@ -103,6 +103,13 @@ export function Sportsbook({
     [stake, setStake] = useState(""),
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
+  const quoteLoad = useRef<Promise<void> | null>(null);
+  const quoteFailures = useRef(0);
+  const [quoteUpdatedAt, setQuoteUpdatedAt] = useState<number | null>(null);
+  const [refreshingQuotes, setRefreshingQuotes] = useState(false);
+  const [futuresError, setFuturesError] = useState("");
+  const [standingsError, setStandingsError] = useState("");
+  const [standingsLoading, setStandingsLoading] = useState(!review);
   const [offers, setOffers] = useState<PromoOffer[]>([]),
     [fixedOffer, setFixedOffer] = useState<PromoOffer | null>(null),
     [boostId, setBoostId] = useState<string | null>(null),
@@ -268,45 +275,65 @@ export function Sportsbook({
       (p) => !currentQuotes.some((m) => m.id === p.id && !quoteUnavailable(m)),
     );
   const reloadQuotes = useCallback(async () => {
-    const [r, f] = await Promise.all([
-      loadMarketBoard(member.league_id),
-      loadFuturesBoard(member.league_id),
-    ]);
-    setBoard(r.board);
-    setMarkets(r.markets);
-    setWeek(r.week);
-    setFutureBoard(f.board);
-    setFutureMarkets(f.markets);
+    if (quoteLoad.current) return quoteLoad.current;
+    setRefreshingQuotes(true);
+    let failed = false;
+    const pending = Promise.allSettled([
+      loadMarketBoard(member.league_id).then((r) => {
+        setBoard(r.board);
+        setMarkets(r.markets);
+        setWeek(r.week);
+        setQuoteUpdatedAt(Date.now());
+        setError("");
+      }).catch((e) => {
+        failed = true;
+        console.error("Weekly quotes could not refresh", e);
+        setError("Weekly prices could not refresh. Retry to check the latest lines.");
+      }).finally(() => setLoading(false)),
+      loadFuturesBoard(member.league_id).then((f) => {
+        setFutureBoard(f.board);
+        setFutureMarkets(f.markets);
+        setFuturesError("");
+      }).catch((e) => {
+        failed = true;
+        console.error("Futures quotes could not refresh", e);
+        setFuturesError("Season futures could not refresh. Please retry.");
+      }),
+    ]).then(() => {
+      quoteFailures.current = failed ? Math.min(quoteFailures.current + 1, 3) : 0;
+    });
+    quoteLoad.current = pending;
+    try { await pending; } finally { quoteLoad.current = null; setRefreshingQuotes(false); }
   }, [member.league_id]);
   useEffect(() => {
     if (review) return;
     let active = true;
     setLoading(true);
-    Promise.all([
-      loadMarketBoard(member.league_id),
-      supabase?.rpc("league_leaderboard", { p_league: member.league_id }),
-      loadFuturesBoard(member.league_id),
-    ])
-      .then(([r, s, f]) => {
+    void reloadQuotes();
+    setStandingsLoading(true);
+    void Promise.resolve(supabase?.rpc("league_leaderboard", { p_league: member.league_id }))
+      .then((s) => {
         if (!active) return;
-        setBoard(r.board);
-        setMarkets(r.markets);
-        setWeek(r.week);
-        setFutureBoard(f.board);
-        setFutureMarkets(f.markets);
-        if (s?.error) throw s.error;
-        setStandings(s?.data ?? []);
+        if (!s) throw new Error("Standings service unavailable");
+        if (s.error) {
+          console.error("Leaderboard could not refresh", s.error);
+          setStandingsError("Standings could not refresh. Please retry.");
+        } else {
+          setStandings(s.data ?? []);
+          setStandingsError("");
+        }
+        setStandingsLoading(false);
       })
-      .catch((e) => {
-        if (active) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+      .catch(() => {
+        if (active) {
+          setStandingsError("Standings could not refresh. Please retry.");
+          setStandingsLoading(false);
+        }
       });
     return () => {
       active = false;
     };
-  }, [member.league_id, review, data.tickets]);
+  }, [member.league_id, review, data.tickets, reloadQuotes]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -314,12 +341,18 @@ export function Sportsbook({
   useEffect(() => {
     if (review) return;
     let active = true;
-    const timer = setInterval(() => {
-      if (active) void reloadQuotes().catch((e) => setNotice(errorMessage(e)));
-    }, 30000);
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (!active) return;
+      if (document.visibilityState === "visible") {
+        await reloadQuotes();
+      }
+      if (active) timer = setTimeout(poll, 30000 * 2 ** quoteFailures.current);
+    };
+    timer = setTimeout(poll, 30000);
     return () => {
       active = false;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [reloadQuotes, review]);
   useEffect(() => {
@@ -660,7 +693,7 @@ export function Sportsbook({
                   </span>
                 </>
               ) : (
-                <strong>Markets Coming Soon</strong>
+                <strong>{loading ? "Loading weekly markets…" : error ? "Markets temporarily unavailable" : "Markets scheduled"}</strong>
               )}
             </div>
           </div>
@@ -688,10 +721,17 @@ export function Sportsbook({
               busy={busy}
             />
           )}
-          {loading ? (
+          {(category === "Season Futures" ? futuresError : error) && (
+            <p role="status" className="feedback error">
+              {category === "Season Futures" ? futuresError : error}
+              {quoteUpdatedAt && <> Showing the last available data, checked {new Date(quoteUpdatedAt).toLocaleTimeString("en-US", {timeZone:"America/New_York",hour:"numeric",minute:"2-digit"})} Eastern.</>}
+              <button className="text-button" disabled={refreshingQuotes} onClick={() => void reloadQuotes()}>Retry prices</button>
+            </p>
+          )}
+          {loading && !markets.length && category !== "Season Futures" ? (
             <p role="status">Loading weekly markets…</p>
-          ) : error ? (
-            <p role="alert">{error}</p>
+          ) : error && !markets.length && category !== "Season Futures" ? (
+            <p>The weekly board could not load. Use Retry prices above.</p>
           ) : category === "Season Futures" ? (
             <SeasonFutures data={data} markets={futureMarkets} quote={quote} />
           ) : !markets.length ? (
@@ -1153,6 +1193,9 @@ export function Sportsbook({
             <em>Ranked by Net Profit, Balance, then Bets Placed</em>
           </p>
           <div className="standings-table">
+            {standingsLoading && !standings.length && <p role="status">Loading standings…</p>}
+            {standingsError && <p role="status">{standingsError}<button className="text-button" onClick={() => void refresh()}>Retry standings</button></p>}
+            {!standingsLoading && !standingsError && !standings.length && <p>No standings are available yet.</p>}
             <div className="standings-head">
               <span>Member</span>
               <span>Net Profit</span>

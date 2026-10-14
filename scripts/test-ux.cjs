@@ -132,7 +132,7 @@ if(require.main===module)(async()=>{
    f.state.pregame=false;await f.page.reload();await f.page.getByRole('button',{name:'Weekly Specials',exact:true}).click();await f.page.locator('.count-selection .quote-price').first().waitFor();const price=f.page.locator('.count-selection .quote-price').first();assert.match(await price.innerText(),/\+300/);f.state.movement=1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-up').waitFor();assert.match(await price.innerText(),/\+320.*↑/s);
    const arrow=await price.locator('.line-movement').evaluate(el=>({position:getComputedStyle(el).position,right:el.getBoundingClientRect().right,parentRight:el.parentElement.getBoundingClientRect().right}));assert.notEqual(arrow.position,'absolute');assert(Math.abs(arrow.right-arrow.parentRight)<2);
    await f.page.locator('.count-special').first().screenshot({path:path.join(output,`odds-arrow-${width}.png`)});
-   await f.page.clock.fastForward(5100);assert.equal(await price.locator('.line-movement').count(),0);f.state.movement=-1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-down').waitFor();assert.match(await price.innerText(),/\+280.*↓/s);
+   await f.page.waitForLoadState('networkidle');await f.page.clock.fastForward(5100);assert.equal(await price.locator('.line-movement').count(),0);f.state.movement=-1;await f.page.clock.fastForward(30000);await price.locator('.line-movement-down').waitFor();assert.match(await price.innerText(),/\+280.*↓/s);
    assert.deepEqual(f.errors,[]);await f.context.close();
   }
   const {context,page,state,errors}=await setup(browser,390,844);

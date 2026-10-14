@@ -527,10 +527,18 @@ export async function POST(request: Request) {
           generated_at: generatedAt,
         },
       });
-      if (saved.error)
+      if (saved.error) {
+        console.error("Forecast archive failed", {
+          code: saved.error.code,
+          message: saved.error.message,
+          details: saved.error.details,
+          run: assessmentRun,
+          category,
+        });
         throw new Error(
-          "Immutable forecast archive failed; existing lines retained.",
+          `Forecast archive failed (${saved.error.code ?? "database"}): ${saved.error.message}. Existing lines retained.`,
         );
+      }
     };
     const base = {
       board_id: "generated",

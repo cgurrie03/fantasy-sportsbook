@@ -82,7 +82,20 @@ try {
  await db.exec("set request.jwt.claim.role='service_role';set role service_role;");
  const scoped=await rows('select * from claim_scoped_outbound_emails($1)',[accepted.ticket_id]);
  assert(scoped.every(r=>r.ticket_id===accepted.ticket_id));
- await act(outsider);for(const table of ['leagues','teams','wallets','tickets','ticket_legs','sportsbook_boards','sportsbook_markets','outbound_emails','automation_jobs','forecast_snapshots','league_result_weeks']) assert.equal((await rows(`select * from ${table}`)).length,0,table);
+ // Optimized snapshots must preserve exactly the draft/member/admin boundary.
+ await db.exec('reset role');
+ await rows("update sportsbook_boards set status='draft' where id=$1",[boardB]);
+ await act(shared);
+ assert.equal((await rows('select sportsbook_quote_snapshot($1) as snapshot',[boardB]))[0].snapshot,null);
+ await act(adminB);
+ assert.equal((await rows('select sportsbook_quote_snapshot($1) as snapshot',[boardB]))[0].snapshot.board.id,boardB);
+ assert.equal((await rows('select sportsbook_quote_snapshot($1) as snapshot',[boardA]))[0].snapshot,null);
+ await db.exec('reset role');await rows("update sportsbook_boards set status='published' where id=$1",[boardB]);
+ await act(shared);
+ assert.equal((await rows('select sportsbook_quote_snapshot($1) as snapshot',[boardB]))[0].snapshot.markets[0].id,qB);
+ await act(outsider);
+ assert.equal((await rows('select sportsbook_quote_snapshot($1) as snapshot',[boardB]))[0].snapshot,null);
+ for(const table of ['leagues','teams','wallets','tickets','ticket_legs','sportsbook_boards','sportsbook_markets','outbound_emails','automation_jobs','forecast_snapshots','league_result_weeks']) assert.equal((await rows(`select * from ${table}`)).length,0,table);
  await db.exec('reset role;set role anon');await assert.rejects(rows('select claim_scoped_outbound_emails(null)'));
 } finally {await db.close()}
 

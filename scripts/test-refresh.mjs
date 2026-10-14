@@ -113,6 +113,12 @@ try {
     "select save_market_board($1,$2,5,now()-interval '1 hour',now()+interval '1 day',$3,'published')",
     [board, league, JSON.stringify(quotes(200))],
   );
+  const unchangedLocation = (await rows("select ctid::text as location from sportsbook_markets where id=$1", [quoteId]))[0].location;
+  await rows(
+    "select save_market_board($1,$2,5,now()-interval '1 hour',now()+interval '1 day',$3,'published')",
+    [board, league, JSON.stringify(quotes(200))],
+  );
+  assert.equal((await rows("select ctid::text as location from sportsbook_markets where id=$1", [quoteId]))[0].location, unchangedLocation, "An unchanged carried-forward quote must not be rewritten");
   const rev = async () =>
     Number(
       (
@@ -402,6 +408,20 @@ try {
     () => rows("select observe_line_refresh($1)", [{}]),
     /permission denied|Server worker/,
   );
+  // A new week without a generated board must leave historical tickets,
+  // balances and authorized snapshots readable. It is an empty new slate,
+  // not an account-wide failure.
+  const savedTicket = (await rows("select * from tickets where id=$1", [ticket.ticket_id]))[0];
+  const savedWallets = await rows("select * from wallets order by team_id");
+  await db.exec("reset role");
+  await db.query("update leagues set active_week=6,week_anchor=now() where id=$1", [league]);
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  assert.equal((await rows("select week from sportsbook_period($1)", [league]))[0].week, 6);
+  assert.equal((await rows("select id from sportsbook_boards where league_id=$1 and market_week=6", [league])).length, 0);
+  assert.equal((await rows("select sportsbook_quote_snapshot($1) as snapshot", [randomUUID()]))[0].snapshot, null);
+  assert.equal((await rows("select sportsbook_quote_snapshot($1) as snapshot", [board]))[0].snapshot.board.id, board);
+  assert.deepEqual((await rows("select * from tickets where id=$1", [ticket.ticket_id]))[0], savedTicket);
+  assert.deepEqual(await rows("select * from wallets order by team_id"), savedWallets);
   console.log(
     "Passed kickoff/overlap/gaps/halftime/overtime/final/delay/suspension/cancellation/DST, interval coalescing, atomic four-stage publication, stale revision approval, request retry/debit once, immutable terms, resolved outcome refusal, feed outage, lease fencing and accepted-odds settlement. Live acceptance stays disabled.",
   );
