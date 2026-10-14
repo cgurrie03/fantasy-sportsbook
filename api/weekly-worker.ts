@@ -60,11 +60,14 @@ export function retainPublishedBoard(
   return status === "published" && !operation.startsWith("refresh_");
 }
 export function publicationRefreshComplete(
-  jobs: { operation: string; status: string }[],
+  jobs: { operation: string; status: string; created_at?: string }[],
 ) {
   return ["refresh_matchups", "refresh_players", "refresh_specials"].every(
-    (operation) =>
-      jobs.some((job) => job.operation === operation && job.status === "done"),
+    (operation) => {
+      const latest = jobs.filter(job => job.operation === operation)
+        .sort((a,b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0];
+      return latest?.status === "done";
+    },
   );
 }
 export async function POST(request: Request) {
@@ -670,7 +673,7 @@ export async function POST(request: Request) {
         const fresh = await read(
           db
             .from("automation_jobs")
-            .select("operation,status")
+            .select("operation,status,created_at")
             .eq("league_id", job.league_id)
             .eq("market_week", job.market_week)
             .gte("created_at", new Date(Date.now() - 7200000).toISOString())

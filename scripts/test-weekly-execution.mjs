@@ -598,8 +598,14 @@ try {
     )[0].status,
     "needs_review",
   );
+  await rows("insert into automation_jobs(league_id,event_key,operation,market_week) values($1,'serial-a','refresh_matchups',5),($1,'serial-b','refresh_players',5)", [league]);
+  const writer = await rows("select * from claim_automation_job()");
+  assert.equal(writer.length,1);
+  assert.equal((await rows("select * from claim_automation_job()")).length,0,"Another category cannot overwrite the same board concurrently");
+  await rows("update automation_jobs set status='done' where id=$1", [writer[0].id]);
+  assert.equal((await rows("select * from claim_automation_job()")).length,1,"The next category runs after the writer completes");
   console.log(
-    "Passed worker role isolation, atomic confirmation queueing, leased job/email claims, and expired-idempotency hold.",
+    "Passed worker role isolation, atomic confirmation queueing, leased job/email claims, serialized category writes, and expired-idempotency hold.",
   );
   console.log(
     "Passed actual-score settlement, inactive pushes, pending results, accepted odds, duplicate payment/reset protection, higher-balance retention, and unauthorized execution rejection.",

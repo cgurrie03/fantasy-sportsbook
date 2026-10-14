@@ -237,6 +237,10 @@ try {
     "refresh_specials",
   ].map((operation) => ({ operation, status: "done" }));
   assert(worker.publicationRefreshComplete(morningRefresh));
+  assert.equal(worker.publicationRefreshComplete([
+    ...morningRefresh.map(job => ({...job,created_at:"2026-10-14T11:30:00Z"})),
+    {operation:"refresh_matchups",status:"failed",created_at:"2026-10-14T12:00:00Z"},
+  ]),false,"A newer failed refresh must not be hidden by an older success");
   assert.equal(
     worker.publicationRefreshComplete(morningRefresh.slice(0, 2)),
     false,

@@ -47,6 +47,13 @@ fs.mkdirSync(output, { recursive: true });
       await f.page.getByRole('button',{name:'Retry prices',exact:true}).waitFor({state:'hidden'});
       assert.equal(await f.page.locator('.market-quote').count(),count);
       await f.page.screenshot({path:path.join(output,`recovered-${width}.png`),fullPage:true});
+      await f.page.route('**/rest/v1/ticket_legs*', route => route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'fixture history timeout'})}));
+      await f.page.reload();
+      await f.page.locator('.market-quote').first().waitFor();
+      await f.page.getByRole('button',{name:'My Bets',exact:true}).click();
+      await f.page.getByRole('button',{name:'Retry history',exact:true}).waitFor();
+      assert.equal(await f.page.getByRole('heading',{name:'Could Not Load Your Account',exact:true}).count(),0);
+      await f.page.unroute('**/rest/v1/ticket_legs*');
       // A first-load failure is different from an empty scheduled slate.
       fail = true;
       await f.page.reload();
@@ -54,6 +61,13 @@ fs.mkdirSync(output, { recursive: true });
       assert(await f.page.getByText('Markets temporarily unavailable',{exact:true}).isVisible());
       await f.page.getByRole('button',{name:'My Bets',exact:true}).click();
       assert.equal(await f.page.getByText('canceling statement due to statement timeout',{exact:true}).count(),0);
+      fail=false;
+      f.state.empty=true;
+      await f.page.route('**/rest/v1/rpc/sportsbook_period',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{week:6,league_season:3,nfl_season:2026}])}));
+      await f.page.reload();
+      await f.page.getByRole('heading',{name:/WEEK\s+6/}).waitFor();
+      await f.page.getByRole('button',{name:'My Bets',exact:true}).click();
+      assert(await f.page.getByRole('heading',{name:'My Bets',exact:true}).isVisible());
       await f.context.close();
       console.log(`Passed ${width}px: stale retention, contextual first-load error, independent ticket navigation, single-flight retry and recovery (${requests} snapshot requests).`);
     }

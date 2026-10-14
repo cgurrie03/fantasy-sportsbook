@@ -146,7 +146,9 @@ function History({ data, team }: { data: AccountData; team: Team }) {
   const entries = buildBalanceHistory(data, team.id);
   return (
     <section className="history">
-      <h3>Balance History</h3>
+      <h2>Balance History</h2>
+      {data.history_loading && <p role="status">Loading balance history…</p>}
+      {data.history_error && <p role="status">{data.history_error}</p>}
       {entries.some((e) => e.imported) && (
         <p className="history-note">
           Winning payouts include your returned wager. Imported settlements show
@@ -187,7 +189,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
           </div>
         ))
       ) : (
-        <p>No balance changes yet.</p>
+        !data.history_loading && !data.history_error && <p>No balance changes yet.</p>
       )}
     </section>
   );
@@ -562,6 +564,8 @@ export default function App() {
     };
   }, []);
   const userId = session?.user.id;
+  const currentUser = useRef(userId);
+  currentUser.current = userId;
   // Reset private account state when the external authentication identity changes.
   useEffect(() => {
     let active = true;
@@ -571,7 +575,13 @@ export default function App() {
     setPage("home");
     if (!userId) return;
     setLoading(true);
-    loadAccounts()
+    loadAccounts(undefined, (next) => {
+      if (active) {
+        setData(next);
+        setLeagueId(next.leagues[0]?.id ?? "");
+        setLoading(false);
+      }
+    })
       .then((next) => {
         if (active) {
           setData(next);
@@ -589,7 +599,10 @@ export default function App() {
     };
   }, [userId]);
   async function refresh() {
-    const next = await loadAccounts();
+    const next = await loadAccounts(data ?? undefined, (core) => {
+      if (currentUser.current === userId) { setData(core); setLoading(false); }
+    });
+    if (currentUser.current !== userId) return;
     setData(next);
     setLeagueId((current) => next.leagues.some((league) => league.id === current) ? current : (next.leagues[0]?.id ?? ""));
   }

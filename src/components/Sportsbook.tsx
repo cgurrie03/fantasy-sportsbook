@@ -131,15 +131,19 @@ export function Sportsbook({
   useEffect(() => {
     if (review) return;
     let active = true;
+    let loadingOffers = false;
     const reload = () => {
+      if (loadingOffers || document.visibilityState !== "visible") return;
+      loadingOffers = true;
       void loadPromos(member.league_id)
         .then((o) => {
           if (active) setOffers(o);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => { loadingOffers = false; });
     };
     reload();
-    const timer = setInterval(reload, 10000);
+    const timer = setInterval(reload, 60000);
     const channel =
       typeof BroadcastChannel !== "undefined"
         ? new BroadcastChannel("sportsbook-promos")
@@ -307,9 +311,12 @@ export function Sportsbook({
   }, [member.league_id]);
   useEffect(() => {
     if (review) return;
-    let active = true;
     setLoading(true);
     void reloadQuotes();
+  }, [review, reloadQuotes]);
+  useEffect(() => {
+    if (review) return;
+    let active = true;
     setStandingsLoading(true);
     void Promise.resolve(supabase?.rpc("league_leaderboard", { p_league: member.league_id }))
       .then((s) => {
@@ -561,8 +568,11 @@ export function Sportsbook({
   const selectionGroups = [
     ...new Set(picks.map((p) => p.matchup_key ?? p.subject)),
   ];
-  const suspensionReason = (category === "Season Futures" ? futureBoard : board)
+  const rawSuspensionReason = (category === "Season Futures" ? futureBoard : board)
     ?.suspension_reason;
+  const suspensionReason = rawSuspensionReason && /timeout|failed to fetch|gateway|canceling statement|ECONN|fetch failed/i.test(rawSuspensionReason)
+    ? "Prices are temporarily unavailable. Existing lines remain visible while a verified refresh is pending."
+    : rawSuspensionReason;
   return (
     <main className="sportsbook">
       <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">
@@ -1171,6 +1181,9 @@ export function Sportsbook({
       {(tab === "My Bets" || tab === "All Bets") && (
         <>
           <h1>{tab}</h1>
+          {data.history_loading && <p role="status">Loading ticket history…</p>}
+          {data.history_error && <p role="status">{data.history_error} <button className="text-button" onClick={() => void refresh()}>Retry history</button></p>}
+          {(!(data.history_loading || data.history_error) || !!data.tickets?.length) && (
           <TicketHistory
             data={data}
             tickets={(data.tickets ?? []).filter(
@@ -1184,6 +1197,7 @@ export function Sportsbook({
             canVoid={member.role === "admin" && !review}
             onChanged={refresh}
           />
+          )}
         </>
       )}
       {tab === "Leaderboard" && (
