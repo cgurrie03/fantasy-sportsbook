@@ -99,7 +99,7 @@ fs.mkdirSync(output, { recursive: true });
           theme,
         );
         await f.page
-          .getByRole("button", { name: "My Bets", exact: true })
+          .getByRole("link", { name: "My Bets", exact: true })
           .click();
         const ticket = f.page
           .locator("details.history-ticket")
@@ -119,7 +119,7 @@ fs.mkdirSync(output, { recursive: true });
         assert.equal(await dialog.locator(".receipt-leg").count(), 8);
         assert.match(
           await dialog.locator(".receipt-values").innerText(),
-          /Potential payout/,
+          /Potential total return/,
         );
         await f.page.evaluate(() => {
           Object.defineProperty(navigator, "clipboard", {
@@ -150,7 +150,7 @@ fs.mkdirSync(output, { recursive: true });
           .getByRole("button", { name: "Copy text", exact: true })
           .click();
         const text = await f.page.evaluate(() => window.__receiptCopied);
-        assert.match(text, /8 Pick Parlay/);
+        assert.match(text, /8-pick parlay/);
         assert.match(text, /8\. Player 8/);
         assert.match(text, /Odds \+264/);
         assert.match(text, /50% profit boost included/);
@@ -221,7 +221,7 @@ fs.mkdirSync(output, { recursive: true });
           /66\.00/,
         );
         assert(
-          !/Potential payout/.test(
+          !/Potential total return/.test(
             await dialog.locator(".share-receipt").innerText(),
           ),
         );
@@ -261,7 +261,7 @@ fs.mkdirSync(output, { recursive: true });
       await placed.page
         .locator(".ticket-share-dialog .receipt-title")
         .innerText(),
-      /2 Pick Parlay/,
+      /2-pick parlay/,
     );
     assert.deepEqual(placed.errors, []);
     await placed.context.close();

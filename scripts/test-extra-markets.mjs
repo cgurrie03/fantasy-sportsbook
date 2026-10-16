@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 const dir = fs.mkdtempSync(path.resolve("node_modules/.extra-markets-"));
 for (const name of [
+  "event-time",
   "settlement",
   "extra-markets",
   "model-assessment",
@@ -29,7 +30,8 @@ fs.writeFileSync(
   ts.transpileModule(
     fs
       .readFileSync("src/lib/markets.ts", "utf8")
-      .replace('"./supabase"', '"./supabase.js"'),
+      .replace('"./supabase"', '"./supabase.js"')
+      .replace('"../../api/_lib/event-time"', '"./event-time.js"'),
     {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,
@@ -195,6 +197,9 @@ globalThis.fetch = async (url) => {
   );
 };
 const fake = {
+  async rpc() {
+    return { data: [{ week: 5 }], error: null };
+  },
   from(table) {
     const b = {
       select() {

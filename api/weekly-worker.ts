@@ -64,8 +64,11 @@ export function publicationRefreshComplete(
 ) {
   return ["refresh_matchups", "refresh_players", "refresh_specials"].every(
     (operation) => {
-      const latest = jobs.filter(job => job.operation === operation)
-        .sort((a,b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0];
+      const latest = jobs
+        .filter((job) => job.operation === operation)
+        .sort((a, b) =>
+          (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+        )[0];
       return latest?.status === "done";
     },
   );
@@ -224,6 +227,7 @@ export async function POST(request: Request) {
         if (
           job.operation === "interval_matchups" &&
           runtime.week_started &&
+          !target?.reopening_id &&
           cycle.status === "staging"
         ) {
           liveShadow = await collectLiveShadow(
@@ -240,7 +244,7 @@ export async function POST(request: Request) {
         }
         if (
           cycle.status === "staging" &&
-          !runtime.week_started &&
+          (!runtime.week_started || Boolean(target?.reopening_id)) &&
           !runtime.last_error &&
           target?.status === "published" &&
           Date.parse(target.closes_at) > Date.now() &&
@@ -253,6 +257,9 @@ export async function POST(request: Request) {
               nfl_season: league.nfl_season,
               category,
               source_cycle_id: job.refresh_cycle_id,
+              ...(target?.reopening_id
+                ? { reopening_id: target.reopening_id }
+                : {}),
             }),
           );
           const result: any = await response.json();
@@ -715,9 +722,14 @@ export async function POST(request: Request) {
           });
           if (r.error) throw new Error(r.error.message);
         }
-        const confirmed = await db.rpc("confirm_scheduled_publication", { p_board: board.id });
+        const confirmed = await db.rpc("confirm_scheduled_publication", {
+          p_board: board.id,
+        });
         if (confirmed.error) throw new Error(confirmed.error.message);
-        if (!confirmed.data) throw new Error("Publication held: current pregame source and complete fresh quotes are required.");
+        if (!confirmed.data)
+          throw new Error(
+            "Publication held: current pregame source and complete fresh quotes are required.",
+          );
         if (schedule.opening_email) await enqueue("opening", job.market_week);
         summary = { published: true };
       } else if (job.operation === "cutoff") {
@@ -753,7 +765,10 @@ export async function POST(request: Request) {
           await enqueue("reminder", job.market_week);
       } else if (job.operation === "monday_watch") {
         await enqueue("monday_watch", job.market_week);
-        summary = { message: "Personal Monday ticket watch queued for league members.", week: job.market_week };
+        summary = {
+          message: "Personal Monday ticket watch queued for league members.",
+          week: job.market_week,
+        };
       } else if (
         job.operation === "recap" &&
         schedule.recap_email &&
@@ -785,11 +800,23 @@ export async function POST(request: Request) {
         .eq("status", "running");
       if (save.error) throw new Error(save.error.message);
       if (job.operation === "refresh_futures") {
-        const futures = await read(db.from("sportsbook_boards").select("id")
-          .eq("league_id", job.league_id).eq("nfl_season", league.nfl_season).eq("board_type", "future"));
+        const futures = await read(
+          db
+            .from("sportsbook_boards")
+            .select("id")
+            .eq("league_id", job.league_id)
+            .eq("nfl_season", league.nfl_season)
+            .eq("board_type", "future"),
+        );
         for (const board of futures) {
-          const confirmed = await db.rpc("confirm_scheduled_publication", { p_board: board.id });
-          if (confirmed.error) console.error("Futures availability confirmation failed", confirmed.error);
+          const confirmed = await db.rpc("confirm_scheduled_publication", {
+            p_board: board.id,
+          });
+          if (confirmed.error)
+            console.error(
+              "Futures availability confirmation failed",
+              confirmed.error,
+            );
         }
       }
     }

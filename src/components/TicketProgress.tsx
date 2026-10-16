@@ -5,6 +5,8 @@ import { legProgress } from "../../api/_lib/ticket-progress";
 export function useTicketProgress(
   leagueId: string | undefined,
   tickets: Ticket[],
+  current?: { season: number; week: number },
+  enabled = true,
 ) {
   const [state, setState] = useState<{
     rows: any[];
@@ -12,13 +14,15 @@ export function useTicketProgress(
     error: boolean;
     now: number;
   }>({ rows: [], loading: false, error: false, now: 0 });
-  const signature = tickets
-    .filter((t) => t.status === "OPEN" && t.ticket_type !== "future")
-    .map((t) => `${t.nfl_season}:${t.market_week}`)
-    .sort()
-    .join(",");
+  const signature =
+    (current ? `${current.season}:${current.week},` : "") +
+    tickets
+      .filter((t) => t.status === "OPEN" && t.ticket_type !== "future")
+      .map((t) => `${t.nfl_season}:${t.market_week}`)
+      .sort()
+      .join(",");
   useEffect(() => {
-    if (!leagueId || !signature || !supabase) return;
+    if (!enabled || !leagueId || !signature || !supabase) return;
     let cancelled = false,
       pending = false;
     const refresh = async () => {
@@ -56,8 +60,8 @@ export function useTicketProgress(
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [leagueId, signature]);
-  return state;
+  }, [leagueId, signature, enabled]);
+  return { ...state, rows: state.rows.filter((r) => r.league_id === leagueId) };
 }
 export function observedLegProgress(leg: TicketLeg, row: any) {
   if (!row || leg.status !== "OPEN" || !leg.settlement_context)

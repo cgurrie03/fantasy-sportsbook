@@ -19,16 +19,30 @@ export async function refreshTicketProgress(
   const cadence = games.games.some((g: any) => g.state === "in_progress")
     ? 15
     : 120;
-  const tickets = await db
-    .from("tickets")
-    .select("market_week,nfl_season")
-    .eq("league_id", league.id)
-    .eq("status", "OPEN")
-    .neq("ticket_type", "future");
+  const [period, tickets] = await Promise.all([
+    db.rpc("sportsbook_period", { p_league: league.id }),
+    db
+      .from("tickets")
+      .select("market_week,nfl_season")
+      .eq("league_id", league.id)
+      .eq("status", "OPEN")
+      .neq("ticket_type", "future"),
+  ]);
+  if (period.error) throw new Error(period.error.message);
   if (tickets.error) throw new Error(tickets.error.message);
   const weeks = [
     ...new Set(
-      (tickets.data ?? [])
+      [
+        ...(tickets.data ?? []),
+        ...(period.data?.[0]?.week
+          ? [
+              {
+                nfl_season: league.nfl_season,
+                market_week: period.data[0].week,
+              },
+            ]
+          : []),
+      ]
         .filter((t: any) => t.nfl_season === league.nfl_season)
         .map((t: any) => t.market_week),
     ),
@@ -88,6 +102,9 @@ export async function refreshTicketProgress(
         payload: {
           teams: points,
           players,
+          week_final:
+            games.games.length > 0 &&
+            games.games.every((g: any) => g.state === "final"),
           provider_observed_at: null,
           observation_note:
             "Source observation time is unavailable; checked time shows when scores were fetched.",

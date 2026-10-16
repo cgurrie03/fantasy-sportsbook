@@ -41,7 +41,8 @@ async function setup(browser, width, height, signedIn=true){
     const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
    }
    if(endpoint==='list_promos')return json([]);
-   if(endpoint==='league_leaderboard')return json([]);
+   if(endpoint==='league_leaderboard')return json(state.standings??[]);
+   if(endpoint==='ticket_score_observations')return json(state.scoreRows??[]);
    if(endpoint==='leagues')return json(leagues);
    if(endpoint==='teams')return json(teams);
    if(endpoint==='league_memberships')return json(memberships);
@@ -73,7 +74,7 @@ async function setup(browser, width, height, signedIn=true){
  await page.goto(origin);await page.waitForLoadState('networkidle');return {context,page,state,errors};
 }
 async function geometry(page,label){const g=await page.evaluate(()=>({width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth}));assert(g.scroll<=g.width,`${label} overflow: ${JSON.stringify(g)}`);evidence.push({label,...g});}
-async function menu(page,item){await page.getByLabel('Open Account Options').click();await page.locator('.profile-options').getByRole('button',{name:item,exact:true}).click();}
+async function menu(page,item){await page.getByLabel('Open Account Options').click();await page.locator('.profile-options').getByRole(item==='Sign Out'?'button':'link',{name:item,exact:true}).click();}
 if(require.main===module)(async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.UX_BROWSER_PATH?{executablePath:process.env.UX_BROWSER_PATH}:{})});
  try{
@@ -143,8 +144,8 @@ if(require.main===module)(async()=>{
   await page.setViewportSize({width:390,height:420});await page.getByLabel('Wager',{exact:true}).focus();await page.locator('.place-bet').scrollIntoViewIfNeeded();
   const rect=await page.locator('.place-bet').boundingBox();assert(rect.y>=0&&rect.y+rect.height<=420);await page.screenshot({path:path.join(output,'slip-reduced-height.png'),fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.locator('.place-bet').click();await page.locator('.feedback').filter({hasText:/Bet placed/}).waitFor();assert.equal(state.betCalls,2);
-  await page.getByRole('button',{name:'My Bets',exact:true}).click();await page.locator('.history-ticket').first().waitFor();await geometry(page,'ticket-history');await page.screenshot({path:path.join(output,'tickets-mobile.png'),fullPage:true});
-  await menu(page,'Admin');await page.getByRole('button',{name:/Reports & Dashboard/}).click();await page.locator('.report-toolbar select').nth(0).waitFor();
+  await page.getByRole('link',{name:'My Bets',exact:true}).click();await page.locator('.history-ticket').first().waitFor();await geometry(page,'ticket-history');await page.screenshot({path:path.join(output,'tickets-mobile.png'),fullPage:true});
+  await menu(page,'Admin');await page.getByRole('link',{name:/Reports & Dashboard/}).click();await page.locator('.report-toolbar select').nth(0).waitFor();
   await page.locator('.report-toolbar select').nth(2).selectOption('4');await geometry(page,'reports-mobile');await page.screenshot({path:path.join(output,'reports-mobile.png'),fullPage:true});
   for(const [name,ext]of [['CSV Data','csv'],['PNG Image','png'],['PDF Document','pdf']]){
    console.log(`Checking report export: ${ext}`);

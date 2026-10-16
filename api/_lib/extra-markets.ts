@@ -1,3 +1,4 @@
+import { exactEventTime } from "./event-time.js";
 import { cdf } from "./model-assessment.js";
 import type { Candidate, History, Projection } from "./line-model.ts";
 import type { Market } from "../../src/lib/markets.ts";
@@ -146,7 +147,7 @@ export function playerExtras(
           .filter(Boolean)
           .join(" ") ||
         "Empty / unavailable",
-      projection: candidate?.projection ?? 0,
+      projection: candidate?.expected ?? null,
       expected: candidate?.expected ?? 0,
       average: candidate?.average ?? null,
       team: candidate?.team ?? row?.team ?? "",
@@ -183,7 +184,7 @@ export function playerExtras(
       );
       const p = cdf((left.expected - right.expected) / sd);
       const times = [left.kickoff, right.kickoff].map((t) =>
-        t ? Date.parse(t) : NaN,
+        exactEventTime(t) ? Date.parse(t!) : NaN,
       );
       const locked =
         left.expected <= 0 ||

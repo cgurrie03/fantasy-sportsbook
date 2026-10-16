@@ -13,6 +13,9 @@ try {
     "weekly-execution",
     "_lib/line-model",
     "_lib/extra-markets",
+    "_lib/event-time",
+    "_lib/auth-policy",
+    "_lib/reopening",
     "_lib/ticket-progress",
     "_lib/model-assessment",
     "_lib/model-pipeline",
@@ -28,10 +31,12 @@ try {
     "_lib/live-pipeline",
     "active-starters",
     "_lib/email-templates",
+    "_lib/reopening-email",
     "_lib/mail",
     "_lib/monday-watch",
     "_lib/league-communications",
     "weekly-worker",
+    "reopening-review",
     "place-bet",
     "promo-image",
     "_lib/promo-image",
@@ -52,11 +57,108 @@ try {
   const { POST, sharedRefreshSource } = await import(
     pathToFileURL(path.join(root, "generate-markets.js")).href
   );
-  const sourceLeague = 'fixture-league';
+  const sourceLeague = "fixture-league";
+  const reopening = await import(
+    pathToFileURL(path.join(root, "_lib/reopening.js")).href
+  );
+  const scheduled = {
+    id: "later",
+    teams: ["BUF", "NE"],
+    starts_at: "2026-10-18T17:00:00Z",
+    state: "scheduled",
+    period: 0,
+    clock_seconds: 900,
+  };
+  const finished = {
+    ...scheduled,
+    id: "done",
+    teams: ["SEA", "LAR"],
+    starts_at: "2026-10-16T00:15:00Z",
+    state: "final",
+  };
+  const projections = reopening.canonicalProjections(
+    [
+      {
+        player_id: "p",
+        team: "BUF",
+        date: "2026-10-18",
+        stats: { pass_yd: 100 },
+      },
+    ],
+    [scheduled],
+  );
+  assert.equal(
+    Date.parse(projections[0].date),
+    Date.parse(scheduled.starts_at),
+  );
+  const conditional = reopening.conditionalReopening({
+    games: [scheduled, finished],
+    rosters: [
+      {
+        roster_id: 1,
+        matchup_id: 1,
+        starters: ["p", "q"],
+        starters_points: [0, 10],
+        points: 10,
+      },
+    ],
+    projections,
+    stats: [
+      {
+        player_id: "q",
+        team: "SEA",
+        stats: { pass_yd: 250 },
+        updated_at: Date.parse("2026-10-16T21:00:00Z"),
+      },
+    ],
+    history: [],
+    scoring: { pass_yd: 0.04 },
+    teams: [{ id: "team", roster_id: 1, team_name: "Fixture" }],
+    fetched_at: "2026-10-16T22:00:00Z",
+    slots: 2,
+  });
+  assert.deepEqual(conditional.teams[0].reasons, []);
+  assert.equal(
+    conditional.teams[0].mean,
+    14,
+    "completed points plus remaining prior, without counting completed points twice",
+  );
+  assert.equal(conditional.teams[0].players.find((p) => p.id === "q").sd, 0);
+  const quotes = [
+    { kind: "player_points", metadata: { player_id: "q" } },
+    { kind: "player_points", metadata: { player_id: "p" } },
+  ];
+  reopening.tagReopeningQuotes(quotes, conditional, [scheduled, finished]);
+  assert.equal(quotes[0].metadata.reopening_locked, true);
+  assert.equal(quotes[1].metadata.reopening_locked, false);
+  const determined = [{ kind: "weekly_any_200", metadata: {} }];
+  reopening.tagReopeningQuotes(
+    determined,
+    {
+      ...conditional,
+      teams: [
+        { ...conditional.teams[0], sd: 0, observed: 205 },
+        { ...conditional.teams[0], team_id: "other" },
+      ],
+    },
+    [scheduled, finished],
+  );
+  assert.equal(determined[0].metadata.reopening_locked, true);
   const sourceBase = `https://api.sleeper.app/v1/league/${sourceLeague}`;
-  for (const source of [sourceBase, `${sourceBase}/rosters`, `${sourceBase}/matchups/1`, `${sourceBase}/matchups/6`, 'https://api.sleeper.com/projections/nfl/2026/6?season_type=regular'])
+  for (const source of [
+    sourceBase,
+    `${sourceBase}/rosters`,
+    `${sourceBase}/matchups/1`,
+    `${sourceBase}/matchups/6`,
+    "https://api.sleeper.com/projections/nfl/2026/6?season_type=regular",
+  ])
     assert.equal(sharedRefreshSource(source, sourceLeague, 2026, 6), true);
-  for (const source of [`${sourceBase}/matchups/7`, `${sourceBase}/traded_picks`, 'https://api.sleeper.com/projections/nfl/2026/7?season_type=regular', `${sourceBase}/matchups/NaN`])
+  for (const source of [
+    `${sourceBase}/matchups/7`,
+    `${sourceBase}/traded_picks`,
+    "https://api.sleeper.com/projections/nfl/2026/7?season_type=regular",
+    `${sourceBase}/matchups/NaN`,
+  ])
     assert.equal(sharedRefreshSource(source, sourceLeague, 2026, 6), false);
   const starterStatus = await import(
     pathToFileURL(path.join(root, "active-starters.js")).href
@@ -243,10 +345,21 @@ try {
     "refresh_specials",
   ].map((operation) => ({ operation, status: "done" }));
   assert(worker.publicationRefreshComplete(morningRefresh));
-  assert.equal(worker.publicationRefreshComplete([
-    ...morningRefresh.map(job => ({...job,created_at:"2026-10-14T11:30:00Z"})),
-    {operation:"refresh_matchups",status:"failed",created_at:"2026-10-14T12:00:00Z"},
-  ]),false,"A newer failed refresh must not be hidden by an older success");
+  assert.equal(
+    worker.publicationRefreshComplete([
+      ...morningRefresh.map((job) => ({
+        ...job,
+        created_at: "2026-10-14T11:30:00Z",
+      })),
+      {
+        operation: "refresh_matchups",
+        status: "failed",
+        created_at: "2026-10-14T12:00:00Z",
+      },
+    ]),
+    false,
+    "A newer failed refresh must not be hidden by an older success",
+  );
   assert.equal(
     worker.publicationRefreshComplete(morningRefresh.slice(0, 2)),
     false,

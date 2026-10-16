@@ -634,7 +634,7 @@ footer {
   border-radius: 10px;
   box-shadow: 0 12px 30px #0003;
 }
-.profile-options button {
+.profile-options button, .profile-options a {
   display: block;
   width: 100%;
   text-align: left;
@@ -644,7 +644,7 @@ footer {
   border-radius: 6px;
   padding: 10px 12px;
 }
-.profile-options button:hover {
+.profile-options button:hover, .profile-options a:hover {
   background: var(--surface2);
 }
 .connected-check {

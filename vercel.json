@@ -5,6 +5,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/weekly-worker.ts": { "maxDuration": 120 },
+    "api/reopening-review.ts": { "maxDuration": 120 },
     "api/generate-markets.ts": { "maxDuration": 120 }
   },
   "rewrites": [

@@ -1,6 +1,15 @@
-import { communicationIdentity, validateDeliveryScope, validatePayloadRecipient } from "./league-communications.js";
+import { reopeningEmail } from "./reopening-email.js";
+import {
+  communicationIdentity,
+  validateDeliveryScope,
+  validatePayloadRecipient,
+} from "./league-communications.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { renderEmail, openingWeekStories, teamWatchText } from "./email-templates.js";
+import {
+  renderEmail,
+  openingWeekStories,
+  teamWatchText,
+} from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
 import { mondayEmail } from "./monday-watch.js";
 const money = (v: unknown) => "$" + Number(v ?? 0).toFixed(2);
@@ -51,7 +60,8 @@ export async function buildEmail(
   ]);
   const member = members.find((m) => m.team_id === row.team_id),
     league = leagues[0];
-  if (!member || !league) throw new Error("League email membership unavailable.");
+  if (!member || !league)
+    throw new Error("League email membership unavailable.");
   const identity = communicationIdentity(league);
   const balance = wallets[0]?.balance;
   const base = {
@@ -62,10 +72,56 @@ export async function buildEmail(
     details: [],
     button: "Open Your Sportsbook",
   };
-  if (row.kind === "monday_watch") return mondayEmail(db, row, league, teams, base);
+  if (row.kind === "reopening") {
+    const window = (
+      await read(
+        db
+          .from("sportsbook_reopening_reviews")
+          .select("*")
+          .eq("id", row.reopening_id)
+          .eq("league_id", row.league_id),
+      )
+    )[0];
+    const board = window
+      ? (
+          await read(
+            db
+              .from("sportsbook_boards")
+              .select("id,status,reopening_id")
+              .eq("id", window.weekly_board)
+              .eq("league_id", row.league_id),
+          )
+        )[0]
+      : null;
+    if (
+      !window ||
+      window.status !== "approved" ||
+      Date.parse(window.closes_at) <= Date.now() ||
+      board?.status !== "published" ||
+      board.reopening_id !== window.id
+    )
+      throw new Error(
+        "A verified, open reopening window is required before announcing it.",
+      );
+    return reopeningEmail({
+      ...base,
+      brand: identity.brand,
+      week: row.market_week,
+      closes_at: window.closes_at,
+    });
+  }
+  if (row.kind === "monday_watch")
+    return mondayEmail(db, row, league, teams, base);
   if (row.kind === "confirmation") {
     const ticket = (
-      await read(db.from("tickets").select("*").eq("id", row.ticket_id).eq("league_id", row.league_id).eq("team_id", row.team_id))
+      await read(
+        db
+          .from("tickets")
+          .select("*")
+          .eq("id", row.ticket_id)
+          .eq("league_id", row.league_id)
+          .eq("team_id", row.team_id),
+      )
     )[0];
     if (!ticket) throw new Error("Accepted ticket unavailable.");
     const legs = await read(
@@ -128,7 +184,9 @@ export async function buildEmail(
       )
     )[0];
     if (!board || board.status !== "published")
-      throw new Error("Published board unavailable; email waits for final publication.");
+      throw new Error(
+        "Published board unavailable; email waits for final publication.",
+      );
     if (row.kind === "reminder")
       return {
         ...base,
@@ -457,15 +515,45 @@ export async function buildEmail(
     button: "View Results & Leaderboard",
   };
 }
-export async function deliverEmails(db: SupabaseClient, ticketId: string | null = null) {
+export async function deliverEmails(
+  db: SupabaseClient,
+  ticketId: string | null = null,
+) {
   if (!process.env.RESEND_API_KEY)
     throw new Error("Email delivery requires RESEND_API_KEY.");
-  const claim = await db.rpc("claim_scoped_outbound_emails", { p_ticket: ticketId });
+  const claim = await db.rpc("claim_scoped_outbound_emails", {
+    p_ticket: ticketId,
+  });
   if (claim.error) throw new Error(claim.error.message);
   let sent = 0;
   for (const row of claim.data ?? []) {
     try {
       await validateDeliveryScope(db, row);
+      if (row.kind === "reopening") {
+        const window = (
+          await read(
+            db
+              .from("sportsbook_reopening_reviews")
+              .select("status,closes_at")
+              .eq("id", row.reopening_id)
+              .eq("league_id", row.league_id),
+          )
+        )[0];
+        if (
+          !window ||
+          window.status !== "approved" ||
+          Date.parse(window.closes_at) <= Date.now()
+        ) {
+          await db
+            .from("outbound_emails")
+            .update({
+              status: "skipped",
+              last_error: "The reopening window is no longer open.",
+            })
+            .eq("id", row.id);
+          continue;
+        }
+      }
       if (row.kind === "reminder") {
         const w = await read(
           db.from("wallets").select("balance").eq("team_id", row.team_id),
@@ -488,7 +576,10 @@ export async function deliverEmails(db: SupabaseClient, ticketId: string | null 
           c.heading,
           c.greeting,
           ...c.paragraphs,
-          ...(c.tickets ?? []).map((t) => `${t.status}\nTicket ${t.id} · ${t.summary}\n${t.legs.map((l, i) => `${i + 1}. ${l.selection}\n${l.detail}\n${(l.teams ?? []).map(teamWatchText).join("\n\n")}`).join("\n\n")}`),
+          ...(c.tickets ?? []).map(
+            (t) =>
+              `${t.status}\nTicket ${t.id} · ${t.summary}\n${t.legs.map((l, i) => `${i + 1}. ${l.selection}\n${l.detail}\n${(l.teams ?? []).map(teamWatchText).join("\n\n")}`).join("\n\n")}`,
+          ),
           ...(c.stories ?? []).map((s) => s.title + "\n" + s.text),
           ...c.details.map((d) => d.join(": ")),
           ...(c.featured ?? []).flatMap((f) => [
@@ -505,7 +596,11 @@ export async function deliverEmails(db: SupabaseClient, ticketId: string | null 
           c.button + ": " + c.url,
         ].join("\n\n");
         payload = {
-          from: communicationIdentity((await read(db.from("leagues").select("*").eq("id", row.league_id)))[0]).from,
+          from: communicationIdentity(
+            (
+              await read(db.from("leagues").select("*").eq("id", row.league_id))
+            )[0],
+          ).from,
           to: [row.recipient],
           subject: c.subject,
           html: renderEmail(c),

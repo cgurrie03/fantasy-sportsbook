@@ -1,3 +1,4 @@
+import { displayProjection, formatGameInfo } from "../../api/_lib/event-time";
 import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
 import type { Market } from "../lib/markets";
@@ -102,7 +103,7 @@ export function WinningMargins({
 interface PlayerIdentity {
   id: string;
   name: string;
-  projection: number;
+  projection: number | null;
   average: number | null;
   team: string;
   position: string;
@@ -110,15 +111,6 @@ interface PlayerIdentity {
   kickoff: string | null;
 }
 function Player({ value, right }: { value: PlayerIdentity; right?: boolean }) {
-  const kickoff =
-    value.kickoff && Number.isFinite(Date.parse(value.kickoff))
-      ? new Date(value.kickoff).toLocaleString("en-US", {
-          timeZone: "America/New_York",
-          weekday: "short",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : null;
   return (
     <div className={`duel-player${right ? " right" : ""}`}>
       {/^\d+$/.test(value.id) && (
@@ -137,16 +129,13 @@ function Player({ value, right }: { value: PlayerIdentity; right?: boolean }) {
       </span>
       <div className="duel-stat">
         <span>
-          Projected <b>{value.projection.toFixed(1)}</b>
+          Model projection <b>{displayProjection(value.projection)}</b>
         </span>
         <span>
           Average <b>{value.average?.toFixed(1) ?? "—"}</b>
         </span>
       </div>
-      <small>
-        {value.game.replace(/^\S+\s*/, "")}
-        {kickoff ? ` · ${kickoff} ET` : " · Game unavailable"}
-      </small>
+      <small>{formatGameInfo(value.game, value.kickoff)}</small>
     </div>
   );
 }
@@ -216,6 +205,12 @@ export function HeadToHead({
       )}
       {duels.map((m) => (
         <article className="duel-row" key={m.market_key}>
+          {Boolean(m.metadata.lineup_locked) && (
+            <p className="duel-unavailable">
+              Unavailable: both starting slots need an eligible player,
+              projection, and confirmed game time.
+            </p>
+          )}
           <div className="duel-side duel-left">
             <Player
               value={m.metadata.left_player as unknown as PlayerIdentity}

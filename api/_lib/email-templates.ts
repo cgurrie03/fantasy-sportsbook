@@ -1,5 +1,8 @@
+import { reopeningEmail } from "./reopening-email.js";
+import { SIGN_IN_LINK_MINUTES } from "./auth-policy.js";
 export type EmailKind =
   | "opening"
+  | "reopening"
   | "reminder"
   | "confirmation"
   | "recap"
@@ -8,6 +11,7 @@ export type EmailKind =
   | "monday_watch";
 export const emailLabels: Record<EmailKind, string> = {
   opening: "Opening Email",
+  reopening: "Reopening Announcement",
   reminder: "Betting Reminder",
   confirmation: "Bet Confirmation",
   recap: "Weekly Recap",
@@ -23,7 +27,7 @@ export const emailTemplateGroups: { label: string; kinds: EmailKind[] }[] = [
   },
   {
     label: "Sent On Request / Bet Placement",
-    kinds: ["signin", "confirmation"],
+    kinds: ["signin", "confirmation", "reopening"],
   },
 ];
 export function reminderEligible(balance: number | string | null) {
@@ -202,6 +206,16 @@ export function sampleEmail(kind: EmailKind): EmailContent {
     sample: true,
   };
   switch (kind) {
+    case "reopening":
+      return {
+        ...reopeningEmail({
+          greeting: common.greeting,
+          week: 6,
+          closes_at: "2026-10-18T16:00:00Z",
+          url: common.url,
+        }),
+        sample: true,
+      };
     case "monday_watch":
       return {
         ...common,
@@ -501,7 +515,7 @@ export function sampleEmail(kind: EmailKind): EmailContent {
         subject: "Your Sign-In Link · Goldy Fantasy Sportsbook",
         heading: "Welcome To Your Fantasy Sportsbook",
         paragraphs: [
-          "Use the link below to sign in to your approved league account. No password is needed. This link can only be used once.",
+          `Use the link below to sign in to your approved league account. No password is needed. This link can only be used once and expires after ${SIGN_IN_LINK_MINUTES} minutes. Open it in the browser you want to use. If it expires, request a new link from the sign-in page.`,
           "After you use the link, this browser normally keeps you signed in. You'll need another link if you sign out, clear browser data, use a private window or different browser, or your session expires.",
           "If you didn't request this email, you can safely ignore it. Never forward your sign-in link to anyone else.",
         ],

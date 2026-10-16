@@ -1,3 +1,6 @@
+import { PortfolioLink } from "./components/PortfolioLink";
+import { authRecoveryMessage, SIGN_IN_LINK_MINUTES } from "./lib/auth-recovery";
+import { useRoute, navigate } from "./lib/navigation";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -31,7 +34,13 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
     </span>
   );
 }
-function SignIn() {
+function SignIn({
+  recoveryMessage = "",
+  onRecover,
+}: {
+  recoveryMessage?: string;
+  onRecover?: () => void;
+}) {
   const [email, setEmail] = useState(""),
     [sent, setSent] = useState(false),
     [busy, setBusy] = useState(false),
@@ -47,6 +56,7 @@ function SignIn() {
     if (busy || seconds > 0) return;
     setBusy(true);
     setError("");
+    onRecover?.();
     try {
       if (!supabase) throw new Error("Account Service Is Not Configured.");
       const result = await supabase.auth.signInWithOtp({
@@ -74,6 +84,13 @@ function SignIn() {
           Fake Betting.
         </h1>
         <p>Welcome to your Fantasy Sportsbook.</p>
+        <p>
+          Private leagues are open to approved members only. Your league
+          administrator must map your verified email to your team; requesting a
+          link does not grant league access.
+        </p>
+        <a href="#/demo">Explore the read-only demo</a>
+        <PortfolioLink />
       </section>
       <section className="signin-card">
         <span className="entry-icon" aria-hidden="true">
@@ -114,9 +131,9 @@ function SignIn() {
                   : "Email Me A Sign-In Link"}
           </button>
         </form>
-        {error && (
+        {(error || recoveryMessage) && (
           <p className="feedback error" role="alert">
-            {error}
+            {error || recoveryMessage}
           </p>
         )}
         {sent && (
@@ -134,8 +151,10 @@ function SignIn() {
         <div className="signin-help">
           <strong>No password. No verification code.</strong>
           <p>
-            The link is single-use and expires. Check spam if it does not
-            arrive. You can stay signed in on your device.
+            Each link is single-use and expires after {SIGN_IN_LINK_MINUTES}{" "}
+            minutes. Open the newest link in the browser you want to use. Check
+            spam if it does not arrive; use Resend to request another link. You
+            can stay signed in on your device.
           </p>
         </div>
       </section>
@@ -155,42 +174,49 @@ function History({ data, team }: { data: AccountData; team: Team }) {
           the import date; their original settlement times were not recorded.
         </p>
       )}
-      {entries.length ? (
-        entries.map((e) => (
-          <div className="history-entry" key={e.id}>
-            <div>
-              <strong>{e.title}</strong>
-              <p className="history-reason">{e.reason}</p>
-              <span>
-                {e.imported
-                  ? "Imported " +
-                    new Date(e.date).toLocaleDateString("en-US", {
-                      timeZone: "America/New_York",
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                  : new Date(e.date).toLocaleString("en-US", {
-                      timeZone: "America/New_York",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    }) + " Eastern"}
+      {entries.length
+        ? entries.map((e) => (
+            <div className="history-entry" key={e.id}>
+              <div>
+                <strong>{e.title}</strong>
+                <p className="history-reason">
+                  {e.ticketId ? (
+                    <a href={`#/bets?ticket=${encodeURIComponent(e.ticketId)}`}>
+                      {e.reason} · View ticket
+                    </a>
+                  ) : (
+                    e.reason
+                  )}
+                </p>
+                <span>
+                  {e.imported
+                    ? "Imported " +
+                      new Date(e.date).toLocaleDateString("en-US", {
+                        timeZone: "America/New_York",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : new Date(e.date).toLocaleString("en-US", {
+                        timeZone: "America/New_York",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }) + " Eastern"}
+                </span>
+              </div>
+              <span className="history-amount">
+                <strong className={e.amount > 0 ? "won" : ""}>
+                  {e.amount > 0 ? "+" : "−"}
+                  {money(Math.abs(e.amount))}
+                </strong>
+                <small>Balance: {money(e.balanceAfter)}</small>
               </span>
             </div>
-            <span className="history-amount">
-              <strong className={e.amount > 0 ? "won" : ""}>
-                {e.amount > 0 ? "+" : "−"}
-                {money(Math.abs(e.amount))}
-              </strong>
-              <small>Balance: {money(e.balanceAfter)}</small>
-            </span>
-          </div>
-        ))
-      ) : (
-        !data.history_loading && !data.history_error && <p>No balance changes yet.</p>
-      )}
+          ))
+        : !data.history_loading &&
+          !data.history_error && <p>No balance changes yet.</p>}
     </section>
   );
 }
@@ -505,13 +531,20 @@ export function Admin({
   );
 }
 export default function App() {
+  const route = useRoute();
+  const page = route.startsWith("/admin")
+    ? "admin"
+    : route.startsWith("/account")
+      ? "account"
+      : "home";
+  const setPage = (next: "home" | "account" | "admin") => navigate("/" + next);
   const profileMenu = useRef<HTMLDetailsElement>(null);
+  const [linkRecovery, setLinkRecovery] = useState(authRecoveryMessage);
   const [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(!supabase),
     [data, setData] = useState<AccountData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
-    [page, setPage] = useState<"home" | "account" | "admin">("home"),
     [leagueId, setLeagueId] = useState("");
   const [light, setLight] = useState(() => {
     try {
@@ -555,6 +588,7 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, next) => {
         setSession(next);
+        if (next) setLinkRecovery("");
         setReady(true);
       },
     );
@@ -572,7 +606,6 @@ export default function App() {
     // oxlint-disable-next-line react/set-state-in-effect
     setData(null);
     setError("");
-    setPage("home");
     if (!userId) return;
     setLoading(true);
     loadAccounts(undefined, (next) => {
@@ -600,11 +633,18 @@ export default function App() {
   }, [userId]);
   async function refresh() {
     const next = await loadAccounts(data ?? undefined, (core) => {
-      if (currentUser.current === userId) { setData(core); setLoading(false); }
+      if (currentUser.current === userId) {
+        setData(core);
+        setLoading(false);
+      }
     });
     if (currentUser.current !== userId) return;
     setData(next);
-    setLeagueId((current) => next.leagues.some((league) => league.id === current) ? current : (next.leagues[0]?.id ?? ""));
+    setLeagueId((current) =>
+      next.leagues.some((league) => league.id === current)
+        ? current
+        : (next.leagues[0]?.id ?? ""),
+    );
   }
   const member = data?.memberships.find(
       (m) => m.user_id === userId && m.league_id === leagueId,
@@ -673,32 +713,32 @@ export default function App() {
                   </span>
                 </summary>
                 <div className="profile-options">
-                  <button
+                  <a
+                    href="#/home"
                     onClick={() => {
-                      setPage("home");
                       if (profileMenu.current) profileMenu.current.open = false;
                     }}
                   >
                     Home
-                  </button>
-                  <button
+                  </a>
+                  <a
+                    href="#/account"
                     onClick={() => {
-                      setPage("account");
                       if (profileMenu.current) profileMenu.current.open = false;
                     }}
                   >
                     Account
-                  </button>
+                  </a>
                   {member?.role === "admin" && (
-                    <button
+                    <a
+                      href="#/admin"
                       onClick={() => {
-                        setPage("admin");
                         if (profileMenu.current)
                           profileMenu.current.open = false;
                       }}
                     >
                       Admin
-                    </button>
+                    </a>
                   )}
                   <button
                     onClick={() => {
@@ -721,15 +761,29 @@ export default function App() {
           </main>
         ) : !session ? (
           <>
-            <SignIn />
-            {error && (
-              <p className="feedback error" role="alert">
-                {error}
-              </p>
-            )}
+            <SignIn
+              recoveryMessage={linkRecovery || error}
+              onRecover={() => {
+                setError("");
+                setLinkRecovery("");
+              }}
+            />
           </>
         ) : (
           <>
+            {data && member && page !== "home" && (
+              <nav
+                className="sportsbook-tabs global-nav"
+                aria-label="Sportsbook Navigation"
+              >
+                <a href="#/home">Home</a>
+                <a href="#/bets">My Bets</a>
+                <a href="#/all-bets">All Bets</a>
+                <a href="#/leaderboard">Leaderboard</a>
+                <a href="#/account">Account</a>
+                {member.role === "admin" && <a href="#/admin">Admin</a>}
+              </nav>
+            )}
             {data && member && data.leagues.length > 1 && (
               <nav className="account-nav" aria-label="Account Navigation">
                 {data.leagues.length > 1 && (
@@ -786,6 +840,11 @@ export default function App() {
                   leagueId={leagueId}
                   refresh={refresh}
                 />
+              ) : page === "admin" ? (
+                <main>
+                  <h1>Admin access required</h1>
+                  <a href="#/home">Back to sportsbook</a>
+                </main>
               ) : (
                 <Account data={data} member={member} team={team} />
               )

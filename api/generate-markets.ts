@@ -1,3 +1,11 @@
+import {
+  canonicalProjections,
+  conditionalReopening,
+  tagReopeningQuotes,
+  REOPENING_MODEL,
+} from "./_lib/reopening.js";
+import { parseScoreboard } from "./_lib/game-status.js";
+import { exactEventTime } from "./_lib/event-time.js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { countOptions } from "./_lib/count-options.js";
 import {
@@ -48,16 +56,43 @@ const specialOdds = (p: number, step = 25) => {
 };
 export const maxDuration = 120;
 
-export function sharedRefreshSource(path: string, league: string, season: number, week: number) {
+export function sharedRefreshSource(
+  path: string,
+  league: string,
+  season: number,
+  week: number,
+) {
   const base = `https://api.sleeper.app/v1/league/${league}`;
   if (path === base || path === `${base}/rosters`) return true;
-  if (path === `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular`) return true;
+  if (
+    path ===
+    `https://api.sleeper.com/projections/nfl/${season}/${week}?season_type=regular`
+  )
+    return true;
+  if (
+    path ===
+    `https://api.sleeper.com/stats/nfl/${season}/${week}?season_type=regular`
+  )
+    return true;
+  if (
+    path ===
+    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=${week}&year=${season}&seasontype=2`
+  )
+    return true;
   if (!path.startsWith(`${base}/matchups/`)) return false;
   const matchupWeek = Number(path.slice(`${base}/matchups/`.length));
-  return Number.isInteger(matchupWeek) && matchupWeek >= 1 && matchupWeek <= week;
+  return (
+    Number.isInteger(matchupWeek) && matchupWeek >= 1 && matchupWeek <= week
+  );
 }
 
 export async function POST(request: Request) {
+  return generateMarkets(request);
+}
+export async function generateMarkets(
+  request: Request,
+  sourceFetch: typeof fetch = fetch,
+) {
   try {
     const url = process.env.SUPABASE_URL,
       publicKey =
@@ -106,6 +141,8 @@ export async function POST(request: Request) {
       nfl_season?: number;
       category?: string;
       source_cycle_id?: string;
+      reopening_preview?: boolean;
+      reopening_id?: string;
     };
     try {
       input = (await request.json()) as typeof input;
@@ -195,12 +232,37 @@ export async function POST(request: Request) {
       )
         return json({ error: "Refresh source cycle expired or changed." }, 409);
     }
+    const reopening = Boolean(input.reopening_preview || input.reopening_id);
+    if (
+      input.reopening_preview !== undefined &&
+      typeof input.reopening_preview !== "boolean"
+    )
+      return json({ error: "Invalid reopening preview request." }, 400);
+    if (input.reopening_id) {
+      const approved = await userClient
+        .from("sportsbook_reopening_reviews")
+        .select("id,league_id,market_week,nfl_season,status,closes_at")
+        .eq("id", input.reopening_id)
+        .single();
+      if (
+        approved.error ||
+        approved.data.league_id !== input.league_id ||
+        approved.data.market_week !== input.week ||
+        approved.data.nfl_season !== input.nfl_season ||
+        approved.data.status !== "approved" ||
+        Date.parse(approved.data.closes_at) <= Date.now()
+      )
+        return json(
+          { error: "An approved, active reopening window is required." },
+          409,
+        );
+    }
     const status = await userClient
       .from("line_refresh_runtime")
-      .select("week_started,last_error,observed_at")
+      .select("week_started,last_error,observed_at,games,market_week")
       .eq("league_id", input.league_id)
       .maybeSingle();
-    if (status.data?.week_started || status.data?.last_error)
+    if (!reopening && (status.data?.week_started || status.data?.last_error))
       return json(
         {
           error:
@@ -262,7 +324,14 @@ export async function POST(request: Request) {
     const fetchData = async (path: string) => {
       // Freeze inputs shared by multiple families. Futures-only feeds are still
       // archived below, but need no extra database round trips or shared cache.
-      const sharedCycle = input.source_cycle_id && sharedRefreshSource(path, sleeperLeagueId, input.nfl_season!, input.week!);
+      const sharedCycle =
+        input.source_cycle_id &&
+        sharedRefreshSource(
+          path,
+          sleeperLeagueId,
+          input.nfl_season!,
+          input.week!,
+        );
       if (sharedCycle) {
         const cached = await userClient
           .from("line_refresh_sources")
@@ -279,7 +348,7 @@ export async function POST(request: Request) {
             cached.data.fetched_at,
           );
       }
-      const response = await fetch(path, {
+      const response = await sourceFetch(path, {
         cache: "no-store",
         signal: AbortSignal.timeout(25000),
       });
@@ -314,7 +383,7 @@ export async function POST(request: Request) {
     };
     const sleeper = (path: string) =>
       fetchData(`https://api.sleeper.app/v1/${path}`);
-    const [league, rosters, matchups, projections, historical] =
+    const [league, rosters, matchups, rawProjections, historical] =
       (await Promise.all([
         sleeper(`league/${sleeperLeagueId}`),
         sleeper(`league/${sleeperLeagueId}/rosters`),
@@ -352,6 +421,19 @@ export async function POST(request: Request) {
         Projection[],
         History[][],
       ];
+    let eventGames =
+      status.data?.market_week === input.week ? (status.data?.games ?? []) : [];
+    if (reopening) {
+      const observed = parseScoreboard(
+        await fetchData(
+          `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=${input.week}&year=${input.nfl_season}&seasontype=2`,
+        ),
+      );
+      if (observed.season_year !== input.nfl_season || !observed.games.length)
+        throw new Error("Reopening game season or schedule is unavailable.");
+      eventGames = observed.games;
+    }
+    const projections = canonicalProjections(rawProjections, eventGames);
     if (Number(league.season) !== input.nfl_season)
       throw new Error("The selected season does not match the Sleeper league.");
     if (!Array.isArray(projections) || !projections.length)
@@ -442,12 +524,68 @@ export async function POST(request: Request) {
           ).length - lineup.length,
       };
     });
+    let reopeningSnapshot: ReturnType<typeof conditionalReopening> | undefined;
+    if (reopening) {
+      const stats = await fetchData(
+        `https://api.sleeper.com/stats/nfl/${input.nfl_season}/${input.week}?season_type=regular`,
+      );
+      reopeningSnapshot = conditionalReopening({
+        games: eventGames,
+        rosters: matchups as any,
+        projections,
+        stats,
+        history: historical,
+        scoring: league.scoring_settings,
+        teams,
+        fetched_at: new Date().toISOString(),
+        slots: league.roster_positions.filter(
+          (p) => !["BN", "IR", "TAXI"].includes(p),
+        ).length,
+      });
+      for (const p of pool) {
+        const observed = reopeningSnapshot.teams
+          .flatMap((t) => t.players)
+          .find((player) => player.id === p.id);
+        if (observed)
+          Object.assign(p, {
+            expected: observed.mean,
+            projection: observed.mean,
+            assessment_sd: observed.sd,
+          });
+      }
+      for (const model of models) {
+        const conditional = reopeningSnapshot.teams.find(
+          (t) => t.team_id === model.id,
+        )!;
+        const actual = (matchups as any[]).find(
+          (m) => m.roster_id === model.roster_id,
+        );
+        const actualLineup = (actual?.starters ?? []).flatMap((id: string) => {
+          const p = pool.find((p) => p.id === id);
+          return p ? [p] : [];
+        });
+        Object.assign(model, {
+          lineup: actualLineup,
+          mean: conditional.mean,
+          sd: conditional.sd,
+          unfilled_slots: conditional.reasons.length ? 1 : 0,
+          missing_slots: conditional.reasons,
+          season_mean:
+            model.season_mean + (conditional.mean - model.mean) * 0.4,
+        });
+      }
+    }
     const quotes: Market[] = [],
       generatedAt = new Date().toISOString();
     const assessmentRun = crypto.randomUUID();
     const rosteredIds = new Set(rosters.flatMap((r) => r.players));
     let archivedSpecials: ReturnType<typeof highLowProbabilities> | undefined;
     const archive = async () => {
+      if (reopeningSnapshot)
+        tagReopeningQuotes(quotes, reopeningSnapshot, eventGames);
+      if (input.reopening_id)
+        for (const q of quotes)
+          q.metadata.reopening_review_id = input.reopening_id;
       if (
         models.some((m) => ![m.mean, m.sd].every(Number.isFinite)) ||
         pool.some((p) => ![p.projection, p.expected].every(Number.isFinite))
@@ -458,8 +596,18 @@ export async function POST(request: Request) {
       for (const q of quotes) {
         if (q.kind === "player_points") {
           const player = pool.find((p) => p.id === q.metadata.player_id);
+          const kickoff = exactEventTime(
+            projections.find((p) => p.player_id === q.metadata.player_id)?.date,
+          );
           q.metadata = {
             ...q.metadata,
+            cutoff_at: kickoff,
+            ...(!kickoff
+              ? {
+                  lineup_locked: true,
+                  lock_reason: "Confirmed NFL kickoff unavailable.",
+                }
+              : {}),
             player_distribution: player
               ? {
                   mean: player.expected,
@@ -495,6 +643,7 @@ export async function POST(request: Request) {
               : 10,
         };
       }
+      if (input.reopening_preview) return;
       const saved = await userClient.rpc("save_model_forecast", {
         p_run: assessmentRun,
         p_league: input.league_id,
@@ -524,7 +673,8 @@ export async function POST(request: Request) {
         p_payload: {
           models,
           pool: pool.filter((p) => rosteredIds.has(p.id)),
-          algorithm_version: "weekly-lineup-v3",
+          algorithm_version: reopening ? REOPENING_MODEL : "weekly-lineup-v3",
+          reopening: reopeningSnapshot ?? null,
           assessment_version: "weekly-review-v1",
           simulation_seed: input.week,
           source_quality: {
@@ -780,6 +930,7 @@ export async function POST(request: Request) {
       await archive();
       return json({
         quotes,
+        reopening: reopeningSnapshot ?? null,
         warnings: [
           "10,000 simulations use week-specific NFL forecasts, best eligible lineups, fantasy schedule, records, points, historical volatility, and season-strength uncertainty. Future availability follows provider forecasts; injury recovery, trades and waivers remain uncertain.",
           ...(missingProjectionWeeks.length
@@ -942,12 +1093,9 @@ export async function POST(request: Request) {
                   player_id: player.id,
                   position: player.positions[0],
                   nfl_team: player.team,
-                  season_average:
-                    player.average == null
-                      ? undefined
-                      : roundHalf(player.average),
-                  projection: roundHalf(player.projection),
-                  expected_points: roundHalf(player.expected),
+                  season_average: player.average ?? undefined,
+                  projection: player.expected,
+                  expected_points: player.expected,
                   injury_status: player.injury,
                   game_info: player.game,
                 },
@@ -1201,6 +1349,7 @@ export async function POST(request: Request) {
     await archive();
     return json({
       week: input.week,
+      reopening: reopeningSnapshot ?? null,
       quotes,
       generated_at: generatedAt,
       projection_method: metadata.projection_method,

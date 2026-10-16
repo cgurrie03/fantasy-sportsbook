@@ -1,3 +1,4 @@
+import { exactEventTime } from "../../api/_lib/event-time";
 import { supabase } from "./supabase";
 
 export interface Board {
@@ -15,6 +16,8 @@ export interface Board {
   source_observed_at?: string | null;
   quote_valid_until?: string | null;
   suspension_reason?: string | null;
+  reopening_id?: string | null;
+  reopening_until?: string | null;
 }
 export interface Market {
   id: string;
@@ -72,11 +75,25 @@ export interface Market {
 }
 export function quoteUnavailable(m: Market) {
   return (
-    (m.metadata.cutoff_at &&
+    ((
+      m.metadata.reopening_events as
+        { state: string; starts_at: string }[] | undefined
+    )?.some(
+      (g) => g.state === "scheduled" && Date.parse(g.starts_at) <= Date.now(),
+    )
+      ? "NFL kickoff passed. Waiting for updated prices; affected bets are locked."
+      : "") ||
+    (exactEventTime(m.metadata.cutoff_at) &&
     Date.parse(String(m.metadata.cutoff_at)) <= Date.now()
       ? "This player market has reached kickoff."
       : "") ||
     m.suspension_reason ||
+    (m.metadata.reopening_locked
+      ? String(
+          m.metadata.reopening_lock_reason ??
+            "This bet is unavailable for the reopening window.",
+        )
+      : "") ||
     (m.market_state && m.market_state !== "open"
       ? `Market ${m.market_state}.`
       : "") ||
@@ -90,7 +107,12 @@ export function boardAvailable(board: Board | null, now: number) {
   return (
     !!board &&
     board.status === "published" &&
-    board.phase !== "live" &&
+    (board.phase !== "live" ||
+      Boolean(
+        board.reopening_id &&
+        board.reopening_until &&
+        now < Date.parse(board.reopening_until),
+      )) &&
     !board.suspension_reason &&
     now >= Date.parse(board.opens_at) &&
     now < Date.parse(board.closes_at) &&

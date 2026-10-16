@@ -1,3 +1,4 @@
+import { useRoute, navigate } from "../lib/navigation";
 import { csvCell } from "../lib/csv";
 import { ModelReview } from "./ModelReview";
 import "./ModelReview.css";
@@ -88,6 +89,7 @@ export function Reports({
   leagueId: string;
   previewData?: { weeks: ScoreWeek[]; forecasts?: Forecast[] };
 }) {
+  const [expectedCompleted, setExpectedCompleted] = useState(0);
   const [liveData, setLiveData] = useState(initialData);
   const data = previewData ? initialData : liveData;
   useEffect(() => setLiveData(initialData), [initialData]);
@@ -113,7 +115,17 @@ export function Reports({
     };
   }, [exportOpen]);
   const league = data.leagues.find((l) => l.id === leagueId)!;
-  const [report, setReport] = useState(0),
+  const route = useRoute();
+  const routeReport = Number(
+    new URLSearchParams(route.split("?")[1]).get("report") ?? 0,
+  );
+  const [report, setReport] = useState(
+      Number.isInteger(routeReport) &&
+        routeReport >= 0 &&
+        routeReport < titles.length
+        ? routeReport
+        : 0,
+    ),
     [week, setWeek] = useState(0),
     [team, setTeam] = useState(""),
     [season, setSeason] = useState(league.nfl_season),
@@ -137,6 +149,15 @@ export function Reports({
     data.teams.find((t) => t.id === id)?.sportsbook_owner_name ??
     data.memberships.find((m) => m.team_id === id)?.display_name ??
     id;
+  useEffect(() => {
+    if (
+      !previewData &&
+      Number.isInteger(routeReport) &&
+      routeReport >= 0 &&
+      routeReport < titles.length
+    )
+      setReport(routeReport);
+  }, [routeReport, previewData]);
   const load = useCallback(async () => {
     const responses = await Promise.all([
       readAllRows((from, to) =>
@@ -167,11 +188,17 @@ export function Reports({
         .eq("league_id", leagueId)
         .order("created_at", { ascending: false })
         .limit(100),
+      supabase!.rpc("sportsbook_period", { p_league: leagueId }),
     ]);
     for (const r of responses) if (r.error) throw r.error;
     setForecasts((responses[0].data ?? []) as Forecast[]);
     const cached = (responses[1].data ?? []) as ScoreWeek[];
     setWeeks(cached);
+    const expected = Math.min(
+      18,
+      Math.max(0, Number(responses[4].data?.[0]?.week ?? 1) - 1),
+    );
+    setExpectedCompleted(expected);
     setJobs((responses[2].data ?? []) as Log[]);
     setEmails((responses[3].data ?? []) as Log[]);
     setLiveData(await loadAccounts());
@@ -179,6 +206,9 @@ export function Reports({
       new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
     );
     return (
+      Array.from({ length: expected }, (_, i) => i + 1).some(
+        (w) => !cached.some((row) => row.market_week === w && row.final),
+      ) ||
       !cached.length ||
       cached.some(
         (w) => !w.final && Date.now() - Date.parse(w.fetched_at) > 300000,
@@ -1224,9 +1254,7 @@ export function Reports({
   const exportCsv = () => {
     setExportOpen(false);
     const csv = [columns, ...table]
-      .map((row) =>
-        row.map(csvCell).join(","),
-      )
+      .map((row) => row.map(csvCell).join(","))
       .join("\r\n");
     const url = URL.createObjectURL(
       new Blob([csv], { type: "text/csv;charset=utf-8" }),
@@ -1247,6 +1275,7 @@ export function Reports({
             onChange={(e) => {
               const next = Number(e.target.value);
               setReport(next);
+              if (!previewData) navigate(`/admin/reports?report=${next}`);
               if ([5, 6, 7, 9, 14, 15].includes(next)) setWeek(0);
               if ([12, 14, 15].includes(next)) setTeam("");
             }}
@@ -1362,7 +1391,9 @@ export function Reports({
         </p>
       )}
       <div ref={exportNode} className="report-export-surface">
-        {report === 13 && !previewData && <ModelReview key={leagueId} leagueId={leagueId} />}
+        {report === 13 && !previewData && (
+          <ModelReview key={leagueId} leagueId={leagueId} />
+        )}
         <div className="report-export-context">
           <strong>{league.name}</strong>
           <span>{season}</span>
@@ -1398,9 +1429,39 @@ export function Reports({
         <article className="admin-panel">
           <div className="report-heading">
             <h2>{titles[report]}</h2>
-            <small>Updated {asOf || "—"} · Eastern</small>
+            <small>Page checked {asOf || "—"} · Eastern</small>
           </div>
           <p className="report-description">{descriptions[report]}</p>
+          <section className="report-note" aria-label="Report source freshness">
+            <strong>
+              Source coverage:{" "}
+              {weeks.filter((w) => w.final).length
+                ? `through completed Week ${Math.max(...weeks.filter((w) => w.final).map((w) => w.market_week))}`
+                : "no completed weeks saved"}
+            </strong>
+            <p>
+              Last successful results import:{" "}
+              {weeks.length
+                ? new Date(
+                    Math.max(...weeks.map((w) => Date.parse(w.fetched_at))),
+                  ).toLocaleString("en-US", { timeZone: "America/New_York" }) +
+                  " Eastern"
+                : "Not imported yet"}
+              . Source age is separate from the page check time.
+            </p>
+            {Array.from({ length: expectedCompleted }, (_, i) => i + 1)
+              .filter(
+                (w) => !weeks.some((row) => row.market_week === w && row.final),
+              )
+              .map((w) => (
+                <p key={w}>
+                  Week {w}:{" "}
+                  {weeks.some((row) => row.market_week === w)
+                    ? "Waiting for confirmed final source results."
+                    : "No saved results yet. Refresh results to import this week."}
+                </p>
+              ))}
+          </section>
           {report === 13 && (
             <p className="report-note report-model-explainer">
               This report needs an original archived opening forecast and a

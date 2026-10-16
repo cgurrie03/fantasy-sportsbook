@@ -1,3 +1,4 @@
+import { ticketCategory } from "./ticket-labels";
 import type { AccountData } from "./accounts";
 
 export function buildBalanceHistory(data: AccountData, teamId: string) {
@@ -10,12 +11,10 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
       )
       .map((t) => ({
         id: "wager-" + t.id,
+        ticketId: t.id,
         title: "Ticket Placed",
         reason:
-          "Week " +
-          t.market_week +
-          " · " +
-          (t.legacy_ticket_id ?? t.id.slice(0, 8)),
+          ticketCategory(t) + " · " + (t.legacy_ticket_id ?? t.id.slice(0, 8)),
         recordedBalance: null as number | null,
         amount: -Number(t.stake),
         date: t.placed_at,
@@ -27,6 +26,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
       .filter((e) => e.team_id === teamId && e.kind !== "opening_balance")
       .map((e) => ({
         id: e.id,
+        ticketId: null,
         title: "Balance Adjustment",
         reason: e.reason,
         recordedBalance: Number(e.new_balance),
@@ -42,6 +42,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
         const ticket = tickets.find((t) => t.id === e.ticket_id);
         return {
           id: e.id,
+          ticketId: ticket?.id ?? null,
           title:
             e.kind === "void_refund"
               ? "Ticket Voided · Refund"
@@ -53,8 +54,7 @@ export function buildBalanceHistory(data: AccountData, teamId: string) {
                     ? "Wager Returned"
                     : "Ticket Won",
           reason: ticket
-            ? "Week " +
-              ticket.market_week +
+            ? ticketCategory(ticket) +
               " · " +
               (ticket.legacy_ticket_id ?? ticket.id.slice(0, 8))
             : e.reason,

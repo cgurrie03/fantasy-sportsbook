@@ -9,6 +9,7 @@
   margin: 20px 0;
 }
 .sportsbook-tabs button,
+.sportsbook-tabs a,
 .market-categories button {
   border: 1px solid transparent;
   background: transparent;
@@ -2095,3 +2096,232 @@
 .season-future-card > header > div { flex: 1; min-width: 0; }
 .market-quote .quote-price { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
 .line-movement > span { font-size: inherit; }
+
+/* Audit corrections preserve the existing surfaces and gold/navy palette. */
+.sportsbook-tabs a {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+}
+.market-quote:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+.market-quote .quote-price {
+  font-size: 13px;
+  font-weight: 700;
+}
+.market-quote del {
+  font-size: 11px;
+}
+.market-availability,
+.duel-unavailable {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface-2);
+  border-left: 3px solid var(--gold);
+}
+.duel-unavailable {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.ticket-status-tabs .filter-toggle {
+  width: auto;
+  min-width: 78px;
+}
+:root[data-theme="light"] .ticket-status-tabs button[aria-pressed="true"],
+:root[data-theme="light"] .filter-toggle[aria-expanded="true"] {
+  background: #896000;
+  color: #fff;
+  border-color: #896000;
+}
+.ticket-search {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0;
+}
+.ticket-search label {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.ticket-search input {
+  width: 100%;
+  min-height: 42px;
+}
+.ticket-search button {
+  min-height: 42px;
+}
+.history-ticket-wrap {
+  position: relative;
+}
+.history-ticket-wrap > .void-ticket-icon {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  z-index: 1;
+}
+.history-ticket-wrap:has(> .void-ticket-icon) .ticket-labels {
+  padding-right: 38px;
+}
+.ticket-selection-preview {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.ticket-profit {
+  font-size: 13px;
+  font-weight: 600;
+}
+.personal .ticket-owner {
+  display: none;
+}
+.compact .history-ticket:not([open]) > summary {
+  padding: 12px 16px;
+}
+.compact .history-ticket:not([open]) .ticket-selection-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.standings-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.accessible-standings {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  table-layout: fixed;
+}
+.accessible-standings th,
+.accessible-standings td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.accessible-standings th:first-child {
+  width: 40%;
+}
+.accessible-standings caption {
+  text-align: left;
+  color: var(--muted);
+  padding: 10px 0;
+  font-size: 13px;
+}
+.standing-expand {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+}
+.standing-expand small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.standing-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.standing-metrics dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.standing-metrics dd {
+  margin: 4px 0;
+  font-weight: 700;
+}
+.global-nav {
+  margin-inline: 0;
+}
+@media (max-width: 600px) {
+  .ticket-status-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ticket-status-tabs .filter-toggle {
+    grid-column: 1 / -1;
+  }
+  .ticket-search {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .standing-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .accessible-standings {
+    font-size: 12px;
+  }
+  .accessible-standings th,
+  .accessible-standings td {
+    padding: 10px 4px;
+  }
+}
+
+.reopening-review,
+.readiness-panel {
+  min-width: 0;
+  line-height: 1.6;
+}
+.reopening-review > label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.reopening-review > button {
+  margin: 0 10px 16px 0;
+  min-height: 44px;
+}
+.reopening-review .email-preview {
+  width: 100%;
+  height: 680px;
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 12px;
+}
+.match-current-score {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+}
+.match-score-notice {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.match-score-notice > span {
+  display: block;
+}
+.readiness-panel table {
+  width: 100%;
+  text-align: left;
+}
+.readiness-panel th,
+.readiness-panel td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.profile-menu a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 12px 16px;
+}
+.profile-menu a:hover {
+  background: var(--surface-2);
+}
+
+.match-score-notice {
+  padding: 0 16px;
+}

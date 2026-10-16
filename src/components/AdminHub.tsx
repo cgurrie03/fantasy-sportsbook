@@ -1,3 +1,6 @@
+import { ReadinessPanel } from "./ReadinessPanel";
+import { ReopeningReview } from "./ReopeningReview";
+import { useRoute, navigate } from "../lib/navigation";
 import { lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import type { AccountData } from "../lib/accounts";
@@ -14,6 +17,21 @@ const Reports = lazy(() =>
 import "./AdminWorkspace.css";
 import { WeeklySchedule } from "./WeeklySchedule";
 const categories = [
+  {
+    id: "readiness",
+    group: "Operations",
+    title: "Board Readiness",
+    description: "Source health, category coverage, and locked selections.",
+    status: "Review Health",
+  },
+  {
+    id: "reopening",
+    group: "Markets",
+    title: "Review Reopening",
+    description:
+      "Review all updated lines, a one-time cutoff, and the announcement before publishing.",
+    status: "Review First",
+  },
   {
     id: "users",
     group: "League Management",
@@ -93,9 +111,18 @@ export function AdminHub({
   reviewMode: boolean;
   refresh?: () => Promise<void>;
 }) {
-  const [selected, setSelected] = useState(
+  const route = useRoute();
+  const [localSelected, setLocalSelected] = useState(
     initialCategory === "emails" ? "schedule" : (initialCategory ?? ""),
   );
+  const selected = reviewMode
+    ? localSelected
+    : (route.split("?")[0].split("/")[2] ?? "");
+  const setSelected = (value: string) =>
+    reviewMode
+      ? setLocalSelected(value)
+      : navigate("/admin" + (value ? "/" + value : ""));
+
   const category = categories.find((c) => c.id === selected);
   const tickets = (data.tickets ?? []).filter((t) => t.league_id === leagueId);
   const owner = (id: string) =>
@@ -107,9 +134,16 @@ export function AdminHub({
       <Chevron left /> League Admin
     </a>
   ) : (
-    <button className="text-button back-link" onClick={() => setSelected("")}>
-      <Chevron left /> League Admin
-    </button>
+    <nav aria-label="Breadcrumb">
+      <a className="back-link" href="#/home">
+        Sportsbook
+      </a>{" "}
+      /{" "}
+      <a className="back-link" href="#/admin">
+        League Admin
+      </a>{" "}
+      / <span>{category?.title}</span>
+    </nav>
   );
   return (
     <main className="admin-hub">
@@ -124,7 +158,15 @@ export function AdminHub({
                 <h1>{category.title}</h1>
                 <p>{category.description}</p>
               </div>
-              {selected === "tickets" ? (
+              {selected === "readiness" ? (
+                <ReadinessPanel leagueId={leagueId} review={reviewMode} />
+              ) : selected === "reopening" ? (
+                <ReopeningReview
+                  data={data}
+                  leagueId={leagueId}
+                  readOnly={reviewMode}
+                />
+              ) : selected === "tickets" ? (
                 <TicketHistory
                   data={data}
                   tickets={tickets}
@@ -241,9 +283,9 @@ export function AdminHub({
                           {content}
                         </a>
                       ) : (
-                        <button key={c.id} onClick={() => setSelected(c.id)}>
+                        <a key={c.id} href={`#/admin/${c.id}`}>
                           {content}
-                        </button>
+                        </a>
                       );
                     })}
                 </div>

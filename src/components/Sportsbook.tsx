@@ -1,3 +1,8 @@
+import { MatchupScore, MatchupScoresNotice } from "./MatchupScores";
+import { useTicketProgress } from "./TicketProgress";
+import { LeagueStandings } from "./LeagueStandings";
+import { useRoute, navigate, tabRoutes, routeTab } from "../lib/navigation";
+import { displayProjection, formatGameInfo } from "../../api/_lib/event-time";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountData, Membership, Team } from "../lib/accounts";
 import { errorMessage, money } from "../lib/accounts";
@@ -62,9 +67,12 @@ export interface Standing {
   current_balance: number;
 }
 export interface BoardReview {
+  embedded?: boolean;
+  reviewLabel?: string;
   teaserPrices?: TeaserPreviewPrice[];
   starterActivity?: StarterSnapshot;
   simulateMovement?: boolean;
+  scoreObservation?: any;
   board: Board;
   markets: Market[];
   standings: Standing[];
@@ -82,7 +90,9 @@ export function Sportsbook({
   refresh: () => Promise<void>;
   review?: BoardReview;
 }) {
-  const [tab, setTab] = useState("Home"),
+  const Container = review?.embedded ? "section" : "main";
+  const route = useRoute();
+  const [localTab, setLocalTab] = useState("Home"),
     [futureBoard, setFutureBoard] = useState<Board | null>(
       review?.futureBoard ?? null,
     ),
@@ -103,6 +113,23 @@ export function Sportsbook({
     [stake, setStake] = useState(""),
     [busy, setBusy] = useState(false),
     [clock, setClock] = useState(() => Date.now());
+  const tab = review ? localTab : routeTab(route);
+  const setTab = (next: string) =>
+    review ? setLocalTab(next) : navigate(tabRoutes[next] ?? "/home");
+  const currentSeason = data.leagues.find(
+    (l) => l.id === member.league_id,
+  )?.nfl_season;
+  const scoreObservations = useTicketProgress(
+    member.league_id,
+    [],
+    currentSeason && week ? { season: currentSeason, week } : undefined,
+    !review,
+  );
+  const scoreObservation =
+    review?.scoreObservation ??
+    scoreObservations.rows.find(
+      (r) => r.nfl_season === currentSeason && r.market_week === week,
+    );
   const quoteLoad = useRef<Promise<void> | null>(null);
   const quoteFailures = useRef(0);
   const [quoteUpdatedAt, setQuoteUpdatedAt] = useState<number | null>(null);
@@ -140,7 +167,9 @@ export function Sportsbook({
           if (active) setOffers(o);
         })
         .catch(() => {})
-        .finally(() => { loadingOffers = false; });
+        .finally(() => {
+          loadingOffers = false;
+        });
     };
     reload();
     const timer = setInterval(reload, 60000);
@@ -227,6 +256,14 @@ export function Sportsbook({
   ]
     .filter((id): id is string => !!id)
     .map((id) => markets.filter((m) => m.matchup_key === id));
+  const routeMatchup = new URLSearchParams(route.split("?")[1]).get("matchup");
+  useEffect(() => {
+    if (routeMatchup && category === "Matchups" && tab === "Home") {
+      const target = document.getElementById(`matchup-${routeMatchup}`);
+      target?.scrollIntoView({ block: "center" });
+      target?.focus({ preventScroll: true });
+    }
+  }, [routeMatchup, category, tab, loading, markets.length]);
   const record = (t: Team | undefined) =>
     t ? `${t.wins}–${t.losses}${t.ties ? "–" + t.ties : ""}` : "—";
   groups.splice(0, groups.length, ...orderMatchups(groups, data.teams));
@@ -283,31 +320,45 @@ export function Sportsbook({
     setRefreshingQuotes(true);
     let failed = false;
     const pending = Promise.allSettled([
-      loadMarketBoard(member.league_id).then((r) => {
-        setBoard(r.board);
-        setMarkets(r.markets);
-        setWeek(r.week);
-        setQuoteUpdatedAt(Date.now());
-        setError("");
-      }).catch((e) => {
-        failed = true;
-        console.error("Weekly quotes could not refresh", e);
-        setError("Weekly prices could not refresh. Retry to check the latest lines.");
-      }).finally(() => setLoading(false)),
-      loadFuturesBoard(member.league_id).then((f) => {
-        setFutureBoard(f.board);
-        setFutureMarkets(f.markets);
-        setFuturesError("");
-      }).catch((e) => {
-        failed = true;
-        console.error("Futures quotes could not refresh", e);
-        setFuturesError("Season futures could not refresh. Please retry.");
-      }),
+      loadMarketBoard(member.league_id)
+        .then((r) => {
+          setBoard(r.board);
+          setMarkets(r.markets);
+          setWeek(r.week);
+          setQuoteUpdatedAt(Date.now());
+          setError("");
+        })
+        .catch((e) => {
+          failed = true;
+          console.error("Weekly quotes could not refresh", e);
+          setError(
+            "Weekly prices could not refresh. Retry to check the latest lines.",
+          );
+        })
+        .finally(() => setLoading(false)),
+      loadFuturesBoard(member.league_id)
+        .then((f) => {
+          setFutureBoard(f.board);
+          setFutureMarkets(f.markets);
+          setFuturesError("");
+        })
+        .catch((e) => {
+          failed = true;
+          console.error("Futures quotes could not refresh", e);
+          setFuturesError("Season futures could not refresh. Please retry.");
+        }),
     ]).then(() => {
-      quoteFailures.current = failed ? Math.min(quoteFailures.current + 1, 3) : 0;
+      quoteFailures.current = failed
+        ? Math.min(quoteFailures.current + 1, 3)
+        : 0;
     });
     quoteLoad.current = pending;
-    try { await pending; } finally { quoteLoad.current = null; setRefreshingQuotes(false); }
+    try {
+      await pending;
+    } finally {
+      quoteLoad.current = null;
+      setRefreshingQuotes(false);
+    }
   }, [member.league_id]);
   useEffect(() => {
     if (review) return;
@@ -318,7 +369,9 @@ export function Sportsbook({
     if (review) return;
     let active = true;
     setStandingsLoading(true);
-    void Promise.resolve(supabase?.rpc("league_leaderboard", { p_league: member.league_id }))
+    void Promise.resolve(
+      supabase?.rpc("league_leaderboard", { p_league: member.league_id }),
+    )
       .then((s) => {
         if (!active) return;
         if (!s) throw new Error("Standings service unavailable");
@@ -486,7 +539,10 @@ export function Sportsbook({
             : Number(m.line ?? m.odds)
         }
         scope={`${m.board_id}:${week}`}
-        live={(isFuture(m) ? futureBoard : board)?.phase === "live"}
+        live={
+          (isFuture(m) ? futureBoard : board)?.phase === "live" &&
+          !(isFuture(m) ? futureBoard : board)?.reopening_id
+        }
       />
     );
     return (
@@ -494,13 +550,7 @@ export function Sportsbook({
         type="button"
         className={`market-quote${selected ? " selected" : ""}${m.boost_pct ? " boosted" : ""}`}
         title={quoteUnavailable(m) || undefined}
-        aria-label={
-          m.metadata.lineup_locked
-            ? `${m.label}: Locked — incomplete projected lineup`
-            : short !== undefined
-              ? `${m.label}: ${formatOdds(m.odds)}`
-              : undefined
-        }
+        aria-label={`${m.label}: ${formatOdds(americanPrice(selectionPrice(m)))}${m.boost_pct ? ` (boosted; original ${formatOdds(m.odds)})` : ""}${quoteUnavailable(m) ? `. Unavailable: ${quoteUnavailable(m)}` : ""}`}
         aria-pressed={selected}
         disabled={
           Boolean(quoteUnavailable(m)) ||
@@ -532,7 +582,7 @@ export function Sportsbook({
             </strong>
           )
         )}
-        {!quoteUnavailable(m) && showsPrice && (
+        {
           <span className="quote-price">
             {m.boost_pct > 0 && m.kind === "moneyline" && (
               <del>{formatOdds(m.odds)}</del>
@@ -540,7 +590,7 @@ export function Sportsbook({
             {formatOdds(americanPrice(selectionPrice(m)))}
             {movement}
           </span>
-        )}
+        }
       </button>
     );
   }
@@ -568,23 +618,38 @@ export function Sportsbook({
   const selectionGroups = [
     ...new Set(picks.map((p) => p.matchup_key ?? p.subject)),
   ];
-  const rawSuspensionReason = (category === "Season Futures" ? futureBoard : board)
-    ?.suspension_reason;
-  const suspensionReason = rawSuspensionReason && /timeout|failed to fetch|gateway|canceling statement|ECONN|fetch failed/i.test(rawSuspensionReason)
-    ? "Prices are temporarily unavailable. Existing lines remain visible while a verified refresh is pending."
-    : rawSuspensionReason;
+  const rawSuspensionReason = (
+    category === "Season Futures" ? futureBoard : board
+  )?.suspension_reason;
+  const suspensionReason =
+    rawSuspensionReason &&
+    /timeout|failed to fetch|gateway|canceling statement|ECONN|fetch failed/i.test(
+      rawSuspensionReason,
+    )
+      ? "Prices are temporarily unavailable. Existing lines remain visible while a verified refresh is pending."
+      : rawSuspensionReason;
   return (
-    <main className="sportsbook">
+    <Container className="sportsbook">
       <nav className="sportsbook-tabs" aria-label="Sportsbook Navigation">
-        {["Home", "My Bets", "All Bets", "Leaderboard"].map((t) => (
-          <button
-            key={t}
-            aria-current={tab === t ? "page" : undefined}
-            onClick={() => setTab(t)}
-          >
-            {t}
-          </button>
-        ))}
+        {["Home", "My Bets", "All Bets", "Leaderboard"].map((t) =>
+          review ? (
+            <button
+              key={t}
+              aria-current={tab === t ? "page" : undefined}
+              onClick={() => setTab(t)}
+            >
+              {t}
+            </button>
+          ) : (
+            <a
+              key={t}
+              href={`#${tabRoutes[t]}`}
+              aria-current={tab === t ? "page" : undefined}
+            >
+              {t}
+            </a>
+          ),
+        )}
       </nav>
       {notice && (
         <p className="feedback" role="status">
@@ -603,8 +668,8 @@ export function Sportsbook({
           ))}
       {review && (
         <p className="review-notice">
-          Design Review · Illustrative markets. Betting and email delivery are
-          disabled.
+          {review.reviewLabel ??
+            "Design Review · Illustrative markets. Betting and email delivery are disabled."}
           {review.simulateMovement && (
             <button
               type="button"
@@ -666,7 +731,11 @@ export function Sportsbook({
                       ? "Season Futures Open"
                       : "Season Futures Closed"}
                   </strong>
-                  <span>Available throughout the week unless closed.</span>
+                  <span>
+                    {futureBoard?.reopening_until
+                      ? `Reopening closes ${new Date(futureBoard.reopening_until).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", hour: "numeric", minute: "2-digit" })} Eastern`
+                      : "Available throughout the week unless closed."}
+                  </span>
                 </>
               ) : board ? (
                 <>
@@ -674,7 +743,9 @@ export function Sportsbook({
                     {board.status === "draft"
                       ? "Draft · Admin Preview"
                       : accepting
-                        ? "Betting Open"
+                        ? board.reopening_id
+                          ? "Reopened"
+                          : "Betting Open"
                         : "Betting Closed"}
                   </strong>
                   <span className="board-dates">
@@ -703,7 +774,13 @@ export function Sportsbook({
                   </span>
                 </>
               ) : (
-                <strong>{loading ? "Loading weekly markets…" : error ? "Markets temporarily unavailable" : "Markets scheduled"}</strong>
+                <strong>
+                  {loading
+                    ? "Loading weekly markets…"
+                    : error
+                      ? "Markets temporarily unavailable"
+                      : "Markets scheduled"}
+                </strong>
               )}
             </div>
           </div>
@@ -724,6 +801,37 @@ export function Sportsbook({
               </button>
             ))}
           </nav>
+          {category === "Matchups" &&
+            groups.some((g) =>
+              [g[0].home_team_id, g[0].away_team_id].includes(member.team_id),
+            ) && (
+              <button
+                className="text-button my-matchup-shortcut"
+                onClick={() => {
+                  const g = groups.find((g) =>
+                    [g[0].home_team_id, g[0].away_team_id].includes(
+                      member.team_id,
+                    ),
+                  );
+                  if (!review && g)
+                    navigate(
+                      `/home?matchup=${encodeURIComponent(g[0].matchup_key!)}`,
+                    );
+                  document
+                    .getElementById(`matchup-${g?.[0].matchup_key}`)
+                    ?.scrollIntoView({ behavior: "auto", block: "center" });
+                }}
+              >
+                My matchup ↓
+              </button>
+            )}
+          {["Player Points", "Head to Head"].includes(category) && (
+            <p className="history-note">
+              Model projections use one decimal place. Betting lines may be
+              rounded separately; the selection shows the exact target and
+              price.
+            </p>
+          )}
           {category === "Matchups" && (
             <OfferCards
               offers={offers.filter((o) => clock < Date.parse(o.expires_at))}
@@ -734,8 +842,25 @@ export function Sportsbook({
           {(category === "Season Futures" ? futuresError : error) && (
             <p role="status" className="feedback error">
               {category === "Season Futures" ? futuresError : error}
-              {quoteUpdatedAt && <> Showing the last available data, checked {new Date(quoteUpdatedAt).toLocaleTimeString("en-US", {timeZone:"America/New_York",hour:"numeric",minute:"2-digit"})} Eastern.</>}
-              <button className="text-button" disabled={refreshingQuotes} onClick={() => void reloadQuotes()}>Retry prices</button>
+              {quoteUpdatedAt && (
+                <>
+                  {" "}
+                  Showing the last available data, checked{" "}
+                  {new Date(quoteUpdatedAt).toLocaleTimeString("en-US", {
+                    timeZone: "America/New_York",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}{" "}
+                  Eastern.
+                </>
+              )}
+              <button
+                className="text-button"
+                disabled={refreshingQuotes}
+                onClick={() => void reloadQuotes()}
+              >
+                Retry prices
+              </button>
             </p>
           )}
           {loading && !markets.length && category !== "Season Futures" ? (
@@ -762,6 +887,8 @@ export function Sportsbook({
                       a = team(first.away_team_id);
                     return (
                       <article
+                        id={`matchup-${first.matchup_key}`}
+                        tabIndex={-1}
                         className={`matchup-card${first.featured ? " featured-match" : ""}`}
                         key={first.matchup_key}
                       >
@@ -789,14 +916,32 @@ export function Sportsbook({
                             <span>25% PROFIT BOOST</span>
                           </div>
                         )}
-                        <StarterActivity
-                          rosterIds={[h?.roster_id, a?.roster_id]}
-                          {...starterActivity}
-                          now={
-                            review?.starterActivity
-                              ? Date.parse(review.starterActivity.observed_at)
-                              : clock
-                          }
+                        {review && !review.starterActivity ? (
+                          <span className="matchup-status-unavailable">
+                            Captured game state; see source checks above.
+                          </span>
+                        ) : (
+                          <StarterActivity
+                            rosterIds={[h?.roster_id, a?.roster_id]}
+                            {...starterActivity}
+                            now={
+                              review?.starterActivity
+                                ? Date.parse(review.starterActivity.observed_at)
+                                : clock
+                            }
+                          />
+                        )}
+                        {g.some((m) => m.metadata.lineup_locked) && (
+                          <p className="market-availability">
+                            Waiting for a complete eligible lineup. Affected
+                            bets are locked.
+                          </p>
+                        )}
+                        <MatchupScoresNotice
+                          row={scoreObservation}
+                          loading={scoreObservations.loading}
+                          error={scoreObservations.error}
+                          now={clock}
                         />
                         <div className="match-grid">
                           <span className="market-column-spacer" />
@@ -818,11 +963,17 @@ export function Sportsbook({
                                   <strong>{t?.team_name}</strong>
                                   <span>{t ? owner(t.id) : ""}</span>
                                   <span>{record(t)}</span>
+                                  <MatchupScore
+                                    row={scoreObservation}
+                                    teamId={t?.id}
+                                  />
                                   <span>
-                                    Projected:{" "}
-                                    {i === 0
-                                      ? first.home_projection
-                                      : first.away_projection}
+                                    Model projection:{" "}
+                                    {displayProjection(
+                                      i === 0
+                                        ? first.home_projection
+                                        : first.away_projection,
+                                    )}
                                   </span>
                                 </div>
                               </div>
@@ -977,7 +1128,7 @@ export function Sportsbook({
                                   {owner(id ?? "")} · {record(t)}
                                 </span>
                                 <small>
-                                  Projected:{" "}
+                                  Model projection:{" "}
                                   {Number(
                                     index === 0
                                       ? playerMatch.home_projection
@@ -1020,13 +1171,30 @@ export function Sportsbook({
                               {m.metadata.nfl_team}
                             </h2>
                             <p>
-                              Season Average: {m.metadata.season_average ?? "—"}{" "}
-                              • Projected: {m.metadata.projection ?? "—"}
+                              Season average:{" "}
+                              {displayProjection(m.metadata.season_average)} ·
+                              Model projection:{" "}
+                              {displayProjection(
+                                m.metadata.expected_points ??
+                                  m.metadata.projection,
+                              )}
                             </p>
+                            {quoteUnavailable(m) && (
+                              <p className="market-availability">
+                                Unavailable: {quoteUnavailable(m)}
+                              </p>
+                            )}
                             {m.metadata.game_info &&
                               !m.metadata.game_info.includes(
                                 "Sleeper projection",
-                              ) && <p>{m.metadata.game_info}</p>}
+                              ) && (
+                                <p>
+                                  {formatGameInfo(
+                                    m.metadata.game_info,
+                                    m.metadata.cutoff_at,
+                                  )}
+                                </p>
+                              )}
                             <div>
                               {pair.map((p) => (
                                 <span key={p.id}>
@@ -1182,21 +1350,31 @@ export function Sportsbook({
         <>
           <h1>{tab}</h1>
           {data.history_loading && <p role="status">Loading ticket history…</p>}
-          {data.history_error && <p role="status">{data.history_error} <button className="text-button" onClick={() => void refresh()}>Retry history</button></p>}
-          {(!(data.history_loading || data.history_error) || !!data.tickets?.length) && (
-          <TicketHistory
-            data={data}
-            tickets={(data.tickets ?? []).filter(
-              (t) =>
-                t.league_id === member.league_id &&
-                (!member.team_id ||
-                  tab === "All Bets" ||
-                  t.team_id === member.team_id),
-            )}
-            owner={owner}
-            canVoid={member.role === "admin" && !review}
-            onChanged={refresh}
-          />
+          {data.history_error && (
+            <p role="status">
+              {data.history_error}{" "}
+              <button className="text-button" onClick={() => void refresh()}>
+                Retry history
+              </button>
+            </p>
+          )}
+          {(!(data.history_loading || data.history_error) ||
+            !!data.tickets?.length) && (
+            <TicketHistory
+              data={data}
+              tickets={(data.tickets ?? []).filter(
+                (t) =>
+                  t.league_id === member.league_id &&
+                  (!member.team_id ||
+                    tab === "All Bets" ||
+                    t.team_id === member.team_id),
+              )}
+              owner={owner}
+              personal={tab === "My Bets"}
+              readOnly={!!review}
+              canVoid={member.role === "admin" && !review}
+              onChanged={refresh}
+            />
           )}
         </>
       )}
@@ -1206,67 +1384,21 @@ export function Sportsbook({
           <p className="muted">
             <em>Ranked by Net Profit, Balance, then Bets Placed</em>
           </p>
-          <div className="standings-table">
-            {standingsLoading && !standings.length && <p role="status">Loading standings…</p>}
-            {standingsError && <p role="status">{standingsError}<button className="text-button" onClick={() => void refresh()}>Retry standings</button></p>}
-            {!standingsLoading && !standingsError && !standings.length && <p>No standings are available yet.</p>}
-            <div className="standings-head">
-              <span>Member</span>
-              <span>Net Profit</span>
-              <span>Balance</span>
-              <span>Bets</span>
-            </div>
-            {standings.map((s, i) => (
-              <details className="standing" key={s.team_id}>
-                <summary>
-                  <span className="standing-member">
-                    <span className="standing-rank">{i + 1}</span>
-                    <span>
-                      <strong>{owner(s.team_id)}</strong>
-                      <small>{team(s.team_id)?.team_name}</small>
-                    </span>
-                    <Chevron />
-                  </span>
-                  <strong
-                    className={
-                      Number(s.net_profit) >= 0
-                        ? "profit-positive"
-                        : "profit-negative"
-                    }
-                  >
-                    {money(s.net_profit)}
-                  </strong>
-                  <strong>{money(s.current_balance)}</strong>
-                  <strong>{s.bets_placed}</strong>
-                </summary>
-                <div className="standing-extras">
-                  {[
-                    [
-                      "Won / Lost / Push",
-                      `${s.bets_won} / ${s.bets_lost} / ${s.bets_push}`,
-                    ],
-                    ["Win Rate", `${Number(s.win_percentage).toFixed(1)}%`],
-                    ["ROI", `${Number(s.roi).toFixed(1)}%`],
-                    ["Wagered", money(s.total_wagered)],
-                    ["Total Payout", money(s.total_payout)],
-                    ["Biggest Win", money(s.biggest_payout)],
-                    ["Longest Parlay", `${s.biggest_parlay_legs} Picks`],
-                    [
-                      "Biggest Odds",
-                      s.biggest_parlay_odds
-                        ? formatOdds(s.biggest_parlay_odds)
-                        : "—",
-                    ],
-                  ].map(([label, value]) => (
-                    <span key={label}>
-                      <small>{label}</small>
-                      <strong>{value}</strong>
-                    </span>
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
+          {standingsLoading && !standings.length && (
+            <p role="status">Loading standings...</p>
+          )}
+          {standingsError && (
+            <p role="status">
+              {standingsError}
+              <button className="text-button" onClick={() => void refresh()}>
+                Retry standings
+              </button>
+            </p>
+          )}
+          {!standingsLoading && !standingsError && !standings.length && (
+            <p>No standings are available yet.</p>
+          )}
+          <LeagueStandings data={data} standings={standings} owner={owner} />
         </>
       )}
       {tab === "Season Futures" && (
@@ -1696,6 +1828,6 @@ export function Sportsbook({
           </button>
         </div>
       </dialog>
-    </main>
+    </Container>
   );
 }

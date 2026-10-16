@@ -1,3 +1,8 @@
+import {
+  ticketCategory,
+  ticketTypeLabel,
+  ticketReturns,
+} from "./ticket-labels";
 import type { AccountData, Ticket } from "./accounts";
 import { money } from "./accounts";
 
@@ -20,10 +25,10 @@ export function ticketReceipt(
       : String(ticket.accepted_combined_odds);
   const payoutLabel =
     ticket.status === "OPEN"
-      ? "Potential payout"
+      ? "Potential total return"
       : ticket.status === "VOIDED"
         ? "Refund"
-        : "Payout";
+        : "Total return";
   const payout = money(
     ticket.status === "OPEN"
       ? (ticket.accepted_potential_payout ?? 0)
@@ -37,12 +42,9 @@ export function ticketReceipt(
     hour: "numeric",
     minute: "2-digit",
   });
-  const label =
-    ticket.ticket_type === "future"
-      ? "Season Futures"
-      : `Week ${ticket.market_week}`;
+  const label = ticketCategory(ticket);
   const id = ticket.legacy_ticket_id ?? ticket.id.slice(0, 8);
-  const title = `${legs.length === 1 ? "Single Bet" : `${legs.length} Pick Parlay`} · ${label}`;
+  const title = `${ticketTypeLabel(ticket, legs.length)} / ${label}`;
   const promotion = data.ticketPromotions?.find(
     (p) =>
       p.ticket_id === ticket.id &&
@@ -63,7 +65,7 @@ export function ticketReceipt(
     `Wager ${money(ticket.stake)} · Odds ${price}`,
     `${payoutLabel} ${payout}`,
     ticket.status !== "OPEN"
-      ? `Net profit ${money(Number(ticket.actual_payout) - Number(ticket.stake))}`
+      ? `Net profit ${money(ticketReturns(ticket).profit)}`
       : "",
     `${placed} ET · Bet ${id}`,
   ]

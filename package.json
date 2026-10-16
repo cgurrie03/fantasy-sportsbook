@@ -29,7 +29,9 @@
     "test:isolation": "node scripts/test-league-isolation.mjs",
     "test:ux": "node scripts/test-ux.cjs",
     "test:promos": "node scripts/test-promotions.mjs",
-    "test:promos:ux": "node scripts/test-promos-ux.cjs"
+    "test:promos:ux": "node scripts/test-promos-ux.cjs",
+    "test:reopening": "node scripts/test-reopening.mjs",
+    "test:audit": "node scripts/test-audit-values.mjs && node scripts/test-audit-ux.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
