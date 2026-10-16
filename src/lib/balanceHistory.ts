@@ -1,4 +1,4 @@
-import { ticketCategory } from "./ticket-labels";
+import { ticketCategory } from "./ticket-labels.ts";
 import type { AccountData } from "./accounts";
 
 export function buildBalanceHistory(data: AccountData, teamId: string) {
