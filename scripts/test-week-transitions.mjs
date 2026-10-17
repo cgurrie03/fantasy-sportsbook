@@ -311,6 +311,16 @@ try {
     1,
     "Repeated recovery observations coalesce",
   );
+  assert.equal(
+    (
+      await rows(
+        "select next_due_at>now() as future from line_refresh_runtime where league_id=$1",
+        [league],
+      )
+    )[0].future,
+    true,
+    "An in-flight recovery keeps its next cadence without a redundant second cycle",
+  );
   await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
   const snapshot = (
     await rows("select sportsbook_current_snapshot($1) s", [league])
