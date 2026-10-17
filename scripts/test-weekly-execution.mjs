@@ -169,14 +169,34 @@ try {
   for (const file of fs.readdirSync("supabase/migrations").sort())
     await db.exec(fs.readFileSync(`supabase/migrations/${file}`, "utf8"));
   const rows = async (sql, args = []) => (await db.query(sql, args)).rows;
-  const scheduler = (await rows("select pg_get_functiondef('public.claim_automation_job()'::regprocedure) as definition"))[0].definition;
-  assert.match(scheduler, /\('monday_watch','17:00'::time,1\)/);
-  assert.match(scheduler, /America\/New_York/);
+  const scheduler = (
+    await rows(
+      "select pg_get_functiondef('public.claim_automation_job()'::regprocedure) as definition",
+    )
+  )[0].definition;
+  const planner = (
+    await rows(
+      "select pg_get_functiondef('sportsbook_private.enqueue_weekly_jobs(timestamptz)'::regprocedure) as definition",
+    )
+  )[0].definition;
+  assert.match(planner, /\('monday_watch','17:00'::time,6\)/);
+  assert.match(planner, /America\/New_York/);
   assert.match(scheduler, /auth.role\(\).*service_role/);
   assert.match(scheduler, /skip locked/i);
-  const mondayConstraint = (await rows("select pg_get_constraintdef(oid) as definition from pg_constraint where conname='outbound_emails_kind_check'"))[0].definition;
+  const mondayConstraint = (
+    await rows(
+      "select pg_get_constraintdef(oid) as definition from pg_constraint where conname='outbound_emails_kind_check'",
+    )
+  )[0].definition;
   assert.match(mondayConstraint, /monday_watch/);
-  assert.equal((await rows("select (timestamptz '2026-10-12 21:00:00+00' at time zone 'America/New_York')::time as summer, (timestamptz '2026-12-07 22:00:00+00' at time zone 'America/New_York')::time as winter"))[0].summer, "17:00:00");
+  assert.equal(
+    (
+      await rows(
+        "select (timestamptz '2026-10-12 21:00:00+00' at time zone 'America/New_York')::time as summer, (timestamptz '2026-12-07 22:00:00+00' at time zone 'America/New_York')::time as winter",
+      )
+    )[0].summer,
+    "17:00:00",
+  );
   const league = "13121261-5398-4391-8240-000000000003",
     admin = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const team = (await rows("select id from public.teams where roster_id=1"))[0]
@@ -598,12 +618,27 @@ try {
     )[0].status,
     "needs_review",
   );
-  await rows("insert into automation_jobs(league_id,event_key,operation,market_week) values($1,'serial-a','refresh_matchups',5),($1,'serial-b','refresh_players',5)", [league]);
+  // Isolate the writer-lane assertion from the real-date catch-up plan.
+  await rows("update automation_jobs set status='done'");
+  await rows(
+    "insert into automation_jobs(league_id,event_key,operation,market_week) values($1,'serial-a','refresh_matchups',5),($1,'serial-b','refresh_players',5)",
+    [league],
+  );
   const writer = await rows("select * from claim_automation_job()");
-  assert.equal(writer.length,1);
-  assert.equal((await rows("select * from claim_automation_job()")).length,0,"Another category cannot overwrite the same board concurrently");
-  await rows("update automation_jobs set status='done' where id=$1", [writer[0].id]);
-  assert.equal((await rows("select * from claim_automation_job()")).length,1,"The next category runs after the writer completes");
+  assert.equal(writer.length, 1);
+  assert.equal(
+    (await rows("select * from claim_automation_job()")).length,
+    0,
+    "Another category cannot overwrite the same board concurrently",
+  );
+  await rows("update automation_jobs set status='done' where id=$1", [
+    writer[0].id,
+  ]);
+  assert.equal(
+    (await rows("select * from claim_automation_job()")).length,
+    1,
+    "The next category runs after the writer completes",
+  );
   console.log(
     "Passed worker role isolation, atomic confirmation queueing, leased job/email claims, serialized category writes, and expired-idempotency hold.",
   );

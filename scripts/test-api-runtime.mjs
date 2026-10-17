@@ -380,8 +380,66 @@ try {
     "refresh_matchups",
     "refresh_players",
     "refresh_specials",
-  ].map((operation) => ({ operation, status: "done" }));
+    "refresh_futures",
+  ].map((operation) => ({
+    operation,
+    status: "done",
+    created_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+  }));
   assert(worker.publicationRefreshComplete(morningRefresh));
+  assert(
+    worker.publicationRefreshComplete(
+      morningRefresh.map((j) => ({
+        ...j,
+        created_at: new Date(Date.now() - 6 * 3600000).toISOString(),
+      })),
+    ),
+    "Recent completion recovers a job queued many hours earlier",
+  );
+  assert.equal(
+    worker.publicationRefreshComplete(
+      morningRefresh.map((j) => ({
+        ...j,
+        completed_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      })),
+    ),
+    false,
+    "Old completed prices cannot open the book",
+  );
+  assert.equal(
+    worker.publicationRefreshComplete(morningRefresh.slice(0, 3)),
+    false,
+    "Opening must wait for futures too",
+  );
+  const pendingWeek = {
+    tickets: [
+      { ticket_type: "standard", market_week: 6, pending: true, final: false },
+    ],
+    balances: [],
+  };
+  assert(worker.weeklyResultsPending("settlement", 6, pendingWeek));
+  assert.equal(
+    worker.weeklyResultsPending("settlement", 6, {
+      ...pendingWeek,
+      tickets: [{ ...pendingWeek.tickets[0], ticket_type: "future" }],
+    }),
+    false,
+    "Season futures never block normal weekly settlement",
+  );
+  assert(
+    worker.weeklyResultsPending("replenishment", 7, {
+      tickets: [],
+      balances: [{ reason: "Unresolved ticket — admin review required" }],
+    }),
+  );
+  assert.equal(
+    worker.weeklyResultsPending("replenishment", 7, {
+      tickets: [],
+      balances: [{ reason: "Already processed this week" }],
+    }),
+    false,
+  );
   assert.equal(
     worker.publicationRefreshComplete([
       ...morningRefresh.map((job) => ({

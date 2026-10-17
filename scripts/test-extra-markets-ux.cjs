@@ -80,8 +80,9 @@ fs.mkdirSync(output, { recursive: true });
           })),
         ];
         await f.context.route(
-          "**/rest/v1/rpc/sportsbook_quote_snapshot",
-          (route) => route.fulfill({ json: { board, markets: advanced } }),
+          "**/rest/v1/rpc/sportsbook_current_snapshot",
+          (route) =>
+            route.fulfill({ json: { week: 5, board, markets: advanced } }),
         );
         await f.page.reload();
         await f.page.waitForLoadState("networkidle");

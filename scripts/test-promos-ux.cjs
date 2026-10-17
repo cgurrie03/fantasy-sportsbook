@@ -136,8 +136,16 @@ fs.mkdirSync(output, { recursive: true });
             list.find((o) => o.id === body.p_offer).claimed = true;
             return json(null);
           }
-          if (endpoint === "sportsbook_quote_snapshot" && body.p_board === b.id)
-            return json({ board: b, markets: [...quotes(b), ...points] });
+          if (
+            endpoint === "sportsbook_current_snapshot" &&
+            body.p_league === b.league_id &&
+            body.p_type === "weekly"
+          )
+            return json({
+              week: 5,
+              board: b,
+              markets: [...quotes(b), ...points],
+            });
           if (endpoint === "promo_offers") return json([]);
           if (endpoint === "promo_usage") return json([]);
           if (endpoint === "save_promo") {
@@ -386,7 +394,7 @@ fs.mkdirSync(output, { recursive: true });
           });
         });
         await menu(f.page, "Admin");
-        await f.page.getByRole("button", { name: /Promos & Boosts/ }).click();
+        await f.page.getByRole("link", { name: /Promos & Boosts/ }).click();
         await f.page
           .getByRole("heading", { name: "Offer details", exact: true })
           .waitFor();

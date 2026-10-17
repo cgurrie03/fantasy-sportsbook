@@ -22,7 +22,10 @@ jobs:
       - run: npm run test:starters
       - run: npm run test:live
       - run: npm run test:weekly
+      - run: npm run test:transitions
       - run: npm run test:futures
       - run: npm run test:reporting
       - run: npm run test:reopening
-      - run: node scripts/test-audit-values.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:transitions:ux
+      - run: npm run test:audit

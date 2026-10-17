@@ -15,7 +15,9 @@ const AdminHub = lazy(() =>
 );
 import { ThemeIcon } from "./components/ThemeIcon";
 import { buildBalanceHistory } from "./lib/balanceHistory";
-import { Sportsbook } from "./components/Sportsbook";
+const loadSportsbook = () =>
+  import("./components/Sportsbook").then((m) => ({ default: m.Sportsbook }));
+const Sportsbook = lazy(loadSportsbook);
 function Avatar({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -607,6 +609,7 @@ export default function App() {
     setData(null);
     setError("");
     if (!userId) return;
+    void loadSportsbook();
     setLoading(true);
     loadAccounts(undefined, (next) => {
       if (active) {
@@ -661,7 +664,16 @@ export default function App() {
   }
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const content = document.getElementById("main-content");
+          content?.focus({ preventScroll: true });
+          content?.scrollIntoView({ block: "start" });
+        }}
+      >
         Skip to content
       </a>
       <header className="masthead">
@@ -821,18 +833,26 @@ export default function App() {
                   Try Again
                 </button>
               </main>
-            ) : loading ? (
+            ) : loading || !data ? (
               <main className="empty" role="status">
                 Loading Your League…
               </main>
             ) : data && member && team ? (
               page === "home" ? (
-                <Sportsbook
-                  key={member.id}
-                  data={data}
-                  member={member}
-                  refresh={refresh}
-                />
+                <Suspense
+                  fallback={
+                    <main className="empty" role="status">
+                      Loading markets…
+                    </main>
+                  }
+                >
+                  <Sportsbook
+                    key={member.id}
+                    data={data}
+                    member={member}
+                    refresh={refresh}
+                  />
+                </Suspense>
               ) : page === "admin" && member.role === "admin" ? (
                 <Admin
                   key={member.id}
@@ -860,7 +880,10 @@ export default function App() {
                   className="primary"
                   onClick={() => {
                     setError("");
-                    refresh().catch((e) => setError(errorMessage(e)));
+                    setLoading(true);
+                    refresh()
+                      .catch((e) => setError(errorMessage(e)))
+                      .finally(() => setLoading(false));
                   }}
                 >
                   Refresh Account

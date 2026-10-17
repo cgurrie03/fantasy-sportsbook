@@ -17,9 +17,11 @@ export function ReadinessPanel({
     pending.current = true;
     setBusy(true);
     try {
-      const r = await supabase.rpc("sportsbook_readiness", {
-        p_league: leagueId,
-      });
+      const r = await supabase
+        .rpc("sportsbook_readiness", {
+          p_league: leagueId,
+        })
+        .abortSignal(AbortSignal.timeout(15000));
       if (r.error) throw r.error;
       if (active.current) {
         setData(r.data);
@@ -107,8 +109,9 @@ export function ReadinessPanel({
                   <thead>
                     <tr>
                       <th scope="col">Category</th>
-                      <th scope="col">Active selections</th>
+                      <th scope="col">Published selections</th>
                       <th scope="col">Locked</th>
+                      <th scope="col">Eligible by lineup</th>
                       <th scope="col">Oldest quote generated</th>
                     </tr>
                   </thead>
@@ -118,6 +121,7 @@ export function ReadinessPanel({
                         <th scope="row">{c.kind.replaceAll("_", " ")}</th>
                         <td>{c.quotes}</td>
                         <td>{c.locked}</td>
+                        <td>{Math.max(0, c.quotes - c.locked)}</td>
                         <td>{time(c.oldest_generated_at)}</td>
                       </tr>
                     ))}

@@ -73,7 +73,24 @@ export interface Market {
   market_state?: "open" | "suspended" | "closed" | "settled";
   suspension_reason?: string | null;
 }
+export function memberAvailability(reason: string) {
+  if (!reason) return "";
+  if (/missing or ambiguous|game mapping|including bye/i.test(reason))
+    return "A player in the required lineup has no confirmed NFL game, which can include a bye. Affected bets stay locked until the lineup or schedule is corrected.";
+  if (/prior.*(match|game)|rate prior/i.test(reason))
+    return "Updated projections do not match a player's scheduled game. Affected bets stay locked until matching projections are available.";
+  if (/in progress|uncertain event|unknown game/i.test(reason))
+    return "A required player's game is in progress or its status is uncertain. Affected bets stay locked until a verified update is available.";
+  if (/projection|lineup|starter/i.test(reason))
+    return "A required lineup or player projection is incomplete. Affected bets stay locked until the lineup and projections are ready.";
+  if (/\b\d{4,}:/.test(reason))
+    return "Required player information is unavailable. Affected bets stay locked until a verified update is available.";
+  return reason;
+}
 export function quoteUnavailable(m: Market) {
+  return memberAvailability(rawQuoteUnavailable(m));
+}
+function rawQuoteUnavailable(m: Market) {
   return (
     ((
       m.metadata.reopening_events as
@@ -369,32 +386,20 @@ export function pickConflict(picks: Market[], next: Market) {
 }
 export async function loadMarketBoard(leagueId: string) {
   if (!supabase) throw new Error("The market service is unavailable.");
-  const period = await supabase.rpc("sportsbook_period", {
-    p_league: leagueId,
-  });
-  if (period.error) throw period.error;
-  const week = Number(period.data?.[0]?.week);
+  const snapshot = await supabase
+    .rpc("sportsbook_current_snapshot", {
+      p_league: leagueId,
+      p_type: "weekly",
+    })
+    .abortSignal(AbortSignal.timeout(15000));
+  if (snapshot.error) throw snapshot.error;
+  const week = Number(snapshot.data?.week);
   if (!Number.isInteger(week) || week < 1 || week > 18)
     throw new Error(
       "League period is unavailable. Try refreshing your account.",
     );
-  const boards = await supabase
-    .from("sportsbook_boards")
-    .select("*")
-    .eq("league_id", leagueId)
-    .eq("board_type", "weekly")
-    .eq("market_week", week)
-    .order("nfl_season", { ascending: false })
-    .limit(1);
-  if (boards.error) throw boards.error;
-  const board = boards.data?.[0] as Board | undefined;
-  if (!board) return { board: null, markets: [], week };
-  const snapshot = await supabase.rpc("sportsbook_quote_snapshot", {
-    p_board: board.id,
-  });
-  if (snapshot.error) throw snapshot.error;
   return {
-    board: snapshot.data?.board as Board | null,
+    board: (snapshot.data?.board ?? null) as Board | null,
     markets: (snapshot.data?.markets ?? []) as Market[],
     week,
   };
@@ -402,22 +407,15 @@ export async function loadMarketBoard(leagueId: string) {
 
 export async function loadFuturesBoard(leagueId: string) {
   if (!supabase) throw new Error("The market service is unavailable.");
-  const response = await supabase
-    .from("sportsbook_boards")
-    .select("*")
-    .eq("league_id", leagueId)
-    .eq("board_type", "future")
-    .order("nfl_season", { ascending: false })
-    .limit(1);
-  if (response.error) throw response.error;
-  const board = response.data?.[0] as Board | undefined;
-  if (!board) return { board: null, markets: [] as Market[] };
-  const snapshot = await supabase.rpc("sportsbook_quote_snapshot", {
-    p_board: board.id,
-  });
+  const snapshot = await supabase
+    .rpc("sportsbook_current_snapshot", {
+      p_league: leagueId,
+      p_type: "future",
+    })
+    .abortSignal(AbortSignal.timeout(15000));
   if (snapshot.error) throw snapshot.error;
   return {
-    board: snapshot.data?.board as Board | null,
+    board: (snapshot.data?.board ?? null) as Board | null,
     markets: (snapshot.data?.markets ?? []) as Market[],
   };
 }

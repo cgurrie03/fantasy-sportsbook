@@ -108,22 +108,41 @@ export interface TicketLeg {
   matchup: string | null;
   status: string;
 }
-export async function loadAccounts(previous?: AccountData, onCore?: (data: AccountData) => void): Promise<AccountData> {
+export async function loadAccounts(
+  previous?: AccountData,
+  onCore?: (data: AccountData) => void,
+): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
-  const claim = await supabase.rpc("claim_memberships");
+  const claim = await supabase
+    .rpc("claim_memberships")
+    .abortSignal(AbortSignal.timeout(15000));
   if (claim.error) throw claim.error;
   const queries = [
-    supabase.from("leagues").select("*"),
-    supabase.from("teams").select("*").order("roster_id"),
-    supabase.from("league_memberships").select("*"),
-    supabase.from("wallets").select("*"),
+    supabase
+      .from("leagues")
+      .select("*")
+      .abortSignal(AbortSignal.timeout(15000)),
+    supabase
+      .from("teams")
+      .select("*")
+      .order("roster_id")
+      .abortSignal(AbortSignal.timeout(15000)),
+    supabase
+      .from("league_memberships")
+      .select("*")
+      .abortSignal(AbortSignal.timeout(15000)),
+    supabase
+      .from("wallets")
+      .select("*")
+      .abortSignal(AbortSignal.timeout(15000)),
     readAllRows((from, to) =>
       supabase!
         .from("balance_events")
         .select("*")
         .order("created_at", { ascending: false })
         .order("id")
-        .range(from, to),
+        .range(from, to)
+        .abortSignal(AbortSignal.timeout(15000)),
     ),
     readAllRows((from, to) =>
       supabase!
@@ -133,7 +152,8 @@ export async function loadAccounts(previous?: AccountData, onCore?: (data: Accou
         )
         .order("placed_at", { ascending: false })
         .order("id")
-        .range(from, to),
+        .range(from, to)
+        .abortSignal(AbortSignal.timeout(15000)),
     ),
     readAllRows((from, to) =>
       supabase!
@@ -143,7 +163,8 @@ export async function loadAccounts(previous?: AccountData, onCore?: (data: Accou
         )
         .order("leg_number")
         .order("id")
-        .range(from, to),
+        .range(from, to)
+        .abortSignal(AbortSignal.timeout(15000)),
     ),
     readAllRows((from, to) =>
       supabase!
@@ -151,42 +172,72 @@ export async function loadAccounts(previous?: AccountData, onCore?: (data: Accou
         .select("*")
         .order("created_at", { ascending: false })
         .order("id")
-        .range(from, to),
+        .range(from, to)
+        .abortSignal(AbortSignal.timeout(15000)),
     ),
     readAllRows((from, to) =>
       supabase!
         .from("ticket_promotions")
         .select("ticket_id,kind,boost_pct,base_decimal")
         .order("ticket_id")
-        .range(from, to),
+        .range(from, to)
+        .abortSignal(AbortSignal.timeout(15000)),
     ),
-  ].map(query => Promise.resolve(query).catch(error => ({data:null,error})));
-  const core = await Promise.all(queries.slice(0,4));
+  ].map((query) =>
+    Promise.resolve(query).catch((error) => ({ data: null, error })),
+  );
+  const core = await Promise.all(queries.slice(0, 4));
   for (const result of core) if (result.error) throw result.error;
   onCore?.({
     ...previous,
-    leagues: core[0].data as League[], teams: core[1].data as Team[],
-    memberships: core[2].data as Membership[], wallets: core[3].data as Wallet[],
-    events: previous?.events ?? [], ledger: previous?.ledger ?? [],
-    tickets: previous?.tickets ?? [], legs: previous?.legs ?? [],
-    ticketPromotions: previous?.ticketPromotions ?? [], history_loading:true,
+    leagues: core[0].data as League[],
+    teams: core[1].data as Team[],
+    memberships: core[2].data as Membership[],
+    wallets: core[3].data as Wallet[],
+    events: previous?.events ?? [],
+    ledger: previous?.ledger ?? [],
+    tickets: previous?.tickets ?? [],
+    legs: previous?.legs ?? [],
+    ticketPromotions: previous?.ticketPromotions ?? [],
+    history_loading: true,
   });
   const results = await Promise.all(queries);
-  const ticketFailure = !!(results[5].error || results[6].error || results[8].error);
-  const historyFailure = ticketFailure || !!(results[4].error || results[7].error);
-  if (historyFailure) console.error("Account history refresh failed", results.slice(4).map(r => r.error));
+  const ticketFailure = !!(
+    results[5].error ||
+    results[6].error ||
+    results[8].error
+  );
+  const historyFailure =
+    ticketFailure || !!(results[4].error || results[7].error);
+  if (historyFailure)
+    console.error(
+      "Account history refresh failed",
+      results.slice(4).map((r) => r.error),
+    );
   return {
-    history_loading:false,
-    history_error:historyFailure ? "History could not refresh. Showing the last available records." : undefined,
+    history_loading: false,
+    history_error: historyFailure
+      ? "History could not refresh. Showing the last available records."
+      : undefined,
     leagues: results[0].data as League[],
     teams: results[1].data as Team[],
     memberships: results[2].data as Membership[],
     wallets: results[3].data as Wallet[],
-    events: (results[4].error ? previous?.events ?? [] : results[4].data) as Event[],
-    ledger: (results[7].error ? previous?.ledger ?? [] : results[7].data) as Ledger[],
-    tickets: (ticketFailure ? previous?.tickets ?? [] : results[5].data) as Ticket[],
-    legs: (ticketFailure ? previous?.legs ?? [] : results[6].data) as TicketLeg[],
-    ticketPromotions: (ticketFailure ? previous?.ticketPromotions ?? [] : results[8].data) as TicketPromotion[],
+    events: (results[4].error
+      ? (previous?.events ?? [])
+      : results[4].data) as Event[],
+    ledger: (results[7].error
+      ? (previous?.ledger ?? [])
+      : results[7].data) as Ledger[],
+    tickets: (ticketFailure
+      ? (previous?.tickets ?? [])
+      : results[5].data) as Ticket[],
+    legs: (ticketFailure
+      ? (previous?.legs ?? [])
+      : results[6].data) as TicketLeg[],
+    ticketPromotions: (ticketFailure
+      ? (previous?.ticketPromotions ?? [])
+      : results[8].data) as TicketPromotion[],
   };
 }
 export const money = (value: number | string | null | undefined) =>

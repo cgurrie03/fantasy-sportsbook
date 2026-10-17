@@ -60,21 +60,53 @@ export function retainPublishedBoard(
   return status === "published" && !operation.startsWith("refresh_");
 }
 export function publicationRefreshComplete(
-  jobs: { operation: string; status: string; created_at?: string }[],
+  jobs: {
+    operation: string;
+    status: string;
+    created_at?: string;
+    completed_at?: string;
+  }[],
 ) {
-  return ["refresh_matchups", "refresh_players", "refresh_specials"].every(
-    (operation) => {
-      const latest = jobs
-        .filter((job) => job.operation === operation)
-        .sort((a, b) =>
-          (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-        )[0];
-      return latest?.status === "done";
-    },
-  );
+  return [
+    "refresh_matchups",
+    "refresh_players",
+    "refresh_specials",
+    "refresh_futures",
+  ].every((operation) => {
+    const latest = jobs
+      .filter((job) => job.operation === operation)
+      .sort((a, b) =>
+        (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      )[0];
+    const finished = latest?.completed_at ?? latest?.created_at;
+    return (
+      latest?.status === "done" &&
+      !!finished &&
+      Date.parse(finished) > Date.now() - 130 * 60000
+    );
+  });
 }
 export const refreshPriorColumns =
   "id,market_key,side,matchup_key,featured,active,projection_targets:metadata->projection_targets";
+export function weeklyResultsPending(
+  operation: string,
+  week: number,
+  result: any,
+) {
+  return (
+    result.tickets.some(
+      (t: any) =>
+        t.ticket_type !== "future" &&
+        t.pending &&
+        !t.final &&
+        t.market_week <= week,
+    ) ||
+    (operation === "replenishment" &&
+      result.balances.some((b: any) =>
+        /unresolved|unavailable/i.test(b.reason),
+      ))
+  );
+}
 export function preserveRefreshQuote(
   quote: any,
   prior: any[],
@@ -336,6 +368,31 @@ export async function POST(request: Request) {
         const result: any = await r.json();
         if (!r.ok) throw new Error(result.error);
         summary = result;
+        const waiting = weeklyResultsPending(
+          job.operation,
+          job.market_week,
+          result,
+        );
+        if (waiting) {
+          const deferred = await db
+            .from("automation_jobs")
+            .update({
+              status: "pending",
+              summary: result,
+              lease_until: new Date(Date.now() + 15 * 60000).toISOString(),
+              last_error:
+                "Waiting for verified results; automatic retry is scheduled.",
+            })
+            .eq("id", job.id)
+            .eq("attempts", job.attempts)
+            .eq("status", "running");
+          if (deferred.error) throw new Error(deferred.error.message);
+          return json({
+            job: job.operation,
+            waiting_for_results: true,
+            ...(await deliverEmails(db)),
+          });
+        }
         if (job.operation === "recheck")
           for (const week of new Set<number>(
             result.tickets
@@ -690,19 +747,23 @@ export async function POST(request: Request) {
         const fresh = await read(
           db
             .from("automation_jobs")
-            .select("operation,status,created_at")
+            .select("operation,status,created_at,completed_at")
             .eq("league_id", job.league_id)
             .eq("market_week", job.market_week)
-            .gte("created_at", new Date(Date.now() - 7200000).toISOString())
+            .gte(
+              "created_at",
+              new Date(Date.now() - 7 * 86400000).toISOString(),
+            )
             .in("operation", [
               "refresh_matchups",
               "refresh_players",
               "refresh_specials",
+              "refresh_futures",
             ]),
         );
         if (!publicationRefreshComplete(fresh))
           throw new Error(
-            "Publication held: all three categories need a successful fresh Wednesday refresh.",
+            "Publication held: all four categories need a successful fresh opening refresh.",
           );
         if (
           !board ||
@@ -731,6 +792,28 @@ export async function POST(request: Request) {
             },
           });
           if (r.error) throw new Error(r.error.message);
+        }
+        const future = (
+          await read(
+            db
+              .from("sportsbook_boards")
+              .select("id,status")
+              .eq("league_id", job.league_id)
+              .eq("nfl_season", league.nfl_season)
+              .eq("board_type", "future"),
+          )
+        )[0];
+        if (future?.status === "published") {
+          const futureConfirmed = await db.rpc(
+            "confirm_scheduled_publication",
+            { p_board: future.id },
+          );
+          if (futureConfirmed.error)
+            throw new Error(futureConfirmed.error.message);
+          if (!futureConfirmed.data)
+            throw new Error(
+              "Publication held: refreshed futures are not verified yet.",
+            );
         }
         const confirmed = await db.rpc("confirm_scheduled_publication", {
           p_board: board.id,
@@ -791,7 +874,10 @@ export async function POST(request: Request) {
             .eq("league_id", job.league_id)
             .eq("market_week", job.market_week)
             .eq("operation", "replenishment")
-            .gte("created_at", new Date(Date.now() - 7200000).toISOString()),
+            .gte(
+              "created_at",
+              new Date(Date.now() - 7 * 86400000).toISOString(),
+            ),
         );
         if (!reset.some((j: any) => j.status === "done"))
           throw new Error("Recap held until replenishment completes.");

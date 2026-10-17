@@ -131,6 +131,13 @@ export function Sportsbook({
       (r) => r.nfl_season === currentSeason && r.market_week === week,
     );
   const quoteLoad = useRef<Promise<void> | null>(null);
+  const accountPeriod = useRef<string | null>(null);
+  const accountRefresh = useRef(refresh);
+  useEffect(() => {
+    accountRefresh.current = refresh;
+  }, [refresh]);
+  const periodRefresh = useRef(false);
+  const [weekAccountPending, setWeekAccountPending] = useState(false);
   const quoteFailures = useRef(0);
   const [quoteUpdatedAt, setQuoteUpdatedAt] = useState<number | null>(null);
   const [refreshingQuotes, setRefreshingQuotes] = useState(false);
@@ -236,6 +243,7 @@ export function Sportsbook({
       ? profitPrice(basePrice, Number(appliedBoost.terms.percent))
       : basePrice,
     valid =
+      !weekAccountPending &&
       canPlacePicks(picks) &&
       wager >= 1 &&
       wager <= balance &&
@@ -322,6 +330,39 @@ export function Sportsbook({
     const pending = Promise.allSettled([
       loadMarketBoard(member.league_id)
         .then((r) => {
+          const period = `${r.board?.nfl_season ?? currentSeason}:${r.week}`;
+          if (accountPeriod.current === null) accountPeriod.current = period;
+          if (accountPeriod.current !== period && !periodRefresh.current) {
+            periodRefresh.current = true;
+            setWeekAccountPending(true);
+            setPicks([]);
+            setFixedOffer(null);
+            setBoostId(null);
+            setPendingOffer(null);
+            setOpen(false);
+            setStake("");
+            setPickRevision(null);
+            setNotice(
+              `Week ${r.week} is here. Refreshing your balance and tickets automatically…`,
+            );
+            void accountRefresh
+              .current()
+              .then(() => {
+                accountPeriod.current = period;
+                setWeekAccountPending(false);
+                setNotice(
+                  `Week ${r.week} is ready. Your balance and tickets are up to date; accepted bets keep their original terms.`,
+                );
+              })
+              .catch(() => {
+                setNotice(
+                  "The new week is loading. Your account will retry automatically; betting waits for your updated balance.",
+                );
+              })
+              .finally(() => {
+                periodRefresh.current = false;
+              });
+          }
           setBoard(r.board);
           setMarkets(r.markets);
           setWeek(r.week);
@@ -359,7 +400,7 @@ export function Sportsbook({
       quoteLoad.current = null;
       setRefreshingQuotes(false);
     }
-  }, [member.league_id]);
+  }, [member.league_id, currentSeason]);
   useEffect(() => {
     if (review) return;
     setLoading(true);
@@ -410,9 +451,16 @@ export function Sportsbook({
       if (active) timer = setTimeout(poll, 30000 * 2 ** quoteFailures.current);
     };
     timer = setTimeout(poll, 30000);
+    const resume = () => {
+      if (document.visibilityState === "visible") void reloadQuotes();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
     return () => {
       active = false;
       clearTimeout(timer);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("focus", resume);
     };
   }, [reloadQuotes, review]);
   useEffect(() => {
@@ -526,6 +574,7 @@ export function Sportsbook({
   function quote(m: Market | undefined, short?: string) {
     if (!m) return <span className="quote-empty">—</span>;
     const selected = picks.some((p) => p.id === m.id);
+    const unavailable = quoteUnavailable(m);
     const showsPrice =
       m.kind === "moneyline" ||
       weeklyKinds.includes(m.kind) ||
@@ -549,17 +598,17 @@ export function Sportsbook({
       <button
         type="button"
         className={`market-quote${selected ? " selected" : ""}${m.boost_pct ? " boosted" : ""}`}
-        title={quoteUnavailable(m) || undefined}
-        aria-label={`${m.label}: ${formatOdds(americanPrice(selectionPrice(m)))}${m.boost_pct ? ` (boosted; original ${formatOdds(m.odds)})` : ""}${quoteUnavailable(m) ? `. Unavailable: ${quoteUnavailable(m)}` : ""}`}
+        title={unavailable || undefined}
+        aria-label={`${m.label}: ${formatOdds(americanPrice(selectionPrice(m)))}${m.boost_pct ? ` (boosted; original ${formatOdds(m.odds)})` : ""}${unavailable ? `. Unavailable: ${unavailable}` : ""}`}
         aria-pressed={selected}
         disabled={
-          Boolean(quoteUnavailable(m)) ||
+          Boolean(unavailable) ||
           (!(isFuture(m) ? futureAccepting : accepting) && !review) ||
           busy
         }
         onClick={() => toggle(m)}
       >
-        {quoteUnavailable(m) ? (
+        {unavailable ? (
           <>
             <svg
               className="market-lock"
@@ -933,8 +982,9 @@ export function Sportsbook({
                         )}
                         {g.some((m) => m.metadata.lineup_locked) && (
                           <p className="market-availability">
-                            Waiting for a complete eligible lineup. Affected
-                            bets are locked.
+                            {quoteUnavailable(
+                              g.find((m) => m.metadata.lineup_locked)!,
+                            )}
                           </p>
                         )}
                         <MatchupScoresNotice
@@ -1300,12 +1350,11 @@ export function Sportsbook({
                           (m) => m.kind === kind && m.metadata.lineup_locked,
                         ) && (
                           <p className="market-lock-explanation" role="status">
-                            {String(
+                            {quoteUnavailable(
                               markets.find(
                                 (m) =>
                                   m.kind === kind && m.metadata.lineup_locked,
-                              )?.metadata.lock_reason ??
-                                "Locked until every team has a complete eligible lineup with positive projections. Regenerate Weekly Specials after the roster or projection issue is corrected.",
+                              )!,
                             )}
                           </p>
                         )}

@@ -37,8 +37,10 @@ async function setup(browser, width, height, signedIn=true){
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
-   if(endpoint==='sportsbook_quote_snapshot'){
-    const b=[...boards,...futureBoards].find(b=>b.id===body.p_board);return json({board:{...b,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
+   if(endpoint==='sportsbook_quote_snapshot'||endpoint==='sportsbook_current_snapshot'){
+    const b=endpoint==='sportsbook_current_snapshot'?(body.p_type==='future'?futureBoards:boards).find(b=>b.league_id===body.p_league):[...boards,...futureBoards].find(b=>b.id===body.p_board);
+    if(state.empty||(body.p_type==='future'&&!state.futures))return json({week:state.week??5,board:null,markets:[]});
+    return json({week:state.week??5,board:{...b,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
    }
    if(endpoint==='list_promos')return json([]);
    if(endpoint==='league_leaderboard')return json(state.standings??[]);
