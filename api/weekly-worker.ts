@@ -73,6 +73,34 @@ export function publicationRefreshComplete(
     },
   );
 }
+export const refreshPriorColumns =
+  "id,market_key,side,matchup_key,featured,active,projection_targets:metadata->projection_targets";
+export function preserveRefreshQuote(
+  quote: any,
+  prior: any[],
+  category: string,
+) {
+  const q = { ...quote, metadata: { ...quote.metadata } };
+  const old = prior.find(
+    (p) => p.market_key === q.market_key && p.side === q.side,
+  );
+  const featured = prior.find(
+    (p) => p.matchup_key === q.matchup_key && p.featured && p.active,
+  )?.featured;
+  if (category === "Matchups" && featured) {
+    q.featured = featured;
+    q.boost_pct =
+      (featured === "Game of the Week" && q.kind === "moneyline") ||
+      (featured === "Tank Bowl" &&
+        (q.kind === "moneyline" ||
+          (q.kind === "match_total" && q.side === "over")))
+        ? 25
+        : 0;
+  }
+  if (old?.projection_targets)
+    q.metadata.projection_targets = old.projection_targets;
+  return { ...q, id: old?.id ?? q.id };
+}
 export async function POST(request: Request) {
   if (!isWorker(request))
     return json({ error: "Scheduled worker authentication required." }, 401);
@@ -267,32 +295,14 @@ export async function POST(request: Request) {
           if (!result.quotes?.length)
             throw new Error(`${category} returned no complete pricing inputs.`);
           const prior = await read(
-            db.from("sportsbook_markets").select("*").eq("board_id", boardId),
+            db
+              .from("sportsbook_markets")
+              .select(refreshPriorColumns)
+              .eq("board_id", boardId),
           );
-          quotes = result.quotes.map((q: any) => {
-            const old = prior.find(
-              (p: any) => p.market_key === q.market_key && p.side === q.side,
-            );
-            const featured = prior.find(
-              (p: any) =>
-                p.matchup_key === q.matchup_key && p.featured && p.active,
-            )?.featured;
-            if (category === "Matchups" && featured) {
-              q.featured = featured;
-              q.boost_pct =
-                (featured === "Game of the Week" && q.kind === "moneyline") ||
-                (featured === "Tank Bowl" &&
-                  (q.kind === "moneyline" ||
-                    (q.kind === "match_total" && q.side === "over")))
-                  ? 25
-                  : 0;
-            }
-            // Count-over-projection and season win benchmarks keep their
-            // original contract. Refreshing prices never changes that target.
-            if (old?.metadata.projection_targets)
-              q.metadata.projection_targets = old.metadata.projection_targets;
-            return { ...q, id: old?.id ?? q.id };
-          });
+          quotes = result.quotes.map((q: any) =>
+            preserveRefreshQuote(q, prior, category),
+          );
         }
         const staged = await db.rpc("stage_line_refresh", {
           p_job: job.id,

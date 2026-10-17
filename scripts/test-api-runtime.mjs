@@ -305,6 +305,43 @@ try {
   const worker = await import(
     pathToFileURL(path.join(root, "weekly-worker.js")).href
   );
+  const priorQuote = {
+    id: "stable",
+    market_key: "count",
+    side: "over",
+    matchup_key: "match",
+    featured: "Tank Bowl",
+    active: true,
+    projection_targets: { team: 123.5 },
+  };
+  const refreshQuote = {
+    id: "new",
+    market_key: "count",
+    side: "over",
+    matchup_key: "match",
+    kind: "match_total",
+    metadata: { generated: true },
+    boost_pct: 0,
+  };
+  const preserved = worker.preserveRefreshQuote(
+    refreshQuote,
+    [priorQuote],
+    "Matchups",
+  );
+  assert.equal(preserved.id, "stable");
+  assert.deepEqual(preserved.metadata.projection_targets, { team: 123.5 });
+  assert.equal(preserved.boost_pct, 25);
+  assert.equal(preserved.featured, "Tank Bowl");
+  assert.equal(refreshQuote.boost_pct, 0);
+  assert.equal(
+    worker.preserveRefreshQuote(
+      { ...refreshQuote, side: "under" },
+      [priorQuote],
+      "Matchups",
+    ).boost_pct,
+    0,
+  );
+  assert(!worker.refreshPriorColumns.includes("*"));
   assert.equal(
     (
       await worker.POST(
