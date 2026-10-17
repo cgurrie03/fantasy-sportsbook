@@ -16,6 +16,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+        env:
+          # Browser tests intercept every request; this is not a production key.
+          VITE_SUPABASE_URL: https://bmvjcdgxwxqalaohpsnw.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: fixture-only-not-a-real-key
       - run: npm run test:accounts
       - run: npm run test:import
       - run: npm run test:refresh

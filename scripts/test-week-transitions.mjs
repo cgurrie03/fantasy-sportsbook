@@ -180,6 +180,26 @@ try {
     [quote, board],
   );
   await rows(
+    "update sportsbook_markets set metadata=metadata||$2::jsonb where id=$1",
+    [
+      quote,
+      JSON.stringify({
+        injury_source: "Repeated research data",
+        roster_positions: ["QB", "RB"],
+        reopening_events: [
+          {
+            id: "game",
+            state: "scheduled",
+            starts_at: "2099-01-01T20:00:00Z",
+            unused_description: "Stored source detail",
+          },
+        ],
+        cutoff_at: "2099-01-01T20:00:00Z",
+        left_player: { id: "123", name: "Player", projection: 0 },
+      }),
+    ],
+  );
+  await rows(
     "update sportsbook_markets set metadata=metadata||jsonb_build_object('generated_at',now()) where id=$1",
     [quote],
   );
@@ -220,6 +240,77 @@ try {
     true,
     "Recovery completes without administrator input",
   );
+  await rows(
+    "update line_refresh_runtime set next_due_at=now()+interval '2 hours' where league_id=$1",
+    [league],
+  );
+  await rows(
+    "insert into line_refresh_cycles(league_id,market_week,slot,status,weekly_board,weekly_revision) values($1,6,floor(extract(epoch from now())/7200),'published',$2,1) on conflict do nothing",
+    [league, board],
+  );
+  await rows(
+    "select observe_line_refresh('{}'::jsonb,'The operation was aborted due to timeout')",
+  );
+  const recoveredFeed = {
+    games: [
+      { id: "event", state: "scheduled", starts_at: "2099-01-01T20:00:00Z" },
+    ],
+    any_in_progress: false,
+    week_started: false,
+  };
+  await rows("select observe_line_refresh($1)", [
+    JSON.stringify(recoveredFeed),
+  ]);
+  const recoveryCycles = await rows(
+    "select * from line_refresh_cycles where league_id=$1 and source_recovery and status='staging'",
+    [league],
+  );
+  assert.equal(
+    recoveryCycles.length,
+    1,
+    "Verified feed recovery immediately starts a cycle even in an already-published cadence slot",
+  );
+  assert.equal(
+    (
+      await rows(
+        "select last_error from line_refresh_runtime where league_id=$1",
+        [league],
+      )
+    )[0].last_error,
+    null,
+  );
+  assert.match(
+    (
+      await rows(
+        "select suspension_reason from sportsbook_boards where id=$1",
+        [board],
+      )
+    )[0].suspension_reason,
+    /timeout/,
+    "Prices remain protected until atomic repricing completes",
+  );
+  assert.equal(
+    (
+      await rows(
+        "select count(*)::int n from automation_jobs where refresh_cycle_id=$1",
+        [recoveryCycles[0].id],
+      )
+    )[0].n,
+    4,
+  );
+  await rows("select observe_line_refresh($1)", [
+    JSON.stringify(recoveredFeed),
+  ]);
+  assert.equal(
+    (
+      await rows(
+        "select count(*)::int n from line_refresh_cycles where league_id=$1 and source_recovery and status='staging'",
+        [league],
+      )
+    )[0].n,
+    1,
+    "Repeated recovery observations coalesce",
+  );
   await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
   const snapshot = (
     await rows("select sportsbook_current_snapshot($1) s", [league])
@@ -227,6 +318,18 @@ try {
   assert.equal(snapshot.week, 6);
   assert.equal(snapshot.board.id, board);
   assert.equal(snapshot.markets[0].id, quote);
+  assert.equal(snapshot.markets[0].metadata.injury_source, undefined);
+  assert.deepEqual(snapshot.markets[0].metadata.reopening_events, [
+    { id: "game", state: "scheduled", starts_at: "2099-01-01T20:00:00Z" },
+  ]);
+  assert.equal(snapshot.markets[0].metadata.left_player.projection, 0);
+  assert.equal(
+    (
+      await rows("select metadata from sportsbook_markets where id=$1", [quote])
+    )[0].metadata.injury_source,
+    "Repeated research data",
+    "Payload trimming never rewrites the stored pricing record",
+  );
   assert.equal(
     snapshot.markets[0].metadata.home_lineup,
     undefined,
