@@ -109,6 +109,17 @@ const { setup, A, B, teams } = require("./test-ux.cjs");
     }
     const coverage = await setup(browser, 1280, 844);
     let reportCalls = 0;
+    let releaseForecast;
+    const forecastGate = new Promise((resolve) => {
+      releaseForecast = resolve;
+    });
+    await coverage.context.route(
+      "**/rest/v1/forecast_snapshots*",
+      async (route) => {
+        await forecastGate;
+        return route.fulfill({ contentType: "application/json", body: "[]" });
+      },
+    );
     const cached = [1, 2, 3, 4].map((market_week) => ({
       nfl_season: 2026,
       market_week,
@@ -140,6 +151,7 @@ const { setup, A, B, teams } = require("./test-ux.cjs");
     await coverage.page
       .getByText("Source coverage: through completed Week 5", { exact: true })
       .waitFor();
+    releaseForecast();
     assert.equal(
       reportCalls,
       1,

@@ -5,7 +5,10 @@ import "./ModelReview.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage, money, loadAccounts } from "../lib/accounts";
-import { readAllRows } from "../lib/pagination";
+import {
+  loadReportForecasts,
+  forecastMetadataColumns,
+} from "../lib/report-forecasts";
 import { supabase } from "../lib/supabase";
 import {
   bettingStats,
@@ -90,6 +93,10 @@ export function Reports({
   previewData?: { weeks: ScoreWeek[]; forecasts?: Forecast[] };
 }) {
   const [expectedCompleted, setExpectedCompleted] = useState(0);
+  const [forecastStatus, setForecastStatus] = useState("");
+  const forecastRequest = useRef<{ scope: string; pending: boolean } | null>(
+    null,
+  );
   const [liveData, setLiveData] = useState(initialData);
   const data = previewData ? initialData : liveData;
   useEffect(() => setLiveData(initialData), [initialData]);
@@ -159,17 +166,53 @@ export function Reports({
       setReport(routeReport);
   }, [routeReport, previewData]);
   const load = useCallback(async () => {
+    const scope = leagueId + ":" + season;
+    if (
+      !forecastRequest.current?.pending ||
+      forecastRequest.current.scope !== scope
+    ) {
+      const request = { scope, pending: true };
+      forecastRequest.current = request;
+      setForecastStatus(
+        "Loading forecast history; saved results load separately.",
+      );
+      void loadReportForecasts(
+        (from, to) =>
+          supabase!
+            .from("forecast_snapshots")
+            .select(forecastMetadataColumns)
+            .eq("league_id", leagueId)
+            .eq("nfl_season", season)
+            .order("captured_at")
+            .order("id")
+            .range(from, to)
+            .abortSignal(AbortSignal.timeout(20000)),
+        (ids) =>
+          supabase!
+            .from("forecast_snapshots")
+            .select("id,quotes")
+            .eq("league_id", leagueId)
+            .eq("nfl_season", season)
+            .in("id", ids)
+            .abortSignal(AbortSignal.timeout(20000)),
+      )
+        .then((result) => {
+          if (forecastRequest.current === request) {
+            setForecasts(result.data);
+            setForecastStatus("");
+          }
+        })
+        .catch(() => {
+          if (forecastRequest.current === request)
+            setForecastStatus(
+              "Forecast history could not refresh. Saved results remain available; retry Refresh Sleeper Data.",
+            );
+        })
+        .finally(() => {
+          request.pending = false;
+        });
+    }
     const responses = await Promise.all([
-      readAllRows((from, to) =>
-        supabase!
-          .from("forecast_snapshots")
-          .select("*")
-          .eq("league_id", leagueId)
-          .eq("nfl_season", season)
-          .order("captured_at")
-          .order("id")
-          .range(from, to),
-      ),
       supabase!
         .from("league_result_weeks")
         .select("*")
@@ -191,16 +234,15 @@ export function Reports({
       supabase!.rpc("sportsbook_period", { p_league: leagueId }),
     ]);
     for (const r of responses) if (r.error) throw r.error;
-    setForecasts((responses[0].data ?? []) as Forecast[]);
-    const cached = (responses[1].data ?? []) as ScoreWeek[];
+    const cached = (responses[0].data ?? []) as ScoreWeek[];
     setWeeks(cached);
     const expected = Math.min(
       18,
-      Math.max(0, Number(responses[4].data?.[0]?.week ?? 1) - 1),
+      Math.max(0, Number(responses[3].data?.[0]?.week ?? 1) - 1),
     );
     setExpectedCompleted(expected);
-    setJobs((responses[2].data ?? []) as Log[]);
-    setEmails((responses[3].data ?? []) as Log[]);
+    setJobs((responses[1].data ?? []) as Log[]);
+    setEmails((responses[2].data ?? []) as Log[]);
     setLiveData(await loadAccounts());
     setAsOf(
       new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
@@ -1382,6 +1424,11 @@ export function Reports({
           )}
         </div>
       </div>
+      {forecastStatus && (
+        <p className="report-notice" role="status">
+          {forecastStatus}
+        </p>
+      )}
       {notice && (
         <p
           role="status"

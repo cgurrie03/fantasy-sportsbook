@@ -23,3 +23,6 @@ jobs:
       - run: npm run test:live
       - run: npm run test:weekly
       - run: npm run test:futures
+      - run: npm run test:reporting
+      - run: npm run test:reopening
+      - run: node scripts/test-audit-values.mjs
