@@ -189,7 +189,7 @@ export function Reports({
             .abortSignal(AbortSignal.timeout(20000)),
         (ids) =>
           supabase!
-            .from("forecast_snapshots")
+            .from("sportsbook_report_forecast_details")
             .select("id,quotes")
             .eq("league_id", leagueId)
             .eq("nfl_season", season)

@@ -372,6 +372,67 @@ try {
     )[0],
     originalLeg,
   );
+  const reportSnapshot = randomUUID();
+  const reportQuotes = [
+    {
+      id: quote,
+      home_projection: 125.5,
+      metadata: {
+        home_lineup: [{ raw: "large archived distribution" }],
+        away_lineup: [{ raw: "large archived distribution" }],
+        scoring_settings: { pass_yd: 0.04 },
+        home_eligible_players: [{ id: "p", positions: ["QB"] }],
+        roster_positions: ["QB"],
+        simulated_probability: 0.5,
+      },
+    },
+  ];
+  await rows(
+    "insert into forecast_snapshots(id,league_id,board_id,revision,nfl_season,market_week,board_type,opens_at,closes_at,quotes) select $1,league_id,id,9999,nfl_season,market_week,board_type,opens_at,closes_at,$3 from sportsbook_boards where id=$2",
+    [reportSnapshot, board, JSON.stringify(reportQuotes)],
+  );
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
+  const reportRow = (
+    await rows(
+      "select quotes from sportsbook_report_forecast_details where id=$1",
+      [reportSnapshot],
+    )
+  )[0].quotes[0];
+  assert.equal(reportRow.home_projection, 125.5);
+  assert.equal(reportRow.metadata.home_lineup, undefined);
+  assert.equal(reportRow.metadata.scoring_settings, undefined);
+  assert.deepEqual(reportRow.metadata.home_eligible_players, [
+    { id: "p", positions: ["QB"] },
+  ]);
+  assert.deepEqual(reportRow.metadata.roster_positions, ["QB"]);
+  assert.deepEqual(
+    (
+      await rows("select quotes from forecast_snapshots where id=$1", [
+        reportSnapshot,
+      ])
+    )[0].quotes,
+    reportQuotes,
+    "report trimming never mutates the immutable archive",
+  );
+  await db.exec(
+    `reset role;set role authenticated;set request.jwt.claim.sub='${outsider}';`,
+  );
+  assert.equal(
+    (
+      await rows(
+        "select id from sportsbook_report_forecast_details where id=$1",
+        [reportSnapshot],
+      )
+    ).length,
+    0,
+    "report view preserves admin-only archive RLS",
+  );
+  await db.exec("reset role;set role anon");
+  await assert.rejects(
+    () => rows("select * from sportsbook_report_forecast_details"),
+    /permission denied/,
+  );
+  await db.exec("reset role");
   console.log(
     "Passed review-only staging, exact-snapshot approval, atomic weekly/futures publication, explicit deduplicated announcement, eligible acceptance, active/past-kickoff refusal, deadline closure, next-week restoration, unchanged accepted terms and balance.",
   );
