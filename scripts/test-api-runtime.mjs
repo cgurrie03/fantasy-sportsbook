@@ -763,6 +763,164 @@ try {
     if (savedKey === undefined) delete process.env.SUPABASE_ANON_KEY;
     else process.env.SUPABASE_ANON_KEY = savedKey;
   }
+  // Exercise the full generator with a missing kicker, a rostered kicker that
+  // must never enter the free-agent pool, and separate team/player markets.
+  {
+    const envKeys = [
+      "SUPABASE_URL",
+      "SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "WEEKLY_WORKER_SECRET",
+    ];
+    const savedEnv = Object.fromEntries(
+      envKeys.map((key) => [key, process.env[key]]),
+    );
+    const originalFetch = globalThis.fetch;
+    Object.assign(process.env, {
+      SUPABASE_URL: "https://replacement.invalid",
+      SUPABASE_ANON_KEY: "fixture",
+      SUPABASE_SERVICE_ROLE_KEY: "fixture",
+      WEEKLY_WORKER_SECRET: "fixture-replacement",
+    });
+    const archives = [];
+    const row = (id, position, value, injury_status = "") => ({
+      player_id: id,
+      date: "2030-10-13T17:00:00Z",
+      stats: { gp: 1, rec: value },
+      player: { position, injury_status, first_name: id },
+      team: "BUF",
+    });
+    const projections = [
+      row("qb1", "QB", 20),
+      row("qb2", "QB", 18),
+      row("owned-k", "K", 50),
+      row("injured", "K", 90, "Out"),
+      ...[12, 9, 6, 3].map((value, i) => row("free-k" + i, "K", value)),
+    ];
+    globalThis.fetch = async (input, init) => {
+      const url = String(input),
+        endpoint = new URL(url).pathname.split("/").at(-1);
+      const json = (value) =>
+        new Response(JSON.stringify(value), {
+          headers: { "Content-Type": "application/json" },
+        });
+      if (url.startsWith("https://replacement.invalid")) {
+        if (endpoint === "teams")
+          return json(
+            [1, 2].map((roster_id) => ({
+              id: "team" + roster_id,
+              roster_id,
+              team_name: "Team " + roster_id,
+              wins: 1,
+              losses: 1,
+              ties: 0,
+            })),
+          );
+        if (endpoint === "leagues")
+          return json({ sleeper_league_id: "fixture", nfl_season: 2030 });
+        if (endpoint === "line_refresh_runtime") return json(null);
+        if (endpoint === "model_controls")
+          return json({ active_id: "baseline" });
+        if (endpoint === "model_config_versions")
+          return json({
+            id: "baseline",
+            config: { score_scale: 1, variance_scale: 1 },
+          });
+        if (endpoint === "save_model_forecast") {
+          archives.push(JSON.parse(init.body));
+          return json(null);
+        }
+      }
+      if (url.includes("/projections/")) return json(projections);
+      if (url.endsWith("/rosters"))
+        return json([
+          {
+            roster_id: 1,
+            players: ["qb1", "injured"],
+            reserve: ["injured"],
+            starters: ["qb1", "0"],
+            settings: { wins: 1, losses: 1, ties: 0 },
+          },
+          {
+            roster_id: 2,
+            players: ["qb2", "owned-k"],
+            starters: ["qb2", "owned-k"],
+            settings: { wins: 1, losses: 1, ties: 0 },
+          },
+        ]);
+      if (url.endsWith("/matchups/1"))
+        return json([
+          { roster_id: 1, matchup_id: 1 },
+          { roster_id: 2, matchup_id: 1 },
+        ]);
+      if (url.endsWith("/league/fixture"))
+        return json({
+          season: "2030",
+          roster_positions: ["QB", "K"],
+          scoring_settings: { rec: 1 },
+          settings: {},
+        });
+      throw new Error("Unexpected replacement fixture request: " + url);
+    };
+    try {
+      for (const category of ["Matchups", "Player Points"]) {
+        const result = await POST(
+          new Request("https://fixture.invalid/api/generate-markets", {
+            method: "POST",
+            headers: { "x-worker-secret": "fixture-replacement" },
+            body: JSON.stringify({
+              league_id: "test",
+              week: 1,
+              nfl_season: 2030,
+              category,
+            }),
+          }),
+        );
+        const body = await result.json();
+        assert.equal(result.status, 200, JSON.stringify(body));
+        assert(
+          body.quotes
+            .filter((q) => q.kind !== "player_h2h")
+            .every((q) => !q.metadata.lineup_locked),
+          category,
+        );
+        if (category === "Matchups") {
+          assert.equal(body.quotes[0].home_projection, 29);
+          assert.deepEqual(
+            body.quotes[0].metadata.home_replacements[0].sources.map(
+              (p) => p.id,
+            ),
+            ["free-k0", "free-k1", "free-k2"],
+          );
+        }
+        if (category === "Player Points")
+          assert(
+            body.quotes
+              .filter((q) => q.kind === "player_points")
+              .every((q) => ["qb1", "qb2"].includes(q.metadata.player_id)),
+          );
+      }
+      const source = Object.values(archives[0].p_sources).find(
+        (s) => Array.isArray(s.payload) && s.payload.some((p) => p.player_id),
+      );
+      assert(
+        source.payload.some((p) => p.player_id === "free-k0"),
+        "Archive replacement contributors",
+      );
+      assert(
+        !source.payload.some((p) => p.player_id === "free-k3"),
+        "Omit unused unrostered projections",
+      );
+      console.log(
+        "Replacement integration: roster ownership, inactive exclusions, top-three average, unlocked team markets, real-player-only props and archived contributors pass.",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const key of envKeys)
+        if (savedEnv[key] === undefined) delete process.env[key];
+        else process.env[key] = savedEnv[key];
+    }
+  }
   if (process.argv.includes("--live-futures")) {
     const liveFetch = globalThis.fetch;
     const sleeper = async (path) => {

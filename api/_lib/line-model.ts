@@ -23,6 +23,11 @@ export interface Candidate {
   injury: string;
   team: string;
   game: string;
+  replacement?: {
+    slot: string;
+    method: "top-three-unrostered-mean-v1";
+    sources: { id: string; name: string; projection: number }[];
+  };
 }
 export interface History {
   roster_id: number;
@@ -95,7 +100,9 @@ export function bestLineup(
 ): Candidate[] {
   const result = projectedLineup(players, positions);
   if (result.missingSlots.length && !allowEmpty)
-    throw new Error("A complete projected lineup could not be formed. Check roster eligibility, injuries, and projection coverage.");
+    throw new Error(
+      "A complete projected lineup could not be formed. Check roster eligibility, injuries, and projection coverage.",
+    );
   return result.picks;
 }
 export function projectedLineup(players: Candidate[], positions: string[]) {
@@ -109,8 +116,9 @@ export function projectedLineup(players: Candidate[], positions: string[]) {
     [0, { value: 0, picks: [] }],
   ]);
   const unique = new Map<string, Candidate>();
-  for (const p of players.filter(p => p.expected > 0 && p.projection > 0))
-    if (!unique.has(p.id) || unique.get(p.id)!.projection < p.projection) unique.set(p.id, p);
+  for (const p of players.filter((p) => p.expected > 0 && p.projection > 0))
+    if (!unique.has(p.id) || unique.get(p.id)!.projection < p.projection)
+      unique.set(p.id, p);
   for (const player of unique.values()) {
     for (const [mask, state] of [...states]) {
       slots.forEach((slot, index) => {
@@ -128,12 +136,80 @@ export function projectedLineup(players: Candidate[], positions: string[]) {
   }
   // Cover as many mandatory slots as possible before maximizing points.
   const filled = (mask: number) => mask.toString(2).replace(/0/g, "").length;
-  const [mask, result] = [...states].sort((a, b) => filled(b[0]) - filled(a[0]) || b[1].value - a[1].value)[0];
-  const missingSlots = slots.flatMap((slot, index) => mask & (1 << index) ? [] : [
-    slots.filter(s => s === slot).length > 1
-      ? `${slot} ${slots.slice(0, index + 1).filter(s => s === slot).length}` : slot,
-  ]);
+  const [mask, result] = [...states].sort(
+    (a, b) => filled(b[0]) - filled(a[0]) || b[1].value - a[1].value,
+  )[0];
+  const missingSlots = slots.flatMap((slot, index) =>
+    mask & (1 << index)
+      ? []
+      : [
+          slots.filter((s) => s === slot).length > 1
+            ? `${slot} ${slots.slice(0, index + 1).filter((s) => s === slot).length}`
+            : slot,
+        ],
+  );
   return { picks: result.picks, missingSlots };
+}
+// Fill only gaps left after optimizing the team's own eligible roster. These are
+// team forecast estimates, never actual starters or player-market selections.
+export function lineupWithReplacements(
+  players: Candidate[],
+  freeAgents: Candidate[],
+  positions: string[],
+) {
+  const selected = projectedLineup(players, positions);
+  const missingSlots: string[] = [];
+  const replacements: Candidate[] = [];
+  for (const label of selected.missingSlots) {
+    const slot = label.replace(/ \d+$/, "");
+    const eligible = flexible[slot] ?? [slot];
+    const top = [
+      ...new Map(
+        freeAgents
+          .filter(
+            (p) =>
+              Number.isFinite(p.projection) &&
+              p.projection > 0 &&
+              Number.isFinite(p.expected) &&
+              p.expected > 0 &&
+              p.positions.some((position) => eligible.includes(position)),
+          )
+          .map((p) => [p.id, p]),
+      ).values(),
+    ]
+      .sort((a, b) => b.projection - a.projection || a.id.localeCompare(b.id))
+      .slice(0, 3);
+    if (!top.length) {
+      missingSlots.push(label);
+      continue;
+    }
+    const mean = top.reduce((sum, p) => sum + p.projection, 0) / top.length;
+    replacements.push({
+      id: `replacement:${label}`,
+      name: `${label} free-agent estimate`,
+      positions: [slot],
+      projection: mean,
+      expected: mean,
+      average: null,
+      injury: "",
+      team: "",
+      game: "",
+      replacement: {
+        slot: label,
+        method: "top-three-unrostered-mean-v1",
+        sources: top.map((p) => ({
+          id: p.id,
+          name: p.name,
+          projection: p.projection,
+        })),
+      },
+    });
+  }
+  return {
+    picks: [...selected.picks, ...replacements],
+    missingSlots,
+    replacements,
+  };
 }
 export function deviation(scores: number[], projection: number) {
   const mean = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);
@@ -152,7 +228,7 @@ export function deviation(scores: number[], projection: number) {
 export function highLowProbabilities(
   teams: { mean: number; sd: number }[],
   seed = 42,
-  projectionTargets = teams.map(t => t.mean),
+  projectionTargets = teams.map((t) => t.mean),
 ) {
   const high = teams.map(() => 1),
     low = teams.map(() => 1),
@@ -178,7 +254,9 @@ export function highLowProbabilities(
     high[scores.indexOf(Math.max(...scores))]++;
     low[scores.indexOf(Math.min(...scores))]++;
     counts150[scores.filter((s) => s >= 150).length]++;
-    countsProjection[scores.filter((s, i) => s > projectionTargets[i]).length]++;
+    countsProjection[
+      scores.filter((s, i) => s > projectionTargets[i]).length
+    ]++;
     averageScores.push(scores.reduce((a, b) => a + b, 0) / teams.length);
     highestScores.push(Math.max(...scores));
     if (scores.some((s) => s < 100)) anyBelow100++;

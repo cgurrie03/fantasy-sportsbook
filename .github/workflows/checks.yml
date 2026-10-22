@@ -21,6 +21,8 @@ jobs:
           VITE_SUPABASE_URL: https://bmvjcdgxwxqalaohpsnw.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: fixture-only-not-a-real-key
       - run: npm run test:accounts
+      - run: npm run test:lines
+      - run: node scripts/test-sleeper-links.mjs
       - run: npm run test:import
       - run: npm run test:refresh
       - run: npm run test:starters
@@ -32,4 +34,5 @@ jobs:
       - run: npm run test:reopening
       - run: npx playwright install --with-deps chromium
       - run: npm run test:transitions:ux
+      - run: npm run test:extra-markets:ux
       - run: npm run test:audit

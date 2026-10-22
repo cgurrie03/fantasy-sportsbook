@@ -18,8 +18,7 @@ import { cdf } from "./_lib/model-assessment.js";
 import { BASELINE, fairProbability } from "./_lib/model-assessment.js";
 import { createClient } from "@supabase/supabase-js";
 import {
-  bestLineup,
-  projectedLineup,
+  lineupWithReplacements,
   matchupSpread,
   candidates,
   deviation,
@@ -482,6 +481,15 @@ export async function generateMarkets(
         ),
       };
     });
+    const rosteredIds = new Set(
+      rosters.flatMap((r) => [
+        ...(r.players ?? []),
+        ...(r.reserve ?? []),
+        ...(r.taxi ?? []),
+        ...(r.starters ?? []).filter((id) => id !== "0"),
+      ]),
+    );
+    const freeAgents = pool.filter((p) => !rosteredIds.has(p.id));
     const models = teams.map((team) => {
       const roster = rosters.find((r) => r.roster_id === team.roster_id);
       if (!roster)
@@ -490,10 +498,11 @@ export async function generateMarkets(
         ...(roster.reserve ?? []),
         ...(roster.taxi ?? []),
       ]);
-      const selection = projectedLineup(
+      const selection = lineupWithReplacements(
         pool.filter(
           (p) => roster.players.includes(p.id) && !excluded.has(p.id),
         ),
+        freeAgents,
         league.roster_positions,
       );
       const lineup = selection.picks;
@@ -510,6 +519,10 @@ export async function generateMarkets(
           .map((p) => ({ id: p.id, name: p.name, positions: p.positions })),
         lineup,
         missing_slots: selection.missingSlots,
+        replacements: selection.replacements.map((p) => ({
+          ...p.replacement!,
+          projection: p.projection,
+        })),
         mean: mean * config.score_scale,
         season_mean: scores.length
           ? roundHalf(
@@ -524,6 +537,11 @@ export async function generateMarkets(
           ).length - lineup.length,
       };
     });
+    const forecastPlayerIds = new Set(rosteredIds);
+    for (const model of models)
+      for (const replacement of model.replacements)
+        for (const source of replacement.sources)
+          forecastPlayerIds.add(source.id);
     let reopeningSnapshot: ReturnType<typeof conditionalReopening> | undefined;
     if (reopening) {
       const stats = await fetchData(
@@ -566,6 +584,7 @@ export async function generateMarkets(
         });
         Object.assign(model, {
           lineup: actualLineup,
+          replacements: [],
           mean: conditional.mean,
           sd: conditional.sd,
           unfilled_slots: conditional.reasons.length ? 1 : 0,
@@ -578,7 +597,6 @@ export async function generateMarkets(
     const quotes: Market[] = [],
       generatedAt = new Date().toISOString();
     const assessmentRun = crypto.randomUUID();
-    const rosteredIds = new Set(rosters.flatMap((r) => r.players));
     let archivedSpecials: ReturnType<typeof highLowProbabilities> | undefined;
     const archive = async () => {
       if (reopeningSnapshot)
@@ -661,10 +679,10 @@ export async function generateMarkets(
                 ? {
                     ...source,
                     payload: source.payload.filter((p) =>
-                      rosteredIds.has(p.player_id),
+                      forecastPlayerIds.has(p.player_id),
                     ),
                     filter_note:
-                      "All rostered players retained, including bench/IR/Taxi; unrostered players cannot affect these forecasts.",
+                      "Rostered players and free agents contributing to replacement estimates retained; replacement sources and their projections are recorded per slot.",
                   }
                 : source,
             ];
@@ -672,8 +690,10 @@ export async function generateMarkets(
         ),
         p_payload: {
           models,
-          pool: pool.filter((p) => rosteredIds.has(p.id)),
-          algorithm_version: reopening ? REOPENING_MODEL : "weekly-lineup-v3",
+          pool: pool.filter((p) => forecastPlayerIds.has(p.id)),
+          algorithm_version: reopening
+            ? REOPENING_MODEL
+            : "weekly-lineup-fa-v4",
           reopening: reopeningSnapshot ?? null,
           assessment_version: "weekly-review-v1",
           simulation_seed: input.week,
@@ -709,14 +729,14 @@ export async function generateMarkets(
       active: true,
     };
     const metadata = {
-      model_version: "weekly-lineup-v3",
+      model_version: "weekly-lineup-fa-v4",
       generated: true,
       generated_at: generatedAt,
       projection_method:
-        "League-scored weekly projections, optimal legal lineup, capped historical adjustment",
+        "League-scored weekly projections, optimal roster lineup, capped historical adjustment; missing slots use the mean of up to three top eligible unrostered projections",
       historical_weeks: historical.length,
       injury_source:
-        "Sleeper projection feed; Out/IR/PUP/Suspended excluded. Questionable and Doubtful retain positive provider projections; active roster and bench only.",
+        "Sleeper projection feed; Out/IR/PUP/Suspended excluded. Questionable and Doubtful retain positive provider projections; active roster and bench first, with eligible unrostered estimates for missing slots.",
       scoring_settings: league.scoring_settings,
       roster_positions: league.roster_positions,
     };
@@ -728,12 +748,11 @@ export async function generateMarkets(
       const futureWeeklyMeans: number[][] = [models.map((t) => t.mean)];
       const missingProjectionWeeks: number[] = [];
       // Provider weekly forecasts include the NFL schedule/byes. Bound concurrent
-      // downloads and keep only rostered candidates rather than retaining feeds.
+      // downloads and retain only forecast contributors in the archived source feeds.
       const forecastWeeks = Array.from(
         { length: Math.max(0, playoffStart + 3 - input.week! - 1) },
         (_, i) => input.week! + i + 1,
       );
-      const rostered = new Set(rosters.flatMap((r) => r.players));
       for (let start = 0; start < forecastWeeks.length; start += 3) {
         const forecasts = await Promise.all(
           forecastWeeks.slice(start, start + 3).map(async (week) => {
@@ -744,12 +763,10 @@ export async function generateMarkets(
               if (!Array.isArray(rows) || !rows.some((r) => r.stats?.gp > 0))
                 throw new Error("No weekly forecasts");
               const futurePool = candidates(
-                rows
-                  .filter((r) => rostered.has(r.player_id))
-                  .map((r) => ({
-                    ...r,
-                    player: { ...r.player, injury_status: "" },
-                  })),
+                rows.map((r) => ({
+                  ...r,
+                  player: { ...r.player, injury_status: "" },
+                })),
                 league.scoring_settings,
                 allHistory,
               );
@@ -757,15 +774,19 @@ export async function generateMarkets(
                 const roster = rosters.find(
                   (r) => r.roster_id === t.roster_id,
                 )!;
-                return bestLineup(
+                const selected = lineupWithReplacements(
                   futurePool.filter(
                     (p) =>
                       roster.players.includes(p.id) &&
                       !(roster.taxi ?? []).includes(p.id),
                   ),
+                  futurePool.filter((p) => !rosteredIds.has(p.id)),
                   league.roster_positions,
-                  true,
-                ).reduce((n, p) => n + p.expected, 0);
+                );
+                for (const p of selected.replacements)
+                  for (const source of p.replacement!.sources)
+                    forecastPlayerIds.add(source.id);
+                return selected.picks.reduce((n, p) => n + p.expected, 0);
               });
             } catch {
               missingProjectionWeeks.push(week);
@@ -968,6 +989,8 @@ export async function generateMarkets(
           away_eligible_players: away.eligible_players,
           home_missing_slots: home.missing_slots,
           away_missing_slots: away.missing_slots,
+          home_replacements: home.replacements,
+          away_replacements: away.replacements,
         },
       };
       const add = (
@@ -1014,7 +1037,7 @@ export async function generateMarkets(
               )
               .map(
                 (t) =>
-                  `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
+                  `${t.team_name}: no eligible roster or free-agent projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
               )
               .join(" "),
           },
@@ -1049,7 +1072,7 @@ export async function generateMarkets(
             {
               metadata: {
                 simulated_probability: p,
-                model_version: "weekly-lineup-v3",
+                model_version: "weekly-lineup-fa-v4",
               },
             },
           );
@@ -1073,6 +1096,7 @@ export async function generateMarkets(
         ]
           .filter(
             (p) =>
+              !p.replacement &&
               !p.positions.some((pos) => ["K", "DEF", "DST"].includes(pos)),
           )
           .sort((a, b) => b.expected - a.expected)
@@ -1357,7 +1381,7 @@ export async function generateMarkets(
         .filter((t) => t.unfilled_slots > 0)
         .map(
           (t) =>
-            `${t.team_name}: no eligible active-roster or bench replacement with a positive projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
+            `${t.team_name}: no eligible roster or free-agent projection for ${t.missing_slots.join(", ")}. Taxi and IR players are excluded.`,
         ),
     });
   } catch (error) {

@@ -8,7 +8,7 @@ fs.mkdirSync(output, { recursive: true });
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 1440])
+    for (const width of [320, 390, 768, 1440])
       for (const theme of ["dark", "light"]) {
         const f = await setup(browser, width, 1000),
           board = boards.find((b) => b.league_id === A),
@@ -79,6 +79,25 @@ fs.mkdirSync(output, { recursive: true });
             },
           })),
         ];
+        for (const market of advanced.filter((m) =>
+          ["team_milestone", "winning_margin"].includes(m.kind),
+        ))
+          advanced.push({
+            ...market,
+            id: market.id + "-away",
+            team_id: base.away_team_id,
+          });
+        for (const team_id of [base.home_team_id, base.away_team_id])
+          for (const side of ["over", "under"])
+            advanced.push({
+              ...base,
+              id: `total-${team_id}-${side}`,
+              kind: "team_total",
+              team_id,
+              side,
+              line: 125.5,
+              metadata: {},
+            });
         await f.context.route(
           "**/rest/v1/rpc/sportsbook_current_snapshot",
           (route) =>
@@ -133,11 +152,81 @@ fs.mkdirSync(output, { recursive: true });
           .locator("summary")
           .click();
         await f.page
+          .locator(".team-totals")
+          .filter({
+            has: f.page.locator("summary", { hasText: "Team Totals" }),
+          })
+          .first()
+          .locator("summary")
+          .click();
+        await f.page
           .locator(".extra-market")
           .filter({ hasText: "Milestones" })
           .first()
           .locator("summary")
           .click();
+        for (const grid of await f.page.locator(".extra-team-grid").all()) {
+          const rows = await grid.locator(".margin-team").all();
+          assert.equal(rows.length, 2);
+          const first = await rows[0].boundingBox(),
+            second = await rows[1].boundingBox();
+          assert(
+            second.y >= first.y + first.height,
+            "Each team gets its own row",
+          );
+          for (const row of rows) {
+            const buttons = await row.locator(".market-quote").all();
+            assert.equal(buttons.length, 4);
+            const positions = await Promise.all(
+              buttons.map(async (b) => (await b.boundingBox()).y),
+            );
+            assert(
+              Math.max(...positions) - Math.min(...positions) < 2,
+              "All four options fit a single line",
+            );
+            assert.equal(
+              await row.locator("small").count(),
+              0,
+              "No duplicate odds below buttons",
+            );
+          }
+        }
+        for (const quote of await f.page
+          .locator(".team-totals[open] .market-quote")
+          .all()) {
+          assert.equal(await quote.locator(".quote-price").count(), 1);
+          const styles = await quote.evaluate((el) => ({
+            line: getComputedStyle(el.querySelector("strong")).fontWeight,
+            odds: getComputedStyle(el.querySelector(".quote-price")).fontWeight,
+          }));
+          assert.notEqual(styles.line, styles.odds);
+        }
+        assert.equal(await f.page.locator(".matchup-toolbar").count(), 0);
+        const link = f.page.locator(".sleeper-matchup-link").first();
+        assert.equal(
+          await link.locator("img").getAttribute("src"),
+          "/sleeper-logo.ico",
+        );
+        assert.equal(
+          await link.evaluate(
+            (el) =>
+              el.closest(".match-team") ===
+              document.querySelector(".match-team"),
+          ),
+          true,
+        );
+        assert.match(
+          await f.page
+            .locator(".match-team > div > strong")
+            .first()
+            .innerText(),
+          /\(3–1\)/,
+        );
+        assert(
+          await f.page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
         await f.page.screenshot({
           path: path.join(output, `ladders-${width}-${theme}.png`),
           fullPage: true,

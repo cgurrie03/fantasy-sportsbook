@@ -15,6 +15,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import {
   bestLineup,
   projectedLineup,
+  lineupWithReplacements,
   matchupSpread,
   candidates,
   score,
@@ -103,6 +104,57 @@ const replacementRoster = [
   player("bench-rb", ["RB"], 9),
   player("bench-wr", ["WR"], 14),
 ];
+const available = [
+  player("fa-k1", ["K"], 12),
+  player("fa-k2", ["K"], 9),
+  player("fa-k3", ["K"], 6),
+  player("fa-k4", ["K"], 3),
+  player("fa-qb", ["QB"], 24),
+  player("fa-wr", ["WR"], 18),
+  player("fa-rb", ["RB"], 15),
+  player("fa-te", ["TE"], 12),
+  { ...player("inactive-k", ["K"], 99), expected: 0 },
+];
+const missingKicker = lineupWithReplacements(
+  [player("bye-k", ["K"], 0)],
+  available,
+  ["K"],
+);
+assert.deepEqual(missingKicker.missingSlots, []);
+assert.equal(missingKicker.picks[0].expected, 9);
+assert.deepEqual(
+  missingKicker.replacements[0].replacement.sources.map((p) => p.id),
+  ["fa-k1", "fa-k2", "fa-k3"],
+);
+const ownBench = lineupWithReplacements(replacementRoster, available, ["K"]);
+assert.equal(ownBench.picks[0].id, "bench-kicker");
+assert.equal(
+  ownBench.replacements.length,
+  0,
+  "Never replace a healthy rostered option with a stronger free agent",
+);
+const flexibleReplacements = lineupWithReplacements([], available, [
+  "FLEX",
+  "SUPER_FLEX",
+]);
+assert.equal(flexibleReplacements.picks[0].expected, 15);
+assert.equal(flexibleReplacements.picks[1].expected, 19);
+assert.equal(flexibleReplacements.picks.length, 2);
+assert.equal(new Set(flexibleReplacements.picks.map((p) => p.id)).size, 2);
+assert.deepEqual(lineupWithReplacements([], available, ["DEF"]).missingSlots, [
+  "DEF",
+]);
+assert.equal(
+  lineupWithReplacements([], [available[0]], ["K"]).picks[0].expected,
+  12,
+);
+assert.deepEqual(lineupWithReplacements([], [], ["K"]).missingSlots, ["K"]);
+assert.deepEqual(
+  lineupWithReplacements([], available, ["RB", "RB"]).replacements.map(
+    (p) => p.replacement.slot,
+  ),
+  ["RB 1", "RB 2"],
+);
 const replacements = projectedLineup(replacementRoster, [
   "RB",
   "RB",

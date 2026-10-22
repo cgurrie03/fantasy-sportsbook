@@ -1,3 +1,4 @@
+import { openSleeperMatchup } from "../lib/sleeper-link";
 import { MatchupScore, MatchupScoresNotice } from "./MatchupScores";
 import { useTicketProgress } from "./TicketProgress";
 import { LeagueStandings } from "./LeagueStandings";
@@ -944,55 +945,20 @@ export function Sportsbook({
                             <span>25% PROFIT BOOST</span>
                           </div>
                         )}
-                        <div className="matchup-toolbar">
-                          {review && !review.starterActivity ? (
-                            <span className="matchup-status-unavailable">
-                              Captured game state; see source checks above.
-                            </span>
-                          ) : (
-                            <StarterActivity
-                              rosterIds={[h?.roster_id, a?.roster_id]}
-                              {...starterActivity}
-                              now={
-                                review?.starterActivity
-                                  ? Date.parse(
-                                      review.starterActivity.observed_at,
-                                    )
-                                  : clock
-                              }
-                            />
-                          )}
-                          {sleeperLeagueId && week && h?.roster_id && (
-                            <a
-                              className="sleeper-matchup-link"
-                              href={`https://sleeper.com/matchup/${encodeURIComponent(sleeperLeagueId)}/${week}/${h.roster_id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper (new tab)`}
-                              title="Open matchup in Sleeper"
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.8"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M14 3h7v7M21 3l-9 9M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
-                              </svg>
-                            </a>
-                          )}
-                        </div>
-                        {g.some((m) => m.metadata.lineup_locked) && (
-                          <p className="market-availability">
-                            {quoteUnavailable(
-                              g.find((m) => m.metadata.lineup_locked)!,
-                            )}
-                          </p>
+                        {review && !review.starterActivity ? (
+                          <span className="matchup-status-unavailable">
+                            Captured game state; see source checks above.
+                          </span>
+                        ) : (
+                          <StarterActivity
+                            rosterIds={[h?.roster_id, a?.roster_id]}
+                            {...starterActivity}
+                            now={
+                              review?.starterActivity
+                                ? Date.parse(review.starterActivity.observed_at)
+                                : clock
+                            }
+                          />
                         )}
                         <MatchupScoresNotice
                           row={scoreObservation}
@@ -1031,9 +997,13 @@ export function Sportsbook({
                                   {t?.team_name.slice(0, 1) ?? "?"}
                                 </span>
                                 <div>
-                                  <strong>{t?.team_name}</strong>
+                                  <strong>
+                                    {t?.team_name}{" "}
+                                    <span className="team-record">
+                                      ({record(t)})
+                                    </span>
+                                  </strong>
                                   <span>{t ? owner(t.id) : ""}</span>
-                                  <span>{record(t)}</span>
                                   <MatchupScore
                                     row={scoreObservation}
                                     teamId={t?.id}
@@ -1047,6 +1017,49 @@ export function Sportsbook({
                                     )}
                                   </span>
                                 </div>
+                                {i === 0 &&
+                                  sleeperLeagueId &&
+                                  week &&
+                                  h?.roster_id && (
+                                    <a
+                                      className="sleeper-matchup-link"
+                                      href={`https://sleeper.com/matchup/${encodeURIComponent(sleeperLeagueId)}/${week}/${h.roster_id}`}
+                                      onClick={(e) =>
+                                        openSleeperMatchup(
+                                          e,
+                                          sleeperLeagueId,
+                                          week,
+                                          h.roster_id,
+                                        )
+                                      }
+                                      rel="noopener noreferrer"
+                                      aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper`}
+                                      title="Open matchup in Sleeper"
+                                    >
+                                      <img
+                                        src="/sleeper-logo.ico"
+                                        width={20}
+                                        height={20}
+                                        alt=""
+                                      />
+                                    </a>
+                                  )}
+
+                                {i === 0 && (
+                                  <>
+                                    {g.some(
+                                      (m) => m.metadata.lineup_locked,
+                                    ) && (
+                                      <p className="market-availability">
+                                        {quoteUnavailable(
+                                          g.find(
+                                            (m) => m.metadata.lineup_locked,
+                                          )!,
+                                        )}
+                                      </p>
+                                    )}
+                                  </>
+                                )}
                               </div>
                               {quote(
                                 g.find(
@@ -1194,10 +1207,13 @@ export function Sportsbook({
                                 </span>
                               )}
                               <div>
-                                <strong>{t?.team_name}</strong>
-                                <span>
-                                  {owner(id ?? "")} · {record(t)}
-                                </span>
+                                <strong>
+                                  {t?.team_name}{" "}
+                                  <span className="team-record">
+                                    ({record(t)})
+                                  </span>
+                                </strong>
+                                <span>{owner(id ?? "")}</span>
                                 <small>
                                   Model projection:{" "}
                                   {Number(

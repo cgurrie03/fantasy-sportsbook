@@ -38,20 +38,12 @@ export function Milestones({
                   {markets
                     .filter((m) => m.team_id === id)
                     .map((m) => (
-                      <div key={m.id}>
-                        {quote(m, `${m.line}+`)}
-                        <small>{formatOdds(m.odds)}</small>
-                      </div>
+                      <div key={m.id}>{quote(m, `${m.line}+`)}</div>
                     ))}
                 </div>
               </section>
             ))
-          : markets.map((m) => (
-              <div key={m.id}>
-                {quote(m, `${m.line}+`)}
-                <small>{formatOdds(m.odds)}</small>
-              </div>
-            ))}
+          : markets.map((m) => <div key={m.id}>{quote(m, `${m.line}+`)}</div>)}
       </div>
     </details>
   );
@@ -90,7 +82,6 @@ export function WinningMargins({
                           ? "30+"
                           : `${m.metadata.margin_lower} - ${m.metadata.margin_upper}`,
                     )}
-                    <small>{formatOdds(m.odds)}</small>
                   </div>
                 ))}
             </div>
@@ -180,12 +171,16 @@ export function HeadToHead({
             return (
               <div className={i ? "right" : ""} key={id}>
                 {t?.avatar_url && <img src={t.avatar_url} alt="" />}
-                <strong>{t?.team_name}</strong>
+                <strong>
+                  {t?.team_name}{" "}
+                  <span className="team-record">
+                    ({t?.wins}–{t?.losses}
+                    {t?.ties ? `–${t.ties}` : ""})
+                  </span>
+                </strong>
                 <span>
                   {data.memberships.find((m) => m.team_id === id)
-                    ?.display_name ?? t?.sportsbook_owner_name}{" "}
-                  · {t?.wins}–{t?.losses}
-                  {t?.ties ? `–${t.ties}` : ""}
+                    ?.display_name ?? t?.sportsbook_owner_name}
                 </span>
               </div>
             );
