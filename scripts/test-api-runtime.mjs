@@ -783,6 +783,7 @@ try {
       WEEKLY_WORKER_SECRET: "fixture-replacement",
     });
     const archives = [];
+    let emptyRoster = false;
     const row = (id, position, value, injury_status = "") => ({
       player_id: id,
       date: "2030-10-13T17:00:00Z",
@@ -836,9 +837,9 @@ try {
         return json([
           {
             roster_id: 1,
-            players: ["qb1", "injured"],
+            players: emptyRoster ? null : ["qb1", "injured"],
             reserve: ["injured"],
-            starters: ["qb1", "0"],
+            starters: emptyRoster ? ["0", "0"] : ["qb1", "0"],
             settings: { wins: 1, losses: 1, ties: 0 },
           },
           {
@@ -900,6 +901,23 @@ try {
               .every((q) => ["qb1", "qb2"].includes(q.metadata.player_id)),
           );
       }
+      emptyRoster = true;
+      const emptyResponse = await POST(
+        new Request("https://fixture.invalid/api/generate-markets", {
+          method: "POST",
+          headers: { "x-worker-secret": "fixture-replacement" },
+          body: JSON.stringify({
+            league_id: "test",
+            week: 1,
+            nfl_season: 2030,
+            category: "Matchups",
+          }),
+        }),
+      );
+      const emptyBody = await emptyResponse.json();
+      assert.equal(emptyResponse.status, 200, JSON.stringify(emptyBody));
+      assert.equal(emptyBody.quotes[0].home_projection, 29);
+      assert(emptyBody.quotes.every((q) => !q.metadata.lineup_locked));
       const source = Object.values(archives[0].p_sources).find(
         (s) => Array.isArray(s.payload) && s.payload.some((p) => p.player_id),
       );

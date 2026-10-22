@@ -500,7 +500,7 @@ export async function generateMarkets(
       ]);
       const selection = lineupWithReplacements(
         pool.filter(
-          (p) => roster.players.includes(p.id) && !excluded.has(p.id),
+          (p) => (roster.players ?? []).includes(p.id) && !excluded.has(p.id),
         ),
         freeAgents,
         league.roster_positions,
@@ -515,7 +515,9 @@ export async function generateMarkets(
       return {
         ...team,
         eligible_players: pool
-          .filter((p) => roster.players.includes(p.id) && !excluded.has(p.id))
+          .filter(
+            (p) => (roster.players ?? []).includes(p.id) && !excluded.has(p.id),
+          )
           .map((p) => ({ id: p.id, name: p.name, positions: p.positions })),
         lineup,
         missing_slots: selection.missingSlots,
@@ -777,7 +779,7 @@ export async function generateMarkets(
                 const selected = lineupWithReplacements(
                   futurePool.filter(
                     (p) =>
-                      roster.players.includes(p.id) &&
+                      (roster.players ?? []).includes(p.id) &&
                       !(roster.taxi ?? []).includes(p.id),
                   ),
                   futurePool.filter((p) => !rosteredIds.has(p.id)),
