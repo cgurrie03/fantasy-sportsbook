@@ -43,25 +43,7 @@ export function LineRefreshStatus({
       clearInterval(timer);
     };
   }, [leagueId, review, admin]);
-  if (!admin)
-    return (
-      <p className="line-updates-coming-soon">
-        <svg
-          aria-hidden="true"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 17l6-6 4 3 8-10M15 4h6v6" />
-        </svg>
-        <span>Live line updates are in development and coming soon</span>
-      </p>
-    );
+  if (!admin) return null;
   const time = (v: string | null) =>
     v
       ? new Date(v).toLocaleString("en-US", {

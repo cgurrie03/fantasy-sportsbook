@@ -6,7 +6,7 @@ assert(new URL(origin).hostname==='127.0.0.1'||new URL(origin).hostname==='local
 const output=path.resolve(process.env.UX_OUTPUT || 'work/ux-evidence');fs.mkdirSync(output,{recursive:true});
 const A='aaaaaaaa-1111-4111-8111-111111111111', B='bbbbbbbb-2222-4222-8222-222222222222', userId='cccccccc-3333-4333-8333-333333333333';
 const names=['The Extremely Long Fantasy Football Team Name With Repeated Championship Aspirations','TheUnbrokenTeamNameThatMustWrapWithoutHidingAnyBalanceOrOdds'];
-const leagues=[A,B].map((id,i)=>({id,name:i?'Disconnected League B':'Disconnected League A With A Long Display Name',league_season:i?9:3,nfl_season:2026,avatar_url:null,sportsbook_url:'https://fixture.example.test/',email_sender:'fixture@example.test',operations_enabled:true}));
+const leagues=[A,B].map((id,i)=>({id,name:i?'Disconnected League B':'Disconnected League A With A Long Display Name',league_season:i?9:3,nfl_season:2026,sleeper_league_id:i?'222':'1312126153980391424',avatar_url:null,sportsbook_url:'https://fixture.example.test/',email_sender:'fixture@example.test',operations_enabled:true}));
 const teams=[A,B].flatMap((league_id,j)=>names.map((team_name,i)=>({id:`${j?'bbbbbbbb':'aaaaaaaa'}-0000-4000-8000-00000000000${i+1}`,league_id,roster_id:i+1,team_name,sportsbook_owner_name:`Owner ${i+1}`,sportsbook_owner_id:`overlap-${i+1}`,co_owner_names:[],avatar_url:null,wins:3-i,losses:1+i,ties:0})));
 const memberships=[A,B].map((league_id,j)=>({id:`member-${j}`,league_id,team_id:teams[j*2].id,user_id:userId,invited_email:'fixture@example.test',display_name:'Long Fixture Owner',role:j?'member':'admin'}));
 const session={access_token:`${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({sub:userId,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.fixture`,refresh_token:'fixture-only',token_type:'bearer',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,user:{id:userId,email:'fixture@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}};
@@ -84,7 +84,7 @@ if(require.main===module)(async()=>{
   await sign.page.getByLabel('Email Address').fill('fixture@example.test');await sign.page.getByRole('button',{name:'Email Me A Sign-In Link'}).click();await sign.page.getByRole('heading',{name:'Check Your Email'}).waitFor();assert(sign.state.authCalls>0);await sign.context.close();
   for(const width of (process.env.UX_SKIP_MATRIX?[]:[360,390,430,768,1024,1440])){
    const {context,page,state,errors}=await setup(browser,width,844);
-   await page.getByRole('heading',{name:/SEASON/}).waitFor();assert.equal(await page.locator('.line-updates-coming-soon').innerText(),'Live line updates are in development and coming soon');assert.equal(await page.locator('.line-refresh-status').count(),0);
+   await page.getByRole('heading',{name:/SEASON/}).waitFor();assert.equal(await page.locator('.line-updates-coming-soon').count(),0);assert.equal(await page.locator('.line-refresh-status').count(),0);
    for(const theme of ['dark','light']){
     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await page.waitForTimeout(250);await geometry(page,`${width}-${theme}-home`);
     const balance=page.locator('.profile-copy small');assert(await balance.isVisible());assert.match(await balance.innerText(),/100\.00/);
@@ -104,7 +104,7 @@ if(require.main===module)(async()=>{
   }
   for(const width of [360,390,1440]){
    const f=await setup(browser,width,844);f.state.futures=true;f.state.liveDevelopment=true;await f.page.reload();await f.page.getByRole('heading',{name:/SEASON/}).waitFor();
-   assert.equal(await f.page.getByText(/Live pricing unavailable:/).count(),0);assert.equal(await f.page.locator('.line-updates-coming-soon svg').count(),1);
+   assert.equal(await f.page.getByText(/Live pricing unavailable:/).count(),0);assert.equal(await f.page.locator('.line-updates-coming-soon').count(),0);
    await f.page.getByRole('button',{name:'Season Futures',exact:true}).click();await f.page.locator('.future-row').first().waitFor();
    assert.equal(await f.page.locator('.board-window').getByText(/parlay|single/i).count(),0);
    assert.equal(await f.page.locator('.market-eligibility').count(),4);

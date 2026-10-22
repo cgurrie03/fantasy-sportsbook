@@ -850,30 +850,6 @@ export function Sportsbook({
               </button>
             ))}
           </nav>
-          {category === "Matchups" &&
-            groups.some((g) =>
-              [g[0].home_team_id, g[0].away_team_id].includes(member.team_id),
-            ) && (
-              <button
-                className="text-button my-matchup-shortcut"
-                onClick={() => {
-                  const g = groups.find((g) =>
-                    [g[0].home_team_id, g[0].away_team_id].includes(
-                      member.team_id,
-                    ),
-                  );
-                  if (!review && g)
-                    navigate(
-                      `/home?matchup=${encodeURIComponent(g[0].matchup_key!)}`,
-                    );
-                  document
-                    .getElementById(`matchup-${g?.[0].matchup_key}`)
-                    ?.scrollIntoView({ behavior: "auto", block: "center" });
-                }}
-              >
-                My matchup ↓
-              </button>
-            )}
           {["Player Points", "Head to Head"].includes(category) && (
             <p className="history-note">
               Model projections use one decimal place. Betting lines may be
@@ -933,7 +909,10 @@ export function Sportsbook({
                   {groups.map((g) => {
                     const first = g[0],
                       h = team(first.home_team_id),
-                      a = team(first.away_team_id);
+                      a = team(first.away_team_id),
+                      sleeperLeagueId = data.leagues.find(
+                        (l) => l.id === member.league_id,
+                      )?.sleeper_league_id;
                     return (
                       <article
                         id={`matchup-${first.matchup_key}`}
@@ -965,21 +944,49 @@ export function Sportsbook({
                             <span>25% PROFIT BOOST</span>
                           </div>
                         )}
-                        {review && !review.starterActivity ? (
-                          <span className="matchup-status-unavailable">
-                            Captured game state; see source checks above.
-                          </span>
-                        ) : (
-                          <StarterActivity
-                            rosterIds={[h?.roster_id, a?.roster_id]}
-                            {...starterActivity}
-                            now={
-                              review?.starterActivity
-                                ? Date.parse(review.starterActivity.observed_at)
-                                : clock
-                            }
-                          />
-                        )}
+                        <div className="matchup-toolbar">
+                          {review && !review.starterActivity ? (
+                            <span className="matchup-status-unavailable">
+                              Captured game state; see source checks above.
+                            </span>
+                          ) : (
+                            <StarterActivity
+                              rosterIds={[h?.roster_id, a?.roster_id]}
+                              {...starterActivity}
+                              now={
+                                review?.starterActivity
+                                  ? Date.parse(
+                                      review.starterActivity.observed_at,
+                                    )
+                                  : clock
+                              }
+                            />
+                          )}
+                          {sleeperLeagueId && week && h?.roster_id && (
+                            <a
+                              className="sleeper-matchup-link"
+                              href={`https://sleeper.com/matchup/${encodeURIComponent(sleeperLeagueId)}/${week}/${h.roster_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper (new tab)`}
+                              title="Open matchup in Sleeper"
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M14 3h7v7M21 3l-9 9M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
                         {g.some((m) => m.metadata.lineup_locked) && (
                           <p className="market-availability">
                             {quoteUnavailable(
@@ -1001,14 +1008,28 @@ export function Sportsbook({
                           {[h, a].map((t, i) => (
                             <div className="match-team-row" key={t?.id ?? i}>
                               <div className="match-team">
-                                {t?.avatar_url && (
+                                {t?.avatar_url ? (
                                   <img
                                     src={t.avatar_url}
                                     width={32}
                                     height={32}
                                     alt=""
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      e.currentTarget.hidden = true;
+                                      e.currentTarget.nextElementSibling?.removeAttribute(
+                                        "hidden",
+                                      );
+                                    }}
                                   />
-                                )}
+                                ) : null}
+                                <span
+                                  className="match-team-avatar-fallback"
+                                  hidden={Boolean(t?.avatar_url)}
+                                  aria-hidden="true"
+                                >
+                                  {t?.team_name.slice(0, 1) ?? "?"}
+                                </span>
                                 <div>
                                   <strong>{t?.team_name}</strong>
                                   <span>{t ? owner(t.id) : ""}</span>
