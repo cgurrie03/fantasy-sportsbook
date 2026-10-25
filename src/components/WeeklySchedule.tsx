@@ -556,7 +556,7 @@ export function WeeklySchedule({
                   .
                 </p>
                 <p>
-                  Jobs:{" "}
+                  Recent jobs:{" "}
                   {logErrors.includes("Scheduled jobs")
                     ? "status unavailable"
                     : jobLogs.length
@@ -584,6 +584,30 @@ export function WeeklySchedule({
                         : "no successful send in the recent history"}
                   .
                 </p>
+                {jobLogs
+                  .filter((j) => /Overdue|Failed/.test(jobState(j)))
+                  .map((job) => (
+                    <button
+                      key={job.id}
+                      onClick={() => {
+                        const logs = document.getElementById(
+                          "scheduled-execution-logs",
+                        ) as HTMLDetailsElement | null;
+                        if (logs) logs.open = true;
+                        const row = document.getElementById(
+                          `execution-job-${job.id}`,
+                        );
+                        row?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
+                        row?.focus({ preventScroll: true });
+                      }}
+                    >
+                      Review {operationName(job.operation)} · Week{" "}
+                      {job.market_week}
+                    </button>
+                  ))}
                 <p className="history-note">
                   History shows recent records. Held replenishments wait for
                   verified results; retries do not mean another payment.
@@ -997,7 +1021,7 @@ export function WeeklySchedule({
               </tbody>
             </table>
           </details>
-          <details>
+          <details id="scheduled-execution-logs">
             <summary>
               Scheduled Execution Logs ·{" "}
               {loadingStatus && !lastChecked
@@ -1016,7 +1040,7 @@ export function WeeklySchedule({
               </thead>
               <tbody>
                 {jobLogs.map((r) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} id={`execution-job-${r.id}`} tabIndex={-1}>
                     <td>
                       {operationName(r.operation)}
                       {r.market_week ? " · Week " + r.market_week : ""}
