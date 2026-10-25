@@ -99,7 +99,9 @@ export function weeklyResultsPending(
         t.ticket_type !== "future" &&
         t.pending &&
         !t.final &&
-        t.market_week <= week,
+        (operation === "replenishment"
+          ? t.market_week < week
+          : t.market_week <= week),
     ) ||
     (operation === "replenishment" &&
       result.balances.some((b: any) =>

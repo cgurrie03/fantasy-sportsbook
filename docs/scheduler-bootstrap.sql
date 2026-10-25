@@ -17,7 +17,7 @@ begin
  select net.http_post(
   url:='https://sportsbook.coopergurrie.com/api/weekly-worker',
   headers:=jsonb_build_object('Content-Type','application/json','x-worker-secret',secret),
-  body:=case when exists(select 1 from public.weekly_schedule where automation_enabled) then '{}'::jsonb else '{"check":true}'::jsonb end,timeout_milliseconds:=60000
+  body:=case when exists(select 1 from public.weekly_schedule where automation_enabled) then '{}'::jsonb else '{"check":true}'::jsonb end,timeout_milliseconds:=130000
  ) into request_id;
  update public.weekly_schedule set worker_probe_id=request_id where activation_requested;
  return request_id;

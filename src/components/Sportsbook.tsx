@@ -832,6 +832,12 @@ export function Sportsbook({
                       : "Markets scheduled"}
                 </strong>
               )}
+              <MatchupScoresNotice
+                row={scoreObservation}
+                loading={scoreObservations.loading}
+                error={scoreObservations.error}
+                now={clock}
+              />
             </div>
           </div>
           <nav className="market-categories" aria-label="Market Categories">
@@ -945,27 +951,49 @@ export function Sportsbook({
                             <span>25% PROFIT BOOST</span>
                           </div>
                         )}
-                        {review && !review.starterActivity ? (
-                          <span className="matchup-status-unavailable">
-                            Captured game state; see source checks above.
-                          </span>
-                        ) : (
-                          <StarterActivity
-                            rosterIds={[h?.roster_id, a?.roster_id]}
-                            {...starterActivity}
-                            now={
-                              review?.starterActivity
-                                ? Date.parse(review.starterActivity.observed_at)
-                                : clock
-                            }
-                          />
-                        )}
-                        <MatchupScoresNotice
-                          row={scoreObservation}
-                          loading={scoreObservations.loading}
-                          error={scoreObservations.error}
-                          now={clock}
-                        />
+                        <div className="matchup-card-tools">
+                          {review && !review.starterActivity ? (
+                            <span className="matchup-status-unavailable">
+                              Captured game state; see source checks above.
+                            </span>
+                          ) : (
+                            <StarterActivity
+                              rosterIds={[h?.roster_id, a?.roster_id]}
+                              {...starterActivity}
+                              now={
+                                review?.starterActivity
+                                  ? Date.parse(
+                                      review.starterActivity.observed_at,
+                                    )
+                                  : clock
+                              }
+                            />
+                          )}
+                          {sleeperLeagueId && week && h?.roster_id && (
+                            <a
+                              className="sleeper-matchup-link"
+                              href={`https://sleeper.com/matchup/${encodeURIComponent(sleeperLeagueId)}/${week}/${h.roster_id}`}
+                              onClick={(e) =>
+                                openSleeperMatchup(
+                                  e,
+                                  sleeperLeagueId,
+                                  week,
+                                  h.roster_id,
+                                )
+                              }
+                              rel="noopener noreferrer"
+                              aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper`}
+                              title="Open matchup in Sleeper"
+                            >
+                              <img
+                                src="/sleeper-logo.ico"
+                                width={20}
+                                height={20}
+                                alt=""
+                              />
+                            </a>
+                          )}
+                        </div>
                         <div className="match-grid">
                           <span className="market-column-spacer" />
                           <span className="market-column-label">Spread</span>
@@ -997,8 +1025,13 @@ export function Sportsbook({
                                   {t?.team_name.slice(0, 1) ?? "?"}
                                 </span>
                                 <div>
-                                  <strong>
-                                    {t?.team_name}{" "}
+                                  <strong
+                                    className="match-team-name"
+                                    title={t?.team_name}
+                                  >
+                                    <span className="match-team-name-text">
+                                      {t?.team_name}
+                                    </span>{" "}
                                     <span className="team-record">
                                       ({record(t)})
                                     </span>
@@ -1017,34 +1050,6 @@ export function Sportsbook({
                                     )}
                                   </span>
                                 </div>
-                                {i === 0 &&
-                                  sleeperLeagueId &&
-                                  week &&
-                                  h?.roster_id && (
-                                    <a
-                                      className="sleeper-matchup-link"
-                                      href={`https://sleeper.com/matchup/${encodeURIComponent(sleeperLeagueId)}/${week}/${h.roster_id}`}
-                                      onClick={(e) =>
-                                        openSleeperMatchup(
-                                          e,
-                                          sleeperLeagueId,
-                                          week,
-                                          h.roster_id,
-                                        )
-                                      }
-                                      rel="noopener noreferrer"
-                                      aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper`}
-                                      title="Open matchup in Sleeper"
-                                    >
-                                      <img
-                                        src="/sleeper-logo.ico"
-                                        width={20}
-                                        height={20}
-                                        alt=""
-                                      />
-                                    </a>
-                                  )}
-
                                 {i === 0 && (
                                   <>
                                     {g.some(

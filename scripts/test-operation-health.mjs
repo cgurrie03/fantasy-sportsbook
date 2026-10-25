@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {groupedExecutions,executionOutcome,jobState} from '../src/lib/execution-health.ts';
+const run={id:'a',operation:'replenishment',nfl_season:2026,market_week:7,created_at:'2026-10-25T14:00:00Z',summary:{replenished:0,blocked:0,already_processed:12}};
+assert.match(executionOutcome(run),/No balance changes.*12 already processed/);
+assert.match(executionOutcome({...run,summary:{blocked:2}}),/Waiting \/ held/);
+const groups=groupedExecutions([run,{...run,id:'b',created_at:'2026-10-25T14:16:00Z'},{...run,id:'old',nfl_season:2025}]);
+assert.equal(groups.length,2);assert.equal(groups[0].latest.id,'b');assert.equal(groups[0].attempts.length,2);
+assert.equal(groupedExecutions([{...run,operation:'settlement',summary:{ticket_id:'one'}},{...run,id:'b',operation:'settlement',summary:{ticket_id:'two'}}]).length,2);
+const now=Date.parse('2026-10-25T14:00:00Z');
+const job={id:'j',operation:'replenishment',status:'pending',last_error:null,created_at:'2026-10-25T12:00:00Z',scheduled_for:'2026-10-25T15:00:00Z'};
+assert.equal(jobState(job,now),'Scheduled');
+assert.equal(jobState({...job,scheduled_for:'2026-10-25T13:00:00Z'},now),'Overdue');
+assert.equal(jobState({...job,last_error:'Waiting for verified results'},now),'Waiting for verified results');
+assert.equal(jobState({...job,status:'done'},now),'Completed');
+assert.match(jobState({...job,status:'running',lease_until:'2026-10-25T13:00:00Z'},now),/lease expired/);
+console.log('Operating outcomes, season/ticket grouping, no-op retries, future schedules and expired leases pass.');

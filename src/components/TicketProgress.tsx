@@ -110,7 +110,6 @@ export function TicketProgressNotice({
         minute: "2-digit",
       })}{" "}
       ET{stale || error ? " · Update delayed" : ""}
-      <span> Scores are provisional until settlement.</span>
     </small>
   );
 }

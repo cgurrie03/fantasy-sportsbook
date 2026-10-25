@@ -34,6 +34,7 @@ jobs:
       - run: npm run test:reporting
       - run: npm run test:reopening
       - run: npx playwright install --with-deps chromium
+      - run: npm run test:operations
       - run: npm run test:transitions:ux
       - run: npm run test:extra-markets:ux
       - run: npm run test:audit

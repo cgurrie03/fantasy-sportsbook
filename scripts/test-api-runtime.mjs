@@ -441,6 +441,26 @@ try {
     false,
   );
   assert.equal(
+    worker.weeklyResultsPending("replenishment", 7, {
+      tickets: [
+        {
+          ticket_type: "standard",
+          market_week: 7,
+          pending: true,
+          final: false,
+        },
+      ],
+      balances: [{ reason: "Already processed this week" }],
+    }),
+    false,
+    "New-week open bets cannot keep completed replenishment retrying",
+  );
+  assert.equal(
+    worker.weeklyResultsPending("replenishment", 7, pendingWeek),
+    true,
+    "Unresolved prior-week tickets still hold replenishment",
+  );
+  assert.equal(
     worker.publicationRefreshComplete([
       ...morningRefresh.map((job) => ({
         ...job,

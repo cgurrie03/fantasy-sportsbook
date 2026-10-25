@@ -210,8 +210,8 @@ fs.mkdirSync(output, { recursive: true });
         assert.equal(
           await link.evaluate(
             (el) =>
-              el.closest(".match-team") ===
-              document.querySelector(".match-team"),
+              el.closest(".matchup-card-tools") ===
+              document.querySelector(".matchup-card-tools"),
           ),
           true,
         );

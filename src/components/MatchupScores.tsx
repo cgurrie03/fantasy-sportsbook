@@ -21,10 +21,6 @@ export function MatchupScoresNotice(props: {
   return (
     <div className="match-score-notice">
       <TicketProgressNotice {...props} />
-      <span>
-        Fantasy points under this league’s scoring; separate from model
-        projections.
-      </span>
     </div>
   );
 }

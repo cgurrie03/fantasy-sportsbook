@@ -13,9 +13,14 @@ export function LiveModelLog({
   const [runs, setRuns] = useState<any[]>([]),
     [reviews, setReviews] = useState<any[]>([]),
     [error, setError] = useState("");
+  const [loading, setLoading] = useState(!review);
   useEffect(() => {
     if (review || !supabase) return;
     let active = true;
+    setLoading(true);
+    setRuns([]);
+    setReviews([]);
+    setError("");
     const load = async () => {
       const [r, v] = await Promise.all([
         supabase!
@@ -32,6 +37,7 @@ export function LiveModelLog({
           .limit(1),
       ]);
       if (!active) return;
+      setLoading(false);
       if (r.error || v.error) {
         setError("Live forecast logs are unavailable.");
         return;
@@ -70,7 +76,9 @@ export function LiveModelLog({
         tickets retain their own immutable histories. Live acceptance is
         disabled while the model is being evaluated.
       </p>
-      {error ? (
+      {loading ? (
+        <p role="status">Loading shadow forecast history…</p>
+      ) : error ? (
         <p role="status">{error}</p>
       ) : latest ? (
         <p>

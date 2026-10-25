@@ -1,5 +1,13 @@
+import {
+  groupedExecutions,
+  executionOutcome,
+  jobState,
+  safeJobDetail,
+  operationName,
+} from "../lib/execution-health";
+import type { ExecutionRun, ExecutionJob } from "../lib/execution-health";
 import type { League } from "../lib/accounts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
 import {
@@ -89,9 +97,7 @@ export function WeeklySchedule({
     [busy, setBusy] = useState(false),
     [ready, setReady] = useState(false),
     [preview, setPreview] = useState<Preview | null>(null);
-  const [runs, setRuns] = useState<
-    { id: string; operation: string; market_week: number; created_at: string }[]
-  >([]);
+  const [runs, setRuns] = useState<ExecutionRun[]>([]);
   const [deliveryLogs, setDeliveryLogs] = useState<
     {
       id: string;
@@ -102,15 +108,23 @@ export function WeeklySchedule({
       created_at: string;
     }[]
   >([]);
-  const [jobLogs, setJobLogs] = useState<
-    {
-      id: string;
-      operation: string;
-      status: string;
-      last_error: string | null;
-      created_at: string;
-    }[]
-  >([]);
+  const [jobLogs, setJobLogs] = useState<ExecutionJob[]>([]);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const [loadingStatus, setLoadingStatus] = useState(!reviewMode);
+  const [loadError, setLoadError] = useState("");
+  const [logErrors, setLogErrors] = useState<string[]>([]);
+  const [lastChecked, setLastChecked] = useState<string | null>(null);
+  const loadedLeague = useRef(leagueId);
+  const time = (value?: string | null) =>
+    value
+      ? new Date(value).toLocaleString("en-US", {
+          timeZone: "America/New_York",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }) + " ET"
+      : "Not recorded";
   const [confirmApply, setConfirmApply] = useState(false);
   const [overrides, setOverrides] = useState<
     Record<string, { status: string; actual_value: string; evidence: string }>
@@ -139,64 +153,115 @@ export function WeeklySchedule({
     );
   }
   useEffect(() => {
-    if (reviewMode) return;
-    let active = true;
-    void Promise.all([
-      supabase!
-        .from("weekly_schedule")
-        .select("*")
-        .eq("league_id", leagueId)
-        .maybeSingle(),
-      supabase!
-        .from("weekly_execution_runs")
-        .select("id,operation,market_week,created_at")
-        .eq("league_id", leagueId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ])
-      .then(([schedule, logs]) => {
-        void supabase!
-          .from("outbound_emails")
-          .select("id,kind,recipient,status,last_error,created_at")
-          .eq("league_id", leagueId)
-          .order("created_at", { ascending: false })
-          .limit(30)
-          .then((r) => {
-            if (active) setDeliveryLogs(r.data ?? []);
-          });
-        void supabase!
-          .from("automation_jobs")
-          .select("id,operation,status,last_error,created_at")
-          .eq("league_id", leagueId)
-          .order("created_at", { ascending: false })
-          .limit(30)
-          .then((r) => {
-            if (active) setJobLogs(r.data ?? []);
-          });
+    if (reviewMode) {
+      setLoadingStatus(false);
+      return;
+    }
+    let active = true,
+      pending = false;
+    if (loadedLeague.current !== leagueId) {
+      loadedLeague.current = leagueId;
+      setReady(false);
+      setSettings(defaults);
+      setRuns([]);
+      setJobLogs([]);
+      setDeliveryLogs([]);
+      setLastChecked(null);
+    }
+    const load = async (reloadSettings = true) => {
+      if (pending) return;
+      pending = true;
+      setLoadingStatus(true);
+      try {
+        const [schedule, logs, delivery, jobs] = await Promise.all([
+          supabase!
+            .from("weekly_schedule")
+            .select("*")
+            .eq("league_id", leagueId)
+            .maybeSingle(),
+          supabase!
+            .from("weekly_execution_runs")
+            .select("id,operation,nfl_season,market_week,summary,created_at")
+            .eq("league_id", leagueId)
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase!
+            .from("outbound_emails")
+            .select("id,kind,recipient,status,last_error,created_at")
+            .eq("league_id", leagueId)
+            .order("created_at", { ascending: false })
+            .limit(30),
+          supabase!
+            .from("automation_jobs")
+            .select(
+              "id,operation,market_week,status,last_error,created_at,scheduled_for,lease_until,completed_at,attempts",
+            )
+            .eq("league_id", leagueId)
+            .order("created_at", { ascending: false })
+            .limit(100),
+        ]);
         if (!active) return;
-        if (schedule.error || logs.error) {
-          setNotice(
-            "Weekly execution setup has not been applied yet. The schedule below is your approved plan.",
+        if (schedule.error)
+          setLoadError(
+            "Schedule status could not load. Retry to check automation.",
           );
-          return;
-        }
-        if (schedule.data) {
-          setSettings({
-            ...defaults,
-            ...schedule.data,
-            job_times: { ...defaults.job_times, ...schedule.data.job_times },
-          } as Settings);
+        else if (!schedule.data) {
+          setReady(false);
+          setLoadError("No schedule is configured for this league.");
+        } else {
+          setSettings((current) =>
+            reloadSettings
+              ? ({
+                  ...defaults,
+                  ...schedule.data,
+                  job_times: {
+                    ...defaults.job_times,
+                    ...schedule.data.job_times,
+                  },
+                } as Settings)
+              : {
+                  ...current,
+                  automation_enabled: schedule.data.automation_enabled,
+                  activation_requested: schedule.data.activation_requested,
+                },
+          );
           setReady(true);
+          setLoadError("");
+          setLastChecked(new Date().toISOString());
         }
-        setRuns(logs.data ?? []);
-      })
-      .catch((e) => {
-        if (active) setNotice(errorMessage(e));
-      });
+        const errors: string[] = [];
+        if (logs.error) errors.push("Execution history");
+        else setRuns(logs.data ?? []);
+        if (delivery.error) errors.push("Email delivery");
+        else setDeliveryLogs(delivery.data ?? []);
+        if (jobs.error) errors.push("Scheduled jobs");
+        else setJobLogs(jobs.data ?? []);
+        setLogErrors(errors);
+      } catch {
+        if (active) {
+          setLogErrors([
+            "Execution history",
+            "Email delivery",
+            "Scheduled jobs",
+          ]);
+          setLoadError(
+            "Operating status could not load. Retry to check automation.",
+          );
+        }
+      } finally {
+        pending = false;
+        if (active) setLoadingStatus(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void load(false);
+    }, 30000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
-  }, [leagueId, reviewMode]);
+  }, [leagueId, reviewMode, loadVersion]);
   async function save() {
     setBusy(true);
     try {
@@ -285,7 +350,7 @@ export function WeeklySchedule({
         await onApplied?.();
         const logs = await supabase!
           .from("weekly_execution_runs")
-          .select("id,operation,market_week,created_at")
+          .select("id,operation,nfl_season,market_week,summary,created_at")
           .eq("league_id", leagueId)
           .order("created_at", { ascending: false })
           .limit(20);
@@ -436,14 +501,96 @@ export function WeeklySchedule({
         <>
           <p className="schedule-status">
             <strong>
-              {settings.automation_enabled
-                ? "Automation Active"
-                : settings.activation_requested
-                  ? "Waiting For Deployment Verification"
-                  : "Automation Paused"}
+              {!ready && !reviewMode
+                ? loadingStatus
+                  ? "Checking automation…"
+                  : "Automation status unavailable"
+                : settings.automation_enabled
+                  ? "Automation Active"
+                  : settings.activation_requested
+                    ? "Waiting For Deployment Verification"
+                    : "Automation Paused"}
             </strong>{" "}
             · All times Eastern
           </p>
+          {lastChecked && (
+            <p className="history-note">
+              Schedule checked {time(lastChecked)}
+              {loadingStatus ? " · Refreshing…" : ""}
+            </p>
+          )}
+          {(loadError || logErrors.length > 0) && (
+            <div role="status" className="feedback">
+              <p>
+                {loadError ||
+                  "Some operating logs could not refresh. Last successful data remains visible."}
+              </p>
+              {logErrors.length > 0 && (
+                <p>Unavailable: {logErrors.join(", ")}</p>
+              )}
+              <button
+                disabled={loadingStatus}
+                onClick={() => setLoadVersion((v) => v + 1)}
+              >
+                Retry operating status
+              </button>
+            </div>
+          )}
+          <section className="operation-health" aria-label="Weekly job health">
+            <h3>Settlement and communications</h3>
+            {loadingStatus && !lastChecked ? (
+              <p role="status">Loading operating history…</p>
+            ) : (
+              <>
+                <p>
+                  Settlement:{" "}
+                  {logErrors.includes("Execution history")
+                    ? "status unavailable"
+                    : runs.find((r) => r.operation === "settlement")
+                      ? "last result " +
+                        time(
+                          runs.find((r) => r.operation === "settlement")
+                            ?.created_at,
+                        )
+                      : "no result in the recent history"}
+                  .
+                </p>
+                <p>
+                  Jobs:{" "}
+                  {logErrors.includes("Scheduled jobs")
+                    ? "status unavailable"
+                    : jobLogs.length
+                      ? jobLogs.filter((j) =>
+                          /Overdue|Failed/.test(jobState(j)),
+                        ).length +
+                        " need attention; " +
+                        jobLogs.filter((j) => j.status === "running").length +
+                        " running"
+                      : "no jobs recorded"}
+                  .
+                </p>
+                <p>
+                  Email:{" "}
+                  {logErrors.includes("Email delivery")
+                    ? "status unavailable"
+                    : deliveryLogs.some((r) => r.status === "failed")
+                      ? "delivery failures need review below"
+                      : deliveryLogs.some((r) => r.status === "sent")
+                        ? "last successful send " +
+                          time(
+                            deliveryLogs.find((r) => r.status === "sent")
+                              ?.created_at,
+                          )
+                        : "no successful send in the recent history"}
+                  .
+                </p>
+                <p className="history-note">
+                  History shows recent records. Held replenishments wait for
+                  verified results; retries do not mean another payment.
+                </p>
+              </>
+            )}
+          </section>
           {notice && <p role="status">{notice}</p>}
           <div className="schedule-controls">
             <label>
@@ -486,6 +633,7 @@ export function WeeklySchedule({
               <input
                 type="checkbox"
                 checked={settings.publication_paused}
+                disabled={busy || !ready}
                 onChange={(e) =>
                   setSettings({
                     ...settings,
@@ -815,7 +963,14 @@ export function WeeklySchedule({
             )}
           </section>
           <details>
-            <summary>Email Delivery Logs · {deliveryLogs.length}</summary>
+            <summary>
+              Email Delivery Logs ·{" "}
+              {loadingStatus && !lastChecked
+                ? "Loading…"
+                : logErrors.includes("Email delivery")
+                  ? "Unavailable"
+                  : deliveryLogs.length}
+            </summary>
             <table className="execution-balances">
               <thead>
                 <tr>
@@ -843,7 +998,14 @@ export function WeeklySchedule({
             </table>
           </details>
           <details>
-            <summary>Scheduled Execution Logs · {jobLogs.length}</summary>
+            <summary>
+              Scheduled Execution Logs ·{" "}
+              {loadingStatus && !lastChecked
+                ? "Loading…"
+                : logErrors.includes("Scheduled jobs")
+                  ? "Unavailable"
+                  : jobLogs.length}
+            </summary>
             <table className="execution-balances">
               <thead>
                 <tr>
@@ -855,13 +1017,22 @@ export function WeeklySchedule({
               <tbody>
                 {jobLogs.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.operation}</td>
-                    <td>{r.status}</td>
                     <td>
-                      {r.last_error ??
-                        new Date(r.created_at).toLocaleString("en-US", {
-                          timeZone: "America/New_York",
-                        })}
+                      {operationName(r.operation)}
+                      {r.market_week ? " · Week " + r.market_week : ""}
+                    </td>
+                    <td>{jobState(r)}</td>
+                    <td>
+                      {safeJobDetail(r.last_error)}
+                      <div>
+                        {r.attempts ?? 0} attempts ·{" "}
+                        {r.status === "done"
+                          ? "Finished " + time(r.completed_at)
+                          : "Next check " +
+                            time(
+                              r.lease_until || r.scheduled_for || r.created_at,
+                            )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -869,14 +1040,33 @@ export function WeeklySchedule({
             </table>
           </details>
           <h2>Execution History</h2>
-          {runs.length ? (
-            runs.map((r) => (
-              <p key={r.id}>
-                {r.operation} · Week {r.market_week} ·{" "}
-                {new Date(r.created_at).toLocaleString("en-US", {
-                  timeZone: "America/New_York",
-                })}
-              </p>
+          {loadingStatus && !lastChecked ? (
+            <p role="status">Loading execution history…</p>
+          ) : logErrors.includes("Execution history") && !runs.length ? (
+            <p>
+              Execution history unavailable. Use Retry operating status above.
+            </p>
+          ) : runs.length ? (
+            groupedExecutions(runs).map(({ latest, attempts }) => (
+              <details className="execution-group" key={latest.id}>
+                <summary>
+                  {operationName(latest.operation)} · Week {latest.market_week}
+                  {latest.nfl_season ? " · " + latest.nfl_season : ""} ·{" "}
+                  {executionOutcome(latest)} · {attempts.length} recent{" "}
+                  {attempts.length === 1 ? "attempt" : "attempts"}
+                </summary>
+                <p>
+                  Latest attempt {time(latest.created_at)}. Retry timing is
+                  shown in Scheduled Execution Logs.
+                </p>
+                <ul>
+                  {attempts.map((r) => (
+                    <li key={r.id}>
+                      {time(r.created_at)} · {executionOutcome(r)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ))
           ) : (
             <p>No weekly execution jobs have run.</p>

@@ -2052,19 +2052,6 @@
  .sportsbook-tabs button, .market-categories button { min-height: 44px; }
 }
 @media (max-width: 600px) {
- .match-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
- .match-grid > .market-column-spacer { display: none; }
- .match-team { grid-column: 1 / -1; padding-top: 10px; }
- .match-team > div { grid-template-columns: 1fr auto; width: 100%; gap: 4px 12px; }
- .match-team strong { grid-column: 1 / -1; }
- .match-team > div > span:last-child { grid-column: 1 / -1; }
- .match-team-row .market-quote:nth-child(2)::before { content: "Spread"; font-size: 11px; }
- .match-team-row .market-quote:nth-child(3)::before { content: "Total"; font-size: 11px; }
- .match-team-row .market-quote:nth-child(4)::before { content: "Moneyline"; font-size: 11px; }
- .match-grid > .market-column-label { display: none; }
- .match-team strong { font-size: 13px; line-height: 1.4; }
- .match-team > div { font-size: 11px; }
- .market-column-label, .market-quote span { font-size: 11px; }
  .featured-strip span { font-size: 10px; }
  .team-total-grid > div > strong { overflow-wrap: anywhere; }
  .future-team > div { min-width: 0; overflow-wrap: anywhere; }
@@ -2431,3 +2418,53 @@
     align-self: flex-start;
   }
 }
+
+/* Keep the same four-column matchup on phones and desktop. */
+.board-window .match-score-notice { display: block; padding: 0; margin: 0; font-size: 11px; }
+.board-window .ticket-progress-notice { margin: 0; }
+.matchup-card-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 8px 18px 0; }
+.matchup-card-tools .matchup-in-progress, .matchup-card-tools .matchup-status-unavailable { margin: 0; }
+.matchup-card-tools .sleeper-matchup-link { margin-left: auto; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 8px; }
+.sleeper-matchup-link img { width: 18px; height: 18px; }
+.matchup-card .match-grid { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); padding-top: 8px; }
+.match-team { grid-template-columns: auto minmax(0, 1fr); }
+.match-team-name { display: flex; align-items: baseline; gap: 3px; min-width: 0; white-space: nowrap; }
+.match-team-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match-team-name .team-record { flex-shrink: 0; }
+.match-team > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match-team .match-current-score { overflow: visible; }
+.match-team .match-current-score strong { white-space: nowrap; }
+.matchup-card .market-quote > strong, .matchup-card .quote-price { white-space: nowrap; }
+.matchup-card .quote-price { display: flex; justify-content: center; flex-wrap: nowrap; gap: 3px; }
+@media (max-width: 600px) {
+ .matchup-card-tools { padding: 7px 10px 0; min-height: 36px; }
+ .matchup-card .match-grid { grid-template-columns: minmax(0, 1.95fr) repeat(3, minmax(0, 1fr)); padding: 7px 10px 12px; gap: 6px; }
+ .matchup-card .match-grid > .market-column-spacer { display: block; }
+ .matchup-card .match-grid > .market-column-label { display: block; font-size: 9px; white-space: nowrap; }
+ .matchup-card .match-team { grid-column: auto; padding-top: 0; gap: 4px; }
+ .matchup-card .match-team > div { grid-template-columns: minmax(0,1fr); gap: 3px; font-size: 9px; }
+ .matchup-card .match-team strong { font-size: 10px; line-height: 1.25; }
+ .matchup-card .match-team img, .matchup-card .match-team-avatar-fallback { width: 22px; height: 22px; }
+ .matchup-card .match-team-name .team-record { font-size: 8px; }
+ .matchup-card .match-team .match-current-score strong { font-size: 9px; }
+ .matchup-card .market-quote { min-height: 48px; padding: 5px 2px; font-size: 10px; gap: 4px; border-radius: 7px; }
+ .matchup-card .market-quote span { font-size: 9px; }
+ .matchup-card .match-team-row .market-quote::before { content: none; }
+ .matchup-card .team-record { color: var(--muted); }
+ .board-window .match-score-notice { font-size: 10px; }
+}
+@media (max-width: 350px) {
+ .matchup-card .match-grid { gap: 4px; padding-inline: 8px; }
+ .matchup-card .match-team img, .matchup-card .match-team-avatar-fallback { width: 18px; height: 18px; }
+ .matchup-card .match-team { gap: 3px; }
+ .matchup-card .match-team > div, .matchup-card .match-team .match-current-score strong { font-size: 8px; }
+ .matchup-card .match-team strong { font-size: 9px; }
+ .matchup-card .quote-price { gap: 1px; }
+ .matchup-card .quote-price del { font-size: 8px; }
+}
+
+.operation-health { border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin: 16px 0; }
+.operation-health p { margin: 8px 0; }
+.execution-group { margin: 10px 0; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.execution-group summary { cursor: pointer; line-height: 1.6; overflow-wrap: anywhere; }
+.execution-group ul { padding-left: 20px; line-height: 1.8; }
