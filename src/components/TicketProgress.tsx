@@ -102,13 +102,14 @@ export function TicketProgressNotice({
     now - Date.parse(row.fetched_at) > row.cadence_minutes * 60000 + 180000;
   return (
     <small className="ticket-progress-notice" role="status">
-      {loading ? "↻ " : ""}Updates every{" "}
-      {row.cadence_minutes === 15 ? "15 minutes" : "2 hours"} · Checked{" "}
-      {new Date(row.fetched_at).toLocaleTimeString("en-US", {
-        timeZone: "America/New_York",
-        hour: "numeric",
-        minute: "2-digit",
-      })}{" "}
+      Last Refresh{" "}
+      {new Date(row.fetched_at)
+        .toLocaleTimeString("en-US", {
+          timeZone: "America/New_York",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+        .replace(/\s/g, "")}{" "}
       ET{stale || error ? " · Update delayed" : ""}
     </small>
   );

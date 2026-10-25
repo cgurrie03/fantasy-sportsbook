@@ -985,12 +985,20 @@ export function Sportsbook({
                               aria-label={`Open ${h.team_name} vs. ${a?.team_name ?? "opponent"} in Sleeper`}
                               title="Open matchup in Sleeper"
                             >
-                              <img
-                                src="/sleeper-logo.ico"
-                                width={20}
-                                height={20}
-                                alt=""
-                              />
+                              <svg
+                                className="sleeper-matchup-icon"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M11 2h2v4h1a7 7 0 0 1 7 7v2a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7v-2a7 7 0 0 1 7-7h1V2ZM6 12v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4v-3H6Z"
+                                />
+                                <path d="m8 14 2 1 2-1v2l-2 1-2-1v-2Zm5 0 2 1 2-1v2l-2 1-2-1v-2Z" />
+                              </svg>
                             </a>
                           )}
                         </div>
@@ -1042,7 +1050,7 @@ export function Sportsbook({
                                     teamId={t?.id}
                                   />
                                   <span>
-                                    Model projection:{" "}
+                                    Projected:{" "}
                                     {displayProjection(
                                       i === 0
                                         ? first.home_projection
@@ -1220,7 +1228,7 @@ export function Sportsbook({
                                 </strong>
                                 <span>{owner(id ?? "")}</span>
                                 <small>
-                                  Model projection:{" "}
+                                  Projected:{" "}
                                   {Number(
                                     index === 0
                                       ? playerMatch.home_projection
@@ -1265,7 +1273,7 @@ export function Sportsbook({
                             <p>
                               Season average:{" "}
                               {displayProjection(m.metadata.season_average)} ·
-                              Model projection:{" "}
+                              Projected:{" "}
                               {displayProjection(
                                 m.metadata.expected_points ??
                                   m.metadata.projection,

@@ -204,8 +204,8 @@ fs.mkdirSync(output, { recursive: true });
         assert.equal(await f.page.locator(".matchup-toolbar").count(), 0);
         const link = f.page.locator(".sleeper-matchup-link").first();
         assert.equal(
-          await link.locator("img").getAttribute("src"),
-          "/sleeper-logo.ico",
+          await link.locator("svg").getAttribute("fill"),
+          "currentColor",
         );
         assert.equal(
           await link.evaluate(

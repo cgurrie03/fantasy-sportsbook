@@ -2428,8 +2428,8 @@
 .sleeper-matchup-link img { width: 18px; height: 18px; }
 .matchup-card .match-grid { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); padding-top: 8px; }
 .match-team { grid-template-columns: auto minmax(0, 1fr); }
-.match-team-name { display: flex; align-items: baseline; gap: 3px; min-width: 0; white-space: nowrap; }
-.match-team-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match-team-name { display: block; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.match-team-name-text { white-space: normal; overflow-wrap: anywhere; }
 .match-team-name .team-record { flex-shrink: 0; }
 .match-team > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .match-team .match-current-score { overflow: visible; }
@@ -2468,3 +2468,6 @@
 .execution-group { margin: 10px 0; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
 .execution-group summary { cursor: pointer; line-height: 1.6; overflow-wrap: anywhere; }
 .execution-group ul { padding-left: 20px; line-height: 1.8; }
+.matchup-card-tools .sleeper-matchup-link { color: var(--text); background: transparent; border-color: transparent; }
+.matchup-card-tools .sleeper-matchup-link:hover { background: var(--surface-2); }
+.sleeper-matchup-icon { display: block; flex-shrink: 0; }
