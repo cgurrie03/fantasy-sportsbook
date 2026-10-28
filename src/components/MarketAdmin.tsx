@@ -4,7 +4,7 @@ import { errorMessage } from "../lib/accounts";
 import type { Board, Market } from "../lib/markets";
 import {
   formatOdds,
-  loadMarketBoard,
+  loadEditableMarketBoard,
   marketType,
   orderMatchups,
   weeklyKinds,
@@ -89,7 +89,7 @@ export function MarketAdmin({
   useEffect(() => {
     if (review) return;
     let active = true;
-    loadMarketBoard(leagueId)
+    loadEditableMarketBoard(leagueId)
       .then((r) => {
         if (!active) return;
         setMarkets(r.markets);
@@ -300,7 +300,7 @@ export function MarketAdmin({
         p_status: status,
       });
       if (r.error) throw r.error;
-      const next = await loadMarketBoard(leagueId);
+      const next = await loadEditableMarketBoard(leagueId);
       setBoard(next.board);
       setMarkets(next.markets);
       message(

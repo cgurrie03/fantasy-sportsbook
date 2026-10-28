@@ -405,6 +405,29 @@ export async function loadMarketBoard(leagueId: string) {
   };
 }
 
+// Editing must round-trip complete metadata, including head-to-head identities.
+// The compact member snapshot intentionally omits model/settlement fields.
+export async function loadEditableMarketBoard(leagueId: string) {
+  const current = await loadMarketBoard(leagueId);
+  if (!current.board) return current;
+  const full = await supabase!
+    .rpc("sportsbook_quote_snapshot", { p_board: current.board.id })
+    .abortSignal(AbortSignal.timeout(15000));
+  if (full.error) throw full.error;
+  if (
+    full.data?.board?.id !== current.board.id ||
+    !Array.isArray(full.data?.markets)
+  )
+    throw new Error(
+      "The full market board could not load. Retry before editing.",
+    );
+  return {
+    week: current.week,
+    board: full.data.board as Board,
+    markets: full.data.markets as Market[],
+  };
+}
+
 export async function loadFuturesBoard(leagueId: string) {
   if (!supabase) throw new Error("The market service is unavailable.");
   const snapshot = await supabase

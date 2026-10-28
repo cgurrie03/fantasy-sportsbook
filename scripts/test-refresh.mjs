@@ -452,6 +452,25 @@ try {
   await rows("update line_refresh_runtime set last_error=null where league_id=$1", [league]);
   await rows("insert into automation_jobs(league_id,event_key,operation,market_week,status,created_at) values($1,'confirm:new-failure','refresh_players',6,'failed',now()+interval '1 second')", [league]);
   assert.equal((await rows("select confirm_scheduled_publication($1) ok", [board]))[0].ok, false);
+  // Reproduce the Tank Bowl failure: member metadata cannot be used as an edit
+  // payload. Complete editable snapshots must retain head-to-head identities.
+  await db.exec("reset role");
+  const duelId = randomUUID();
+  await rows("insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,metadata) values($1,$2,'featured-duel','player_h2h','A vs B','A','home',110,$3)",
+    [duelId, board, JSON.stringify({player_id:"a",opponent_player_id:"b",slot:"QB",settlement_marker:"complete"})]);
+  await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';set request.jwt.claim.role='authenticated';`);
+  const compactEdit = (await rows("select sportsbook_current_snapshot($1) s", [league]))[0].s;
+  assert.equal(compactEdit.markets.find(q => q.id === duelId).metadata.opponent_player_id, undefined);
+  const saveFeatured = snapshot => rows("select save_market_board($1,$2,6,now()-interval '1 hour',now()+interval '1 day',$3,'published')",
+    [board, league, JSON.stringify(snapshot.markets.map(q => ({...q,featured:"Tank Bowl",boost_pct:0})))]);
+  await assert.rejects(() => saveFeatured(compactEdit), /head_to_head_shape/);
+  const editable = (await rows("select sportsbook_quote_snapshot($1) s", [board]))[0].s;
+  await saveFeatured(editable);
+  const savedDuel = (await rows("select featured,metadata from sportsbook_markets where id=$1", [duelId]))[0];
+  assert.equal(savedDuel.featured, "Tank Bowl");
+  assert.equal(savedDuel.metadata.opponent_player_id, "b");
+  assert.equal(savedDuel.metadata.settlement_marker, "complete");
+  console.log("Tank Bowl constraint reproduced with compact data; full-snapshot save retains head-to-head and settlement fields.");
   console.log(
     "Passed kickoff/overlap/gaps/halftime/overtime/final/delay/suspension/cancellation/DST, interval coalescing, atomic four-stage publication, stale revision approval, request retry/debit once, immutable terms, resolved outcome refusal, feed outage, lease fencing and accepted-odds settlement. Live acceptance stays disabled.",
   );

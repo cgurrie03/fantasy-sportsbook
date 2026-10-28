@@ -4,7 +4,13 @@ import { useTicketProgress } from "./TicketProgress";
 import { LeagueStandings } from "./LeagueStandings";
 import { useRoute, navigate, tabRoutes, routeTab } from "../lib/navigation";
 import { displayProjection, formatGameInfo } from "../../api/_lib/event-time";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { AccountData, Membership, Team } from "../lib/accounts";
 import { errorMessage, money } from "../lib/accounts";
 import type { Board, Market } from "../lib/markets";
@@ -258,6 +264,26 @@ export function Sportsbook({
     owner = (id: string) =>
       data.memberships.find((m) => m.team_id === id)?.display_name ??
       "League Member";
+  const matchupBoard = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const board = matchupBoard.current;
+    if (!board) return;
+    const rows = [...board.querySelectorAll<HTMLElement>(".match-team")];
+    const align = () => {
+      const height =
+        Math.ceil(
+          Math.max(
+            96,
+            ...rows.map((row) => row.getBoundingClientRect().height),
+          ),
+        ) + 12;
+      board.style.setProperty("--matchup-team-row-height", height + "px");
+    };
+    const observer = new ResizeObserver(align);
+    rows.forEach((row) => observer.observe(row));
+    align();
+    return () => observer.disconnect();
+  }, [markets, category, tab]);
   const groups = [
     ...new Set(
       markets.filter((m) => m.kind === "spread").map((m) => m.matchup_key),
@@ -798,30 +824,10 @@ export function Sportsbook({
                           : "Betting Open"
                         : "Betting Closed"}
                   </strong>
-                  <span className="board-dates">
-                    <span className="board-date">
-                      {new Date(board.opens_at).toLocaleString("en-US", {
-                        timeZone: "America/New_York",
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}{" "}
-                    </span>
-                    <span className="board-date-divider">– </span>
-                    <span className="board-date">
-                      {new Date(board.closes_at).toLocaleString("en-US", {
-                        timeZone: "America/New_York",
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}{" "}
-                      Eastern
-                    </span>
+                  <span>
+                    Scores: every 15 min during games · 2 hours otherwise
                   </span>
+                  <span>Pregame lines: every 2 hours</span>
                 </>
               ) : (
                 <strong>
@@ -912,7 +918,7 @@ export function Sportsbook({
           ) : (
             <>
               {category === "Matchups" && (
-                <div className="matchup-board">
+                <div className="matchup-board" ref={matchupBoard}>
                   {groups.map((g) => {
                     const first = g[0],
                       h = team(first.home_team_id),
@@ -927,7 +933,7 @@ export function Sportsbook({
                         className={`matchup-card${first.featured ? " featured-match" : ""}`}
                         key={first.matchup_key}
                       >
-                        {first.featured && (
+                        {first.featured ? (
                           <div className="featured-strip">
                             <strong>
                               {first.featured === "Game of the Week" ? (
@@ -950,6 +956,11 @@ export function Sportsbook({
                             </strong>
                             <span>25% PROFIT BOOST</span>
                           </div>
+                        ) : (
+                          <div
+                            className="featured-strip featured-strip-placeholder"
+                            aria-hidden="true"
+                          />
                         )}
                         <div className="matchup-card-tools">
                           {review && !review.starterActivity ? (

@@ -2471,3 +2471,23 @@
 .matchup-card-tools .sleeper-matchup-link { color: var(--text); background: transparent; border-color: transparent; }
 .matchup-card-tools .sleeper-matchup-link:hover { background: var(--surface-2); }
 .sleeper-matchup-icon { display: block; flex-shrink: 0; }
+
+/* Shared card tracks keep banners, wrapped identities and betting rows aligned. */
+.matchup-board { grid-auto-rows: 1fr; }
+.matchup-card { display: flex; flex-direction: column; }
+.matchup-card > .featured-strip { height: 44px; min-height: 44px; padding-block: 8px; flex: none; }
+.matchup-card > .featured-strip-placeholder { background: transparent; }
+.matchup-card .match-grid { grid-template-rows: 16px repeat(2, var(--matchup-team-row-height, 126px)); flex: none; }
+
+.matchup-card .projections-link { margin-top: auto; }
+@media(max-width:760px) {
+ .matchup-card .match-grid { grid-template-rows: 14px repeat(2, var(--matchup-team-row-height, 112px)); }
+
+ .matchup-card > .featured-strip strong { font-size: 11px; }
+ .matchup-card > .featured-strip span { font-size: 9px; }
+}
+/* Status fallback copy must stay inside its team column as well. */
+.matchup-card .match-team .match-current-score { white-space: normal; overflow-wrap: anywhere; }
+.matchup-card .match-team .match-current-score strong { white-space: normal; font-size: 12px; }
+@media(max-width:760px) { .matchup-card .match-team .match-current-score strong { font-size: 9px; } }
+@media(max-width:380px) { .matchup-card .match-team .match-current-score strong { font-size: 8px; } }

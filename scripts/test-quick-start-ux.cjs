@@ -16,7 +16,7 @@ const { setup } = require("./test-ux.cjs");
       );
       const p = f.page;
       const guide = p.getByRole("dialog", {
-        name: "Your sportsbook, in a minute.",
+        name: "Welcome to your league sportsbook",
       });
       await guide.waitFor();
       assert(
@@ -24,8 +24,7 @@ const { setup } = require("./test-ux.cjs");
           .locator(".quick-start-close")
           .evaluate((el) => el === document.activeElement),
       );
-      assert.equal(await guide.locator("ol li").count(), 3);
-      assert.equal(await guide.locator("details").getAttribute("open"), null);
+      assert.equal(await guide.locator(".tour-dots button").count(), 5);
       assert(
         await p
           .locator(".quick-start-trigger")
@@ -50,13 +49,24 @@ const { setup } = require("./test-ux.cjs");
             () => document.documentElement.scrollWidth <= innerWidth + 1,
           ),
         );
-        await guide
-          .getByText("A few terms worth knowing", { exact: true })
-          .click();
-        assert(await guide.getByText("Spread", { exact: true }).isVisible());
-        await guide
-          .getByText("A few terms worth knowing", { exact: true })
-          .click();
+        for (let page = 1; page <= 5; page++) {
+          await guide
+            .getByRole("button", { name: new RegExp("^Page " + page + ":") })
+            .click();
+          assert.equal(
+            await guide.locator(".tour-page").getAttribute("aria-label"),
+            page + " of 5",
+          );
+          assert(await guide.getByRole("img").isVisible());
+          assert(
+            await guide.evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+          );
+        }
+        await guide.getByRole("button", { name: "Back", exact: true }).click();
+        assert.equal(
+          await guide.locator(".tour-page").getAttribute("aria-label"),
+          "4 of 5",
+        );
       }
       const savePreference = p.waitForRequest(
         (request) =>
@@ -94,6 +104,7 @@ const { setup } = require("./test-ux.cjs");
       await p.locator(".quick-start-close").focus();
       await p.keyboard.press("Shift+Tab");
       assert(await guide.evaluate((el) => el.contains(document.activeElement)));
+      await guide.getByRole("button", { name: /^Page 5:/ }).click();
       await guide.getByRole("button", { name: "Got it", exact: true }).click();
       await guide.waitFor({ state: "hidden" });
       assert.equal(f.state.betCalls, 0);
