@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { score } from "./_lib/line-model.js";
 import type { Projection } from "./_lib/line-model.ts";
 export const maxDuration = 60;
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key || !authorization.startsWith("Bearer "))
       return json({ error: "Sign in to refresh reports." }, 401);
-    const client = createClient(url, key, {
+    const client = await createServerClient(url, key, {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false },
     });

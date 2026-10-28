@@ -1,68 +1,88 @@
-# Model Assessment and Controlled Improvement
+# Model Assessment and Controlled Improvement — Development Handoff
 
-Read [shared context](PROJECT-CONTEXT.md). Recommended additional skill: Statistical Analysis. Status: assessment and gated configuration implemented and deployed; initial baseline retained.
+**October 28 priority update:** [Supabase efficiency handoff 08](08-supabase-efficiency.md) takes precedence. The user explicitly does not want permanent history of every refreshed line, projection or model calculation. Replace full archive writes with current state, short-lived bounded diagnostics, selected compact fixed-horizon evaluation samples and finalized accuracy summaries. Expire samples after review; preserve accepted ticket terms and financial records. Earlier requirements below for full replay/complete archives are superseded. Full historical research is intentionally limited; do not silently retain large payloads to support it. Production audit found 18 failed model-review jobs; instrument the exact timeout query and verify bounded review and retention gates before further model expansion.
 
-## Goal
+Updated 9 October 2026. Read [shared context](PROJECT-CONTEXT.md) and [methodology and operating policy](../model-assessment.md).
 
-At the end of each betting week, assess every supported forecast and market family, learn from final results, and improve gradually without reacting excessively to a noisy week. Autonomous assessment is appropriate immediately; autonomous changes require measurable validation gates. No system can guarantee prediction accuracy or take unknowable future events into account.
+## Release status: deployed, baseline unchanged
 
-## Archive Before Learning
+Application implementation `c1384e01b0251716b9c24b13523b242b5ba4cce2` and archive-read optimization `bbfbe077ce12edeaa7393b4189c3b87332d03b52` were pushed to `main`. The final [Vercel deployment](https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/DjVkE9qz4vPo35sDDCfxJ6yNDEyH) was verified **Ready / Production**, with source `main / bbfbe07` and alias [sportsbook.coopergurrie.com](https://sportsbook.coopergurrie.com). This is release-time evidence, not a fresh health check in every subsequent chat.
 
-Store immutable forecast versions with league, season/week, model/config version, source observation and fetch timestamps, roster/scoring rules, projected lineup versus actual known starters, pregame/live phase, fair probabilities, uncertainty, displayed lines, rounded odds, margin and promotion adjustments. Include locked markets and exclusion reasons. Save original opening, latest pregame, and selected live-horizon versions separately.
+Migration `202610090032_model_assessment.sql` is applied in production. Do not reapply it blindly. Production postflight preserved all **47 accepted tickets**. Active `score_scale=1` and `variance_scale=1` match the frozen initial baseline; improvement was not paused, but there were **zero promotion events and zero broad completed model reviews**. No candidate was forced into production.
 
-Archive final/corrected outcomes with source revision, actual starters, played/inactive status and settlement rules. Accepted-ticket snapshots are a separate evaluation view. Do not double-count dozens of intraday revisions as independent team-week observations. Preserve each published projection benchmark used by “beat projection” tickets through settlement.
+The pipeline, configuration gates and report are deployed. A completed authenticated production review and a real production promotion/rollback have **not** yet been observed. Local passing candidate fixtures demonstrate the mechanism, not real model improvement.
 
-The existing `candidates` function in `api/_lib/line-model.ts` blends historical average toward provider projections with a bounded adjustment. Audit this baseline before adding another correction that duplicates the same signal. Provider projections may already account for injury likelihood; avoid double-discounting.
+## Implemented and available in the deployed application
 
-**Separate lineup-selection error from forecasting error.** An optimal active/bench lineup forecast is a conditional estimate; a manager starting different players is not automatically a systematic scoring-model bias. Evaluate actual-starter player forecasts, best-lineup forecasts, and team market forecasts separately.
-
-## Weekly Scorecard
-
-| Facet | Primary measurements | Important treatment |
+| Component | Deployed behavior | Evidence boundary |
 | --- | --- | --- |
-| Player and team points | MAE, RMSE, signed bias; interval coverage | Separate position, injury/availability, actual starters and horizon; keep genuine extreme games. |
-| Spread and totals | Margin/total forecast error, cover probability calibration | A 50% cover rate alone is not proof of a calibrated distribution. Include pushes explicitly. |
-| Moneyline and playoff outcomes | Brier score, clipped log loss, calibration bands | Score unrounded fair probability; separate margin and price rounding. |
-| Highest/lowest and count specials | Categorical log loss/Brier; count error and coverage | Exact-count choices are mutually exclusive; track omitted probability mass for top-six offers. |
-| Weekly average/highest score | Distribution error and interval coverage | Joint team outcomes matter; maximum-of-teams is not simply the highest mean. |
-| Futures | Forecast trajectories; final event probability scores | Final accuracy is unavailable until qualification/champion/draft outcome is known. Do not mark current standings as final outcomes. |
-| Operational quality | Missing coverage, stale input rate, locked slots, corrections | Distinguish missing data from model weakness. |
+| Pregame archive | Every successful Matchups, Player Points, Weekly Specials and Season Futures generation records immutable inputs, fair probabilities, uncertainty/distributions, source timestamps, model/config version and quote identity before returning quotes. Archive failure aborts generation and retains existing lines. | Prospective collection starts with this release; no full historical inputs were fabricated. |
+| Published board archive | Existing `forecast_snapshots` retains published lines, prices and boost terms. Run IDs link new published quotes to original generated inputs. | Install-time snapshots remain separately identified; they are not complete historical as-of evidence. |
+| Evaluation horizons | First generated opening and latest generation before the week's first confirmed NFL kickoff are selected per family. Other refreshes remain archived but do not inflate evaluation samples. | Opening generated forecast and opening published board are distinct views. |
+| Live evaluation | Existing immutable live runs/reviews and selected progress-quartile horizons are linked into the broader review. | Experimental live betting acceptance remains disabled; live accuracy/freshness is not validated. |
+| Confirmed outcomes | Append-only outcome revisions retain score evidence, starters, participation and final season results. Completed NFL/ESPN week, independent score reconciliation and weekly ticket reconciliation are required. | Manual overrides, incomplete/conflicting scores or unresolved weekly tickets defer the review. Futures tickets do not block a completed-week review. |
+| Weekly review | All selected generated forecasts are evaluated, including unbet and locked markets. Report includes MAE/RMSE/bias, interval coverage, Brier/log loss/calibration bands, special distributions, pending/final futures, coverage and largest misses. | Current incomplete weeks and unsettled future events are excluded from final performance. |
+| Error decomposition | Team-market error, archived best-lineup conditional error, actual-starter forecasting error and lineup-selection gaps are separate. | Starters missing from the archived forecast pool are excluded and reported; later rosters cannot reconstruct prediction inputs. |
+| Corrections and reruns | Identical inputs/state reproduce the same review; corrections append new outcomes/reviews. Old report values remain immutable and readable after config changes. | No accepted-ticket snapshots or beat-projection settlement benchmarks are rewritten. |
+| Candidate mechanism | One predeclared shrinkage candidate changes only team score/SD scales, with chronological replay against active and initial frozen models. | Player, live and futures pricing algorithms remain frozen. No weekly LLM source edits or deployment. |
+| Controls | Versioned, audited, leased-worker promotion with database gates and active-version comparison; admin pause/resume/restore previous config; automatic rollback monitoring. | Admin cannot force a failed candidate through promotion. Real promotion/rollback is not production-validated yet. |
+| Admin report | Reports → Forecasts & Model Accuracy → Model Accuracy & Special Trends includes This Week's Model Review, residual/reliability/coverage charts, expandable diagnostics, candidate comparison and version controls. | Desktop/mobile fixture preview checked; authenticated production control interaction not exercised. |
+| Weekly integration | Existing lower-priority `model_review` jobs discover pregame and live archives. Review failure is isolated; existing settlement, replenishment, recap, rollover, leases and priority remain intact. | Queue execution after a qualifying real completed week remains to be observed. |
 
-Evaluate all generated markets, not only bets people chose. Show sample counts, date ranges and uncertainty. League weeks contain correlated observations; use week-block comparisons rather than treating every player, selection, or quote refresh as independent. Reconstructed old projections can be descriptive context but cannot establish true as-of forecast performance.
+Player fair probabilities/intervals are explicitly **new shadow normal diagnostics**. Original 15% historical/provider blending and ±15% provider-projection cap remain unchanged; posted fixed -110 player prices remain unchanged. Source observation timestamps unavailable from providers remain unknown. Cached sources retain original fetch timestamps rather than being relabelled as fresh.
 
-## Controlled Improvement Loop
+## Fixed promotion and rollback policy
 
-1. Run after verified final outcomes and settlements are reconciled. Unresolved data is excluded with a visible reason. Model assessment failure must not corrupt settlement or block routine recap/rollover.
-2. Compare the frozen current model with a small set of candidate configuration changes. Begin with bias shrinkage, variance calibration and bounded recency weighting; avoid rewriting the algorithm automatically.
-3. Use chronological walk-forward evaluation and an untouched recent holdout. All inputs must be available at each historical prediction time. Remove look-ahead leakage from future injuries, current records, updated rosters and final stats.
-4. Pool cautiously when local samples are small and shrink changes toward the baseline. Cross-league pooling is opt-in, de-identified, scoring-compatible and separately authorized; disconnected leagues must not reveal each other's data.
-5. Predeclare minimum samples, practical improvement, confidence checks, worst-segment regression tolerance, and stability bounds. Initial weekly parameter change caps might be 2–5%, but the developer must validate these choices rather than treating them as statistically proven.
-6. Promote only a candidate passing every gate. Otherwise record “Assessment completed; insufficient evidence to change.” Four completed local weeks are not strong evidence for fine-grained automatic corrections.
-7. Store the promoted configuration and rationale as a versioned database artifact. Do not let an LLM edit/deploy production source code after each week. Provide admin pause, rollback, comparison report and a concise notice of meaningful changes.
-8. Monitor the promoted version in shadow/production comparisons; automatically roll back on predefined drift or operational failures. Preserve accepted ticket rules and historical report reproducibility.
+- Evidence uses the same league across scoring/roster-compatible seasons, with at most the latest **52 completed weeks**. No cross-league pooling is implemented.
+- Require at least **8 training + 12 chronological validation + 4 untouched holdout weeks**, with 120 actual-starter validation observations and 40 holdout observations. Reaching 24 calendar weeks alone does not guarantee eligibility.
+- Historical folds can learn only from results available before their prediction time. Corrections unavailable at that time are conservatively excluded. The holdout candidate is frozen from training data.
+- Shrink estimates with `weeks/(weeks+24)`. Configuration steps are at most **2%** relative to the active value; absolute score/SD scales remain **0.9–1.1**. Seven-day promotion cooldown.
+- Seeded **6,000-draw / 99% week-block bootstrap**, positive improvement bound versus active, nonnegative bound versus initial baseline, and at least **2% practical MAE gain** in validation and holdout. Affected-family probability, team-error and interval-coverage checks must also pass. Missing replay/family coverage fails the gates.
+- Insufficient or failed evidence records a hold and keeps the current configuration. The objective is forecast accuracy, never book profit, wager popularity or user losses.
+- Missing required monitoring-family coverage or invalid monitoring data can trigger automatic rollback. Statistical score drift requires four completed active-version week blocks and a 99% lower bound showing more than two points MAE degradation against the initial baseline. Outages that prevent assessment cause retries rather than establishing statistical drift.
+- Rollback restores the parent/baseline configuration and pauses improvement. Accepted tickets retain their original rules and prices.
 
-Book profit, wager popularity and user losses are business metrics, not the model's training objective. Promotions and rounding must not contaminate the underlying fair forecast assessment.
+These thresholds are conservative operating choices, not proven guarantees of statistical power or protection against every false promotion. See methodology for exact segment tolerances, correlated futures treatment and statistical limitations. Forecast accuracy is an estimate, not a guarantee.
 
-## Admin Report
+## Files implemented
 
-Add a compact “This Week's Model Review” with error/bias, reliability, largest misses and causes, candidate-versus-baseline results, data coverage, current version, promotion/hold reason, and next evaluation. Link to grouped existing Model Accuracy & Special Trends reports. Use separate charts for score residuals, probability calibration, uncertainty coverage and version history rather than repeated generic bars.
+- `api/_lib/model-assessment.ts`: immutable hashes, metrics, horizon selection, error decomposition, seeded candidate replay and gates.
+- `api/_lib/model-pipeline.ts`: confirmed outcome collection, reconciliation, corrections, report persistence, candidate promotion and monitoring/rollback. Lightweight metadata selects opening/final replay payloads; full archived raw sources remain retained.
+- `api/_lib/line-model.ts`: replay can preserve original published beat-projection count targets.
+- `api/generate-markets.ts`: active configuration, immutable prepublication as-of logging, fair probabilities/distributions and shadow player diagnostics.
+- `api/weekly-worker.ts`: isolated broader review integration alongside live review.
+- `src/components/ModelReview.tsx`, `ModelReview.css`, `Reports.tsx`: review UI and admin controls.
+- `supabase/migrations/202610090032_model_assessment.sql`: six league-scoped RLS tables, immutable records, restricted RPCs, new-league baseline initialization and scheduler discovery.
+- `scripts/test-model-assessment.mjs`, `scripts/test-api-runtime.mjs`, `package.json`: assessment/database fixtures and compiled runtime coverage.
+- `docs/model-assessment.md`, this handoff and `PROJECT-CONTEXT.md`: methodology, operating policy and release boundary.
 
-## Acceptance
+## Tests completed and production verification
 
-Verify scores independently on a known fixture; confirm one result per chosen evaluation horizon, correct push/inactive handling, no live/incomplete-week leakage, correct event probabilities, correlation-aware sample treatment, repeatable seeded simulations and no premature futures settlement. Test no-change for insufficient data, bounded promotion, failed promotion rollback, rerun idempotency, revised final scores, and reproducible old reports after a new version.
+**Passed during implementation:** `npm run test:model`, `test:live`, `test:lines`, `test:weekly`, `test:futures`, `test:reporting`, `test:refresh`, `test:starters`, `test:isolation`, `lint` and `build`. The final archive-read optimization reran `test:model` and `build` successfully. Existing advisory lint warnings and the main bundle size warning remain.
 
-Recommended skills: Validate Data, Statistical Analysis, Data Visualization, Build Dashboard, Supabase Postgres Best Practices. The [Statistical Analysis source](https://github.com/anthropics/knowledge-work-plugins/tree/main/data/skills/statistical-analysis) supports statistical care; it does not replace model-specific validation.
+Assessment fixtures verify independently calculated numeric/probability metrics; lineup error decomposition; opening/final kickoff cutoff; refresh deduplication; incomplete/push/inactive/pending-futures treatment; seeded replay; future-result leakage rejection; bounded passing candidates; insufficient-evidence hold; pause and rollback; append-only corrected results; idempotent reruns; old-report reproduction. A mocked full `reviewModelWeek` verifies identical reruns, corrections, and incomplete/unsettled no-write behavior. Local **PGlite** tests load migrations and exercise leases, restricted promotion, controls, correction append and rollback. They do not prove hosted simultaneous-transaction behavior.
 
-## Implemented assessment release — 9 October 2026
+**Production smoke passed after final deployment:** homepage HTTP 200; deployed main JS/CSS and lazy Reports JS/CSS byte-match the tested build. Unauthenticated POST requests to `/api/weekly-worker`, `/api/generate-markets` and `/api/place-bet` returned HTTP 401 without function invocation errors. No tickets/jobs were created by these checks. Production SQL postflight confirmed six tables have RLS, baseline remains active, direct admin writes/forced promotion are denied, and scheduler discovery includes pregame archives.
 
-Validate Data, Statistical Analysis (installed), Supabase Postgres Best Practices, React/Frontend and browser/test guidance were applied. See [complete methodology and operations](../model-assessment.md) for metric definitions, gates, source treatment and limitations.
+**Preview:** actual report component with explicitly synthetic fixture data, 1440-pixel desktop and 390-pixel mobile screenshots; mobile document width 390 with no overflow. Expandable HTML details available. Preview is not a production accuracy claim; no physical devices or authenticated production controls were tested.
 
-Changed: `api/_lib/model-assessment.ts`, `model-pipeline.ts`, `line-model.ts` (frozen count-target replay), `api/generate-markets.ts` (immutable as-of inputs/fair probabilities/distributions), `api/weekly-worker.ts` (isolated review integration), `src/components/ModelReview.tsx/.css`, Reports integration, migration `202610090032_model_assessment.sql`, test:model and compiled-runtime fixtures. Original player history blending, accepted tickets, wallet paths and existing N+ settlement remain intact.
+Release evidence and preview copies are saved under `C:/Users/coope/Documents/Codex/2026-10-09/develop-weekly-assessment-and-controlled-automatic/outputs/`: `assessment-evidence.md`, `model-review-preview.html`, `model-review-fixture.json`, `model-review-desktop.png`, `model-review-mobile.png` and methodology/handoff copies.
 
-Migration 032 applied successfully in production through the authorized Supabase SQL editor. Initial active configuration equals the frozen baseline; no candidate was forced into production. Pregame generation now fails closed if immutable input logging fails. Player probability/uncertainty is explicitly a new shadow normal diagnostic, with published fixed player prices unchanged. Candidate scope is team-score/variance configuration only; live/player/futures algorithms remain frozen.
+## Remaining validation and planned work — not completed
 
-Preflight production evidence: 47 tickets; 3 forecast snapshots (one published futures snapshot and two install-time snapshots); 10 live shadow runs; 0 live reviews; 0 failed jobs/expired leases. This sparse, mostly incomplete-Week-5 history cannot establish retrospective model accuracy. No missing source archive is recreated from current information. Local fixture preview is not production performance evidence.
+1. **Observe the first real qualifying review.** At release there were three legacy forecast snapshots, ten live shadow runs, no live reviews and no broad reviews. Week 5 was incomplete. Sparse archives cannot establish retrospective accuracy. Verify subsequent normal generation archives, published run links, confirmed outcome revisions, job completion and the report without regenerating old data or settling early.
+2. **Accumulate sufficient compatible as-of evidence.** No statistically justified production candidate or promotion is available yet. Leave the initial baseline active until every gate passes. Do not relax gates simply to show an improvement.
+3. **Validate forecast assumptions.** Joint NFL/team correlations, player availability mixtures, position-specific uncertainty, probability calibration and provider heartbeat freshness remain unproven. Source freshness gaps are disclosed; they are not solved by the archive. Further model changes need a separate validated release.
+4. **Hosted operational validation.** Concurrent transactions, worker capacity/outage behavior and multi-league scale are still outstanding. Physical-device formatting and authenticated production pause/rollback UI interactions have not been exercised.
+5. **Scope deliberately not implemented.** Cross-league pooling, new recency/history weighting, player/live/futures automatic tuning, validated player probability pricing and live betting activation are not part of this release. Existing player history already contributes to the baseline; avoid adding the same signal twice. Any later pooling needs explicit authorization and isolation review.
+6. **Product enhancements remain optional.** Separate promotion notifications and more detailed diagnostic explanation may be considered later. Current hold/promotion/control state is available through the report/audit history; no new weekly model email was implemented.
 
-Verified locally: assessment fixtures and append-only correction/rollback/idempotency tests; live, lines, weekly, futures, reporting, refresh, starters, isolation suites; compiled application/function build. Preview screenshots use 1440 and 390 pixel viewports and show no document overflow at 390. Existing advisory lint/main-bundle warnings remain. Hosted concurrency, capacity/outage behavior and actual production candidate power remain unproven.
+## Instructions for the next development chat
 
-Initial release `c1384e0` is Vercel Ready/Production at https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/HtX15LBtqyXEjbwPSTuyfQ8an3rs. Production postflight: all 47 tickets preserved, score/variance scales both 1, baseline active, no model events/reviews; six archive/control tables have RLS and direct admin writes/promotions are denied. Final archive-read optimization retrieves only replay payloads from the latest 52 completed league weeks while preserving full source archives. Rollback: restore the prior application retaining additive schema and N+ settlement; configuration rollback restores the parent/baseline and pauses improvement. No live bets or bulk test emails are part of verification.
+- Start with this handoff, `PROJECT-CONTEXT.md`, methodology and handoff 06 for accepted-ticket/N+ settlement constraints. Earlier task goals are fulfilled only to the deployed scope described above; remaining validations are not claimed complete.
+- Inspect current archive, review, control/event and automation-job state before changing anything. Release-time counts are not current counters. An empty report or hold with sparse data is expected, not a reason to backfill historical inputs or force promotion.
+- Require final scores and source agreement; strict reconciliation may defer an entire review. Inspect recorded queue errors/retry state. Never include the current incomplete week or report unsettled futures as final results.
+- Preserve all accepted tickets and published projection benchmarks. Review code does not own wallet/settlement actions. Do not invoke live betting or bulk test mail to prove the assessment works.
+- Configuration rollback: use the existing admin RPC/control; restore previous version and pause, never edit/delete immutable versions. Application rollback: retain migration 032 and N+ settlement support. **Never restore a pre-N+ / Exact-only settlement worker after N+ tickets exist.**
+- Load Supabase Postgres Best Practices before database changes; use Validate Data/Statistical Analysis for model claims. Both analysis skills were installed and applied in this implementation.
+- Never print credentials or environment files. Preserve unrelated existing `data/`, `docs/promos-boosts-handoff.md`, delivery-recovery notes, other handoffs and `work/`. Stage only intentional changes. No other league was activated by this work.

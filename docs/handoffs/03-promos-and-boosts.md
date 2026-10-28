@@ -1,102 +1,110 @@
-# Image Promos and One-Use Profit Boosts
+# Promos & Boosts — current development handoff
 
-Read [shared context](PROJECT-CONTEXT.md). This expands and supersedes the earlier `docs/promos-boosts-handoff.md`. Status: implemented and tested; user explicitly authorized production deployment October 9. Latest decisions and release notes below supersede the original recommendations.
+Updated October 9, 2026. Read `docs/handoffs/PROJECT-CONTEXT.md` first. This document supersedes `docs/promos-boosts-handoff.md` and the earlier prototype-only promo handoff. The runtime feature and category-picker follow-up are **deployed**. The sections below distinguish deployed capabilities, completed validation and work that remains unimplemented or unverified.
 
-## Home Placement and Two Offer Types
+## Deployment and verification boundary
 
-On **Home > Matchups**, place three image-backed offer boxes immediately below the betting-category menu and above matchup lines. Desktop: equal-height three-card row. Mobile: readable stack or accessible carousel with visible navigation, consistent image aspect ratio and no essential text available only inside the image. Preview both themes and long titles.
+| Item | Recorded status |
+| --- | --- |
+| Production | https://sportsbook.coopergurrie.com |
+| Latest verified application commit | `c31910ee414819be0d23b28e7cd542a54c1a2b19` — active quotes only, opposing choices grouped by matchup, corrected team/match total labels |
+| Latest Vercel deployment | https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/ADAtajvvhWvFoHyqN7kY6KEUhuS8 — Ready / Latest / Production / Current, 28-second build |
+| Core promo release | `e49f83d80a5d421df8e2aaa735951bc28003c830`; Vercel https://vercel.com/cooper-gurrie-projects/fantasy-sportsbook/9pYPDZbfMkBqpWjuy3YhUjdgvHti |
+| Database | `202610090033_promotions.sql` applied successfully through the authenticated Supabase SQL editor |
+| Live smoke verification | October 9, 20:26:38 UTC: homepage 200; seven application/admin/promo/report assets byte-matched the isolated tested build; unsigned weekly-worker, generate-markets, place-bet and promo-image requests returned 401 |
+| Migration postflight snapshot | 47 existing tickets, 28 OPEN; zero offers and zero promoted tickets; five new tables had RLS; anonymous promo RPC access and direct authenticated image-storage RPC access denied |
 
-Admins associate each image with one of these types:
+The postflight counts describe the deployment check, not a continuously refreshed census. The administrator may have added offers since then. No sample offers, authenticated production bets or bulk test emails were created by this task. The user explicitly approved deployment with “okay lets deploy.” Documentation-only updates do not themselves change runtime configuration or prove a newer application release. Reverify the latest source before future deployment.
 
-1. **Fixed Ticket Promo.** A predefined list of selections with advertised terms fills a dedicated bet slip. The user cannot add/remove legs or edit lines. Wager remains editable unless the administrator defines a fixed stake. Show “Fixed Promo Ticket,” all legs, expiry and payout. If another slip already contains picks, confirm replacement; do not silently erase it.
-2. **Claimable One-Use Profit Boost.** The image advertises an offer that a user claims, optionally with a code. Eligibility is evaluated as the user builds an ordinary slip. When qualified, show a concise offer message and an on/off toggle. Preview original odds, boosted effective odds, stake, original profit, extra profit and total payout. Claiming does not consume the boost; successful ticket acceptance does.
+## Deployed and functional
 
-Both types disappear Thursday **8 PM America/New_York**, enforced by the server as well as UI. Do not carry stale offers into the next week. New images/offers are supplied in the admin area for the next week. Existing tickets and redemption history remain visible after expiration.
+### Home and claiming
 
-Show the eligibility prompt once per relevant slip/offer transition, with an unobtrusive eligible-offer control after dismissal; do not repeatedly interrupt every pick. Scope a one-use entitlement to league + user + offer so changing teams, browser tabs or devices cannot multiply uses. Claimable does not imply consumed, and applying the toggle remains a choice until acceptance.
+- On **Home → Matchups**, offers sit below market categories and above matchup lines. One, two or three desktop cards share available width. Mobile uses an accessible swipe carousel with one dot per actual offer; the active dot is darkest.
+- Gold buttons say **Claim** and overlay the image's bottom right. Readable titles and terms remain outside images. Public cards omit the “one-use profit boost” and “fixed promo ticket” type labels. Public expiry copy is **Claim by**.
+- League members can claim a boost without consuming it. An eligible ordinary slip shows an opt-in toggle and original odds, boosted effective odds, original/extra profit and total payout. A lost qualification, expired offer or detected use in another tab blocks the selected boost instead of silently accepting an ordinary ticket.
+- Offer refresh uses polling and a cross-tab notification. Server acceptance is authoritative; client freshness is not the concurrency guarantee.
 
-## Admin Workflow
+### Dedicated administration
 
-Create a dedicated Promos & Boosts page rather than routing back to general line management. Workflow: select week and type → upload/select image → enter accessible title/description → configure ticket or choose boost criteria → set percentage/limits → preview desktop/mobile → save draft → activate/schedule → see status and usage. Three home slots are assigned deliberately; drafts are never public.
+- **Admin → Promos & Boosts** is a dedicated, separately loaded page for administrators of the selected league. It supports drafts, week and Home-slot assignment, image upload/crop, title/readable terms, fixed or boost configuration, desktop/mobile preview, scheduling, disabling, usage totals and recent audit history.
+- Fixed selection entry is **category → selection**, with **category → matchup → selection** for Player Points. Category groups are **Matchups → Player Projections → Weekly Specials**. Matchup categories are ordered **Moneyline, Spread, Match Total, Team Total**. Only active current quotes appear. Matchup categories use matchup headings and keep opposing choices adjacent: home then away, or Over then Under. Team totals name the team; match totals name both teams and show the line. All options include American odds in parentheses. Moneyline labels show team name vs. opponent with no “Win” prefix. Category/matchup/week/draft changes clear the pending choice; added selections are excluded and empty categories cannot add a selection. Latest refinements are deployed in `c31910e`.
+- The duplicate/incorrect-total incident came from fetching inactive historical quotes alongside active quotes. Read-only production inspection confirmed 12 inactive and 12 active Moneylines, 24 inactive and 24 active team totals, and 12 inactive and 12 active match totals for the current board. Historical rows remain for snapshots; the picker now filters `active=true` in its query and defensively in its option lists. No market generation, saved offer, acceptance or settlement rules changed.
+- Boost criteria are allowlisted: minimum/exact Player Points count, distinct-matchup spreads, compatible standard parlay, approved category or designated matchup. Admins can set percentage, count, maximum wager and an optional advertised code. There is **no extra-profit-cap field or pricing branch**.
+- Usage includes claims, redemptions, extra profit paid, open bonus liability and recent events. It is league-admin reporting, not a public balance report.
+- PNG/JPG/WebP inputs up to 5 MB are cropped/re-encoded to a 1200×522 raster PNG with focal-position controls. The server independently validates base64, signature, chunk CRCs, dimensions, metadata, decompressed scanline layout and trailing content. Private image payloads are stored in the league-scoped database, not a public Storage bucket. Rendering uses authorized image RPCs/data URLs.
 
-Use an allowlisted dropdown of criteria instead of arbitrary formulas or executable text. Initial choices:
+### Scheduling and expiry — exact current behavior
 
-- At least N Player Points selections; the user's example is N=5 with a 50% profit boost.
-- Exactly N Player Points selections.
-- At least N distinct-matchup spread selections.
-- A qualifying standard parlay with N or more compatible legs.
-- A designated featured matchup or approved market category.
+**Schedule offer has no second menu and no separate appearance-date picker.** During the selected week, an offer becomes visible once its weekly board has been successfully published and its opening time has passed. Scheduling against an already-open, published current-week board makes it available immediately. Otherwise, it waits for the matching publication/opening. The existing Wednesday publication flow supplies that event; the promo feature does not add another scheduler. There is no automatic reuse of last week's offers.
 
-Enforce existing compatibility rules after applying criteria. A criterion cannot enable an otherwise forbidden ticket. Store market-family allowlists, minimum/exact leg count, minimum odds if needed, expiry, stake/profit cap, per-user usage limit, eligible league users, and stacking policy. V1 recommends one claimed boost per ticket and no stacking with featured boosts, fixed-ticket promos or teasers. Make restrictions visible before users claim.
+The admin chooses **Expires and disappears (Eastern)**. That time ends visibility, new claims and redemption, while accepted-ticket history remains. This explicitly supersedes the original universal Thursday 8 PM deadline. Eastern conversion accounts for DST and rejects ambiguous/nonexistent clock-change times. Published terms cannot be silently edited; disable an offer and create a new one for changed advertised terms.
 
-For an advertised code, scope uniqueness to the league/offer and limit claim attempts. A user may claim via the image without typing a code. Track draft, scheduled, active, expired, disabled and exhausted states with audit history. Admin edits affect future quotes only. Image storage must be league-scoped; validate type/size, use safe image formats, and never render uploaded executable HTML/SVG as trusted markup.
+### Fixed tickets and atomic boosts
 
-## Correct Profit Math
+- Fixed promos map to existing markets, with manual advertised line/odds overrides frozen into the offer and accepted ticket. Users cannot add/remove legs or edit selections/lines. Wager is editable unless explicitly fixed. Replacing a nonempty slip requires confirmation. One acceptance per user per offer.
+- **User-directed exception:** manual fixed offers remain independent of ordinary quote suspension/start until their configured expiry. Do not reintroduce a suspension/start cutoff into this path without a new product decision. Ordinary tickets retain existing compatibility, revision, freshness and availability gates. Fixed tickets still require league/week mappings, compatible composition, valid prices/stake and sufficient wallet balance.
+- Acceptance takes wallet/offer/claim locks, validates the applicable rules, snapshots terms, creates the ticket and ledger debit, queues the existing confirmation message and consumes use atomically. Retries return the original ticket; fixed/boost/ordinary request identity cannot be interchanged. Offer availability uses server wall-clock expiry rather than transaction-start `now()`.
+- Profit pricing is `1 + (baseDecimal − 1) × (1 + boostPercent / 100)`. Returned stake is never boosted; American odds are never multiplied directly. Decimal/payout calculations are contractual; boosted American odds are approximate display values.
+- The confirmed example is **50%, at least five selections, all Player Points, distinct players, maximum $20 wager**. The maximum is a wager limit; extra profit is permanently uncapped. Larger boosted wagers are rejected.
+- One claimed boost per ticket; no stacking with featured boosts, fixed offers, teasers or futures. Eligibility is evaluated at acceptance and preserved through partial pushes; remaining winning legs are repriced with saved boost terms. A fully pushed ticket refunds stake but **never** restores its boost. A full admin void refunds and restores the boost once, without extending expiry. Fixed-offer use remains consumed after a full void.
+- Existing ticket snapshots, refund behavior and email templates/delivery flow are retained. Changing offers does not send a new bulk email.
 
-For a $10 stake, base decimal odds 3.00, and a 50% profit boost:
+## Completed tests and what they establish
 
-- Base profit: `$10 × (3.00 − 1) = $20`.
-- Boosted profit: `$20 × 1.50 = $30`.
-- Total payout: `$10 + $30 = $40`.
-- Effective decimal odds: `1 + (3.00 − 1) × 1.50 = 4.00`.
-- American odds therefore change from +200 to +300.
+| Check | Completed evidence and limits |
+| --- | --- |
+| Build / API runtime | `npm run build`: TypeScript, compiled API imports/auth checks, unchanged opening/confirmation mail behavior and Vite build passed. |
+| Lint | `npm run lint`: no errors; eight advisory warnings remain, including state-in-effect warnings. Vite retains its large-main-bundle advisory; PromoAdmin is separately loaded. |
+| Promo database | `npm run test:promos`: PGlite applied migrations and tested admin/member/image isolation, min/exact counts, repeated claims without consumption, $20 maximum, stale rollback, profit math, retries, ordinary/promo request separation, partial/full pushes, void/restoration retries, fixed frozen overrides through suspension/refresh, one use, immutable snapshots and expiry. These are isolated fixtures, not production member bets. |
+| Hosted Postgres race | Two independent transactions against isolated hosted test schemas competed for one boost: one ticket accepted, competitor rejected, one wager debit, balance $990 from $1,000. Retry returned the same ticket; production ticket count stayed 47. This validates the core acceptance lock/redemption path, not a real member transaction. |
+| Integrated promo UI | `npm run test:promos:ux`: 390×900 and 1440×900, both themes; placement/dots/image Claim, claim/toggle, qualification transitions, payout/wager limit, replacement cancel/confirm, fixed immutability, intercepted acceptance, league switching, draft/schedule and actual canvas output passed through the server PNG validator; damaged CRC and appended content rejected. All network writes intercepted. |
+| Picker follow-up | Latest integrated run additionally checks active-only query and defensive exclusion of inactive fixtures, opposing Moneyline adjacency, two match-total groups with Over/Under adjacency and matchup names, current team totals with proper labels, Moneyline-first category order, signed parenthesized odds, Player Points matchup groups, resets, duplicate exclusion, empty category disabling and no overflow in both viewports/themes. Build/lint and all four integrated promo journeys passed. The release was built/tested in an isolated archive copy to exclude concurrent unfinished teaser work in the shared checkout. |
+| Existing UI regression | `npm run test:ux`: six widths (360/390/430/768/1024/1440), both themes; long names/balance, dialogs, reduced-height keyboard-space approximation, revised-price approval, fixture ticket/history, futures/specials, league roles, CSV/PNG/PDF exports and loading/empty/suspended/error retry passed. Downloads required Chromium outside the download-restricted sandbox. Report implementation was preserved. |
+| Existing transaction checks | Weekly execution, futures and league isolation suites passed for the core release. The picker-only follow-up did not change database/settlement code; build/lint and the integrated promo journeys were rerun for it. |
+| Production smoke | Latest commit/alias verified in Vercel; live assets matched tested files and four protected endpoints returned 401 without authentication. No authenticated production acceptance, image upload or settlement was exercised. |
 
-Do not boost returned stake or multiply American odds directly. Store monetary values in the existing precise currency representation and distinguish display rounding from contractual payout. Caps must show a truthful payout preview. Resolve how published odds increments apply to a capped promotional effective price; do not round a displayed contractual price independently of payout.
+Webapp Testing is installed. Its Python Playwright package was unavailable in this environment, so the repository's Node Playwright and installed Chromium were used. This is a browser-emulation check, not physical iOS/Android testing or a complete screen-reader audit. The hosted database race is separate evidence from the browser fixture journeys; the browser suite does not itself create a real simultaneous-tab database race.
 
-## Atomic Redemption and Acceptance
+## Remaining issues, decisions and work not implemented
 
-Within one server/database transaction, validate membership, offer availability, claim ownership, eligibility, expiry, quote revision, wallet balance, ticket compatibility and caps. Accept ticket, debit wallet, snapshot offer/pricing terms, and consume redemption once. Concurrent tabs cannot redeem twice. Request retries return the same ticket and cannot debit or consume a second time. A rejected/stale ticket does not consume the offer.
+- **Operational setup:** admins must supply actual artwork, readable terms and offers. Fixture previews are not automatically published examples. Production smoke did not test an authenticated member bet or send a confirmation email.
+- **Fixed full-void reuse:** current conservative behavior keeps the offer consumed. The user confirmed restoration for boosts but has not requested reuse for fixed offers. Any change needs an explicit decision and idempotency tests.
+- **Separate start-time picker:** not implemented or requested as a confirmed change. The user asked how Schedule offer works and was told the current publication/opening behavior. Do not describe a separate scheduling menu as deployed.
+- **Advertised codes:** the optional code is stored metadata; image Claim is the entry point. There is no typed-code redemption endpoint, code uniqueness/rate-limited attempt workflow, or automatic code text on the public card. Put advertised codes in supplied artwork/readable terms if desired. A code-entry feature would be additional work.
+- **Email promotion content:** deliberately deferred by the user. Existing opening/confirmation templates remain; no offer section or new bulk notification workflow was added.
+- **Other optional extensions:** selected-member targeting, minimum-odds eligibility, an image-library browser, advanced performance charts and editable/new-version cloning UI are not implemented. Do not infer these from the original general specification. A changed active offer currently requires disabling it and creating a new offer.
+- **Validation gaps:** physical-device behavior, comprehensive accessibility audit and an authenticated production administrator/member journey remain unobserved. Do not place a real user bet or send bulk test emails to close these gaps. Lint/bundle advisories remain. Promo UI polling is not instantaneous across devices; the server still prevents duplicate use/expired acceptance.
+- **Minor UI/maintenance debt:** admin status timestamps refresh when the page is loaded/reloaded rather than continuously ticking; image-load failures show an artwork placeholder; success and error notices share styling. These do not establish a transaction failure but can be improved separately.
+- **Unrelated project boundaries:** this feature does not enable ordinary live betting, owner-only onboarding, a second live league, teasers or automatic model promotion. Their handoffs retain their own launch gates.
 
-Fixed tickets store an immutable offer composition and pricing version. Scheduled line changes must not silently modify advertised selections/price. If an underlying leg becomes invalid or resolved, suspend that offer and explain the reason; creating a new advertised version is an explicit admin action. A fixed promo linked to expired pregame quotes must not bypass live freshness controls.
+No unresolved decision blocks the shipped promo version; the items above are operating steps, conservative defaults, optional additions or validation gaps, not claims of completed future work.
 
-Preserve original boost terms through settlement. Define how pushed/voided legs affect eligibility and capped payout before launch. Recommended baseline: evaluate eligibility at acceptance, then reprice the remaining valid ticket using saved rules; a later push should not arbitrarily erase a promised boost. Confirm whether a full admin void restores a one-use entitlement; any restoration must also be idempotent. Do not assume this decision from ordinary stake-refund behavior.
+## Files, commands and safe next steps
 
-## Delivery and Reporting
+Checkout: `C:/Users/coope/Documents/Codex/2026-10-05/i/fantasy-sportsbook`; local branch `stage-1-accounts`, production `main`. Existing Git push → Vercel flow was used. Supabase project: `bmvjcdgxwxqalaohpsnw`. Migration 033 is already applied; use a new migration number for future SQL and do not rerun this create-table migration on production.
 
-Optional opening-email promo content reads only active offers from the successfully published board. No new mass email is sent merely for changing an image or refreshing odds. Track claims, redemptions, expiry, incremental profit liability, void/refund restoration and offer performance per league. Avoid exposing private balances in public promotion reporting.
+- UI: `src/components/PromoAdmin.tsx`, `OfferCards.tsx`, `Promotions.css`, `AdminHub.tsx`, `Sportsbook.tsx`.
+- Client rules/pricing/API selection: `src/lib/promotions.ts`, `src/lib/markets.ts`.
+- Server: `api/promo-image.ts`, `api/_lib/promo-image.ts`, `api/place-bet.ts`.
+- Database: `supabase/migrations/202610090033_promotions.sql`; tables `promo_images`, `promo_offers`, `promo_claims`, `ticket_promotions`, `promo_events`; public save/pause/list/image/claim/usage/fixed/boost RPCs and private availability/activation/eligibility/restoration functions.
+- Tests: `scripts/test-promotions.mjs`, `scripts/test-promos-ux.cjs`, `scripts/test-ux.cjs`, `scripts/test-api-runtime.mjs`. Run build before UI scripts because they serve the compiled `dist` fixtures. Set `PLAYWRIGHT_BROWSERS_PATH=C:/Users/coope/AppData/Local/ms-playwright` on this machine; optional `PROMO_UX_OUTPUT` / `UX_OUTPUT` choose evidence destinations.
+- Skills used: Frontend Design, React Best Practices, Supabase Postgres Best Practices and Webapp Testing. React Email is required if a later task changes email templates; no templates changed here. Load Supabase practices before any future SQL/schema/RLS work.
 
-## Acceptance Gates
+Hosted test schemas `promos_test`, `promos_test_private`, `promos_test_auth` remain as isolated fixtures. They are not exposed in PostgREST; schema access was revoked from anon/authenticated. Their mail queues are separate from live worker tables. Do not run workers against them, mistake them for live tables, or assume they were deleted.
 
-Test eligibility appearing/disappearing as picks change, exact versus minimum counts, contradictory props, five props across distinct players, empty/busy slip replacement, toggle price preview, expired/code-disabled offers, manual pause, stale quotes, two-tab redemption races, retries, full refund and partial pushes, image isolation, non-admin access, and Thursday expiry through DST. Verify mobile slip still shows legs and wager controls. Do not enable ordinary profit boosts until redemption and settlement checks pass.
+The checkout has unrelated pre-existing changes/untracked files (other handoffs/context, data and work scripts). Inspect `git status`; preserve them and stage only intended task changes. The documentation cleanup that creates this handoff is a local documentation update, not another runtime deployment.
 
-Recommended installed skills: Frontend Design, React Best Practices, Supabase Postgres Best Practices, React Email. Add Webapp Testing for complete claim-to-ticket regression journeys.
+For rollback/pause, disable offers to stop new use. Once promoted tickets exist, keep their snapshots/audit data and promo-aware settlement/refund functions. Dropping promo tables or reverting settlement handling can strand accepted tickets. A frontend rollback alone is not evidence that already-accepted promotions will settle correctly.
 
-## October 9 review phase — user decisions supersede recommendations above
+## Evidence location
 
-User requested many clarifying questions and previews, with **no deployment until explicit approval**. A standalone interactive review package is saved at `C:/Users/coope/Documents/Codex/2026-10-09/build-the-dedicated-promos-boosts-administration/outputs/`: `promos-preview.html`, `implementation-plan.md`, four viewport/theme journeys in `preview-checks.json`, and Home/Admin/fixed-slip/boost-slip PNGs. This is a prototype, not production feature integration.
+All user-facing artifacts for this chat are under `C:/Users/coope/Documents/Codex/2026-10-09/build-the-dedicated-promos-boosts-administration/outputs/`:
 
-Confirmed: at least five distinct players, all legs Player Points; $20 maximum wager with no extra-profit cap; one boost per ticket, no stacking with featured/fixed/teaser offers; acceptance-time eligibility preserved after partial pushes; full admin void restores boost once without extending expiry; full push refunds but never restores its boost. League admins manage offers, every active member eligible by default. Wednesday successful publication activates newly supplied offers; Thursday 8 PM Eastern ends visibility and redemption. Mobile accessible carousel; one/two offers expand rather than requiring three.
-
-Fixed promos map to existing markets with manual advertised line/odds overrides and one acceptance per user/offer. **User explicitly chose to keep these independent of ordinary quote suspension, available until Thursday 8 PM cutoff**, superseding the earlier suspension recommendation. Do not silently reinterpret that choice. Ordinary market compatibility, ticket snapshots, refunds and email behavior remain protected; the implementation plan calls for an explicit separate fixed acceptance path. Fixed-promo usage restoration after full void still needs confirmation.
-
-PNG/JPG/WebP up to 5 MB, landscape crop/focal point and readable external terms approved. Server image-content validation, private league-scoped storage and cropping are planned, not implemented. Emails remain unchanged for first release.
-
-Tests completed: standalone headless Chromium at 1440x1000 and 390x844, both themes; equal desktop cards, accessible carousel controls, no page overflow, long titles, claim/toggle presentation, 3.00 decimal/$10/50% profit calculation, eligibility transitions, $20 maximum, replacement confirmation/cancel, locked-leg UI, expiry, slot counts and draft feedback. No external requests, live bets or email. This is not evidence of atomic redemption, league isolation, database expiry, refund or two-tab concurrency. Webapp Testing skill exists; Python Playwright unavailable, used repository Node Playwright and existing Chromium.
-
-Files changed in production checkout: this handoff only. No migrations written/applied, no app integration, no commit/push/deployment. Checkout HEAD `bbfbe07`; remote verification failed due to name resolution. Latest Git/Vercel source must be reverified before integration. User-facing preview and plan capture proposed files, transaction/settlement design, test gates, pending exact effective-odds display and artwork decisions. Rollback: remove review files/this appended section; no runtime state changed.
-
-### Subsequent design revisions — current user instructions
-
-Extra-profit caps will **never** exist: exclude the setting and logic entirely, remove cap-related public wording. The previously confirmed $20 maximum wager remains. Admin now chooses expiry/disappearance date and time in Eastern time; this supersedes the fixed Thursday cutoff. Public offer wording is “Claim by” the chosen deadline. Current preview uses a single expiry for both visibility and new claims/use, with accepted-ticket history retained.
-
-Mobile carousel now uses dots (three for three offers), with the active dot darkest, instead of numeric position. Gold buttons say only “Claim” and overlay the bottom right of the image. Public cards omit “one-use profit boost”/“fixed promo ticket” labels. Admin retains a type selector for configuration. User likes the admin direction; this is not deployment authorization.
-
-Updated standalone preview and implementation plan; reran all four browser journeys in both themes at desktop/mobile dimensions. Added checks for active dots, image-overlay Claim buttons, absent public type/cap labels, and admin-selected expiry updating “Claim by” copy. Production feature integration, schema work and deployment remain pending; no bets or emails.
-
-## October 9 approved production release
-
-The user explicitly said “okay lets deploy.” Implemented the dedicated league-admin page, private validated raster images, drafts/scheduling/disable/history/liability, equal Home cards and accessible mobile dots, immutable fixed slips and opt-in claimed boosts. Admin-selected Eastern expiry governs disappearance and redemption. No extra-profit-cap setting or pricing branch exists. Image claims support an optional advertised code; there is no typed-code redemption endpoint. Emails use the existing acceptance outbox and unchanged templates.
-
-Migration `202610090033_promotions.sql` applied to production successfully. Postflight: 47 existing tickets, 28 OPEN, zero offers and zero promo tickets; all five new tables have RLS; anonymous promo RPC access and client image-storage RPC access are denied. No sample offers, real bets or bulk emails were created. Admins must supply their actual images and terms. Successful weekly publication activates matching scheduled offers; scheduling on an already-published matching board also activates when its opening time permits.
-
-Acceptance locks the wallet then offer/claim, keeps precise profit math, records immutable promotion terms, and atomically consumes use. Retry checks distinguish fixed/boost/ordinary tickets. Expiry uses wall-clock time after lock acquisition. A hosted isolated-schema race accepted one ticket, rejected the competitor, debited once and retained balance $990 from $1,000; production stayed at 47 tickets. Test schemas are unexposed and their schema access was revoked from anon/authenticated after testing; their fixture mail queues are separate from production.
-
-Verified PGlite authorization, minimum/exact eligibility, stale rejection, $20 limit, payout math, retries, partial pushes, full pushes, full-void restoration, fixed overrides through suspension/refresh, one-use protection, immutable snapshots and expiry. Integrated browser journeys cover desktop/mobile both themes, image-overlay claims, dots, eligibility transitions, replacement, fixed immutability, fixture acceptance, league switch, image upload validation and draft/schedule. Existing browser regression covers six widths, account/dialog/revised quotes, futures/specials, league roles, history, CSV/PNG/PDF exports and load/error states. Build/API checks, weekly execution, futures and isolation pass. Lint has advisory warnings, no errors. Screenshot evidence is in the chat outputs/integrated directory; final deployment evidence is in outputs/release-evidence.md.
-
-Full admin void restores a boost once with its original expiry; a fully pushed ticket refunds but never restores. Fixed tickets remain consumed after an admin void (conservative default; user has not requested fixed-offer reuse). Manual fixed offers remain independent of ordinary quote suspension/start until their selected expiry, as explicitly instructed. Ordinary ticket gates remain intact. Disable an offer to stop new use. Do not drop promo audit tables or revert settlement handling after accepting promoted tickets: those snapshots must remain settleable and refundable.
-
-## October 9 selection-picker follow-up
-
-Fixed-offer selection uses two dropdowns: a category grouped in Matchups → Player Projections → Weekly Specials order, then only that category's available selections alphabetized. Category/week/draft changes reset the pending choice; already-added selections are omitted. Empty categories explain availability and cannot add a selection. Desktop/mobile both-theme browser regression covers ordering, category isolation, reset, duplicate exclusion and empty states.
-
-Scheduling still has no second menu or separate appearance-date picker. During the selected week, Home visibility starts once the weekly board is successfully published and its opening time has passed. For an already-open current board, Schedule offer makes it available immediately. Admin-selected expiry remains the end time. This explanation now appears next to the action and in its success message. No database, acceptance or settlement rules changed for this follow-up.
+- `active-quotes-picker/production-verification.json`, `deployment-ready.png`, `integrated-checks.json` and screenshots: latest `c31910e` release proof and fixture journeys. The isolated source/build copy is in `work/active-quotes-release`; it reuses installed dependencies but omits unrelated uncommitted teaser changes.
+- `matchup-picker/`: previous `1a4c692` release proof and fixture journeys; isolated build in `work/matchup-release`.
+- `categorized-picker/`: previous `84d9ce6` category-picker release proof and fixture journeys.
+- `production-migration.png`, `production-postflight.png`, `hosted-race.png`: database/race evidence.
+- `integrated/` and `regression/`: core promo and existing regression screenshots/measurements/fixture exports.
+- `release-evidence.md`: core release record; `active-quotes-picker/` is the latest picker release evidence.
+- `promos-preview.html`, `preview-checks.json` and `implementation-plan.md`: historical standalone review prototype/plan. **These are not the deployed app and must not be used as proof of database behavior.** Current source and the deployed/tested records above take precedence.

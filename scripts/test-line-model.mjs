@@ -31,6 +31,17 @@ assert.equal(fields.low.length, 6);
 assert.equal(new Set([...fields.high, ...fields.low]).size, 12);
 assert(fields.high.includes(1));
 assert(fields.low.includes(9));
+for (const count of [8, 10, 12, 14, 16]) {
+  const high = Array.from({ length: count }, (_, i) => (i + 1) / (count * 2));
+  const low = high.toReversed();
+  const result = weeklyScorerFields(high, low);
+  assert.equal(result.high.length, count / 2);
+  assert.equal(result.low.length, count / 2);
+  assert.equal(new Set([...result.high, ...result.low]).size, count);
+  assert.deepEqual(weeklyScorerFields(high, low), result);
+}
+assert.throws(() => weeklyScorerFields(Array(9).fill(.1), Array(9).fill(.1)), /reviewed policy/);
+assert.throws(() => weeklyScorerFields([NaN, ...Array(7).fill(.1)], Array(8).fill(.1)), /unavailable/);
 assert.equal(
   score({ rec: 5, rec_yd: 60, rec_td: 1 }, { rec: 1, rec_yd: 0.1, rec_td: 6 }),
   17,

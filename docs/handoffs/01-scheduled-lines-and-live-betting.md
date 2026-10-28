@@ -1,5 +1,7 @@
 # Automatic Line Refresh and Live Betting
 
+**October 28 communications update:** handoff 12 supersedes historical Thursday reminder/copy instructions below. Schedule email from actual eligible windows; no Thursday closing reminder under a Monday-close policy. Verify current runtime acceptance before changing its lifecycle. This notification request does not authorize unsafe live acceptance or incidental changes to accepted tickets.
+
 Read [shared context](PROJECT-CONTEXT.md) first.
 
 ## Current handoff — October 8, 2026, after live logging deployment

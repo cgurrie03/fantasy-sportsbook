@@ -1,5 +1,5 @@
 import { communicationIdentity } from "./_lib/league-communications.js";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { POST as generate } from "./generate-markets.js";
 import { POST as execution } from "./weekly-execution.js";
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     return json({ error: "Scheduled worker authentication required." }, 401);
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)
     return json({ error: "Worker database credentials missing." }, 503);
-  const db = createClient(
+  const db = await createServerClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false } },
@@ -157,6 +157,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
         "x-worker-secret": process.env.WEEKLY_WORKER_SECRET!,
+        ...(process.env.BOFF_ENVIRONMENT === "development" ? { "x-boff-manual-run": "true" } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -176,6 +177,9 @@ export async function POST(request: Request) {
         schedules: ready.data,
       });
     }
+    // Maintenance failure must not starve settlement or replenishment.
+    const cleanup = await db.rpc("cleanup_terminal_refresh_payloads", { p_limit: 5 });
+    if (cleanup.error) console.error("Refresh cleanup failed", { code: cleanup.error.code });
     // Cadence detection never waits for the next two-hour pricing interval.
     // A source outage suspends refresh/acceptance, but must not starve settlement.
     let statusError: string | null = null;
@@ -920,6 +924,7 @@ export async function POST(request: Request) {
     }
     return json({
       job: job?.operation ?? null,
+      cleanup: cleanup.error ? { failed: true } : cleanup.data,
       status_source_error: statusError,
       ...(job && /^(generate|refresh)_/.test(job.operation)
         ? { delivery_deferred: true }

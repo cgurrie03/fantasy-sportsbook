@@ -1,5 +1,6 @@
 import { exactEventTime } from "../../api/_lib/event-time";
 import { supabase } from "./supabase";
+import { createBoardCache } from "./board-cache";
 
 export interface Board {
   id: string;
@@ -9,6 +10,7 @@ export interface Board {
   league_season: number;
   status: "draft" | "published" | "closed";
   revision: number;
+  content_version?: number;
   opens_at: string;
   closes_at: string;
   board_type?: "weekly" | "future";
@@ -442,6 +444,21 @@ export async function loadFuturesBoard(leagueId: string) {
     markets: (snapshot.data?.markets ?? []) as Market[],
   };
 }
+
+const memberBoards = createBoardCache<Board, Market>(async (leagueId) => {
+  const result = await supabase!.rpc("sportsbook_board_manifest", { p_league: leagueId })
+    .abortSignal(AbortSignal.timeout(15000));
+  if (result.error) throw result.error;
+  return result.data;
+}, async (leagueId, type) => type === "weekly" ? loadMarketBoard(leagueId) : {
+  ...await loadFuturesBoard(leagueId), week: 1,
+});
+export async function loadMemberBoards(leagueId: string) {
+  if (!supabase) throw new Error("The market service is unavailable.");
+  const session = (await supabase.auth.getSession()).data.session;
+  return memberBoards.load(session?.user.id ?? "", leagueId);
+}
+export function clearMemberBoards() { memberBoards.clear(); }
 
 export async function placeTicket(
   board: Board,

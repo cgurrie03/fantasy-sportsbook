@@ -26,18 +26,24 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
  const context=await browser.newContext({viewport:{width,height},isMobile:width<768,hasTouch:width<768,acceptDownloads:true});
  const state={tickets:[],legs:[],fail:false,slow:false,empty:false,suspended:false,changed:false,betCalls:0,authCalls:0};
  if(!firstVisit)await context.addInitScript(({userId})=>localStorage.setItem('sportsbook-quick-start-v1:'+userId,'seen'),{userId});
- if(signedIn)await context.addInitScript(({session})=>localStorage.setItem('sb-bmvjcdgxwxqalaohpsnw-auth-token',JSON.stringify(session)),{session});
+ if(signedIn)await context.addInitScript(({session})=>localStorage.setItem('sportsbook-development-whlcnlacueweaqpsupqs',JSON.stringify(session)),{session});
  await context.route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url()), endpoint=url.pathname.split('/').at(-1);
   if(url.protocol==='blob:'||url.protocol==='data:')return route.continue();
   const json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   if(url.hostname.endsWith('supabase.co')){
+   if(endpoint==='application_environment_identity')return json({environment:'development',project_ref:'whlcnlacueweaqpsupqs',app_origin:'https://dev.sportsbook.coopergurrie.com'});
    if(state.slow)await new Promise(r=>setTimeout(r,500));
    if(url.pathname.includes('/auth/')){state.authCalls++;return json(endpoint==='user'?session.user:{});}
    if(state.fail)return json({message:'Fixture connection unavailable. Try again.'},503);
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
+   if(endpoint==='sportsbook_board_manifest'){
+    const weekly=boards.find(b=>b.league_id===body.p_league),future=futureBoards.find(b=>b.league_id===body.p_league);
+    const status=b=>({...b,content_version:state.movement??0,...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==='weekly'?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})});
+    return json({week:state.week??5,weekly:state.empty?null:status(weekly),future:state.empty||!state.futures?null:status(future)});
+   }
    if(endpoint==='sportsbook_quote_snapshot'||endpoint==='sportsbook_current_snapshot'){
     const b=endpoint==='sportsbook_current_snapshot'?(body.p_type==='future'?futureBoards:boards).find(b=>b.league_id===body.p_league):[...boards,...futureBoards].find(b=>b.id===body.p_board);
     if(state.empty||(body.p_type==='future'&&!state.futures))return json({week:state.week??5,board:null,markets:[]});

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { createHash } from "node:crypto";
 import { generateMarkets } from "./generate-markets.js";
 import {
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         { error: "Sign in as the league admin to review reopening." },
         401,
       );
-    const client = createClient(url, key, {
+    const client = await createServerClient(url, key, {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false },
     });
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
     const hash = createHash("sha256")
       .update(JSON.stringify({ weekly, futures, context, closes }))
       .digest("hex");
-    const server = createClient(url, secret, {
+    const server = await createServerClient(url, secret, {
       auth: { persistSession: false },
     });
     const staged = await server.rpc("stage_reopening_review", {

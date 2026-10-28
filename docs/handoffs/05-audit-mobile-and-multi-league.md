@@ -1,5 +1,7 @@
 # Initial Audit, Mobile Quality and Multi-League Roadmap
 
+**October 28 priority update:** Complete [Supabase efficiency handoff 08](08-supabase-efficiency.md) and its measured two-league capacity gate before enabling another league. New Sleeper NFL leagues must import their actual scoring, roster and playoff settings during onboarding. Support platform oversight without a fantasy membership/team/wallet; include sign-up, sign-in and isolation tests. Earlier release/approval status below is historical. The full October 28 audit and evidence are recorded in the handoff's evidence location.
+
 Current implementation and evidence: [9 October audit/release review](06-audit-release-review.md). Deployment awaits user approval. The original provider-ID finding below is superseded; the worker already reads verified league configuration.
 
 Read [shared context](PROJECT-CONTEXT.md). Scope: targeted source inspection and earlier reported visual issues. This is not a completed production security audit, a complete browser regression suite, or proof of mobile rendering. Perform measured viewport/device checks during implementation.

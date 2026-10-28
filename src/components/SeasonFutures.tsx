@@ -191,11 +191,13 @@ export function FuturesAdmin({
     [markets, setMarkets] = useState<Market[]>([]),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
-    [failed, setFailed] = useState(false);
+    [failed, setFailed] = useState(false),
+    [generated, setGenerated] = useState(false);
   const reload = async () => {
     const r = await loadFuturesBoard(leagueId);
     setBoard(r.board);
     setMarkets(r.markets);
+    setGenerated(false);
   };
   useEffect(() => {
     let active = true;
@@ -258,13 +260,19 @@ export function FuturesAdmin({
           "Season odds generated. Review the teams, pick ownership, and odds, then publish. " +
             (r.warnings ?? []).join(" "),
         );
+        setGenerated(true);
       } else {
-        const r = await supabase!.rpc("save_future_board", {
-          p_board: board?.id ?? crypto.randomUUID(),
-          p_league: leagueId,
-          p_quotes: markets,
-          p_status: status ?? "draft",
-        });
+        const r = board && !generated
+          ? await supabase!.rpc("patch_future_board", {
+              p_board: board.id, p_revision: board.revision,
+              p_updates: markets.map((m) => ({ id: m.id, odds: m.odds })),
+              p_status: status ?? "draft",
+            })
+          : await supabase!.rpc("save_future_board_revision", {
+              p_board: board?.id ?? crypto.randomUUID(), p_league: leagueId,
+              p_revision: board?.revision ?? null, p_quotes: markets,
+              p_status: status ?? "draft",
+            });
         if (r.error) throw r.error;
         await reload();
         setNotice(

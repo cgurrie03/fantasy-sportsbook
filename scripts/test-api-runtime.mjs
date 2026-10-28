@@ -4,11 +4,15 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import ts from "typescript";
 
+process.env.BOFF_ENVIRONMENT = "test";
+process.env.NODE_ENV = "test";
 // Match deployment: TypeScript sources become JavaScript, without preserving .ts files.
 const root = await mkdtemp(path.resolve("node_modules/.api-runtime-"));
 try {
   await mkdir(path.join(root, "_lib"));
   for (const file of [
+    "_lib/environment-policy",
+    "_lib/server-client",
     "generate-markets",
     "weekly-execution",
     "_lib/line-model",
@@ -708,6 +712,34 @@ try {
     console.log(
       "Email delivery preserves the saved payload/idempotency key and records transient failures for retry.",
     );
+    const captureEnvironment = { ...process.env };
+    try {
+      Object.assign(process.env, {
+        BOFF_ENVIRONMENT: "development", BOFF_EXPECTED_PROJECT_REF: "whlcnlacueweaqpsupqs",
+        SUPABASE_URL: "https://whlcnlacueweaqpsupqs.supabase.co",
+        BOFF_APP_ORIGIN: "https://dev.sportsbook.coopergurrie.com",
+        BOFF_MAIL_MODE: "capture", BOFF_AUTOMATION_MODE: "manual",
+      });
+      delete process.env.RESEND_API_KEY;
+      let capturedCalls = 0;
+      globalThis.fetch = async () => { throw new Error("Capture must never call a mail provider"); };
+      const result = await mail.deliverEmails({ ...emailDb, rpc: async (name, args) => {
+        if (name === "claim_scoped_outbound_emails") return emailDb.rpc();
+        assert.equal(name, "capture_development_email");
+        assert.equal(args.p_email, "mail");
+        assert.deepEqual(args.p_payload, acceptedPayload);
+        capturedCalls++;
+        return { data: null, error: null };
+      } });
+      assert.deepEqual(result, { sent: 0, captured: 1 });
+      assert.equal(capturedCalls, 1);
+      process.env.RESEND_API_KEY = "forbidden-development-provider-key";
+      await assert.rejects(mail.deliverEmails(emailDb), /captured mail/);
+      console.log("Development central mail boundary captures without provider access and refuses a live key.");
+    } finally {
+      for (const key of Object.keys(process.env)) if (!(key in captureEnvironment)) delete process.env[key];
+      Object.assign(process.env, captureEnvironment);
+    }
   } finally {
     globalThis.fetch = oldMailFetch;
     if (oldMailKey === undefined) delete process.env.RESEND_API_KEY;

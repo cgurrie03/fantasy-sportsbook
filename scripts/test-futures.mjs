@@ -29,10 +29,13 @@ const eventSource = ts.transpileModule(
 ).outputText;
 const eventUrl =
   "data:text/javascript;base64," + Buffer.from(eventSource).toString("base64");
+const cacheSource = ts.transpileModule(fs.readFileSync("src/lib/board-cache.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023 } }).outputText;
+const cacheUrl = "data:text/javascript;base64," + Buffer.from(cacheSource).toString("base64");
 const marketSource = fs
   .readFileSync("src/lib/markets.ts", "utf8")
   .replace('import { supabase } from "./supabase";', "const supabase = null;")
-  .replace('"../../api/_lib/event-time"', JSON.stringify(eventUrl));
+  .replace('"../../api/_lib/event-time"', JSON.stringify(eventUrl))
+  .replace('"./board-cache"', JSON.stringify(cacheUrl));
 const { canPlacePicks, pickConflict } = await import(
   "data:text/javascript;base64," +
     Buffer.from(

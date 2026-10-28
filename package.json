@@ -36,7 +36,15 @@
     "test:promos": "node scripts/test-promotions.mjs",
     "test:promos:ux": "node scripts/test-promos-ux.cjs",
     "test:reopening": "node scripts/test-reopening.mjs",
-    "test:audit": "node scripts/test-audit-values.mjs && node scripts/test-audit-ux.cjs"
+    "test:audit": "node scripts/test-audit-values.mjs && node scripts/test-audit-ux.cjs",
+    "build:fixture": "node scripts/build-fixture.mjs",
+    "test:environment": "node scripts/test-development-environment.mjs && node scripts/test-runtime-environment.mjs",
+    "test:monday": "node scripts/test-monday-watch.mjs",
+    "test:futures-edit": "node scripts/test-futures-edit.mjs",
+    "test:release": "node scripts/release-check.mjs",
+    "test:refresh-retention": "node scripts/test-refresh-retention.mjs",
+    "test:sleeper-links": "node scripts/test-sleeper-links.mjs",
+    "test:board-cache": "node scripts/test-board-cache.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

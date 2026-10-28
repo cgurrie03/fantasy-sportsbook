@@ -128,7 +128,7 @@ const { setup } = require("./test-ux.cjs");
     );
     const returning = await setup(browser, 390, 844, true, true);
     await returning.context.addInitScript(() => {
-      const key = "sb-bmvjcdgxwxqalaohpsnw-auth-token";
+      const key = "sportsbook-development-whlcnlacueweaqpsupqs";
       const account = JSON.parse(localStorage.getItem(key));
       account.user.user_metadata.sportsbook_quick_start_v1 = true;
       localStorage.setItem(key, JSON.stringify(account));

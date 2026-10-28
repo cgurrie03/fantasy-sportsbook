@@ -1,5 +1,5 @@
 import { deliverEmails } from "./_lib/mail.js";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.toLowerCase().startsWith("bearer "))
     return json({ error: "Sign in before placing a bet." }, 401);
-  const userClient = createClient(
+  const userClient = await createServerClient(
     url,
     process.env.SUPABASE_ANON_KEY ??
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     typeof body.request_id !== "string"
   )
     return json({ error: "The bet request was incomplete." }, 400);
-  const admin = createClient(url, serviceKey, {
+  const admin = await createServerClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   if (

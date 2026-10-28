@@ -14,6 +14,8 @@ try {
     "ticket-progress",
     "settlement",
     "live-model",
+    "reopening-email",
+    "auth-policy",
   ]) {
     const source = await readFile(`api/_lib/${file}.ts`, "utf8");
     await writeFile(
@@ -179,7 +181,7 @@ try {
     "attention",
     "recap",
   ]);
-  assert.equal(new Set(emailTemplateGroups.flatMap((g) => g.kinds)).size, 7);
+  assert.equal(new Set(emailTemplateGroups.flatMap((g) => g.kinds)).size, 8);
   const leg = (id, kind, player, line, side = "over") => ({
     id,
     ticket_id: ticket.id,

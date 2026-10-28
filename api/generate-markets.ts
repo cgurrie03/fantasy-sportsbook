@@ -16,7 +16,7 @@ import {
 } from "./_lib/extra-markets.js";
 import { cdf } from "./_lib/model-assessment.js";
 import { BASELINE, fairProbability } from "./_lib/model-assessment.js";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import {
   lineupWithReplacements,
   matchupSpread,
@@ -108,7 +108,7 @@ export async function generateMarkets(
       (worker && !process.env.SUPABASE_SERVICE_ROLE_KEY)
     )
       return json({ error: "Market generation is not configured." }, 401);
-    const userClient = createClient(
+    const userClient = await createServerClient(
       url,
       worker ? process.env.SUPABASE_SERVICE_ROLE_KEY! : publicKey,
       {
@@ -1212,7 +1212,7 @@ export async function generateMarkets(
           });
         }
       });
-      const topSix = ["weekly_high", "weekly_low"].flatMap((kind) =>
+      const scorerFields = ["weekly_high", "weekly_low"].flatMap((kind) =>
         quotes
           .filter((q) => q.kind === kind)
           .sort(
@@ -1220,9 +1220,9 @@ export async function generateMarkets(
               Number(b.metadata.simulated_probability) -
               Number(a.metadata.simulated_probability),
           )
-          .slice(0, 6),
+          .slice(0, models.length / 2),
       );
-      quotes.splice(0, quotes.length, ...topSix);
+      quotes.splice(0, quotes.length, ...scorerFields);
       const lock = models.some((m) => m.unfilled_slots > 0);
       const lockReason =
         "Regenerate after complete eligible lineups with positive projections are available for: " +

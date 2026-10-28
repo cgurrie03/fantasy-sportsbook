@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { validatePng } from "./_lib/promo-image.js";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.toLowerCase().startsWith("bearer "))
     return json({ error: "Sign in before uploading." }, 401);
-  const client = createClient(
+  const client = await createServerClient(
     url,
     process.env.SUPABASE_ANON_KEY ??
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       league_id?: unknown;
     };
     const png = validatePng(body.png);
-    const service = createClient(url, key, {
+    const service = await createServerClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const r = await service.rpc("store_promo_image", {

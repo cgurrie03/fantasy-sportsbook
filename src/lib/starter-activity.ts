@@ -23,7 +23,7 @@ export function useStarterActivity(
     let active = true,
       loading = false;
     const load = async () => {
-      if (loading) return;
+      if (loading || document.visibilityState !== "visible") return;
       loading = true;
       try {
         const session = (await supabase!.auth.getSession()).data.session;
@@ -54,9 +54,12 @@ export function useStarterActivity(
     };
     void load();
     const timer = setInterval(() => void load(), 60000);
+    const resume = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", resume);
     return () => {
       active = false;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", resume);
     };
   }, [leagueId, isReview, review]);
   return {

@@ -1,4 +1,5 @@
 import { reopeningEmail } from "./reopening-email.js";
+import { environmentIdentity } from "./environment-policy.js";
 import {
   communicationIdentity,
   validateDeliveryScope,
@@ -519,13 +520,19 @@ export async function deliverEmails(
   db: SupabaseClient,
   ticketId: string | null = null,
 ) {
-  if (!process.env.RESEND_API_KEY)
+  const synthetic = process.env.BOFF_ENVIRONMENT === "test" &&
+    process.env.NODE_ENV === "test" && !process.env.VERCEL && !process.env.VERCEL_ENV;
+  const identity = synthetic ? null : environmentIdentity(process.env);
+  const capture = identity?.environment === "development";
+  if (!capture && !synthetic && process.env.BOFF_MAIL_MODE !== "delivery")
+    throw new Error("Production delivery mode must be explicitly enabled.");
+  if (!capture && !process.env.RESEND_API_KEY)
     throw new Error("Email delivery requires RESEND_API_KEY.");
   const claim = await db.rpc("claim_scoped_outbound_emails", {
     p_ticket: ticketId,
   });
   if (claim.error) throw new Error(claim.error.message);
-  let sent = 0;
+  let sent = 0, captured = 0;
   for (const row of claim.data ?? []) {
     try {
       await validateDeliveryScope(db, row);
@@ -613,6 +620,14 @@ export async function deliverEmails(
         if (save.error) throw new Error(save.error.message);
       }
       validatePayloadRecipient(payload, row.recipient);
+      if (capture) {
+        const saved = await db.rpc("capture_development_email", {
+          p_email: row.id, p_payload: payload,
+        });
+        if (saved.error) throw new Error("Development email capture failed.");
+        captured++;
+        continue;
+      }
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -663,5 +678,5 @@ export async function deliverEmails(
         .eq("id", row.id);
     }
   }
-  return { sent };
+  return { sent, captured };
 }

@@ -15,28 +15,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-        env:
-          # Browser tests intercept every request; this is not a production key.
-          VITE_SUPABASE_URL: https://bmvjcdgxwxqalaohpsnw.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: fixture-only-not-a-real-key
-      - run: npm run test:accounts
-      - run: npm run test:lines
-      - run: node scripts/test-sleeper-links.mjs
-      - run: npm run test:import
-      - run: npm run test:refresh
-      - run: npm run test:starters
-      - run: npm run test:live
-      - run: npm run test:weekly
-      - run: npm run test:transitions
-      - run: npm run test:futures
-      - run: npm run test:reporting
-      - run: npm run test:reopening
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:operations
-      - run: npm run test:transitions:ux
-      - run: npm run test:quick-start
-      - run: npm run test:featured-cards
-      - run: npm run test:extra-markets:ux
-      - run: npm run test:audit
+      - run: npm run test:release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-checks
+          path: work/release-checks
+          retention-days: 7

@@ -18,7 +18,7 @@ import {
   americanPrice,
   combinedPrice,
   formatOdds,
-  loadMarketBoard,
+  loadMemberBoards,
   marketType,
   pickConflict,
   placeTicket,
@@ -26,7 +26,6 @@ import {
   orderMatchups,
   weeklyKinds,
   canPlacePicks,
-  loadFuturesBoard,
   isFuture,
   boardAvailable,
   quoteUnavailable,
@@ -354,8 +353,12 @@ export function Sportsbook({
     if (quoteLoad.current) return quoteLoad.current;
     setRefreshingQuotes(true);
     let failed = false;
+    const boards = loadMemberBoards(member.league_id);
     const pending = Promise.allSettled([
-      loadMarketBoard(member.league_id)
+      boards.then((pair) => {
+        if (pair.errors.weekly) throw pair.errors.weekly;
+        return pair.weekly;
+      })
         .then((r) => {
           const period = `${r.board?.nfl_season ?? currentSeason}:${r.week}`;
           if (accountPeriod.current === null) accountPeriod.current = period;
@@ -404,7 +407,10 @@ export function Sportsbook({
           );
         })
         .finally(() => setLoading(false)),
-      loadFuturesBoard(member.league_id)
+      boards.then((pair) => {
+        if (pair.errors.future) throw pair.errors.future;
+        return pair.future;
+      })
         .then((f) => {
           setFutureBoard(f.board);
           setFutureMarkets(f.markets);

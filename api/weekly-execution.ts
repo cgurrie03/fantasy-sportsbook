@@ -1,5 +1,5 @@
 import { isWorker } from "./_lib/worker-auth.js";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { settleLeg } from "./_lib/settlement.js";
 import type { FinalResults, LegInput } from "./_lib/settlement.ts";
 import { score } from "./_lib/line-model.js";
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const authorization = request.headers.get("authorization") ?? "";
     if (!url || !key || (!worker && !authorization.startsWith("Bearer ")))
       return json({ error: "Sign in before reviewing weekly execution." }, 401);
-    const client = createClient(
+    const client = await createServerClient(
       url,
       worker ? process.env.SUPABASE_SERVICE_ROLE_KEY! : key,
       {

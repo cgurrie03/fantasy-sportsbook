@@ -284,15 +284,18 @@ export function matchupSpread(home: number, away: number) {
 }
 
 // Maximize the combined high/low likelihood while assigning each team to only
-// one six-team field. Independent top-six lists can overlap for volatile teams.
+// one balanced field. Independent high/low lists can overlap for volatile teams.
 export function weeklyScorerFields(high: number[], low: number[]) {
-  if (high.length !== low.length || high.length !== 12)
-    throw new Error("Weekly scorer fields require 12 teams.");
+  if (high.length !== low.length || high.length < 8 || high.length > 16 || high.length % 2)
+    throw new Error("Weekly scorer fields support even leagues with 8–16 eligible teams; odd fields require a reviewed policy.");
+  if ([...high, ...low].some((p) => !Number.isFinite(p) || p < 0 || p > 1))
+    throw new Error("Weekly scorer probabilities are unavailable.");
+  const half = high.length / 2;
   const ranked = high
     .map((_, i) => i)
     .sort((a, b) => high[b] - low[b] - (high[a] - low[a]) || a - b);
   return {
-    high: ranked.slice(0, 6).sort((a, b) => high[b] - high[a] || a - b),
-    low: ranked.slice(6).sort((a, b) => low[b] - low[a] || a - b),
+    high: ranked.slice(0, half).sort((a, b) => high[b] - high[a] || a - b),
+    low: ranked.slice(half).sort((a, b) => low[b] - low[a] || a - b),
   };
 }

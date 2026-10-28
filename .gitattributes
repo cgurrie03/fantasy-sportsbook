@@ -1,0 +1,3 @@
+# Migrations patch pg_get_functiondef output, whose line endings are LF.
+# Keep clean Windows checkouts reproducible without changing deployed SQL.
+*.sql text eol=lf

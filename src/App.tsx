@@ -4,7 +4,7 @@ import { useRoute, navigate } from "./lib/navigation";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "./lib/supabase";
+import { supabase, developmentUserAllowed } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
@@ -583,14 +583,14 @@ export default function App() {
     let active = true;
     supabase.auth.getSession().then(({ data, error }) => {
       if (active) {
-        setSession(data.session);
+        setSession(data.session && developmentUserAllowed(data.session.user.id) ? data.session : null);
         if (error) setError(error.message);
         setReady(true);
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, next) => {
-        setSession(next);
+        setSession(next && developmentUserAllowed(next.user.id) ? next : null);
         if (next) setLinkRecovery("");
         setReady(true);
       },
@@ -615,14 +615,16 @@ export default function App() {
     loadAccounts(undefined, (next) => {
       if (active) {
         setData(next);
-        setLeagueId(next.leagues[0]?.id ?? "");
+        setLeagueId((current) => next.leagues.some((league) => league.id === current)
+          ? current : (next.leagues[0]?.id ?? ""));
         setLoading(false);
       }
     })
       .then((next) => {
         if (active) {
           setData(next);
-          setLeagueId(next.leagues[0]?.id ?? "");
+          setLeagueId((current) => next.leagues.some((league) => league.id === current)
+            ? current : (next.leagues[0]?.id ?? ""));
         }
       })
       .catch((e) => {
@@ -656,6 +658,7 @@ export default function App() {
     team = data?.teams.find((t) => t.id === member?.team_id),
     league = data?.leagues.find((l) => l.id === member?.league_id);
   async function signOut() {
+    (await import("./lib/markets")).clearMemberBoards();
     const r = await supabase?.auth.signOut();
     if (r?.error) setError(errorMessage(r.error));
     else {

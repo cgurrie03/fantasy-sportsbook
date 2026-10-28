@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "./_lib/server-client.js";
 import { fetchGameStatus } from "./_lib/game-status.js";
 import { activeStarters } from "./_lib/active-starters.js";
 export const maxDuration = 30;
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   const leagueId = new URL(request.url).searchParams.get("league_id");
   if (!leagueId || !/^[\da-f-]{36}$/i.test(leagueId))
     return json({ error: "A league is required." }, 400);
-  const db = createClient(url, key, {
+  const db = await createServerClient(url, key, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
