@@ -116,9 +116,9 @@ const { setup, A, boards, quotes, teams } = require("./test-ux.cjs");
       const label = await disabled.getAttribute("aria-label");
       assert.match(label, /no confirmed NFL game/);
       assert(!/6770|ambiguous/.test(label));
-      assert.match(
-        await p.locator(".market-availability").first().innerText(),
-        /lineup or schedule is corrected/,
+      assert.equal(
+        await p.locator(".matchup-card .market-availability").count(),
+        0,
       );
       locked = false;
       await p.clock.install();

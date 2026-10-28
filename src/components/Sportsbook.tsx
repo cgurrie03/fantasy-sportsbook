@@ -1058,21 +1058,6 @@ export function Sportsbook({
                                     )}
                                   </span>
                                 </div>
-                                {i === 0 && (
-                                  <>
-                                    {g.some(
-                                      (m) => m.metadata.lineup_locked,
-                                    ) && (
-                                      <p className="market-availability">
-                                        {quoteUnavailable(
-                                          g.find(
-                                            (m) => m.metadata.lineup_locked,
-                                          )!,
-                                        )}
-                                      </p>
-                                    )}
-                                  </>
-                                )}
                               </div>
                               {quote(
                                 g.find(

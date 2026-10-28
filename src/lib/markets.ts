@@ -82,7 +82,7 @@ export function memberAvailability(reason: string) {
   if (/in progress|uncertain event|unknown game/i.test(reason))
     return "A required player's game is in progress or its status is uncertain. Affected bets stay locked until a verified update is available.";
   if (/projection|lineup|starter/i.test(reason))
-    return "A required lineup or player projection is incomplete. Affected bets stay locked until the lineup and projections are ready.";
+    return "Player pricing is unavailable for this bet. Try again after projections update.";
   if (/\b\d{4,}:/.test(reason))
     return "Required player information is unavailable. Affected bets stay locked until a verified update is available.";
   return reason;
