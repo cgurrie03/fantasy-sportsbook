@@ -2,7 +2,7 @@
 
 ## Implementation continuation — October 28
 
-See [13-implementation-checkpoint.md](13-implementation-checkpoint.md) for the current local branch, implemented units, verification and remaining hosted gates. No new migrations, source or support have been deployed. The original dirty checkout is preserved.
+See [13-implementation-checkpoint.md](13-implementation-checkpoint.md) for the implementation branch, verification and hosted gates. Development now has a reviewed schema-only baseline, migrations 055–059, explicit API privileges and small synthetic fixtures. No production application/database release or support deployment has occurred. The original dirty checkout is preserved.
 
 New explicit owner decision: **each approved user has their own wallet, including co-owners of the same fantasy team.** Wallets remain separate between leagues. This supersedes the unresolved shared-team-wallet question below. The existing team-keyed financial schema has not yet been migrated; do not represent the legacy wallet tests as verification of independent user wallets.
 

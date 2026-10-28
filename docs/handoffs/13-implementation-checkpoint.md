@@ -1,6 +1,19 @@
 # Implementation checkpoint — October 28, 2026
 
-Work is incomplete. This is a local implementation checkpoint, not a release approval or development-readiness declaration.
+Work is incomplete. This checkpoint records local implementation and isolated hosted development setup, not production release approval.
+
+## Hosted continuation
+
+- Supabase and Vercel integrations are connected. User completed independent development Auth, closed signup, Preview-only server-key entry and Spaceship DNS setup. Verified development owner UUID: `d320882c-8a06-443b-a2a9-2e29a0d29cdd`.
+- Development Vercel project: `prj_X7XPj0svAnCB9TWU7JQ1EvDjSlts`, `fantasy-sportsbook-dev`; SSO protection covers all deployment URLs. Canonical DNS `dev.sportsbook.coopergurrie.com` resolves through the exact Vercel CNAME and reports no misconfiguration. No bypass/share link is used.
+- Hosted development database uses a schema-only baseline derived from the 54 historical migrations in a disposable local database. Compared 404 columns, 242 constraints, 34 policies, 32 triggers, one view and 83 functions against the deployed baseline. Reviewed function-body differences were whitespace/comments only, preserving SQL literals. Restored all 41 application tables empty; no production records, auth users or scheduler imported.
+- Managed development migration ledger: `20261028200646 reviewed_application_schema_baseline`, `20261028200819 development_environment_identity`, `20261028200821 development_captured_mail`, `20261028200822 revision_aware_board_manifest`, `20261028200823 revision_checked_futures_edits`, `20261028200824 bounded_terminal_refresh_cleanup`, `20261028201203 explicit_application_api_privileges`. Source 055–059 map to those named development migrations. **Do not run root historical migrations with db push against development.**
+- Explicit ACL reconciliation removes Supabase's extra default API grants before reapplying intended application grants. Schema restore regression emulates those defaults. Anonymous membership claiming/table reads are denied; authenticated claiming and service-only capture retain intended access. The public environment marker and period helper are intentional anonymous APIs.
+- Development fixtures contain separate synthetic 8/10-team leagues, owner admin/member role differences, null balances, disabled operations and disabled automation. They are repeatable and refuse a non-development marker. They still exercise the legacy team-wallet schema, not the outstanding independent-user-wallet requirement.
+- Development builds verify the database marker, independent confirmed owner and closed signup using the supplied server key; secrets are never logged. UI identifies Development and source SHA. Live email provider credentials are absent; mail capture/manual worker mode are enforced.
+- Production database remains read-only. Production Vercel's existing Supabase public variables were restricted to Production scope so future previews cannot inherit them; no production rebuild occurred.
+- Vercel reports the existing GitHub repository as public, contrary to the handoff description. Owner explicitly confirmed it should stay public. Development deployment uses filtered application/build files in the protected project; handoff documents and local artifacts are excluded from that upload. No source push has occurred.
+- Dependencies updated to DOMPurify 3.4.17 and Vite 8.3.5; npm audit reports zero vulnerabilities. Added local schema-dump tooling. A full financial backup/restore drill, measured production savings and remaining product work are still open.
 
 ## Source and boundaries
 
@@ -8,7 +21,7 @@ Work is incomplete. This is a local implementation checkpoint, not a release app
 - Implementation branch: `codex/boff-handoff-implementation`.
 - Separate working checkout: `C:/Users/coope/Documents/Codex/2026-10-28/co/work/fantasy-sportsbook`.
 - Original checkout and its unrelated uncommitted documents, data and work remain untouched. The managed-worktree tool could not attach that source directory to this chat, so the separate checkout was created with Git's native worktree command.
-- No push, production deployment, hosted migration, real bet, test campaign, paid service, support implementation or experimental betting activation.
+- No push, production deployment/database mutation, real bet, test campaign, paid service, support implementation or experimental betting activation. Development migrations and synthetic setup are recorded above.
 - At the owner's direction, provider setup information was recovered from prior chats; do not operate their desktop/browser.
 
 ## Confirmed decisions recovered or added
@@ -58,13 +71,13 @@ Run `npm run test:release`. This builds intercepted browser fixtures, not a depl
 
 The expanded release command passed **34/34 suites locally**. Detailed outcomes are in `work/release-checks/results.json`. Final review then added independent weekly/future failure handling, a direct no-provider test at the central mail boundary, and UUID-normalized duplicate/season guards for futures edits. A final fixture build/API-runtime check, board-cache suite, full UI fixture suite, lint and futures-edit SQL test were rerun for those changes. Targeted tests cover wrong targets/keys/markers, owner/worker isolation, actual PostgreSQL capture/retention behavior, unchanged polling, content invalidation, revoked access, concurrent client deduplication, stale futures edits and legacy transaction regression. Lint passes with existing repository warnings.
 
-No hosted schema comparison, export/restore drill, physical-storage reclamation, real wire-byte measurement, concurrent Postgres session load test, physical-device test, two-week plateau or second-league launch was performed. Synthetic payload counts do not prove billed bandwidth savings. In-memory SQL replay is for tests only and includes historical seed fixtures; it is not a clean hosted-install script.
+Hosted schema comparison and schema-only clean restore are complete. A financial export/restore drill, physical-storage reclamation, real wire-byte measurement, concurrent Postgres session load test, physical-device test, two-week plateau and second-league launch remain open. Synthetic payload counts do not prove billed bandwidth savings. Historical SQL replay runs only in disposable local tests; `supabase/development/baseline-schema.sql` is the seed-free hosted artifact.
 
 ## Required next work and blockers
 
-1. Obtain authorized API access to the existing Supabase/Vercel projects without desktop automation. Both integrations were discoverable but uninstalled/unconnected at this checkpoint. Do not request passwords in chat. No usable dev service credentials are included in this branch or the handoff.
-2. Recheck deployed schema/scheduler/deployment, reconcile migration tracking, establish secure export/restore coverage and prove a schema-only clean install. Never apply the old seed/import migration sequence to either hosted environment.
-3. Finish owner-only hosted dev auth, database identity, RLS, mail capture access/maintenance, branch-scoped variables, protected dev domain/aliases and enforced release controls. Runtime checks alone do not make this complete.
+1. Integration access, schema-only installation, independent Auth and protected development configuration are established; complete hosted build and owner sign-in verification. Never request server keys in chat.
+2. Establish secure financial export/restore coverage and enforce exact production release approval. Never apply the old seed/import migration sequence to either hosted environment.
+3. Verify canonical development alias protection and complete authenticated browser/API checks without operating the owner's desktop. Runtime checks alone do not make every release gate complete.
 4. Finish the main storage fix: replace permanent raw model/forecast/live archives and their readers with bounded fixed-horizon samples and summaries; checkpoint model reviews; implement byte/row budgets and retention across every temporary store. No default archive writes were removed yet, because readers and evaluation contracts must move together. Do not report Supabase overages resolved.
 5. Complete account/history/report bounded reads and provider/cache/work-queue measurements.
 6. Implement independent bettor wallets, staff-only oversight, owner-led imports/capabilities, typed versioned policy overrides, signup claims and complete authorized league switching.
@@ -74,6 +87,6 @@ No hosted schema comparison, export/restore drill, physical-storage reclamation,
 
 ## Rollout and rollback constraints
 
-No new migration has been applied anywhere hosted. Migrations 055–059 are review candidates. The client/API changes depend on those RPCs, so deploy neither half alone. Production needs an explicit verified production marker and required environment variables before switching to guarded runtime code. Do not promote a dev-built bundle with its compiled dev URL to production; rebuild approved source with production configuration.
+Migrations 055–059 are applied only in development with the managed ledger mapping above; production adoption remains subject to exact approval. The client/API changes depend on those RPCs, so deploy neither half alone. Production needs an explicit verified production marker and required environment variables before switching to guarded runtime code. Do not promote a dev-built bundle with its compiled dev URL to production; rebuild approved source with production configuration.
 
 The new columns/functions/captured statuses are additive. A pre-change app must not claim a captured development email was sent. Once cleanup removes payloads, app rollback cannot recreate them; prove restore coverage and reader independence first. Do not remove accepted-ticket support or restore an app that drops settlement identities. No branch push is appropriate until preview configuration and privacy are verified.

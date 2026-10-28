@@ -26,5 +26,7 @@ export default defineConfig(({ mode }) => {
       if (/^VITE_.*(SERVICE_ROLE|SECRET|PRIVATE|RESEND)/i.test(name) && env[name])
         throw new Error('Server credentials cannot be exposed to the browser.')
   }
-  return { plugins: [react()] }
+  return { plugins: [react()], define: {
+    'import.meta.env.VITE_BOFF_BUILD_SHA': JSON.stringify(env.VERCEL_GIT_COMMIT_SHA ?? env.BOFF_BUILD_SHA ?? 'local'),
+  } }
 })

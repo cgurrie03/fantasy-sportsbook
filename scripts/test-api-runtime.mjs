@@ -4,6 +4,12 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import ts from "typescript";
 
+// This subprocess tests synthetic, intercepted clients even during a hosted
+// build. Never inherit deployment credentials or hosted runtime flags.
+for (const key of Object.keys(process.env)) {
+  if (/^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET$|VERCEL(?:_|$))/.test(key))
+    delete process.env[key];
+}
 process.env.BOFF_ENVIRONMENT = "test";
 process.env.NODE_ENV = "test";
 // Match deployment: TypeScript sources become JavaScript, without preserving .ts files.

@@ -668,6 +668,12 @@ export default function App() {
   }
   return (
     <div className="app-shell">
+      {import.meta.env.VITE_BOFF_ENVIRONMENT === "development" && (
+        <aside className="development-label" aria-label="Development environment">
+          <strong>Development</strong>
+          <span>Test data · build {String(import.meta.env.VITE_BOFF_BUILD_SHA ?? "local").slice(0, 12)}</span>
+        </aside>
+      )}
       <a
         className="skip-link"
         href="#main-content"
