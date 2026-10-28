@@ -22,9 +22,10 @@ async function oneLineCopy(page){
   assert(fit.lines===1&&fit.fits,`Market copy must fit one line: ${fit.text}`);
  }
 }
-async function setup(browser, width, height, signedIn=true){
+async function setup(browser, width, height, signedIn=true, firstVisit=false){
  const context=await browser.newContext({viewport:{width,height},isMobile:width<768,hasTouch:width<768,acceptDownloads:true});
  const state={tickets:[],legs:[],fail:false,slow:false,empty:false,suspended:false,changed:false,betCalls:0,authCalls:0};
+ if(!firstVisit)await context.addInitScript(({userId})=>localStorage.setItem('sportsbook-quick-start-v1:'+userId,'seen'),{userId});
  if(signedIn)await context.addInitScript(({session})=>localStorage.setItem('sb-bmvjcdgxwxqalaohpsnw-auth-token',JSON.stringify(session)),{session});
  await context.route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url()), endpoint=url.pathname.split('/').at(-1);

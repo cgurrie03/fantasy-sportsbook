@@ -36,5 +36,6 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:operations
       - run: npm run test:transitions:ux
+      - run: npm run test:quick-start
       - run: npm run test:extra-markets:ux
       - run: npm run test:audit

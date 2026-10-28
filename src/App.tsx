@@ -14,6 +14,7 @@ const AdminHub = lazy(() =>
   })),
 );
 import { ThemeIcon } from "./components/ThemeIcon";
+import { QuickStart } from "./components/QuickStart";
 import { buildBalanceHistory } from "./lib/balanceHistory";
 const loadSportsbook = () =>
   import("./components/Sportsbook").then((m) => ({ default: m.Sportsbook }));
@@ -688,6 +689,14 @@ export default function App() {
           </div>
         </div>
         <div className="account-tools">
+          <QuickStart
+            key={userId ?? "guest"}
+            userId={userId}
+            eligible={Boolean(ready && !loading && !error && member && team)}
+            seen={
+              session?.user.user_metadata?.sportsbook_quick_start_v1 === true
+            }
+          />
           <button
             className="theme-toggle"
             aria-label={light ? "Use Dark Mode" : "Use Light Mode"}

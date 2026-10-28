@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:quick-start": "node scripts/test-quick-start-ux.cjs",
     "test:operations": "node scripts/test-operation-health.mjs && node scripts/test-matchup-operations-ux.cjs",
     "test:extra-markets": "node scripts/test-extra-markets.mjs",
     "test:extra-markets:ux": "node scripts/test-extra-markets-ux.cjs",
