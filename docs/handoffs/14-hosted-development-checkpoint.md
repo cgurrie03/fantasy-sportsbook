@@ -33,8 +33,8 @@ incomplete; this is not approval to release to production.
 - Synthetic fixtures provide owner admin access in an 8-team league and member
   access in a 10-team league. Operations and schedules are disabled; balances
   remain null. They do not implement the pending independent-user-wallet change.
-- The owner has been asked to verify the Development label and both synthetic
-  leagues after signing in. That authenticated hosted UI check remains pending.
+- Owner confirmed successful sign-in, the Development label and switching
+  between both synthetic leagues. Authenticated hosted UI verification passed.
 - Production still serves `dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`, based on
   `d1ea6c98d200326156aef76f8a8a6318b743f897`. No production app or DB release.
 
@@ -45,3 +45,23 @@ roles, imports/claims/settings, notifications and measured capacity work remain
 open. Existing automatic production publication must be resolved before any
 main-branch change; no branch was pushed as part of this setup. Support remains
 undeployed and experimental ordinary live/teaser acceptance stays disabled.
+
+## Storage investigation after hosted verification
+
+Read-only production measurement at this checkpoint: database 1,105,606,323 bytes;
+`model_forecast_runs` 473,718,784 bytes; `forecast_snapshots` 286,695,424 bytes;
+`line_refresh_stages` 270,925,824 bytes; `live_forecast_runs` 20,094,976 bytes.
+These relation totals include indexes and TOAST; catalog row estimates are not
+exact counts. The first three retain 1,031,340,032 bytes combined. There were 99
+new model runs and 55 new published snapshots in seven days; 18 model-review jobs
+remain failed. No cleanup or physical reclamation is claimed.
+
+Dependency review confirms model assessment still reads whole-season published
+snapshots and replay data, live review reads up to 3,000 full payloads, report
+futures load every saved version, and account refresh loads all accessible
+histories. Archive suppression requires migrating those readers together. Exact
+accepted terms live in ticket legs, but report lineup-efficiency and candidate
+replay currently depend on fuller pools; removing archives without replacing
+those contracts would silently break supported evaluation. No raw archive writes
+have been disabled yet. Financial recovery verification and the compact
+fixed-horizon sample/summary format are the next storage unit.
