@@ -83,3 +83,9 @@ Require: tested SHA/migration set; owner approval; dev/prod target identity; mig
 ```text
 Continue the fantasy sportsbook implementation in C:/Users/coope/Documents/Codex/2026-10-05/i/fantasy-sportsbook. Read docs/handoffs/00-current-handoff-status.md, PROJECT-CONTEXT.md and handoffs 08–12 before changing anything. Preserve unrelated dirty files and inspect the latest remote/deployment. Finish isolated owner-only development and recoverable schema, then prioritize Supabase temporary retention, bandwidth and bounded reads before new features or a second league. Implement the expanded findings and all-notification revamp in dev, including actual-window scheduling and evolving factual season storylines with tiny weekly odds references. Use the existing repository; the dev Supabase project exists and local development branch is unpushed. Do not point dev at production, replay historical seeds, delete accepted financial records, upgrade paid services, enable experimental betting or deploy support. Every production release requires owner approval for its exact tested source/migrations. Update evidence and handoffs after each verified milestone.
 ```
+
+Latest October 29 account checkpoint: [handoff 21](21-selected-league-account-work.md).
+Protected dev now includes cursor ticket/balance pages and visible-player score
+reads. Source 86756fa9e96977dec1688ad17948ebd9e9541908; final tests 36/36.
+Milestone 14 remains in progress for aggregate consumers. Counter 12/12.
+Scheduled continuation was deleted; no automatic wakeup remains.

@@ -91,3 +91,23 @@ Next work: database totals for Home/leaderboard, exact placement receipt reads,
 approval counts and bounded financial report readers/exports. Keep the stable
 counter at **12 complete / 12 remaining** until those consumers are migrated and
 the full scoped milestone is verified.
+
+## Verified delivery checkpoint
+
+The final complete release run passed **36/36 checks**. The first run had one
+receipt fixture still using the old REST promotion source; the fixture was
+updated for the page RPC, real saved-promotion scope was added to SQL tests,
+and the complete rerun passed. Final lint/type/fixture build and browser checks
+include the current source.
+
+Application source `86756fa9e96977dec1688ad17948ebd9e9541908` was deployed as
+131 filtered source/build files to `dpl_3wZbbRZqJJN1BDLqch6BJNS6Jxn7`.
+It reached READY and hosted preflight verified independent dev identity/key,
+owner, closed signup, captured mail and manual automation. All three stable dev
+aliases and generated URL require Vercel SSO. No bypass or owner browser was
+operated. Production and GitHub were not published to.
+
+At this checkpoint the five-hour usage window is 99% consumed. The scheduled
+run is deleted; no automatic continuation is configured. Continue the aggregate
+consumers listed above from this committed checkpoint when usage permits. Do not
+mark milestone 14 complete or change the 12/12 counter for this partial stage.
