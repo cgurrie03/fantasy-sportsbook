@@ -6,7 +6,7 @@ units. It is not a count of individual code changes or the 25 audit findings.
 production rollout and broader related work remain separate milestones. Partially
 implemented milestones remain in the remaining count. Deferred support is excluded.
 
-Current counter: **14 complete / 10 remaining**. Roles/settings/import/claims (16) are next; production historical cleanup (13) remains approval-gated.
+Current counter: **14 complete / 10 remaining**. Milestone 16 is in progress: independent staff access is verified; settings/import/claims remain. Production historical cleanup (13) remains approval-gated.
 
 | ID | Milestone | Status | Evidence / scope |
 |---|---|---|---|
@@ -25,7 +25,7 @@ Current counter: **14 complete / 10 remaining**. Roles/settings/import/claims (1
 | 13 | Recovery-approved historical bulk conversion/cleanup | Remaining | Dependency inventory, useful summaries, exact owner-approved production plan and physical measurements |
 | 14 | Selected-league account histories with stable pagination/aggregates | Complete | Handoffs 21–22; scoped RPC pages, complete database aggregates, bounded exports, visible score fields, identity/league/request fences; no legacy financial-history loader |
 | 15 | Lazy board categories and shared provider request coalescing | Complete | Handoff 23; category/slip-aware reads and RLS index, hidden pause/resume, shared bounded starter/provider cache with fresh authorization and original source TTLs; synthetic JSON/request evidence, actual wire/physical capacity remains 23 |
-| 16 | Staff roles, versioned settings, imports and approved team claims | Remaining | Owner/commissioner capability boundaries and authorization |
+| 16 | Staff roles, versioned settings, imports and approved team claims | In progress | Handoff 24 completes independent staff/owner capabilities, API/UI and grant audit; versioned policy, draft import/capability review and invitation/claims remain; final co-owner admission depends on 17 |
 | 17 | Separate per-user, per-league wallets | Remaining | Preserve balances/history; no duplicate co-owner credits |
 | 18 | Notification lifecycle and season storylines | Remaining | Actual windows, preferences, receipts and bounded communication volume |
 | 19 | Routine log, email-body and unused media retention budgets | Remaining | Durable deduplication, retry preservation and bounded cleanup |

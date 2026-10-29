@@ -82,3 +82,19 @@ support/automatic error collector was deployed. Production remains unchanged.
 The new Markdown bug queue/feature roadmap are a proposed internal tracking
 workflow. They do not create an application queue, public GitHub issues, paid
 service, scheduled run or automatic ingestion of reports.
+
+## Protected development deployment
+
+Application source `b1f2af61a4e1f8f874d88322690ded4daedfb19e` is READY in Preview
+deployment `dpl_KBsETL8huFbyywf1Gkvm7yvctGJv`, generated hostname
+`fantasy-sportsbook-gq1dbyetc-cooper-gurrie-projects.vercel.app`. The canonical
+development hostname and both development project aliases point to it. All four
+signed-out checks return the expected Vercel SSO redirect; no bypass or owner
+browser/session was used. Hosted preflight reconfirmed the independent owner,
+closed signup, capture mail/manual automation and development project/server key.
+
+The filtered upload contains 136 application/build files and excludes local
+environment/work/recovery data, migrations and the new backlog documents. No
+GitHub push or production project/schema/data change occurred. Browser journeys
+were verified with intercepted local fixtures; hosted database probes were
+rollback-only. No new human authenticated hosted UI check is claimed.

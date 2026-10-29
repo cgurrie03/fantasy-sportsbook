@@ -17,8 +17,8 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 | 8 | F008 | P1 | Remaining audit/rule/tenant/product journeys and scheduler peak/outage fairness | 22 | Remaining; declared supported configurations only; record each A01–A25 residual |
 | 9 | F009 | P1 | Physical/wire shared-quota baseline, growth forecast and two-week plateau | 23 | Baseline can proceed early; final sign-off follows retained-data/feature changes; blocks another real league |
 | 10 | F010 | P1 | Recovery-approved historical conversion/cleanup | 13 | Blocked on useful summaries/dependency plan, F001/F002 and exact owner approval; measure physical recovery separately from JSON deletion |
-| 11 | F011 | P2 | Window-aware notifications/preferences, receipt lifecycle and season storylines | 18 | Remaining; derive from approved policy, preserve Wed–Thu acceptance plus approved reopenings |
-| 12 | F012 | P1 release gate | Owner-reviewed production rollout and postflight | 24 | Blocked on exact tested source/migrations, required recovery/capacity/product gates; not an automatic final push |
+| 11 | F012 | P1 release gate | Owner-reviewed production rollout and postflight | 24 | Blocked on exact tested source/migrations, required recovery/capacity/product gates; not an automatic final push |
+| 12 | F011 | P2 | Window-aware notifications/preferences, receipt lifecycle and season storylines | 18 | Remaining; derive from approved policy, preserve Wed–Thu acceptance plus approved reopenings |
 | 13 | F013 | Optional | Owner-only in-app bug/feature board | Outside stable counter | Proposal only; Markdown/chat tracking is prepared now; select a backend/UI before implementing it |
 | 14 | F014 | Deferred | Public support button/automatic error reporting described in handoff 11 | Deferred / excluded | No deployment authorization inferred from an internal queue request |
 
