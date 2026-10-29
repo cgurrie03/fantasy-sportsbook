@@ -85,12 +85,14 @@ export function WeeklySchedule({
   reviewMode = false,
   onApplied,
   exceptionsOnly = false,
+  canConfigure = false,
 }: {
   league?: League;
   leagueId: string;
   reviewMode?: boolean;
   onApplied?: () => Promise<void>;
   exceptionsOnly?: boolean;
+  canConfigure?: boolean;
 }) {
   const [settings, setSettings] = useState(defaults),
     [notice, setNotice] = useState(""),
@@ -263,6 +265,7 @@ export function WeeklySchedule({
     };
   }, [leagueId, reviewMode, loadVersion]);
   async function save() {
+    if (!canConfigure) return;
     setBusy(true);
     try {
       const r = await supabase!.rpc("configure_weekly_schedule_v2", {
@@ -616,6 +619,12 @@ export function WeeklySchedule({
             )}
           </section>
           {notice && <p role="status">{notice}</p>}
+          {!canConfigure && (
+            <p>
+              Only the platform owner can change configuration or activate
+              automation.
+            </p>
+          )}
           <div className="schedule-controls">
             <label>
               <input
@@ -624,7 +633,7 @@ export function WeeklySchedule({
                   settings.automation_enabled ||
                   Boolean(settings.activation_requested)
                 }
-                disabled={busy || reviewMode || !ready}
+                disabled={!canConfigure || busy || reviewMode || !ready}
                 onChange={async (e) => {
                   const enabled = e.target.checked;
                   setBusy(true);
@@ -657,7 +666,7 @@ export function WeeklySchedule({
               <input
                 type="checkbox"
                 checked={settings.publication_paused}
-                disabled={busy || !ready}
+                disabled={!canConfigure || busy || !ready}
                 onChange={(e) =>
                   setSettings({
                     ...settings,
@@ -669,7 +678,7 @@ export function WeeklySchedule({
             </label>
             <button
               className="primary"
-              disabled={!ready || busy}
+              disabled={!canConfigure || !ready || busy}
               onClick={() => void save()}
             >
               Save Schedule
@@ -706,6 +715,7 @@ export function WeeklySchedule({
                         <input
                           aria-label={row.description + " time"}
                           type="time"
+                          disabled={!canConfigure || busy}
                           value={getTime(row.time)}
                           onChange={(e) =>
                             changeTime(row.time!, e.target.value)
@@ -724,6 +734,7 @@ export function WeeklySchedule({
                               <input
                                 type="checkbox"
                                 checked={Boolean(settings[row.toggle])}
+                                disabled={!canConfigure || busy}
                                 onChange={(e) =>
                                   setSettings({
                                     ...settings,

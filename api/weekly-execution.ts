@@ -58,15 +58,11 @@ export async function POST(request: Request) {
     };
     if (!input.league_id) return json({ error: "League is required." }, 400);
     if (!worker) {
-      const auth = await client.auth.getUser();
-      const member = await client
-        .from("league_memberships")
-        .select("role")
-        .eq("league_id", input.league_id)
-        .eq("user_id", auth.data.user!.id)
-        .maybeSingle();
-      if (member.error) throw new Error(member.error.message);
-      if (member.data?.role !== "admin")
+      const capability = await client
+        .rpc("league_capabilities", { p_league: input.league_id })
+        .abortSignal(AbortSignal.timeout(10000));
+      if (capability.error) throw new Error(capability.error.message);
+      if (capability.data?.admin !== true)
         return json(
           { error: "Only the league admin can review weekly execution." },
           403,

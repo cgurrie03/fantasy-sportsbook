@@ -38,13 +38,10 @@ export async function POST(request: Request) {
       !["preview", "publish", "announce"].includes(input.action ?? "")
     )
       return json({ error: "Choose a reopening review action." }, 400);
-    const member = await client
-      .from("league_memberships")
-      .select("role")
-      .eq("league_id", input.league_id)
-      .eq("user_id", auth.data.user.id)
-      .maybeSingle();
-    if (member.error || member.data?.role !== "admin")
+    const capability = await client
+      .rpc("league_capabilities", { p_league: input.league_id })
+      .abortSignal(AbortSignal.timeout(10000));
+    if (capability.error || capability.data?.admin !== true)
       return json(
         { error: "Only this league admin can review or reopen the book." },
         403,

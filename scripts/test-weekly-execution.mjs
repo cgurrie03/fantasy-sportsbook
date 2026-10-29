@@ -231,7 +231,7 @@ try {
     l1 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     l2 = "ffffffff-ffff-4fff-8fff-ffffffffffff";
   await db.exec(
-    `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;`,
+    `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;insert into sportsbook_private.platform_owners(user_id) select m.user_id from sportsbook_private.platform_owner old join public.league_memberships m on m.id=old.membership_id join auth.users a on a.id=m.user_id where a.email_confirmed_at is not null;`,
   );
   await db.query(
     "insert into public.tickets(id,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values($1,$2,$3,3,2026,5,5,now(),500,10,60,'OPEN',0)",

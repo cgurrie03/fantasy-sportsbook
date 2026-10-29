@@ -5,6 +5,7 @@ import {AccountRequest} from '../src/lib/account-request.ts';
 const calls=[],totalCalls=[];let fail=false,failDirectory=false,overflow=false,largeBody=false,claims=0;
 const leagues=[{id:'A'},{id:'B'}],teams=[{id:'TA',league_id:'A'},{id:'TB',league_id:'B'}];
 globalThis.__accountFixture={rpc(name,args){
+ if(name==='account_access')return{abortSignal:()=>Promise.resolve({data:leagues.map(l=>({league_id:l.id,view:true,admin:false,configure:false,platform_owner:false,bet:false,team_id:null})),error:null})};
  if(name==='claim_memberships')claims++;
  else {assert.equal(name,'account_betting_totals');totalCalls.push(args);}
  return{abortSignal:()=>Promise.resolve(name==='claim_memberships'?{data:1,error:null}:fail?{data:null,error:new Error('Synthetic totals outage')}:

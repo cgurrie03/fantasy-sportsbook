@@ -123,6 +123,7 @@ export function AdminHub({
       ? setLocalSelected(value)
       : navigate("/admin" + (value ? "/" + value : ""));
 
+  const access = data.access?.find((a) => a.league_id === leagueId);
   const category = categories.find((c) => c.id === selected);
   const tickets = (data.tickets ?? []).filter((t) => t.league_id === leagueId);
   const owner = (id: string) =>
@@ -173,19 +174,16 @@ export function AdminHub({
                   tickets={tickets}
                   readOnly={reviewMode}
                   owner={owner}
-                  canVoid={
-                    !reviewMode &&
-                    data.memberships.some(
-                      (m) =>
-                        m.league_id === leagueId &&
-                        m.role === "admin" &&
-                        m.user_id,
-                    )
-                  }
+                  canVoid={!reviewMode && !!access?.admin}
                   onChanged={refresh}
                 />
               ) : selected === "logs" ? (
-                <BettingLogs tickets={tickets} owner={owner} data={data} leagueId={leagueId} />
+                <BettingLogs
+                  tickets={tickets}
+                  owner={owner}
+                  data={data}
+                  leagueId={leagueId}
+                />
               ) : selected === "promos" ? (
                 <Suspense fallback={<p role="status">Loading offers…</p>}>
                   <PromoAdmin
@@ -201,6 +199,7 @@ export function AdminHub({
                   league={data.leagues.find((l) => l.id === leagueId)}
                   leagueId={leagueId}
                   reviewMode={reviewMode}
+                  canConfigure={!!access?.configure}
                   onApplied={refresh}
                 />
               ) : selected === "reports" ? (

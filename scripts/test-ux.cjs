@@ -47,6 +47,7 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(state.fail)return json({message:'Fixture connection unavailable. Try again.'},503);
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
+   if(endpoint==='account_access')return json(memberships.map(m=>({league_id:m.league_id,view:true,admin:!!state.platformOwner||m.role==='admin',configure:!!state.platformOwner,platform_owner:!!state.platformOwner,bet:true,team_id:m.team_id})));
    if(endpoint==='account_history_seasons')return json([...new Set([2026,...state.tickets.filter(t=>t.league_id===body.p_league).map(t=>t.nfl_season)])].filter(Number.isInteger).sort((a,b)=>b-a));
    if(endpoint==='account_wallet_report'){
     (state.financialReportCalls??=[]).push({endpoint,...body});

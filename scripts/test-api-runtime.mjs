@@ -779,10 +779,10 @@ try {
       return json({ id: "approved-user", email: "admin@example.invalid" });
     if (url.includes("/rpc/claim_memberships"))
       return claimFails ? json({ message: "claim unavailable" }, 400) : json(0);
-    if (url.includes("/league_memberships"))
+    if (url.includes("/rpc/league_capabilities"))
       return lookupFails
         ? json({ message: "lookup unavailable" }, 400)
-        : json(membership);
+        : json(membership?{admin:membership.role==="admin",view:true,configure:false,team_id:null,bet:false}:null);
     if (url.includes("/teams")) return json([]);
     throw new Error(`Unexpected test request: ${url}`);
   };

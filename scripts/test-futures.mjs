@@ -254,7 +254,7 @@ try {
     );
   }
   await db.exec(
-    `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;`,
+    `insert into auth.users values('${admin}','cooper.gurrie@gmail.com',now());set role authenticated;set request.jwt.claim.sub='${admin}';select public.claim_memberships();reset role;insert into sportsbook_private.platform_owners(user_id) select m.user_id from sportsbook_private.platform_owner old join public.league_memberships m on m.id=old.membership_id join auth.users a on a.id=m.user_id where a.email_confirmed_at is not null;`,
   );
   await db.query("update public.wallets set balance=100 where team_id=$1", [
     team,
@@ -830,7 +830,7 @@ try {
         "select public.save_league_identity($1,'Bad Change','','Unauthorized edit')",
         [league],
       ),
-    /Only the league admin/,
+    /Only the platform owner/,
   );
   await assert.rejects(
     () =>

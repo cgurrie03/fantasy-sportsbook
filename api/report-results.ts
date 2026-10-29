@@ -35,13 +35,10 @@ export async function POST(request: Request) {
       league_id: string;
       week?: number;
     };
-    const member = await client
-      .from("league_memberships")
-      .select("role")
-      .eq("league_id", league_id)
-      .eq("user_id", auth.data.user.id)
-      .maybeSingle();
-    if (member.error || member.data?.role !== "admin")
+    const capability = await client
+      .rpc("league_capabilities", { p_league: league_id })
+      .abortSignal(AbortSignal.timeout(10000));
+    if (capability.error || capability.data?.admin !== true)
       return json({ error: "Only the league admin can refresh reports." }, 403);
     const [leagueResponse, teamResponse, cachedResponse] = await Promise.all([
       client

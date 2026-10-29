@@ -1531,7 +1531,12 @@ export function Sportsbook({
               owner={owner}
               personal={tab === "My Bets"}
               readOnly={!!review}
-              canVoid={member.role === "admin" && !review}
+              canVoid={
+                (data.access?.find((a) => a.league_id === member.league_id)
+                  ?.admin ??
+                  false) &&
+                !review
+              }
               onChanged={refresh}
             />
           )}

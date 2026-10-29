@@ -32,7 +32,7 @@
     "test:reporting": "node scripts/test-paged-report-export.mjs && node scripts/test-reporting.mjs && node scripts/test-report-forecasts.mjs && node scripts/test-publication-retention.mjs",
     "test:futures": "node scripts/test-futures.mjs",
     "format": "prettier --write src scripts",
-    "test:isolation": "node scripts/test-league-isolation.mjs",
+    "test:isolation": "node scripts/test-league-isolation.mjs && node scripts/test-staff-capabilities.mjs && node scripts/test-staff-access-ux.cjs",
     "test:ux": "node scripts/test-ux.cjs",
     "test:promos": "node scripts/test-promotions.mjs",
     "test:promos:ux": "node scripts/test-promos-ux.cjs",

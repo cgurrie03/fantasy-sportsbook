@@ -1528,7 +1528,7 @@ export function Reports({
       {financialScope&&!financialReady&&<p role={financial.error?'alert':'status'}>{financial.error|| (financial.busy?'Loading financial report…':'Financial summary is incomplete. Refresh the report.')} <button onClick={financial.refresh} disabled={financial.busy}>Retry financial report</button></p>}
       {(!financialScope||financialReady)&&<div ref={exportNode} className="report-export-surface">
         {report === 13 && !previewData && (
-          <ModelReview key={leagueId} leagueId={leagueId} />
+          <ModelReview key={leagueId} leagueId={leagueId} canConfigure={data.access?.some(a=>a.league_id===leagueId&&a.configure)??false} />
         )}
         <div className="report-export-context">
           <strong>{league.name}</strong>

@@ -6,8 +6,8 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, developmentUserAllowed } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
-import {AccountRequest} from './lib/account-request';
-import {useBalancePage} from './lib/account-history';
+import { AccountRequest } from "./lib/account-request";
+import { useBalancePage } from "./lib/account-history";
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
 const AdminHub = lazy(() =>
@@ -167,15 +167,32 @@ function SignIn({
   );
 }
 function History({ data, team }: { data: AccountData; team: Team }) {
-  const remote=useBalancePage(data.history_remote?{leagueId:team.league_id,teamId:team.id,revision:data.history_revision}:undefined);
-  const entries = data.history_remote?(remote.data?.entries??[]):buildBalanceHistory(data, team.id);
-  const loading=data.history_remote?remote.busy:data.history_loading;
-  const error=data.history_remote?remote.error:data.history_error;
+  const remote = useBalancePage(
+    data.history_remote
+      ? {
+          leagueId: team.league_id,
+          teamId: team.id,
+          revision: data.history_revision,
+        }
+      : undefined,
+  );
+  const entries = data.history_remote
+    ? (remote.data?.entries ?? [])
+    : buildBalanceHistory(data, team.id);
+  const loading = data.history_remote ? remote.busy : data.history_loading;
+  const error = data.history_remote ? remote.error : data.history_error;
   return (
     <section className="history">
       <h2>Balance History</h2>
       {loading && <p role="status">Loading balance history…</p>}
-      {error && <p role="status">{error} {data.history_remote&&<button onClick={remote.retry}>Retry balance history</button>}</p>}
+      {error && (
+        <p role="status">
+          {error}{" "}
+          {data.history_remote && (
+            <button onClick={remote.retry}>Retry balance history</button>
+          )}
+        </p>
+      )}
       {entries.some((e) => e.imported) && (
         <p className="history-note">
           Winning payouts include your returned wager. Imported settlements show
@@ -224,11 +241,25 @@ function History({ data, team }: { data: AccountData; team: Team }) {
             </div>
           ))
         : !loading && !error && <p>No balance changes yet.</p>}
-      {data.history_remote&&<div className="history-page-controls">
-        <p>Page {remote.page} · {remote.data?.total??'…'} balance changes</p>
-        <button disabled={remote.busy||remote.page<=1} onClick={remote.previous}>Previous 30 changes</button>
-        <button disabled={remote.busy||!remote.data?.next} onClick={remote.next}>Next 30 changes</button>
-      </div>}
+      {data.history_remote && (
+        <div className="history-page-controls">
+          <p>
+            Page {remote.page} · {remote.data?.total ?? "…"} balance changes
+          </p>
+          <button
+            disabled={remote.busy || remote.page <= 1}
+            onClick={remote.previous}
+          >
+            Previous 30 changes
+          </button>
+          <button
+            disabled={remote.busy || !remote.data?.next}
+            onClick={remote.next}
+          >
+            Next 30 changes
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -305,6 +336,9 @@ function TeamAdmin({
   team: Team;
   refresh: () => Promise<void>;
 }) {
+  const canConfigure =
+    data.access?.some((a) => a.league_id === team.league_id && a.configure) ??
+    false;
   const member = data.memberships.find((m) => m.team_id === team.id);
   const current = data.wallets.find((w) => w.team_id === team.id)?.balance;
   const [email, setEmail] = useState(member?.invited_email ?? ""),
@@ -379,6 +413,9 @@ function TeamAdmin({
           sportsbook account.
         </p>
       )}
+      {!canConfigure && (
+        <p>Only the platform owner can approve or change team mappings.</p>
+      )}
       <form onSubmit={mapping}>
         <h3>Account Mapping</h3>
         <label htmlFor="owner-name">Owner Name</label>
@@ -387,7 +424,7 @@ function TeamAdmin({
           value={name}
           maxLength={80}
           required
-          disabled={busy}
+          disabled={!canConfigure || busy}
           onChange={(e) => setName(e.target.value)}
         />
         <label htmlFor="owner-email">Email Address</label>
@@ -396,7 +433,7 @@ function TeamAdmin({
           type="email"
           value={email}
           required
-          disabled={busy || !!member}
+          disabled={!canConfigure || busy || !!member}
           onChange={(e) => setEmail(e.target.value)}
         />
         {member && (
@@ -404,7 +441,7 @@ function TeamAdmin({
             Email reassignment requires a separate review.
           </p>
         )}
-        <button className="secondary" disabled={busy}>
+        <button className="secondary" disabled={!canConfigure || busy}>
           {member ? "Save Owner Name" : "Approve Account Mapping"}
         </button>
       </form>
@@ -549,15 +586,21 @@ export default function App() {
     : route.startsWith("/account")
       ? "account"
       : "home";
-  const historyMode=['/admin/tickets','/admin/logs'].includes(route.split('?')[0])?'tickets':
-    ['/account','/admin/users'].includes(route.split('?')[0])?'balance':
-    page==='home'||route.startsWith('/admin/approvals')?'aggregate':'none';
+  const historyMode = ["/admin/tickets", "/admin/logs"].includes(
+    route.split("?")[0],
+  )
+    ? "tickets"
+    : ["/account", "/admin/users"].includes(route.split("?")[0])
+      ? "balance"
+      : page === "home" || route.startsWith("/admin/approvals")
+        ? "aggregate"
+        : "none";
   const setPage = (next: "home" | "account" | "admin") => navigate("/" + next);
   const profileMenu = useRef<HTMLDetailsElement>(null);
   const [linkRecovery, setLinkRecovery] = useState(authRecoveryMessage);
   const [session, setSession] = useState<Session | null>(null),
     [ready, setReady] = useState(!supabase),
-    [data, setData] = useState<AccountData | null>(null),
+    [accountData, setData] = useState<AccountData | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
     [leagueId, setLeagueId] = useState("");
@@ -595,7 +638,11 @@ export default function App() {
     let active = true;
     supabase.auth.getSession().then(({ data, error }) => {
       if (active) {
-        setSession(data.session && developmentUserAllowed(data.session.user.id) ? data.session : null);
+        setSession(
+          data.session && developmentUserAllowed(data.session.user.id)
+            ? data.session
+            : null,
+        );
         if (error) setError(error.message);
         setReady(true);
       }
@@ -615,65 +662,102 @@ export default function App() {
   const userId = session?.user.id;
   const currentUser = useRef(userId);
   currentUser.current = userId;
-  const currentLeague=useRef(leagueId);currentLeague.current=leagueId;
-  const currentHistory=useRef(historyMode);currentHistory.current=historyMode;
-  const accountRequest=useRef(new AccountRequest());
-  const bootstrapRequest=useRef(new AccountRequest());
-  const [accountUser,setAccountUser]=useState('');
-  const [bootstrapAttempt,setBootstrapAttempt]=useState(0);
+  const currentLeague = useRef(leagueId);
+  currentLeague.current = leagueId;
+  const currentHistory = useRef(historyMode);
+  currentHistory.current = historyMode;
+  const accountRequest = useRef(new AccountRequest());
+  const bootstrapRequest = useRef(new AccountRequest());
+  const [accountUser, setAccountUser] = useState("");
+  const data = accountUser === userId ? accountData : null;
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   // Reset private account state when the external authentication identity changes.
   useEffect(() => {
     let active = true;
-    const bootstrap=bootstrapRequest.current;
-    const request=bootstrap.start();
+    const bootstrap = bootstrapRequest.current;
+    const request = bootstrap.start();
     accountRequest.current.cancel();
     // oxlint-disable-next-line react/set-state-in-effect
     setData(null);
-    setAccountUser('');
+    setAccountUser("");
     setError("");
     if (!userId) return;
     void loadSportsbook();
     setLoading(true);
-    loadAccounts(undefined,undefined,{claim:true,coreOnly:true,signal:request.signal})
+    loadAccounts(undefined, undefined, {
+      claim: true,
+      coreOnly: true,
+      signal: request.signal,
+    })
       .then((next) => {
-        if (active&&request.current()) {
+        if (active && request.current()) {
           setData(next);
           setAccountUser(userId);
-          setLeagueId((current) => next.leagues.some((league) => league.id === current)
-            ? current : (next.leagues[0]?.id ?? ""));
+          let preferred = "";
+          try {
+            preferred =
+              localStorage.getItem("sportsbook-selected-league:" + userId) ??
+              "";
+          } catch {
+            /* Selection still works without storage. */
+          }
+          setLeagueId(
+            next.leagues.some((league) => league.id === preferred)
+              ? preferred
+              : (next.leagues[0]?.id ?? ""),
+          );
         }
       })
       .catch((e) => {
-        if (active&&request.current()) setError(errorMessage(e));
+        if (active && request.current()) setError(errorMessage(e));
       })
       .finally(() => {
-        if (active&&request.current()) setLoading(false);
+        if (active && request.current()) setLoading(false);
       });
     return () => {
       active = false;
       bootstrap.cancel();
     };
-  }, [userId,bootstrapAttempt]);
-  useEffect(()=>{
-    if(!userId||accountUser!==userId||!leagueId)return;
-    const requests=accountRequest.current;
-    void refresh().catch(e=>{if(currentUser.current===userId&&currentLeague.current===leagueId)setError(errorMessage(e));});
-    return()=>requests.cancel();
+  }, [userId, bootstrapAttempt]);
+  useEffect(() => {
+    if (!userId || accountUser !== userId || !leagueId) return;
+    const requests = accountRequest.current;
+    void refresh().catch((e) => {
+      if (currentUser.current === userId && currentLeague.current === leagueId)
+        setError(errorMessage(e));
+    });
+    return () => requests.cancel();
     // Refresh on identity/league selection, not on each history response.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[userId,accountUser,leagueId,historyMode]);
-  async function refresh(claim=false) {
-    if(!userId)return;
-    if(!leagueId){if(claim)setBootstrapAttempt(n=>n+1);return;}
-    const request=accountRequest.current.start();
-    const current=()=>request.current()&&currentUser.current===userId&&currentLeague.current===leagueId&&currentHistory.current===historyMode;
-    let next:AccountData;
-    try{next = await loadAccounts(data ?? undefined, (core) => {
-      if (current()) {
-        setData(core);
-        setLoading(false);
-      }
-    },{leagueId,claim,signal:request.signal,history:historyMode});}catch(e){if(current())throw e;return;}
+  }, [userId, accountUser, leagueId, historyMode]);
+  async function refresh(claim = false) {
+    if (!userId) return;
+    if (!leagueId) {
+      if (claim) setBootstrapAttempt((n) => n + 1);
+      return;
+    }
+    const request = accountRequest.current.start();
+    const current = () =>
+      request.current() &&
+      currentUser.current === userId &&
+      currentLeague.current === leagueId &&
+      currentHistory.current === historyMode;
+    let next: AccountData;
+    try {
+      next = await loadAccounts(
+        data ?? undefined,
+        (core) => {
+          if (current()) {
+            setData(core);
+            setLoading(false);
+          }
+        },
+        { leagueId, claim, signal: request.signal, history: historyMode },
+      );
+    } catch (e) {
+      if (current()) throw e;
+      return;
+    }
     if (!current()) return;
     setData(next);
     setLeagueId((current) =>
@@ -686,7 +770,10 @@ export default function App() {
       (m) => m.user_id === userId && m.league_id === leagueId,
     ),
     team = data?.teams.find((t) => t.id === member?.team_id),
-    league = data?.leagues.find((l) => l.id === member?.league_id);
+    league = data?.leagues.find((l) => l.id === leagueId),
+    access = data?.access?.find((a) => a.league_id === leagueId),
+    canAdmin = !!access?.admin,
+    canView = !!access?.view;
   async function signOut() {
     (await import("./lib/markets")).clearMemberBoards();
     const r = await supabase?.auth.signOut();
@@ -699,9 +786,18 @@ export default function App() {
   return (
     <div className="app-shell">
       {import.meta.env.VITE_BOFF_ENVIRONMENT === "development" && (
-        <aside className="development-label" aria-label="Development environment">
+        <aside
+          className="development-label"
+          aria-label="Development environment"
+        >
           <strong>Development</strong>
-          <span>Test data · build {String(import.meta.env.VITE_BOFF_BUILD_SHA ?? "local").slice(0, 12)}</span>
+          <span>
+            Test data · build{" "}
+            {String(import.meta.env.VITE_BOFF_BUILD_SHA ?? "local").slice(
+              0,
+              12,
+            )}
+          </span>
         </aside>
       )}
       <a
@@ -762,12 +858,28 @@ export default function App() {
                     name={member?.display_name ?? "Member"}
                   />
                   <span className="profile-copy">
-                    <strong>{member?.display_name ?? "Account"}</strong>
+                    <strong>
+                      {member?.display_name ??
+                        (access?.platform_owner
+                          ? "Platform Owner"
+                          : "League Staff")}
+                    </strong>
                     <small>
-                      Balance:{" "}
-                      {money(
-                        data?.wallets.find((w) => w.team_id === member?.team_id)
-                          ?.balance,
+                      {team ? (
+                        <>
+                          Balance:{" "}
+                          {money(
+                            data?.wallets.find(
+                              (w) => w.team_id === member?.team_id,
+                            )?.balance,
+                          )}
+                        </>
+                      ) : access?.platform_owner ? (
+                        "Platform Owner"
+                      ) : canAdmin ? (
+                        "League Operator"
+                      ) : (
+                        "League Viewer"
                       )}
                     </small>
                   </span>
@@ -781,15 +893,18 @@ export default function App() {
                   >
                     Home
                   </a>
-                  <a
-                    href="#/account"
-                    onClick={() => {
-                      if (profileMenu.current) profileMenu.current.open = false;
-                    }}
-                  >
-                    Account
-                  </a>
-                  {member?.role === "admin" && (
+                  {team && (
+                    <a
+                      href="#/account"
+                      onClick={() => {
+                        if (profileMenu.current)
+                          profileMenu.current.open = false;
+                      }}
+                    >
+                      Account
+                    </a>
+                  )}
+                  {canAdmin && (
                     <a
                       href="#/admin"
                       onClick={() => {
@@ -831,20 +946,20 @@ export default function App() {
           </>
         ) : (
           <>
-            {data && member && page !== "home" && (
+            {data && (member || canView) && page !== "home" && (
               <nav
                 className="sportsbook-tabs global-nav"
                 aria-label="Sportsbook Navigation"
               >
                 <a href="#/home">Home</a>
-                <a href="#/bets">My Bets</a>
-                <a href="#/all-bets">All Bets</a>
-                <a href="#/leaderboard">Leaderboard</a>
-                <a href="#/account">Account</a>
-                {member.role === "admin" && <a href="#/admin">Admin</a>}
+                {team && <a href="#/bets">My Bets</a>}
+                {team && <a href="#/all-bets">All Bets</a>}
+                {team && <a href="#/leaderboard">Leaderboard</a>}
+                {team && <a href="#/account">Account</a>}
+                {canAdmin && <a href="#/admin">Admin</a>}
               </nav>
             )}
-            {data && member && data.leagues.length > 1 && (
+            {data && (member || canView) && data.leagues.length > 1 && (
               <nav className="account-nav" aria-label="Account Navigation">
                 {data.leagues.length > 1 && (
                   <select
@@ -853,6 +968,14 @@ export default function App() {
                     onChange={(e) => {
                       accountRequest.current.cancel();
                       setLeagueId(e.target.value);
+                      try {
+                        localStorage.setItem(
+                          "sportsbook-selected-league:" + userId,
+                          e.target.value,
+                        );
+                      } catch {
+                        /* Selection still works without storage. */
+                      }
                       setPage("account");
                     }}
                   >
@@ -873,7 +996,10 @@ export default function App() {
                   className="primary"
                   onClick={() => {
                     setError("");
-                    if(!leagueId||accountUser!==userId){setBootstrapAttempt(n=>n+1);return;}
+                    if (!leagueId || accountUser !== userId) {
+                      setBootstrapAttempt((n) => n + 1);
+                      return;
+                    }
                     setLoading(true);
                     refresh()
                       .catch((e) => setError(errorMessage(e)))
@@ -903,7 +1029,7 @@ export default function App() {
                     refresh={refresh}
                   />
                 </Suspense>
-              ) : page === "admin" && member.role === "admin" ? (
+              ) : page === "admin" && canAdmin ? (
                 <Admin
                   key={member.id}
                   data={data}
@@ -917,6 +1043,46 @@ export default function App() {
                 </main>
               ) : (
                 <Account data={data} member={member} team={team} />
+              )
+            ) : canView ? (
+              page === "admin" && canAdmin ? (
+                <Admin
+                  key={"staff:" + leagueId}
+                  data={data}
+                  leagueId={leagueId}
+                  refresh={refresh}
+                />
+              ) : (
+                <main>
+                  <div className="page-heading">
+                    <h1>{league?.name}</h1>
+                    <p>
+                      {access?.platform_owner
+                        ? "Platform owner oversight"
+                        : canAdmin
+                          ? "League operations access"
+                          : "League viewing access"}
+                    </p>
+                  </div>
+                  <p>
+                    This account has staff access to this league. Participant
+                    betting tools appear after an approved team membership is
+                    added.
+                  </p>
+                  {canAdmin && (
+                    <a className="primary" href="#/admin">
+                      Open League Admin
+                    </a>
+                  )}
+                  <section>
+                    <h2>Fantasy Teams</h2>
+                    {data.teams
+                      .filter((t) => t.league_id === leagueId)
+                      .map((t) => (
+                        <p key={t.id}>{t.team_name}</p>
+                      ))}
+                  </section>
+                </main>
               )
             ) : (
               <main className="empty">

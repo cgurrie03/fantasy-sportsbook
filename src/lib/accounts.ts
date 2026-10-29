@@ -56,12 +56,26 @@ export interface Ledger {
   created_at: string;
   kind: string;
 }
+export interface LeagueAccess {
+  league_id: string;
+  view: boolean;
+  admin: boolean;
+  configure: boolean;
+  platform_owner: boolean;
+  bet: boolean;
+  team_id: string | null;
+}
 export interface AccountData {
-  history_revision?:number;
-  betting_totals?:BettingTotal[];
-  betting_scope?:{leagueId:string;season:number|null;week:number|null};
-  betting_error?:string;
-  history_remote?:boolean;
+  access?: LeagueAccess[];
+  history_revision?: number;
+  betting_totals?: BettingTotal[];
+  betting_scope?: {
+    leagueId: string;
+    season: number | null;
+    week: number | null;
+  };
+  betting_error?: string;
+  history_remote?: boolean;
   history_league_id?: string;
   history_loading?: boolean;
   history_error?: string;
@@ -76,8 +90,17 @@ export interface AccountData {
   ticketPromotions?: TicketPromotion[];
 }
 export interface BettingTotal {
-  team_id:string;placed:number;settled:number;stake:number;profit:number;roi:number|null;
-  open:number;open_future:number;open_count:number;open_weekly_count:number;all_stake:number;
+  team_id: string;
+  placed: number;
+  settled: number;
+  stake: number;
+  profit: number;
+  roi: number | null;
+  open: number;
+  open_future: number;
+  open_count: number;
+  open_weekly_count: number;
+  all_stake: number;
 }
 export interface TicketPromotion {
   ticket_id: string;
@@ -120,42 +143,152 @@ export interface TicketLeg {
 export async function loadAccounts(
   previous?: AccountData,
   onCore?: (data: AccountData) => void,
-  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal;history?:'tickets'|'balance'|'aggregate'|'none'} = {},
+  options: {
+    leagueId?: string;
+    claim?: boolean;
+    coreOnly?: boolean;
+    signal?: AbortSignal;
+    history?: "tickets" | "balance" | "aggregate" | "none";
+  } = {},
 ): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
-  const signal=options.signal??AbortSignal.timeout(30000);
-  if(options.claim){
-    const claim=await supabase.rpc('claim_memberships').abortSignal(signal);
-    if(claim.error)throw claim.error;
+  const signal = options.signal ?? AbortSignal.timeout(30000);
+  if (options.claim) {
+    const claim = await supabase.rpc("claim_memberships").abortSignal(signal);
+    if (claim.error) throw claim.error;
   }
   // Directory reads are small and explicit. Financial detail belongs to scoped page RPCs.
-  const core=await Promise.all([
-    supabase.from('leagues').select('id,name,league_season,nfl_season,avatar_url,sleeper_league_id,sportsbook_url,email_sender,operations_enabled').order('id').limit(129).abortSignal(signal),
-    supabase.from('teams').select('id,league_id,roster_id,team_name,sportsbook_owner_id,sportsbook_owner_name,co_owner_names,avatar_url,wins,losses,ties').order('roster_id').order('id').limit(513).abortSignal(signal),
-    supabase.from('league_memberships').select('id,league_id,team_id,user_id,invited_email,display_name,role').order('league_id').order('id').limit(513).abortSignal(signal),
-    supabase.from('wallets').select('team_id,balance').order('team_id').limit(513).abortSignal(signal),
+  const core = await Promise.all([
+    supabase
+      .from("leagues")
+      .select(
+        "id,name,league_season,nfl_season,avatar_url,sleeper_league_id,sportsbook_url,email_sender,operations_enabled",
+      )
+      .order("id")
+      .limit(129)
+      .abortSignal(signal),
+    supabase
+      .from("teams")
+      .select(
+        "id,league_id,roster_id,team_name,sportsbook_owner_id,sportsbook_owner_name,co_owner_names,avatar_url,wins,losses,ties",
+      )
+      .order("roster_id")
+      .order("id")
+      .limit(513)
+      .abortSignal(signal),
+    supabase
+      .from("league_memberships")
+      .select("id,league_id,team_id,user_id,invited_email,display_name,role")
+      .order("league_id")
+      .order("id")
+      .limit(513)
+      .abortSignal(signal),
+    supabase
+      .from("wallets")
+      .select("team_id,balance")
+      .order("team_id")
+      .limit(513)
+      .abortSignal(signal),
+    supabase.rpc("account_access").abortSignal(signal),
   ]);
-  for(const result of core)if(result.error)throw result.error;
+  for (const result of core) if (result.error) throw result.error;
   signal.throwIfAborted();
-  if(core.some((r,i)=>(r.data?.length??0)>(i===0?128:512))||new TextEncoder().encode(JSON.stringify(core.map(r=>r.data))).length>524288)
-    throw new Error('Account directory exceeds its read budget. Contact the league administrator.');
-  const leagueId=options.leagueId??core[0].data?.[0]?.id;
-  if(options.leagueId&&!core[0].data?.some(l=>l.id===options.leagueId))throw new Error('League access is no longer available.');
-  const snapshot:AccountData={leagues:core[0].data as League[],teams:core[1].data as Team[],memberships:core[2].data as Membership[],wallets:core[3].data as Wallet[],
-    events:[],ledger:[],tickets:[],legs:[],ticketPromotions:[],history_remote:true,
-    history_league_id:options.coreOnly?undefined:leagueId,history_loading:false,
-    history_revision:previous?.history_league_id===leagueId?(previous?.history_revision??0)+1:0};
-  if(options.coreOnly||!leagueId||options.history!=='aggregate')return snapshot;
-  const prior=previous?.history_league_id===leagueId?previous:undefined;
-  const previousScope=prior?.betting_scope;
-  const cached=previousScope&&previousScope.leagueId===leagueId&&previousScope.season===null&&previousScope.week===null?prior?.betting_totals:undefined;
-  onCore?.({...snapshot,history_revision:previous?.history_revision??0,betting_totals:cached,betting_scope:{leagueId,season:null,week:null},history_loading:true});
-  const totals=await supabase.rpc('account_betting_totals',{p_league:leagueId,p_season:null,p_week:null}).abortSignal(signal);
+  if (
+    core.some(
+      (r, i) => (r.data?.length ?? 0) > (i === 0 || i === 4 ? 128 : 512),
+    ) ||
+    new TextEncoder().encode(JSON.stringify(core.map((r) => r.data))).length >
+      524288
+  )
+    throw new Error(
+      "Account directory exceeds its read budget. Contact the league administrator.",
+    );
+  const leagueId = options.leagueId ?? core[0].data?.[0]?.id;
+  if (options.leagueId && !core[0].data?.some((l) => l.id === options.leagueId))
+    throw new Error("League access is no longer available.");
+  if (
+    !Array.isArray(core[4].data) ||
+    core[4].data.length !== core[0].data?.length ||
+    new Set(core[4].data.map((a: LeagueAccess) => a.league_id)).size !==
+      core[0].data?.length ||
+    core[4].data.some(
+      (a: LeagueAccess) =>
+        !core[0].data?.some((l) => l.id === a.league_id) ||
+        a.view !== true ||
+        typeof a.admin !== "boolean" ||
+        typeof a.configure !== "boolean" ||
+        typeof a.bet !== "boolean" ||
+        typeof a.platform_owner !== "boolean" ||
+        (a.team_id !== null && typeof a.team_id !== "string"),
+    )
+  )
+    throw new Error("League access could not be verified.");
+  const snapshot: AccountData = {
+    access: core[4].data as LeagueAccess[],
+    leagues: core[0].data as League[],
+    teams: core[1].data as Team[],
+    memberships: core[2].data as Membership[],
+    wallets: core[3].data as Wallet[],
+    events: [],
+    ledger: [],
+    tickets: [],
+    legs: [],
+    ticketPromotions: [],
+    history_remote: true,
+    history_league_id: options.coreOnly ? undefined : leagueId,
+    history_loading: false,
+    history_revision:
+      previous?.history_league_id === leagueId
+        ? (previous?.history_revision ?? 0) + 1
+        : 0,
+  };
+  if (options.coreOnly || !leagueId || options.history !== "aggregate")
+    return snapshot;
+  const prior = previous?.history_league_id === leagueId ? previous : undefined;
+  const previousScope = prior?.betting_scope;
+  const cached =
+    previousScope &&
+    previousScope.leagueId === leagueId &&
+    previousScope.season === null &&
+    previousScope.week === null
+      ? prior?.betting_totals
+      : undefined;
+  onCore?.({
+    ...snapshot,
+    history_revision: previous?.history_revision ?? 0,
+    betting_totals: cached,
+    betting_scope: { leagueId, season: null, week: null },
+    history_loading: true,
+  });
+  const totals = await supabase
+    .rpc("account_betting_totals", {
+      p_league: leagueId,
+      p_season: null,
+      p_week: null,
+    })
+    .abortSignal(signal);
   signal.throwIfAborted();
-  const valid=!totals.error&&Array.isArray(totals.data)&&totals.data.length<=128&&totals.data.every((t:BettingTotal)=>
-    snapshot.teams.some(team=>team.league_id===leagueId&&team.id===t.team_id)&&Number.isFinite(t.open)&&Number.isFinite(t.stake)&&Number.isFinite(t.open_future));
-  return {...snapshot,betting_scope:{leagueId,season:null,week:null},betting_totals:valid?totals.data as BettingTotal[]:cached,
-    betting_error:valid?undefined:'Betting totals could not refresh. Try refreshing your account.'};
+  const valid =
+    !totals.error &&
+    Array.isArray(totals.data) &&
+    totals.data.length <= 128 &&
+    totals.data.every(
+      (t: BettingTotal) =>
+        snapshot.teams.some(
+          (team) => team.league_id === leagueId && team.id === t.team_id,
+        ) &&
+        Number.isFinite(t.open) &&
+        Number.isFinite(t.stake) &&
+        Number.isFinite(t.open_future),
+    );
+  return {
+    ...snapshot,
+    betting_scope: { leagueId, season: null, week: null },
+    betting_totals: valid ? (totals.data as BettingTotal[]) : cached,
+    betting_error: valid
+      ? undefined
+      : "Betting totals could not refresh. Try refreshing your account.",
+  };
 }
 export const money = (value: number | string | null | undefined) =>
   value == null

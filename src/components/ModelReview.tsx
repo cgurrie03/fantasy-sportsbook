@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
-import {archivedReview} from "../../api/_lib/evaluation-summary";
+import { archivedReview } from "../../api/_lib/evaluation-summary";
 const value = (v: number | null | undefined) =>
   v == null ? "—" : v.toFixed(2);
 export function ModelReview({
   leagueId,
   preview,
+  canConfigure = false,
 }: {
   leagueId: string;
   preview?: any;
+  canConfigure?: boolean;
 }) {
   const [review, setReview] = useState<any>(preview ?? null),
     [control, setControl] = useState<any>(null),
     [events, setEvents] = useState<any[]>([]),
-    [capture, setCapture] = useState<{leagueId:string;rows:any[]}|null>(null),
-    [retention,setRetention]=useState<{leagueId:string;data:any}|null>(null),
-    [loadedLeague,setLoadedLeague]=useState(preview?leagueId:''),
+    [capture, setCapture] = useState<{ leagueId: string; rows: any[] } | null>(
+      null,
+    ),
+    [retention, setRetention] = useState<{
+      leagueId: string;
+      data: any;
+    } | null>(null),
+    [loadedLeague, setLoadedLeague] = useState(preview ? leagueId : ""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -30,7 +37,7 @@ export function ModelReview({
         .order("nfl_season", { ascending: false })
         .order("market_week", { ascending: false })
         .order("created_at", { ascending: false })
-        .order("id",{ascending:false})
+        .order("id", { ascending: false })
         .limit(1),
       supabase
         .from("model_controls")
@@ -43,15 +50,28 @@ export function ModelReview({
         .eq("league_id", leagueId)
         .order("id", { ascending: false })
         .limit(8),
-      supabase.from("model_evaluation_coverage")
-        .select("nfl_season,market_week,category,stored_requests,eligible_gaps,last_gap_reason")
-        .eq("league_id",leagueId)
-        .order("nfl_season",{ascending:false}).order("market_week",{ascending:false}).order("category").limit(4),
-      supabase.from('evaluation_retention_health').select('heartbeat_at,unresolved_periods,oldest_unresolved_period').eq('league_id',leagueId).maybeSingle(),
+      supabase
+        .from("model_evaluation_coverage")
+        .select(
+          "nfl_season,market_week,category,stored_requests,eligible_gaps,last_gap_reason",
+        )
+        .eq("league_id", leagueId)
+        .order("nfl_season", { ascending: false })
+        .order("market_week", { ascending: false })
+        .order("category")
+        .limit(4),
+      supabase
+        .from("evaluation_retention_health")
+        .select("heartbeat_at,unresolved_periods,oldest_unresolved_period")
+        .eq("league_id", leagueId)
+        .maybeSingle(),
     ]).then(([r, c, e, h, retentionHealth]) => {
       if (cancelled) return;
       if (r.error || c.error || e.error) {
-        setLoadedLeague(leagueId);setReview(null);setControl(null);setEvents([]);
+        setLoadedLeague(leagueId);
+        setReview(null);
+        setControl(null);
+        setEvents([]);
         setNotice(
           "Model review unavailable. Retry after the assessment service recovers.",
         );
@@ -61,16 +81,29 @@ export function ModelReview({
       setLoadedLeague(leagueId);
       setControl(c.data);
       setEvents(e.data ?? []);
-      setRetention({leagueId,data:retentionHealth.error?null:retentionHealth.data});
-      const latest=h.data?.[0];
-      setCapture({leagueId,rows:!h.error && latest ? (h.data??[]).filter((row:any)=>row.nfl_season===latest.nfl_season && row.market_week===latest.market_week) : []});
+      setRetention({
+        leagueId,
+        data: retentionHealth.error ? null : retentionHealth.data,
+      });
+      const latest = h.data?.[0];
+      setCapture({
+        leagueId,
+        rows:
+          !h.error && latest
+            ? (h.data ?? []).filter(
+                (row: any) =>
+                  row.nfl_season === latest.nfl_season &&
+                  row.market_week === latest.market_week,
+              )
+            : [],
+      });
     });
     return () => {
       cancelled = true;
     };
   }, [leagueId, preview]);
   const action = async (kind: string) => {
-    if (!supabase||loadedLeague!==leagueId) return;
+    if (!canConfigure || !supabase || loadedLeague !== leagueId) return;
     setBusy(true);
     setNotice("");
     const r = await supabase.rpc("control_model", {
@@ -93,8 +126,10 @@ export function ModelReview({
     }
     setBusy(false);
   };
-  const visibleReview=preview||loadedLeague===leagueId?review:null;
-  const r = visibleReview?.report?.summary?archivedReview(visibleReview.report.summary):visibleReview?.report,
+  const visibleReview = preview || loadedLeague === leagueId ? review : null;
+  const r = visibleReview?.report?.summary
+      ? archivedReview(visibleReview.report.summary)
+      : visibleReview?.report,
     c = visibleReview?.comparison;
   return (
     <section className="model-review" aria-label="This Week's Model Review">
@@ -107,15 +142,28 @@ export function ModelReview({
         )}
       </div>
       <p role="status">
-        {(loadedLeague===leagueId?notice:'') ||
+        {(loadedLeague === leagueId ? notice : "") ||
           c?.decision ||
           "Waiting for a completed week with confirmed results and reconciled settlement."}
       </p>
-      {capture?.leagueId===leagueId && capture.rows.some((row)=>Number(row.eligible_gaps)>0) && (
-        <p className="report-note">Some {capture.rows[0].nfl_season} Week {capture.rows[0].market_week} forecasts could not be included in model evaluation. Current betting lines remain available; model changes still require sufficient evidence.</p>
-      )}
-      {retention?.leagueId===leagueId&&Number(retention.data?.unresolved_periods)>0&&<p role="status">{retention.data.unresolved_periods} evaluation periods have unresolved work after 14 days. Optional evidence remains capped; these periods need operator review.</p>}
-      {control && loadedLeague===leagueId && (
+      {capture?.leagueId === leagueId &&
+        capture.rows.some((row) => Number(row.eligible_gaps) > 0) && (
+          <p className="report-note">
+            Some {capture.rows[0].nfl_season} Week {capture.rows[0].market_week}{" "}
+            forecasts could not be included in model evaluation. Current betting
+            lines remain available; model changes still require sufficient
+            evidence.
+          </p>
+        )}
+      {retention?.leagueId === leagueId &&
+        Number(retention.data?.unresolved_periods) > 0 && (
+          <p role="status">
+            {retention.data.unresolved_periods} evaluation periods have
+            unresolved work after 14 days. Optional evidence remains capped;
+            these periods need operator review.
+          </p>
+        )}
+      {control && loadedLeague === leagueId && (
         <div className="model-review-actions">
           <span>
             Active version {control.active_id.slice(0, 8)} ·{" "}
@@ -124,13 +172,15 @@ export function ModelReview({
               : "Gated improvement enabled"}
           </span>
           <button
-            disabled={busy}
+            disabled={!canConfigure || busy}
             onClick={() => void action(control.paused ? "resume" : "pause")}
           >
             {control.paused ? "Resume improvement" : "Pause improvement"}
           </button>
           <button
-            disabled={busy || control.active_id === control.baseline_id}
+            disabled={
+              !canConfigure || busy || control.active_id === control.baseline_id
+            }
             onClick={() => void action("rollback")}
           >
             Restore previous model
@@ -141,22 +191,59 @@ export function ModelReview({
         <>
           <details>
             <summary>Sleeper input comparison</summary>
-            <p className="report-note">Matched forecasts from the same prediction time and league scoring. Positive MAE improvement means our adjustment was closer. Missing older benchmarks are not reconstructed.</p>
-            {r.sleeper_comparison?.some((row:any)=>row.paired_n>0) ? (
-              <div className="model-review-scroll"><table>
-                <thead><tr><th>Forecast</th><th>Horizon</th><th>Matched</th><th>Our MAE</th><th>Sleeper input MAE</th><th>MAE improvement</th></tr></thead>
-                <tbody>{r.sleeper_comparison.map((row:any)=><tr key={row.view+row.horizon}>
-                  <td>{row.view==="players"?"Players":"Actual starters (team)"}</td><td>{row.horizon==="opening"?"Opening":"Final pregame"}</td>
-                  <td>{row.paired_n}</td><td>{value(row.adjusted?.mae)}</td><td>{value(row.sleeper?.mae)}</td><td>{value(row.mae_gain)}</td>
-                </tr>)}</tbody>
-              </table></div>
-            ) : <p>No matched Sleeper input benchmarks were recorded for this review.</p>}
+            <p className="report-note">
+              Matched forecasts from the same prediction time and league
+              scoring. Positive MAE improvement means our adjustment was closer.
+              Missing older benchmarks are not reconstructed.
+            </p>
+            {r.sleeper_comparison?.some((row: any) => row.paired_n > 0) ? (
+              <div className="model-review-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Forecast</th>
+                      <th>Horizon</th>
+                      <th>Matched</th>
+                      <th>Our MAE</th>
+                      <th>Sleeper input MAE</th>
+                      <th>MAE improvement</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.sleeper_comparison.map((row: any) => (
+                      <tr key={row.view + row.horizon}>
+                        <td>
+                          {row.view === "players"
+                            ? "Players"
+                            : "Actual starters (team)"}
+                        </td>
+                        <td>
+                          {row.horizon === "opening"
+                            ? "Opening"
+                            : "Final pregame"}
+                        </td>
+                        <td>{row.paired_n}</td>
+                        <td>{value(row.adjusted?.mae)}</td>
+                        <td>{value(row.sleeper?.mae)}</td>
+                        <td>{value(row.mae_gain)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>
+                No matched Sleeper input benchmarks were recorded for this
+                review.
+              </p>
+            )}
           </details>
           <p className="report-note">
-            {r.row_level_retired&&"Row-level records have expired; this view uses finalized compact summaries. "}
-            Opening and final pregame forecasts, including unbet and locked markets. Week{" "}
-            {review.market_week + 1} is excluded until confirmed complete.
-            Accuracy is an estimate, not a guarantee.
+            {r.row_level_retired &&
+              "Row-level records have expired; this view uses finalized compact summaries. "}
+            Opening and final pregame forecasts, including unbet and locked
+            markets. Week {review.market_week + 1} is excluded until confirmed
+            complete. Accuracy is an estimate, not a guarantee.
           </p>
           <div className="model-review-scroll">
             <table>
@@ -400,7 +487,8 @@ export function ModelReview({
           <details>
             <summary>Special distributions, futures and largest misses</summary>
             <p>
-              {r.futures?.note ?? "Futures results remain pending until their final event is confirmed. Repeated forecasts of one season event are correlated."}
+              {r.futures?.note ??
+                "Futures results remain pending until their final event is confirmed. Repeated forecasts of one season event are correlated."}
             </p>
             <pre className="model-review-json">
               {JSON.stringify(

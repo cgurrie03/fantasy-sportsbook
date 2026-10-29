@@ -11,6 +11,8 @@ export function LeagueSettings({
   leagueId: string;
   onChanged?: () => Promise<void>;
 }) {
+  const canConfigure =
+    data.access?.some((a) => a.league_id === leagueId && a.configure) ?? false;
   const league = data.leagues.find((l) => l.id === leagueId)!;
   const [name, setName] = useState(league.name),
     [avatar, setAvatar] = useState(league.avatar_url ?? ""),
@@ -39,6 +41,7 @@ export function LeagueSettings({
       });
   }, [leagueId]);
   async function save() {
+    if (!canConfigure) return;
     setBusy(true);
     try {
       const r = await supabase!.rpc("save_league_identity", {
@@ -136,10 +139,14 @@ export function LeagueSettings({
       )}
       <article className="admin-panel">
         <h2>League identity</h2>
+        {!canConfigure && (
+          <p>Only the platform owner can change league configuration.</p>
+        )}
         <div className="settings-fields">
           <label>
             League name
             <input
+              disabled={!canConfigure || busy}
               value={name}
               maxLength={100}
               onChange={(e) => setName(e.target.value)}
@@ -148,6 +155,7 @@ export function LeagueSettings({
           <label>
             Profile image URL
             <input
+              disabled={!canConfigure || busy}
               value={avatar}
               maxLength={1000}
               placeholder="https://…"
@@ -157,6 +165,7 @@ export function LeagueSettings({
           <label>
             Change reason
             <input
+              disabled={!canConfigure || busy}
               value={reason}
               maxLength={500}
               placeholder="Explain this change"
@@ -166,7 +175,12 @@ export function LeagueSettings({
         </div>
         <button
           className="primary"
-          disabled={busy || reason.trim().length < 5 || name.trim().length < 3}
+          disabled={
+            !canConfigure ||
+            busy ||
+            reason.trim().length < 5 ||
+            name.trim().length < 3
+          }
           onClick={() => void save()}
         >
           Save league identity

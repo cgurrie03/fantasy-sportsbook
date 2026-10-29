@@ -161,13 +161,10 @@ export async function generateMarkets(
         400,
       );
     if (!worker) {
-      const auth = await userClient.auth.getUser();
-      const { data: member, error: membershipError } = await userClient
-        .from("league_memberships")
-        .select("role,invited_email")
-        .eq("league_id", input.league_id)
-        .eq("user_id", auth.data.user!.id)
-        .maybeSingle();
+      const capability = await userClient
+        .rpc("league_capabilities", { p_league: input.league_id })
+        .abortSignal(AbortSignal.timeout(10000));
+      const membershipError = capability.error;
       if (membershipError)
         return json(
           {
@@ -175,7 +172,7 @@ export async function generateMarkets(
           },
           503,
         );
-      if (member?.role !== "admin")
+      if (capability.data?.admin !== true)
         return json(
           { error: "Only the league admin can generate markets." },
           403,
@@ -292,8 +289,11 @@ export async function generateMarkets(
       throw new Error(
         "Model configuration unavailable; existing lines retained.",
       );
-    const adjustable = category === "Matchups" || category === "Weekly Specials";
-    const appliedVersion = adjustable ? control.data.active_id : control.data.baseline_id;
+    const adjustable =
+      category === "Matchups" || category === "Weekly Specials";
+    const appliedVersion = adjustable
+      ? control.data.active_id
+      : control.data.baseline_id;
     if (!appliedVersion) throw new Error("Applied model version unavailable.");
     const version = await userClient
       .from("model_config_versions")
@@ -672,29 +672,54 @@ export async function generateMarkets(
       if (input.reopening_preview) return;
       let compact;
       try {
-        compact = compactForecastPayload({
-          models, pool: pool.filter((p) => forecastPlayerIds.has(p.id)), quotes,
-          algorithm_version: reopening ? REOPENING_MODEL : "weekly-lineup-fa-v4",
-          scoring_settings: league.scoring_settings, roster_positions: league.roster_positions,
-          specials: archivedSpecials ?? null,
-          source_quality: {
-            source_count: Object.keys(sources).length,
-            unknown_observation_times: Object.values(sources).filter((s: any) => !s.source_observed_at).length,
+        compact = compactForecastPayload(
+          {
+            models,
+            pool: pool.filter((p) => forecastPlayerIds.has(p.id)),
+            quotes,
+            algorithm_version: reopening
+              ? REOPENING_MODEL
+              : "weekly-lineup-fa-v4",
+            scoring_settings: league.scoring_settings,
+            roster_positions: league.roster_positions,
+            specials: archivedSpecials ?? null,
+            source_quality: {
+              source_count: Object.keys(sources).length,
+              unknown_observation_times: Object.values(sources).filter(
+                (s: any) => !s.source_observed_at,
+              ).length,
+            },
           },
-        }, category);
+          category,
+        );
       } catch {
         // Optional evaluation must not stop valid current prices when a target
         // set exceeds its bounded evidence contract. The RPC records a gap.
-        compact = { context: {}, payload: { retention_format: "evaluation-unavailable", quotes: [] } };
+        compact = {
+          context: {},
+          payload: { retention_format: "evaluation-unavailable", quotes: [] },
+        };
       }
-      const kickoffTimes = eventGames.map((g: { starts_at?: string }) => exactEventTime(g.starts_at));
-      const pregameCutoff = kickoffTimes.length && kickoffTimes.every(Boolean)
-        ? [...kickoffTimes].sort()[0] : null;
+      const kickoffTimes = eventGames.map((g: { starts_at?: string }) =>
+        exactEventTime(g.starts_at),
+      );
+      const pregameCutoff =
+        kickoffTimes.length && kickoffTimes.every(Boolean)
+          ? [...kickoffTimes].sort()[0]
+          : null;
       const saved = await userClient.rpc("save_model_forecast", {
-        p_run: assessmentRun, p_league: input.league_id, p_season: input.nfl_season,
-        p_week: input.week, p_category: category, p_version: version.data.id,
+        p_run: assessmentRun,
+        p_league: input.league_id,
+        p_season: input.nfl_season,
+        p_week: input.week,
+        p_category: category,
+        p_version: version.data.id,
         p_sources: compact.context,
-        p_payload: { ...compact.payload, pregame_cutoff: pregameCutoff, generated_at: generatedAt },
+        p_payload: {
+          ...compact.payload,
+          pregame_cutoff: pregameCutoff,
+          generated_at: generatedAt,
+        },
       });
       if (saved.error) {
         console.error("Evaluation capture failed", {
