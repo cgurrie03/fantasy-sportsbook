@@ -74,7 +74,34 @@ removed. No production cleanup is authorized by the existence of this snapshot.
 
 Development migration source: `20261028210237_bounded_model_review_reads.sql`;
 managed development version: `20261029005824 bounded_model_review_reads`.
-It adds three worker-only views and no destructive changes. Actual managed
-development version, tested source SHA and deployment are recorded after the
-hosted build. Production rollback can keep the old application; do not deploy
-the new worker against a database lacking these views.
+It adds three worker-only views and no destructive changes.
+
+- Application source: `045aef967f3feb99a7aeee089f4a3c700817426d`.
+- Ready Preview deployment: `dpl_2HC9mVM9wvYbQU3B94atSruquxed`.
+- Canonical URL: https://dev.sportsbook.coopergurrie.com
+- Generated URL: `fantasy-sportsbook-g67mvrefo-cooper-gurrie-projects.vercel.app`.
+- Canonical, generated and both stable dev aliases returned 302 to Vercel SSO
+  while signed out after assignment. No bypass/share link was created.
+- Hosted build verified the development database, key, owner, closed signup,
+  mail capture/manual automation and compiled API runtime. No TypeScript errors.
+- All 35 maintained suites passed after sequentially rerunning UI checks. The
+  initial UI attempt collided with a separate local rebuild; the original result
+  and successful rechecks are preserved. The last version-only change passed
+  additional model, API runtime and server TypeScript checks. Production dependency
+  audit reports zero vulnerabilities.
+- No new hosted authenticated worker/model-review execution is claimed. Dev
+  operations remain disabled, no production data was copied there, and provider
+  protection was not bypassed. Fixtures exercise the new SQL projections and
+  full review pipeline locally; hosted checks verify schema grants/build/privacy.
+- Production still serves `dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`; no production app
+  deployment, database migration, cleanup, real bet, campaign or paid upgrade.
+- No branch push. Original dirty checkout remains preserved.
+
+Production rollback can keep the old application; do not deploy the new worker
+against a database lacking these views. The added views are compatible with the
+previous dev app, and reverting source does not require dropping them.
+
+Baseline advisory references: [private server tables without public policies](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy),
+[anonymous guarded functions](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable),
+[authenticated guarded functions](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable),
+[Auth password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
