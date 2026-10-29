@@ -60,5 +60,5 @@ passed 33/35 initially; the two failures expected retired full archives/rosters.
 Those tests were updated to the explicit compact contract and both passed on
 targeted rerun, including exact accepted terms, refunds and reopening isolation.
 All 35 suites are verified, plus the final per-row/per-league cap follow-up.
-Source migration 20261029031348 maps to hosted dev ledger 20261029031456.
+Source migration 20261029031348 maps to hosted dev ledger 20261029031438.
 No production release, historical cleanup or branch push occurred.
