@@ -6,7 +6,7 @@ units. It is not a count of individual code changes or the 25 audit findings.
 production rollout and broader related work remain separate milestones. Partially
 implemented milestones remain in the remaining count. Deferred support is excluded.
 
-Current counter: **8 complete / 16 remaining**. Milestone 09 is in progress.
+Current counter: **9 complete / 15 remaining**. Milestone 10 is next.
 
 | ID | Milestone | Status | Evidence / scope |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Current counter: **8 complete / 16 remaining**. Milestone 09 is in progress.
 | 06 | Encrypted financial snapshot and local restore drill | Complete | Handoff 15; application financial scope only; full/off-site recovery remains 20 |
 | 07 | Narrow, bounded worker review reads | Complete | Handoff 15; selected publication fields, future openings and latest review periods |
 | 08 | Compact model-evaluation writer and Sleeper benchmark | Complete | Handoff 16; fixed numeric horizons and admission budgets; expiry/controller remain 11/12 |
-| 09 | Compact publication writer and fixed-horizon report readers | In progress | Replaces new permanent published-board archives; no historical deletion |
+| 09 | Compact publication writer and fixed-horizon report readers | Complete | Handoff 17; protected dev, fixed horizons, bounded metadata/details and retired roster replay; no historical deletion |
 | 10 | Bounded experimental live-forecast capture and readers | Remaining | Stop permanent detailed live runs without enabling live acceptance |
 | 11 | Compact finalized summaries, seven-day expiry and bounded unresolved work | Remaining | Idempotency, 14-day escalation, coverage and cleanup heartbeat |
 | 12 | Candidate evaluation compatible with short-lived evidence | Remaining | Resolve prospective frozen-candidate or Sleeper-only policy; no unrestricted historical replay |

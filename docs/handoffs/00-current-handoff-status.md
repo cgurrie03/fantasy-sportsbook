@@ -17,6 +17,11 @@ Sleeper benchmark. See [16-compact-model-predictions.md](16-compact-model-predic
 Published-board archives, compact summaries and expiry remain unfinished; no
 production storage reduction or complete prospective learning controller is claimed.
 
+Handoff [17-compact-publication-records.md](17-compact-publication-records.md)
+also replaces new full published archives with bounded report horizons in dev.
+The stable [implementation counter](IMPLEMENTATION-CHECKLIST.md) is 9 complete /
+15 remaining; this counts scoped development milestones, not production rollout.
+
 New explicit owner decision: **each approved user has their own wallet, including co-owners of the same fantasy team.** Wallets remain separate between leagues. This supersedes the unresolved shared-team-wallet question below. The existing team-keyed financial schema has not yet been migrated; do not represent the legacy wallet tests as verification of independent user wallets.
 
 Prior chat confirmed the current acceptance lifecycle is Wednesday–Thursday plus explicitly approved reopenings. Handoff 12's Monday-close example is conditional, not a change to acceptance rules.

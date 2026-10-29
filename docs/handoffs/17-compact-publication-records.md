@@ -51,3 +51,14 @@ source migration `20261029031348_observed_publication_sample_budget.sql` raises
 only that per-row limit; league-wide admission is unchanged. This measurement
 returns counts/bytes only, not raw business data, and is not physical/billed
 savings or a worst-case guarantee. Summary-driven expiry remains required.
+
+Tested application source `9603ac7a73af4fdec9dbb8ab2f18ebed24fdb3af` is deployed
+to protected dev as `dpl_HgMibjaYi6zTwfnJMM7fWpUZQGfK` (READY). All four
+hostnames returned signed-out 302 redirects to Vercel SSO. Build preflight
+verified independent development identity/Auth/key/mail/automation. Release run
+passed 33/35 initially; the two failures expected retired full archives/rosters.
+Those tests were updated to the explicit compact contract and both passed on
+targeted rerun, including exact accepted terms, refunds and reopening isolation.
+All 35 suites are verified, plus the final per-row/per-league cap follow-up.
+Source migration 20261029031348 maps to hosted dev ledger 20261029031456.
+No production release, historical cleanup or branch push occurred.
