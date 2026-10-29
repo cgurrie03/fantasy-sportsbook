@@ -58,6 +58,7 @@ export interface Ledger {
   kind: string;
 }
 export interface AccountData {
+  history_remote?:boolean;
   history_league_id?: string;
   history_loading?: boolean;
   history_error?: string;
@@ -112,7 +113,7 @@ export interface TicketLeg {
 export async function loadAccounts(
   previous?: AccountData,
   onCore?: (data: AccountData) => void,
-  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal} = {},
+  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal;history?:'all'|'tickets'|'balance'} = {},
 ): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
   const signal=options.signal??AbortSignal.timeout(30000);
@@ -149,6 +150,7 @@ export async function loadAccounts(
     events:prior?.events??[],ledger:prior?.ledger??[],tickets:prior?.tickets??[],legs:prior?.legs??[],ticketPromotions:prior?.ticketPromotions??[],
     history_league_id:options.coreOnly?undefined:leagueId,history_loading:!options.coreOnly};
   if(options.coreOnly||!leagueId)return {...snapshot,history_loading:false};
+  if(options.history==='tickets'||options.history==='balance')return {...snapshot,events:[],ledger:[],tickets:[],legs:[],ticketPromotions:[],history_remote:true,history_loading:false};
   onCore?.(snapshot);
   const teamIds=snapshot.teams.filter(t=>t.league_id===leagueId).map(t=>t.id);
   if(!teamIds.length)return {...snapshot,history_loading:false};

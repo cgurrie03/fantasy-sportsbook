@@ -129,7 +129,7 @@ export function Sportsbook({
     member.league_id,
     [],
     currentSeason && week ? { season: currentSeason, week } : undefined,
-    !review,
+    !review&&tab==='Home',
   );
   const scoreObservation =
     review?.scoreObservation ??
@@ -1462,6 +1462,7 @@ export function Sportsbook({
           {(!(data.history_loading || data.history_error) ||
             !!data.tickets?.length) && (
             <TicketHistory
+              leagueId={member.league_id}
               data={data}
               tickets={(data.tickets ?? []).filter(
                 (t) =>

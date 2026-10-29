@@ -14,15 +14,14 @@ export function useTicketProgress(
     error: boolean;
     now: number;
   }>({ rows: [], loading: false, error: false, now: 0 });
-  const signature =
-    (current ? `${current.season}:${current.week},` : "") +
-    tickets
+  const ticketIds=tickets
       .filter((t) => t.status === "OPEN" && t.ticket_type !== "future")
-      .map((t) => `${t.nfl_season}:${t.market_week}`)
-      .sort()
-      .join(",");
+      .map(t=>t.id).sort();
+  const signature=JSON.stringify({tickets:ticketIds,current});
   useEffect(() => {
-    if (!enabled || !leagueId || !signature || !supabase) return;
+    const {tickets:visibleIds,current:period}=JSON.parse(signature) as {tickets:string[];current?:{season:number;week:number}};
+    if (!enabled || !leagueId || (!period&&!visibleIds.length) || !supabase) return;
+    const controller=new AbortController();
     let cancelled = false,
       pending = false;
     const refresh = async () => {
@@ -31,11 +30,8 @@ export function useTicketProgress(
       setState((s) => ({ ...s, loading: true, now: Date.now() }));
       try {
         const r = await supabase!
-          .from("ticket_score_observations")
-          .select(
-            "league_id,nfl_season,market_week,fetched_at,cadence_minutes,payload",
-          )
-          .eq("league_id", leagueId);
+          .rpc('account_score_progress',{p_league:leagueId,p_tickets:visibleIds,p_current:period??null})
+          .abortSignal(AbortSignal.any([controller.signal,AbortSignal.timeout(15000)]));
         if (r.error) throw r.error;
         if (!cancelled)
           setState({
@@ -57,6 +53,7 @@ export function useTicketProgress(
     document.addEventListener("visibilitychange", visible);
     return () => {
       cancelled = true;
+      controller.abort();
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
     };

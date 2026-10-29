@@ -19,7 +19,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:accounts:ux": "node scripts/test-account-scope-ux.cjs",
-    "test:accounts": "node scripts/test-accounts.mjs && node scripts/test-account-scope.mjs",
+    "test:accounts": "node scripts/test-accounts.mjs && node scripts/test-account-scope.mjs && node scripts/test-account-pages.mjs",
     "test:import": "node scripts/test-week3-import.mjs",
     "test:lines": "node scripts/test-line-model.mjs",
     "test:api": "node scripts/test-api-runtime.mjs",

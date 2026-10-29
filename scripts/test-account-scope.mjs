@@ -22,6 +22,10 @@ const {loadAccounts}=await import('data:text/javascript;base64,'+Buffer.from(com
 await loadAccounts(undefined,undefined,{claim:true,coreOnly:true});
 assert.equal(claims,1);assert(calls.every(c=>['leagues','teams','league_memberships','wallets'].includes(c.table)));
 calls.length=0;
+const paged=await loadAccounts(undefined,undefined,{leagueId:'A',history:'tickets'});
+assert(paged.history_remote);assert.deepEqual(paged.tickets,[]);
+assert(calls.every(c=>['leagues','teams','league_memberships','wallets'].includes(c.table)),'paged ticket screens do not start background full-history reads');
+calls.length=0;
 const a=await loadAccounts(undefined,undefined,{leagueId:'A'});
 assert.equal(a.history_league_id,'A');assert.equal(claims,1);
 for(const c of calls.slice(4)){assert.equal(c.filters.length,1);assert(c.filters[0][1]==='A'||JSON.stringify(c.filters[0][1])==='["TA"]');}

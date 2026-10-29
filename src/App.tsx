@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase, developmentUserAllowed } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
 import {AccountRequest} from './lib/account-request';
+import {useBalancePage} from './lib/account-history';
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
 const AdminHub = lazy(() =>
@@ -166,12 +167,15 @@ function SignIn({
   );
 }
 function History({ data, team }: { data: AccountData; team: Team }) {
-  const entries = buildBalanceHistory(data, team.id);
+  const remote=useBalancePage(data.history_remote?{leagueId:team.league_id,teamId:team.id,revision:data}:undefined);
+  const entries = data.history_remote?(remote.data?.entries??[]):buildBalanceHistory(data, team.id);
+  const loading=data.history_remote?remote.busy:data.history_loading;
+  const error=data.history_remote?remote.error:data.history_error;
   return (
     <section className="history">
       <h2>Balance History</h2>
-      {data.history_loading && <p role="status">Loading balance history…</p>}
-      {data.history_error && <p role="status">{data.history_error}</p>}
+      {loading && <p role="status">Loading balance history…</p>}
+      {error && <p role="status">{error} {data.history_remote&&<button onClick={remote.retry}>Retry balance history</button>}</p>}
       {entries.some((e) => e.imported) && (
         <p className="history-note">
           Winning payouts include your returned wager. Imported settlements show
@@ -219,8 +223,12 @@ function History({ data, team }: { data: AccountData; team: Team }) {
               </span>
             </div>
           ))
-        : !data.history_loading &&
-          !data.history_error && <p>No balance changes yet.</p>}
+        : !loading && !error && <p>No balance changes yet.</p>}
+      {data.history_remote&&<div className="history-page-controls">
+        <p>Page {remote.page} · {remote.data?.total??'…'} balance changes</p>
+        <button disabled={remote.busy||remote.page<=1} onClick={remote.previous}>Previous 30 changes</button>
+        <button disabled={remote.busy||!remote.data?.next} onClick={remote.next}>Next 30 changes</button>
+      </div>}
     </section>
   );
 }
@@ -541,6 +549,8 @@ export default function App() {
     : route.startsWith("/account")
       ? "account"
       : "home";
+  const historyMode=['/bets','/all-bets','/admin/tickets','/admin/logs'].includes(route.split('?')[0])?'tickets':
+    ['/account','/admin/users'].includes(route.split('?')[0])?'balance':'all';
   const setPage = (next: "home" | "account" | "admin") => navigate("/" + next);
   const profileMenu = useRef<HTMLDetailsElement>(null);
   const [linkRecovery, setLinkRecovery] = useState(authRecoveryMessage);
@@ -605,6 +615,7 @@ export default function App() {
   const currentUser = useRef(userId);
   currentUser.current = userId;
   const currentLeague=useRef(leagueId);currentLeague.current=leagueId;
+  const currentHistory=useRef(historyMode);currentHistory.current=historyMode;
   const accountRequest=useRef(new AccountRequest());
   const bootstrapRequest=useRef(new AccountRequest());
   const [accountUser,setAccountUser]=useState('');
@@ -656,19 +667,19 @@ export default function App() {
     return()=>requests.cancel();
     // Refresh on identity/league selection, not on each history response.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[userId,accountUser,leagueId]);
+  },[userId,accountUser,leagueId,historyMode]);
   async function refresh(claim=false) {
     if(!userId)return;
     if(!leagueId){if(claim)setBootstrapAttempt(n=>n+1);return;}
     const request=accountRequest.current.start();
-    const current=()=>request.current()&&currentUser.current===userId&&currentLeague.current===leagueId;
+    const current=()=>request.current()&&currentUser.current===userId&&currentLeague.current===leagueId&&currentHistory.current===historyMode;
     let next:AccountData;
     try{next = await loadAccounts(data ?? undefined, (core) => {
       if (current()) {
         setData(core);
         setLoading(false);
       }
-    },{leagueId,claim,signal:request.signal});}catch(e){if(current())throw e;return;}
+    },{leagueId,claim,signal:request.signal,history:historyMode});}catch(e){if(current())throw e;return;}
     if (!current()) return;
     setData(next);
     setLeagueId((current) =>

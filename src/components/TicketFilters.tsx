@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useRoute } from "../lib/navigation";
 import type { ReactNode } from "react";
 import type { Ticket } from "../lib/accounts";
+import {useTicketPage} from '../lib/account-history';
+import type {RemoteTicketScope,TicketPage} from '../lib/account-history';
 export function TicketFilters({
   tickets,
   owner,
@@ -9,13 +11,19 @@ export function TicketFilters({
   id,
   personal = false,
   searchText = (t) => t.id,
+  remote,
+  teamOptions,
+  onVisibleChange,
 }: {
   tickets: Ticket[];
   owner: (id: string) => string;
-  children: (filtered: Ticket[]) => ReactNode;
+  children: (filtered: Ticket[],page?:TicketPage) => ReactNode;
   id: string;
   personal?: boolean;
   searchText?: (ticket: Ticket) => string;
+  remote?:RemoteTicketScope;
+  teamOptions?:string[];
+  onVisibleChange?:(tickets:Ticket[])=>void;
 }) {
   const route = useRoute();
   const routeTicket =
@@ -32,6 +40,7 @@ export function TicketFilters({
   useEffect(() => setQuery(routeTicket), [routeTicket]);
   const signature = [status, week, bettor, sort, direction, query].join("|");
   const limit = pagination.signature === signature ? pagination.count : 20;
+  const page=useTicketPage(remote,{status,week,sort,direction,query,team:bettor,personal});
   const active = [
     status !== "All",
     week !== "all",
@@ -50,7 +59,7 @@ export function TicketFilters({
           : t.accepted_combined_odds > 0
             ? 1 + t.accepted_combined_odds / 100
             : 1 + 100 / Math.abs(t.accepted_combined_odds);
-  const filtered = tickets
+  const filtered = remote?(page.data?.tickets??[]):tickets
     .filter(
       (t) =>
         (status === "All" ||
@@ -77,6 +86,8 @@ export function TicketFilters({
         a.id.localeCompare(b.id)
       );
     });
+  const remoteEnabled=!!remote;
+  useEffect(()=>{if(remoteEnabled&&onVisibleChange)onVisibleChange(page.data?.tickets??[]);},[remoteEnabled,remote?.leagueId,page.data,onVisibleChange]);
   return (
     <>
       <div className="ticket-status-tabs" aria-label="Ticket Status">
@@ -103,6 +114,7 @@ export function TicketFilters({
           Search tickets
           <input
             type="search"
+            maxLength={128}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Player, team, selection, or ticket ID"
@@ -130,7 +142,7 @@ export function TicketFilters({
             Bettor
             <select value={bettor} onChange={(e) => setBettor(e.target.value)}>
               <option value="all">All members</option>
-              {[...new Set(tickets.map((t) => t.team_id))].map((v) => (
+              {[...new Set(teamOptions??tickets.map((t) => t.team_id))].map((v) => (
                 <option key={v} value={v}>
                   {owner(v)}
                 </option>
@@ -179,14 +191,21 @@ export function TicketFilters({
         </button>
       </div>
       <p className="result-count" aria-live="polite">
-        Showing {Math.min(limit, filtered.length)} of {filtered.length} tickets
-        · Times shown in Eastern
+        {remote?`Showing ${filtered.length?((page.page-1)*20)+1:0}–${((page.page-1)*20)+filtered.length} of ${page.data?.total??'…'} tickets`:
+          `Showing ${Math.min(limit, filtered.length)} of ${filtered.length} tickets`}
+        {' · Times shown in Eastern'}
       </p>
+      {remote&&page.busy&&<p role="status">Loading ticket history…</p>}
+      {remote&&page.error&&<p role="alert">{page.error} <button onClick={page.retry}>Retry ticket history</button></p>}
       <div className={compact ? "ticket-results compact" : "ticket-results"}>
-        {children(filtered.slice(0, limit))}
+        {children(remote?filtered:filtered.slice(0, limit),page.data??undefined)}
       </div>
-      {!filtered.length && <p>No tickets match these filters.</p>}
-      {(filtered.length > 20 || pagination.signature === signature) && (
+      {!filtered.length && !(remote&&(page.busy||page.error)) && <p>No tickets match these filters.</p>}
+      {remote&&<div className="ticket-page-controls">
+        <button disabled={page.busy||page.page<=1} onClick={page.previous}>Previous 20 tickets</button>
+        <button disabled={page.busy||!page.data?.next} onClick={page.next}>Next 20 tickets</button>
+      </div>}
+      {!remote&&(filtered.length > 20 || pagination.signature === signature) && (
         <button
           className="secondary"
           disabled={limit >= filtered.length}

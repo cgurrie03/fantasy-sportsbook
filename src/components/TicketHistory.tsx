@@ -93,6 +93,7 @@ export function TicketHistory({
   personal = false,
   readOnly = false,
   onChanged,
+  leagueId,
 }: {
   data: AccountData;
   canVoid?: boolean;
@@ -101,14 +102,17 @@ export function TicketHistory({
   onChanged?: () => Promise<void>;
   tickets: Ticket[];
   owner: (id: string) => string;
+  leagueId?:string;
 }) {
   const [voiding, setVoiding] = useState<Ticket | null>(null);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [visibleTickets,setVisibleTickets]=useState<Ticket[]>([]);
+  const remote=!!data.history_remote&&!readOnly;
   const observations = useTicketProgress(
-    tickets[0]?.league_id,
-    tickets,
+    leagueId??tickets[0]?.league_id,
+    remote?visibleTickets:tickets,
     undefined,
     !readOnly,
   );
@@ -138,6 +142,9 @@ export function TicketHistory({
       owner={owner}
       personal={personal}
       id="admin-ticket-filters"
+      remote={remote&&leagueId?{leagueId,personal,revision:data}:undefined}
+      teamOptions={data.teams.filter(t=>t.league_id===(leagueId??tickets[0]?.league_id)).map(t=>t.id)}
+      onVisibleChange={remote?setVisibleTickets:undefined}
       searchText={(t) =>
         [
           t.id,
@@ -150,9 +157,9 @@ export function TicketHistory({
         ].join(" ")
       }
     >
-      {(visible) => (
+      {(visible,pageData) => (
         <>
-          {canVoid && !tickets.some((t) => t.status === "OPEN") && (
+          {canVoid && !remote && !tickets.some((t) => t.status === "OPEN") && (
             <p className="history-note">
               No open tickets to cancel. The cancel icon appears beside Open;
               settled tickets are preserved.
@@ -165,7 +172,7 @@ export function TicketHistory({
           )}
           <div className={personal ? "ticket-list personal" : "ticket-list"}>
             {visible.map((t) => {
-              const legs = (data.legs ?? [])
+              const legs = (pageData?.legs??data.legs ?? [])
                 .filter((l) => l.ticket_id === t.id)
                 .sort((a, b) => a.leg_number - b.leg_number);
               const observation = observations.rows.find(
@@ -354,7 +361,7 @@ export function TicketHistory({
                         </span>
                       </div>
                       <TicketShare
-                        data={data}
+                        data={pageData?{...data,...pageData}:data}
                         ticket={t}
                         owner={owner(t.team_id)}
                       />
@@ -409,12 +416,18 @@ export function TicketHistory({
 export function BettingLogs({
   tickets,
   owner,
+  data,
+  leagueId,
 }: {
   tickets: Ticket[];
   owner: (id: string) => string;
+  data?:AccountData;
+  leagueId?:string;
 }) {
   return (
-    <TicketFilters tickets={tickets} owner={owner} id="admin-log-filters">
+    <TicketFilters tickets={tickets} owner={owner} id="admin-log-filters"
+      remote={data?.history_remote&&leagueId?{leagueId,revision:data}:undefined}
+      teamOptions={data?.teams.filter(t=>t.league_id===leagueId).map(t=>t.id)}>
       {(visible) => <BettingLogTable tickets={visible} owner={owner} />}
     </TicketFilters>
   );

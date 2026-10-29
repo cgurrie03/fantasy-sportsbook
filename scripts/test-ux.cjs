@@ -1,5 +1,6 @@
 // All auth, data, API acceptance and mail calls are intercepted. Never runs a live bet/email.
 const { chromium } = require('playwright');
+const {buildBalanceHistory}=require('../src/lib/balanceHistory.ts');
 const fs=require('node:fs'), path=require('node:path'), assert=require('node:assert/strict');
 const origin=process.env.UX_ORIGIN || 'http://127.0.0.1:5185';
 assert(new URL(origin).hostname==='127.0.0.1'||new URL(origin).hostname==='localhost','Fixtures require localhost');
@@ -38,6 +39,36 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(state.fail)return json({message:'Fixture connection unavailable. Try again.'},503);
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
+   if(endpoint==='account_balance_page'){
+    (state.balancePageCalls??=[]).push(body);
+    const entries=buildBalanceHistory({tickets:state.tickets,ledger:state.ledger??[],events:state.events??[],
+     wallets:memberships.map(m=>({team_id:m.team_id,balance:100-state.tickets.filter(t=>t.team_id===m.team_id).reduce((n,t)=>n+Number(t.stake),0)}))},body.p_team);
+    const start=body.p_cursor?entries.findIndex(e=>e.id===body.p_cursor.id)+1:0,page=entries.slice(start,start+(body.p_limit??30));
+    return json({entries:page,total:entries.length,next:start+page.length<entries.length?{id:page.at(-1).id}:null,as_of:new Date().toISOString()});
+   }
+   if(endpoint==='account_score_progress'){
+    (state.scoreProgressCalls??=[]).push(body);
+    const periods=[...(body.p_current?[{nfl_season:body.p_current.season,market_week:body.p_current.week}]:[]),
+     ...state.tickets.filter(t=>(body.p_tickets??[]).includes(t.id))];
+    return json((state.scoreRows??[]).filter(r=>r.league_id===body.p_league&&periods.some(p=>p.nfl_season===r.nfl_season&&p.market_week===r.market_week)));
+   }
+   if(endpoint==='account_ticket_page'){
+    (state.historyPageCalls??=[]).push(body);
+    const f=body.p_filters??{},league=body.p_league,personal=memberships.find(m=>m.league_id===league)?.team_id;
+    const rows=state.tickets.filter(t=>t.league_id===league&&(!f.personal||t.team_id===personal)
+     &&(!f.team||f.team==='all'||f.personal||t.team_id===f.team)
+     &&(!f.status||f.status==='All'||(f.status==='Settled'?t.status!=='OPEN':t.status===f.status.toUpperCase()))
+     &&(!f.week||f.week==='all'||(f.week==='futures'?t.ticket_type==='future':t.placement_week===Number(f.week)))
+     &&[t.id,t.legacy_ticket_id,...teams.filter(x=>x.id===t.team_id).flatMap(x=>[x.team_name,x.sportsbook_owner_name]),
+       ...state.legs.filter(l=>l.ticket_id===t.id).flatMap(l=>[l.selection,l.matchup,l.market_type])].join(' ').toLowerCase().includes((f.query??'').trim().toLowerCase()));
+    const value=t=>f.sort==='settled'?(t.settled_at?Date.parse(t.settled_at):null):f.sort==='winnings'?Number(t.actual_payout):f.sort==='odds'?
+     t.accepted_combined_odds>0?1+t.accepted_combined_odds/100:1+100/Math.abs(t.accepted_combined_odds):Date.parse(t.placed_at);
+    rows.sort((a,b)=>{const x=value(a),y=value(b);return x===null&&y!==null?1:y===null&&x!==null?-1:
+     (x===null||y===null?0:(f.direction==='asc'?x-y:y-x))||Date.parse(b.placed_at)-Date.parse(a.placed_at)||a.id.localeCompare(b.id);});
+    const start=body.p_cursor?rows.findIndex(t=>t.id===body.p_cursor.id)+1:0,page=rows.slice(start,start+(body.p_limit??20));
+    return json({tickets:page,legs:state.legs.filter(l=>page.some(t=>t.id===l.ticket_id)),ticketPromotions:(state.ticketPromotions??[]).filter(p=>page.some(t=>t.id===p.ticket_id)),
+     total:rows.length,next:start+page.length<rows.length?{id:page.at(-1).id}:null,as_of:new Date().toISOString()});
+   }
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
    if(endpoint==='sportsbook_board_manifest'){
     const weekly=boards.find(b=>b.league_id===body.p_league),future=futureBoards.find(b=>b.league_id===body.p_league);

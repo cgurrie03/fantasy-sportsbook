@@ -168,8 +168,10 @@ export function AdminHub({
                 />
               ) : selected === "tickets" ? (
                 <TicketHistory
+                  leagueId={leagueId}
                   data={data}
                   tickets={tickets}
+                  readOnly={reviewMode}
                   owner={owner}
                   canVoid={
                     !reviewMode &&
@@ -183,7 +185,7 @@ export function AdminHub({
                   onChanged={refresh}
                 />
               ) : selected === "logs" ? (
-                <BettingLogs tickets={tickets} owner={owner} />
+                <BettingLogs tickets={tickets} owner={owner} data={data} leagueId={leagueId} />
               ) : selected === "promos" ? (
                 <Suspense fallback={<p role="status">Loading offers…</p>}>
                   <PromoAdmin

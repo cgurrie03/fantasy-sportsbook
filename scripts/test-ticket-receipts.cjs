@@ -12,6 +12,7 @@ fs.mkdirSync(output, { recursive: true });
     for (const width of [390, 1440])
       for (const theme of ["dark", "light"]) {
         const f = await setup(browser, width, 1000);
+        f.state.ticketPromotions=[{ticket_id:'receipt-open',kind:'boost',boost_pct:50,base_decimal:3.64}];
         await f.context.route("**/rest/v1/ticket_promotions*", (route) =>
           route.fulfill({
             json: [
