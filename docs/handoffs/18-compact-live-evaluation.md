@@ -44,5 +44,11 @@ reclamation or a two-week plateau.
 
 Source migration: `20261029031739_compact_live_evaluation.sql`.
 Applied only to dev `whlcnlacueweaqpsupqs`, hosted ledger `20261029032528`.
-Production application/database remain unchanged. Final tested source/deployment
-and release results are recorded in the dated checkpoint after checks finish.
+Production application/database remain unchanged. All 35 release suites passed,
+plus the final delayed-observation regression. Tested source
+`a87fce855dc8ee86500b30dd47f13671aa879b88` is READY on protected dev deployment
+`dpl_EVadC6xk2eC6erTLhXsrTi9Hy8iJ`. All three dev aliases and the generated URL
+returned signed-out 302 redirects to Vercel SSO, without a bypass. Hosted build
+verified separate dev identity/key/Auth/mail and manual automation. No Git push
+or production release occurred. The next unit must replace historical replay
+before enabling sample expiry; admission caps alone do not finish retention.

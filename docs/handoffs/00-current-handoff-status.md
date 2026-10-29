@@ -19,8 +19,11 @@ production storage reduction or complete prospective learning controller is clai
 
 Handoff [17-compact-publication-records.md](17-compact-publication-records.md)
 also replaces new full published archives with bounded report horizons in dev.
-The stable [implementation counter](IMPLEMENTATION-CHECKLIST.md) is 9 complete /
-15 remaining; this counts scoped development milestones, not production rollout.
+Handoff [18-compact-live-evaluation.md](18-compact-live-evaluation.md) also bounds
+experimental live evidence. The stable [implementation counter](IMPLEMENTATION-CHECKLIST.md)
+is 10 complete / 14 remaining; this counts scoped development milestones, not
+production rollout. Compact summaries/expiry and compatible candidate evaluation
+are next; production release and historical cleanup still require exact approval.
 
 New explicit owner decision: **each approved user has their own wallet, including co-owners of the same fantasy team.** Wallets remain separate between leagues. This supersedes the unresolved shared-team-wallet question below. The existing team-keyed financial schema has not yet been migrated; do not represent the legacy wallet tests as verification of independent user wallets.
 
