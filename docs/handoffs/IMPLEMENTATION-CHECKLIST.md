@@ -6,7 +6,7 @@ units. It is not a count of individual code changes or the 25 audit findings.
 production rollout and broader related work remain separate milestones. Partially
 implemented milestones remain in the remaining count. Deferred support is excluded.
 
-Current counter: **12 complete / 12 remaining**. Selected-league account reads (14) are next; production historical cleanup (13) remains approval-gated.
+Current counter: **13 complete / 11 remaining**. Lazy categories and shared provider work (15) are next; production historical cleanup (13) remains approval-gated.
 
 | ID | Milestone | Status | Evidence / scope |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Current counter: **12 complete / 12 remaining**. Selected-league account reads (
 | 11 | Compact finalized summaries, seven-day expiry and bounded unresolved work | Complete | Handoff 20; dev worker cleanup, 14-day health, leases, summary views and financial isolation; legacy/prod cleanup remains 13 |
 | 12 | Candidate evaluation compatible with short-lived evidence | Complete | Handoff 20; dev frozen prospective state and promotion guards, no measured performance gain or production policy approval |
 | 13 | Recovery-approved historical bulk conversion/cleanup | Remaining | Dependency inventory, useful summaries, exact owner-approved production plan and physical measurements |
-| 14 | Selected-league account histories with stable pagination/aggregates | Remaining | Ticket, ledger, promotion reads and account-refresh races |
+| 14 | Selected-league account histories with stable pagination/aggregates | Complete | Handoffs 21–22; scoped RPC pages, complete database aggregates, bounded exports, visible score fields, identity/league/request fences; no legacy financial-history loader |
 | 15 | Lazy board categories and shared provider request coalescing | Remaining | Broader source/read inventory and endpoint byte measurements |
 | 16 | Staff roles, versioned settings, imports and approved team claims | Remaining | Owner/commissioner capability boundaries and authorization |
 | 17 | Separate per-user, per-league wallets | Remaining | Preserve balances/history; no duplicate co-owner credits |

@@ -1,3 +1,5 @@
+Superseded continuation: [handoff 22](22-account-aggregates-and-report-pages.md) completes the aggregate consumers and milestone 14 in protected dev. The older 12/12 checkpoint and usage observation below describe that earlier stage.
+
 # Selected-league account work — October 29, 2026
 
 Milestone 14 is in progress. Counter stays **12 complete / 12 remaining**.

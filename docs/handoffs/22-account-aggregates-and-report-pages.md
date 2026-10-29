@@ -112,3 +112,18 @@ two anonymous-definer and one Auth password warning; no clean-audit claim is mad
 
 The scheduled run remains deleted. Continue sequentially in this chat; do not
 recreate an automation without a new owner request.
+
+## Verified development deployment
+
+Application source `8b99b16318a4eaa2a8353bce8336527ef22487a5` was uploaded as
+133 filtered application/build files. Deployment
+`dpl_68PLNPvetpiwv6aPzj8czMEYBmyH` reached READY. Hosted build preflight verified
+independent dev target/key/owner, closed signup, captured mail and manual jobs.
+All three stable dev aliases and the generated URL require Vercel SSO; no bypass
+or owner browser session was operated. The full suite passed 36/36; subsequent
+extra database season/plan/revision/byte cases and final TypeScript checks passed.
+
+Milestone 14 is complete in isolated development. Counter: **13 complete / 11
+remaining**. Continue milestone 15 (lazy categories and shared provider status),
+with production cleanup/release gates still held. The canceled automation remains
+deleted; this continuation was explicitly requested in the chat.
