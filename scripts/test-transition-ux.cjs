@@ -1,3 +1,4 @@
+const {marketCategory}=require('../src/lib/market-categories.ts');
 const { chromium } = require("playwright");
 const assert = require("node:assert/strict");
 const { setup, A, boards, quotes, teams } = require("./test-ux.cjs");
@@ -71,11 +72,12 @@ const { setup, A, boards, quotes, teams } = require("./test-ux.cjs");
         )
           legacyReads++;
       });
+      await f.context.route("**/rest/v1/rpc/sportsbook_board_manifest",route=>route.fulfill({json:{week,weekly:{...boards.find(b=>b.league_id===A),market_week:week,id:'rollover-'+week},future:null}}));
       await f.context.route(
-        "**/rest/v1/rpc/sportsbook_current_snapshot",
+        "**/rest/v1/rpc/sportsbook_category_snapshot",
         async (route) => {
           const body = route.request().postDataJSON();
-          if (body.p_type !== "weekly" || body.p_league !== A)
+          if (body.p_category === "Season Futures" || body.p_league !== A)
             return route.fallback();
           snapshotReads++;
           const b = {
@@ -147,7 +149,7 @@ const { setup, A, boards, quotes, teams } = require("./test-ux.cjs");
       assert.equal(
         legacyReads,
         0,
-        "Quote loading uses one current-snapshot request per board, no period/board waterfall",
+        "Quote loading uses manifest plus selected-category requests, no period/board waterfall",
       );
       assert(snapshotReads >= 2);
       assert.equal(f.state.betCalls, 0);
@@ -155,7 +157,7 @@ const { setup, A, boards, quotes, teams } = require("./test-ux.cjs");
       await f.context.close();
     }
     console.log(
-      "Passed phone/desktop delayed approved-account loading without false pending, keyboard skip-route preservation, plain-language locked quotes, one-request board loading and automatic week/balance refresh with stale-slip clearing.",
+      "Passed phone/desktop delayed approved-account loading without false pending, keyboard skip-route preservation, plain-language locked quotes, selected-category board loading and automatic week/balance refresh with stale-slip clearing.",
     );
   } finally {
     await browser.close();

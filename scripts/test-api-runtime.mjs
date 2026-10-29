@@ -40,6 +40,7 @@ try {
     "_lib/worker-auth",
     "_lib/game-status",
     "_lib/active-starters",
+    "_lib/starter-cache",
     "_lib/live-model",
     "_lib/live-review",
     "_lib/live-pipeline",

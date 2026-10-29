@@ -1,5 +1,6 @@
 // All auth, data, API acceptance and mail calls are intercepted. Never runs a live bet/email.
 const { chromium } = require('playwright');
+const {marketCategory}=require('../src/lib/market-categories.ts');
 const {buildBalanceHistory}=require('../src/lib/balanceHistory.ts');
 const fs=require('node:fs'), path=require('node:path'), assert=require('node:assert/strict');
 const origin=process.env.UX_ORIGIN || 'http://127.0.0.1:5185';
@@ -113,13 +114,14 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
    if(endpoint==='sportsbook_board_manifest'){
     const weekly=boards.find(b=>b.league_id===body.p_league),future=futureBoards.find(b=>b.league_id===body.p_league);
-    const status=b=>({...b,content_version:state.movement??0,...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==='weekly'?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})});
+    const status=b=>({...b,content_version:state.movement??0,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==='weekly'?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})});
     return json({week:state.week??5,weekly:state.empty?null:status(weekly),future:state.empty||!state.futures?null:status(future)});
    }
-   if(endpoint==='sportsbook_quote_snapshot'||endpoint==='sportsbook_current_snapshot'){
+   if(endpoint==='sportsbook_quote_snapshot'||endpoint==='sportsbook_current_snapshot'||endpoint==='sportsbook_category_snapshot'){
+    if(endpoint==='sportsbook_category_snapshot')(state.categoryCalls??=[]).push(body);
     const b=endpoint==='sportsbook_current_snapshot'?(body.p_type==='future'?futureBoards:boards).find(b=>b.league_id===body.p_league):[...boards,...futureBoards].find(b=>b.id===body.p_board);
     if(state.empty||(body.p_type==='future'&&!state.futures))return json({week:state.week??5,board:null,markets:[]});
-    return json({week:state.week??5,board:{...b,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]});
+    return json({week:state.week??5,board:{...b,content_version:state.movement??0,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==="weekly"?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})},markets:(b.board_type==='future'?futureQuotes(b):[...quotes(b),...(state.specials?specialQuotes(b,state):[])]).filter(m=>endpoint!=='sportsbook_category_snapshot'||marketCategory(m.kind)===body.p_category)});
    }
    if(endpoint==='list_promos')return json([]);
    if(endpoint==='league_leaderboard')return json(state.standings??[]);

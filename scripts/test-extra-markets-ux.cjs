@@ -1,3 +1,4 @@
+const {marketCategory}=require('../src/lib/market-categories.ts');
 const { chromium } = require("playwright"),
   assert = require("node:assert/strict"),
   fs = require("node:fs"),
@@ -99,9 +100,9 @@ fs.mkdirSync(output, { recursive: true });
               metadata: {},
             });
         await f.context.route(
-          "**/rest/v1/rpc/sportsbook_current_snapshot",
+          "**/rest/v1/rpc/sportsbook_category_snapshot",
           (route) =>
-            route.fulfill({ json: { week: 5, board, markets: advanced } }),
+            route.fulfill({ json: { week: 5, board, markets: advanced.filter(m=>marketCategory(m.kind)===route.request().postDataJSON().p_category) } }),
         );
         await f.page.reload();
         await f.page.waitForLoadState("networkidle");
@@ -112,6 +113,7 @@ fs.mkdirSync(output, { recursive: true });
         await f.page
           .getByRole("button", { name: "Head to Head", exact: true })
           .click();
+        await f.page.locator(".duel-row").first().waitFor();
         assert.equal(await f.page.locator(".duel-row").count(), 1);
         assert.equal(
           await f.page.locator(".head-to-head select").inputValue(),

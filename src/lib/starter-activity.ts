@@ -12,6 +12,7 @@ export function useStarterActivity(
   leagueId: string,
   review?: StarterSnapshot,
   isReview = false,
+  enabled = true,
 ) {
   const [snapshot, setSnapshot] = useState<StarterSnapshot | null>(
     review ?? null,
@@ -19,9 +20,10 @@ export function useStarterActivity(
   const [unavailable, setUnavailable] = useState(false);
   const [loadedLeague, setLoadedLeague] = useState(leagueId);
   useEffect(() => {
-    if (isReview || !supabase) return;
+    if (isReview || !enabled || !supabase) return;
     let active = true,
       loading = false;
+    const controller = new AbortController();
     const load = async () => {
       if (loading || document.visibilityState !== "visible") return;
       loading = true;
@@ -32,7 +34,10 @@ export function useStarterActivity(
           `/api/active-starters?league_id=${encodeURIComponent(leagueId)}`,
           {
             headers: { Authorization: `Bearer ${session.access_token}` },
-            signal: AbortSignal.timeout(25000),
+            signal: AbortSignal.any([
+              controller.signal,
+              AbortSignal.timeout(29000),
+            ]),
           },
         );
         if (!response.ok) throw new Error("Starter status unavailable.");
@@ -54,14 +59,17 @@ export function useStarterActivity(
     };
     void load();
     const timer = setInterval(() => void load(), 60000);
-    const resume = () => { if (document.visibilityState === "visible") void load(); };
+    const resume = () => {
+      if (document.visibilityState === "visible") void load();
+    };
     document.addEventListener("visibilitychange", resume);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(timer);
       document.removeEventListener("visibilitychange", resume);
     };
-  }, [leagueId, isReview, review]);
+  }, [leagueId, isReview, review, enabled]);
   return {
     snapshot: loadedLeague === leagueId ? snapshot : null,
     unavailable: loadedLeague === leagueId && unavailable,

@@ -1,6 +1,7 @@
 import { exactEventTime } from "../../api/_lib/event-time";
 import { supabase } from "./supabase";
-import { createBoardCache } from "./board-cache";
+import { createCategoryBoardCache } from "./category-board-cache";
+import type { MarketCategory } from "./market-categories";
 
 export interface Board {
   id: string;
@@ -445,20 +446,39 @@ export async function loadFuturesBoard(leagueId: string) {
   };
 }
 
-const memberBoards = createBoardCache<Board, Market>(async (leagueId) => {
-  const result = await supabase!.rpc("sportsbook_board_manifest", { p_league: leagueId })
-    .abortSignal(AbortSignal.timeout(15000));
-  if (result.error) throw result.error;
-  return result.data;
-}, async (leagueId, type) => type === "weekly" ? loadMarketBoard(leagueId) : {
-  ...await loadFuturesBoard(leagueId), week: 1,
-});
-export async function loadMemberBoards(leagueId: string) {
+const memberBoards = createCategoryBoardCache<Board, Market>(
+  async (leagueId) => {
+    const result = await supabase!
+      .rpc("sportsbook_board_manifest", { p_league: leagueId })
+      .abortSignal(AbortSignal.timeout(15000));
+    if (result.error) throw result.error;
+    return result.data;
+  },
+  async (leagueId, category, board) => {
+    const result = await supabase!
+      .rpc("sportsbook_category_snapshot", {
+        p_league: leagueId,
+        p_board: board.id,
+        p_category: category,
+      })
+      .abortSignal(AbortSignal.timeout(15000));
+    if (result.error) throw result.error;
+    if (!result.data?.board || !Array.isArray(result.data.markets))
+      throw new Error("Market category or authorization is unavailable.");
+    return result.data;
+  },
+);
+export async function loadMemberBoards(
+  leagueId: string,
+  categories: MarketCategory[],
+) {
   if (!supabase) throw new Error("The market service is unavailable.");
   const session = (await supabase.auth.getSession()).data.session;
-  return memberBoards.load(session?.user.id ?? "", leagueId);
+  return memberBoards.load(session?.user.id ?? "", leagueId, categories);
 }
-export function clearMemberBoards() { memberBoards.clear(); }
+export function clearMemberBoards() {
+  memberBoards.clear();
+}
 
 export async function placeTicket(
   board: Board,

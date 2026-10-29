@@ -1,3 +1,4 @@
+const {marketCategory}=require('../src/lib/market-categories.ts');
 // Local fixtures only: exercise member display plus the complete admin save payload.
 const { chromium } = require("playwright");
 const assert = require("node:assert/strict");
@@ -90,10 +91,10 @@ const compact = full.map((quote) => ({
           json: [...leagueTeams, ...teams.filter((t) => t.league_id !== A)],
         }),
       );
-      await p.route("**/rest/v1/rpc/sportsbook_current_snapshot", (route) => {
+      await p.route("**/rest/v1/rpc/sportsbook_category_snapshot", (route) => {
         const body = route.request().postDataJSON();
-        return body.p_league === A && body.p_type === "weekly"
-          ? route.fulfill({ json: { week: 5, board, markets: compact } })
+        return body.p_league === A && body.p_category !== "Season Futures"
+          ? route.fulfill({ json: { week: 5, board, markets: compact.filter(m=>marketCategory(m.kind)===body.p_category) } })
           : route.fallback();
       });
       await p.route("**/rest/v1/rpc/sportsbook_quote_snapshot", (route) =>

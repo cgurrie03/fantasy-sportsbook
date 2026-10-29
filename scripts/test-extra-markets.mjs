@@ -31,7 +31,7 @@ fs.writeFileSync(
     fs
       .readFileSync("src/lib/markets.ts", "utf8")
       .replace('"./supabase"', '"./supabase.js"')
-      .replace('"./board-cache"', '"./board-cache.js"')
+      .replace('"./category-board-cache"', JSON.stringify(pathToFileURL(path.resolve('src/lib/category-board-cache.ts')).href))
       .replace('"../../api/_lib/event-time"', '"./event-time.js"'),
     {
       compilerOptions: {
@@ -41,7 +41,6 @@ fs.writeFileSync(
     },
   ).outputText,
 );
-fs.writeFileSync(path.join(dir, "board-cache.js"), ts.transpileModule(fs.readFileSync("src/lib/board-cache.ts", "utf8"), {compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2023}}).outputText);
 fs.writeFileSync(path.join(dir, "supabase.js"), "export const supabase=null;");
 fs.writeFileSync(path.join(dir, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(path.join(dir, name + ".js")).href);

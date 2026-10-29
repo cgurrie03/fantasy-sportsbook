@@ -1,5 +1,7 @@
 import { openSleeperMatchup } from "../lib/sleeper-link";
-import {useTicketPage} from '../lib/account-history';
+import { useTicketPage } from "../lib/account-history";
+import { marketCategories, requiredCategories } from "../lib/market-categories";
+import type { MarketCategory } from "../lib/market-categories";
 import { MatchupScore, MatchupScoresNotice } from "./MatchupScores";
 import { useTicketProgress } from "./TicketProgress";
 import { LeagueStandings } from "./LeagueStandings";
@@ -113,7 +115,7 @@ export function Sportsbook({
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [loading, setLoading] = useState(!review),
-    [category, setCategory] = useState("Matchups"),
+    [category, setCategory] = useState<MarketCategory>("Matchups"),
     [matchup, setMatchup] = useState("all"),
     [picks, setPicks] = useState<Market[]>([]),
     [open, setOpen] = useState(false),
@@ -130,14 +132,17 @@ export function Sportsbook({
     member.league_id,
     [],
     currentSeason && week ? { season: currentSeason, week } : undefined,
-    !review&&tab==='Home',
+    !review && tab === "Home",
   );
   const scoreObservation =
     review?.scoreObservation ??
     scoreObservations.rows.find(
       (r) => r.nfl_season === currentSeason && r.market_week === week,
     );
-  const quoteLoad = useRef<Promise<void> | null>(null);
+  const quoteLoad = useRef<{ key: string; promise: Promise<void> } | null>(
+    null,
+  );
+  const quoteGeneration = useRef(0);
   const accountPeriod = useRef<string | null>(null);
   const accountRefresh = useRef(refresh);
   useEffect(() => {
@@ -157,12 +162,50 @@ export function Sportsbook({
     [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
   const [teaserPreview, setTeaserPreview] = useState(false);
   const [placedTicketId, setPlacedTicketId] = useState<string | null>(null);
-  const placedReceipt=useTicketPage(!review&&placedTicketId?{leagueId:member.league_id,personal:true,revision:data.history_revision}:undefined,
-    {status:'All',week:'all',sort:'placed',direction:'desc',query:'',team:'all',personal:true,...(placedTicketId?{ticket:placedTicketId}:{})});
-  const receiptData=placedReceipt.data?{...data,...placedReceipt.data}:data;
-  const futureStakes=data.history_remote?data.betting_totals?.find(t=>t.team_id===member.team_id)?.open_future:
-    (data.tickets??[]).filter(t=>t.ticket_type==='future'&&t.status==='OPEN'&&t.team_id===member.team_id).reduce((sum,t)=>sum+Number(t.stake),0);
+  const placedReceipt = useTicketPage(
+    !review && placedTicketId
+      ? {
+          leagueId: member.league_id,
+          personal: true,
+          revision: data.history_revision,
+        }
+      : undefined,
+    {
+      status: "All",
+      week: "all",
+      sort: "placed",
+      direction: "desc",
+      query: "",
+      team: "all",
+      personal: true,
+      ...(placedTicketId ? { ticket: placedTicketId } : {}),
+    },
+  );
+  const receiptData = placedReceipt.data
+    ? { ...data, ...placedReceipt.data }
+    : data;
+  const futureStakes = data.history_remote
+    ? data.betting_totals?.find((t) => t.team_id === member.team_id)
+        ?.open_future
+    : (data.tickets ?? [])
+        .filter(
+          (t) =>
+            t.ticket_type === "future" &&
+            t.status === "OPEN" &&
+            t.team_id === member.team_id,
+        )
+        .reduce((sum, t) => sum + Number(t.stake), 0);
   const [teaserAdjustment, setTeaserAdjustment] = useState(9);
+  const wantedKey = JSON.stringify(
+    requiredCategories(category, tab === "Home", picks, !!fixedOffer),
+  );
+  const quoteScopeKey = member.league_id + ":" + category + ":" + wantedKey;
+  const currentQuoteScope = useRef(quoteScopeKey);
+  currentQuoteScope.current = quoteScopeKey;
+  const [loadedCategory, setLoadedCategory] = useState<MarketCategory | null>(
+    review ? "Matchups" : null,
+  );
+  const [categoryError, setCategoryError] = useState("");
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
   const appliedBoost = eligibleOffers.find((o) => o.id === boostId);
@@ -242,6 +285,7 @@ export function Sportsbook({
     member.league_id,
     review?.starterActivity,
     !!review,
+    tab === "Home" && category === "Matchups",
   );
   const dialog = useRef<HTMLDialogElement>(null),
     banner = useRef<HTMLButtonElement>(null),
@@ -356,97 +400,115 @@ export function Sportsbook({
       (p) => !currentQuotes.some((m) => m.id === p.id && !quoteUnavailable(m)),
     );
   const reloadQuotes = useCallback(async () => {
-    if (quoteLoad.current) return quoteLoad.current;
+    const key = quoteScopeKey;
+    if (quoteLoad.current?.key === key) return quoteLoad.current.promise;
+    const generation = ++quoteGeneration.current;
+    const current = () =>
+      quoteGeneration.current === generation &&
+      currentQuoteScope.current === key;
     setRefreshingQuotes(true);
-    let failed = false;
-    const boards = loadMemberBoards(member.league_id);
-    const pending = Promise.allSettled([
-      boards.then((pair) => {
-        if (pair.errors.weekly) throw pair.errors.weekly;
-        return pair.weekly;
-      })
-        .then((r) => {
-          const period = `${r.board?.nfl_season ?? currentSeason}:${r.week}`;
-          if (accountPeriod.current === null) accountPeriod.current = period;
-          if (accountPeriod.current !== period && !periodRefresh.current) {
-            periodRefresh.current = true;
-            setWeekAccountPending(true);
-            setPicks([]);
-            setFixedOffer(null);
-            setBoostId(null);
-            setPendingOffer(null);
-            setOpen(false);
-            setStake("");
-            setPickRevision(null);
-            setNotice(
-              `Week ${r.week} is here. Refreshing your balance and tickets automatically…`,
-            );
-            void accountRefresh
-              .current()
-              .then(() => {
-                accountPeriod.current = period;
-                setWeekAccountPending(false);
-                setNotice(
-                  `Week ${r.week} is ready. Your balance and tickets are up to date; accepted bets keep their original terms.`,
-                );
-              })
-              .catch(() => {
-                setNotice(
-                  "The new week is loading. Your account will retry automatically; betting waits for your updated balance.",
-                );
-              })
-              .finally(() => {
-                periodRefresh.current = false;
-              });
-          }
-          setBoard(r.board);
-          setMarkets(r.markets);
-          setWeek(r.week);
-          setQuoteUpdatedAt(Date.now());
-          setError("");
-        })
-        .catch((e) => {
-          failed = true;
-          console.error("Weekly quotes could not refresh", e);
-          setError(
-            "Weekly prices could not refresh. Retry to check the latest lines.",
+    const pending = (async () => {
+      try {
+        const pair = await loadMemberBoards(
+          member.league_id,
+          JSON.parse(wantedKey) as MarketCategory[],
+        );
+        if (!current()) return;
+        const r = pair.weekly;
+        const period = `${r.board?.nfl_season ?? currentSeason}:${r.week}`;
+        if (accountPeriod.current === null) accountPeriod.current = period;
+        if (accountPeriod.current !== period && !periodRefresh.current) {
+          periodRefresh.current = true;
+          setWeekAccountPending(true);
+          setPicks([]);
+          setFixedOffer(null);
+          setBoostId(null);
+          setPendingOffer(null);
+          setOpen(false);
+          setStake("");
+          setPickRevision(null);
+          setNotice(
+            `Week ${r.week} is here. Refreshing your balance and tickets automatically…`,
           );
-        })
-        .finally(() => setLoading(false)),
-      boards.then((pair) => {
-        if (pair.errors.future) throw pair.errors.future;
-        return pair.future;
-      })
-        .then((f) => {
-          setFutureBoard(f.board);
-          setFutureMarkets(f.markets);
-          setFuturesError("");
-        })
-        .catch((e) => {
-          failed = true;
-          console.error("Futures quotes could not refresh", e);
-          setFuturesError("Season futures could not refresh. Please retry.");
-        }),
-    ]).then(() => {
-      quoteFailures.current = failed
-        ? Math.min(quoteFailures.current + 1, 3)
-        : 0;
-    });
-    quoteLoad.current = pending;
+          void accountRefresh
+            .current()
+            .then(() => {
+              accountPeriod.current = period;
+              setWeekAccountPending(false);
+              setNotice(
+                `Week ${r.week} is ready. Your balance and tickets are up to date; accepted bets keep their original terms.`,
+              );
+            })
+            .catch(() => {
+              setNotice(
+                "The new week is loading. Your account will retry automatically; betting waits for your updated balance.",
+              );
+            })
+            .finally(() => {
+              periodRefresh.current = false;
+            });
+        }
+
+        setBoard(r.board);
+        setMarkets(r.markets);
+        setWeek(r.week);
+        setFutureBoard(pair.future.board);
+        setFutureMarkets(pair.future.markets);
+        setQuoteUpdatedAt(Date.now());
+        const weeklyFailed = !!pair.errors.weekly,
+          futureFailed = !!pair.errors.future;
+        setError(
+          weeklyFailed
+            ? "Some weekly prices could not refresh. Retry to check the latest lines."
+            : "",
+        );
+        setFuturesError(
+          futureFailed ? "Season futures could not refresh. Please retry." : "",
+        );
+        setCategoryError(
+          pair.errorsByCategory[category]
+            ? "This category could not refresh."
+            : "",
+        );
+        if ((JSON.parse(wantedKey) as MarketCategory[]).includes(category))
+          setLoadedCategory(category);
+        quoteFailures.current =
+          weeklyFailed || futureFailed
+            ? Math.min(quoteFailures.current + 1, 3)
+            : 0;
+      } catch (error) {
+        if (!current()) return;
+        console.error("Market categories could not refresh", error);
+        setBoard(null);
+        setMarkets([]);
+        setFutureBoard(null);
+        setFutureMarkets([]);
+        setError("Prices could not refresh. Retry to check the latest lines.");
+        setFuturesError("Season futures could not refresh. Please retry.");
+        setCategoryError("Market access or current prices are unavailable.");
+        setLoadedCategory(category);
+        quoteFailures.current = Math.min(quoteFailures.current + 1, 3);
+      } finally {
+        if (current()) {
+          setLoading(false);
+          setRefreshingQuotes(false);
+        }
+      }
+    })();
+    quoteLoad.current = { key, promise: pending };
     try {
       await pending;
     } finally {
-      quoteLoad.current = null;
-      setRefreshingQuotes(false);
+      if (quoteLoad.current?.promise === pending) quoteLoad.current = null;
     }
-  }, [member.league_id, currentSeason]);
+  }, [member.league_id, currentSeason, wantedKey, category, quoteScopeKey]);
   useEffect(() => {
     if (review) return;
     setLoading(true);
-    void reloadQuotes();
+    if (document.visibilityState === "visible") void reloadQuotes();
   }, [review, reloadQuotes]);
   useEffect(() => {
-    if (review||tab!=='Leaderboard') return;
+    if (review || tab !== "Leaderboard") return;
     let active = true;
     setStandingsLoading(true);
     void Promise.resolve(
@@ -473,7 +535,7 @@ export function Sportsbook({
     return () => {
       active = false;
     };
-  }, [member.league_id, review, data.history_revision, reloadQuotes,tab]);
+  }, [member.league_id, review, data.history_revision, reloadQuotes, tab]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -751,10 +813,19 @@ export function Sportsbook({
           )
           .map((t) => (
             <div className="receipt-placement" key={t.id}>
-              <TicketShare data={receiptData} ticket={t} owner={member.display_name} />
+              <TicketShare
+                data={receiptData}
+                ticket={t}
+                owner={member.display_name}
+              />
             </div>
           ))}
-      {placedTicketId&&placedReceipt.error&&<p role="status">Your bet was accepted, but its share receipt could not load. <button onClick={placedReceipt.retry}>Retry receipt</button></p>}
+      {placedTicketId && placedReceipt.error && (
+        <p role="status">
+          Your bet was accepted, but its share receipt could not load.{" "}
+          <button onClick={placedReceipt.retry}>Retry receipt</button>
+        </p>
+      )}
       {review && (
         <p className="review-notice">
           {review.reviewLabel ??
@@ -860,13 +931,7 @@ export function Sportsbook({
             </div>
           </div>
           <nav className="market-categories" aria-label="Market Categories">
-            {[
-              "Matchups",
-              "Player Points",
-              "Head to Head",
-              "Weekly Specials",
-              "Season Futures",
-            ].map((c) => (
+            {marketCategories.map((c) => (
               <button
                 key={c}
                 aria-pressed={category === c}
@@ -893,7 +958,7 @@ export function Sportsbook({
           {(category === "Season Futures" ? futuresError : error) && (
             <p role="status" className="feedback error">
               {category === "Season Futures" ? futuresError : error}
-              {quoteUpdatedAt && (
+              {quoteUpdatedAt && !categoryError && (
                 <>
                   {" "}
                   Showing the last available data, checked{" "}
@@ -914,10 +979,12 @@ export function Sportsbook({
               </button>
             </p>
           )}
-          {loading && !markets.length && category !== "Season Futures" ? (
-            <p role="status">Loading weekly markets…</p>
-          ) : error && !markets.length && category !== "Season Futures" ? (
-            <p>The weekly board could not load. Use Retry prices above.</p>
+          {(!review && loadedCategory !== category) ||
+          (loading && !markets.length && category !== "Season Futures") ? (
+            <p role="status">Loading {category.toLowerCase()} markets…</p>
+          ) : categoryError ||
+            (error && !markets.length && category !== "Season Futures") ? (
+            <p>These markets could not load. Use Retry prices above.</p>
           ) : category === "Season Futures" ? (
             <SeasonFutures data={data} markets={futureMarkets} quote={quote} />
           ) : !markets.length ? (
@@ -1432,24 +1499,6 @@ export function Sportsbook({
                   )}
                 </div>
               )}
-              {category === "Season Futures" && (
-                <section className="empty futures-placeholder">
-                  <p className="eyebrow">
-                    SEASON{" "}
-                    {board?.league_season ??
-                      data.leagues.find((l) => l.id === member.league_id)
-                        ?.league_season ??
-                      "—"}
-                  </p>
-                  <h2>Season Futures</h2>
-                  <p>
-                    Season-long markets are being prepared. Potential categories
-                    include league champion, season points leader, first overall
-                    pick, playoff qualification, and regular-season win totals.
-                  </p>
-                  <span className="status-pill">Work In Progress</span>
-                </section>
-              )}
             </>
           )}
         </>
@@ -1466,7 +1515,8 @@ export function Sportsbook({
               </button>
             </p>
           )}
-          {(data.history_remote||!(data.history_loading || data.history_error) ||
+          {(data.history_remote ||
+            !(data.history_loading || data.history_error) ||
             !!data.tickets?.length) && (
             <TicketHistory
               leagueId={member.league_id}
@@ -1827,14 +1877,9 @@ export function Sportsbook({
           <p className="wager-help">
             Futures stakes remain part of your active balance. Weekly cash
             minimum:{" "}
-            {futureStakes===undefined||data.betting_error?'Unavailable until account totals refresh':money(
-              Math.max(
-                25,
-                100 -
-                  futureStakes -
-                  wager,
-              ),
-            )}
+            {futureStakes === undefined || data.betting_error
+              ? "Unavailable until account totals refresh"
+              : money(Math.max(25, 100 - futureStakes - wager))}
             .
           </p>
         )}

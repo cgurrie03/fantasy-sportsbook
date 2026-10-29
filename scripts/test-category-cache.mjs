@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {createCategoryBoardCache} from '../src/lib/category-board-cache.ts';
+import {requiredCategories} from '../src/lib/market-categories.ts';
+const kinds={'Matchups':'spread','Player Points':'player_points','Head to Head':'player_h2h','Weekly Specials':'weekly_high','Season Futures':'future_champion'};
+let manifests=0,downloads=0,bytes=0,revision=1,content=0,reason=null,denied=false,offline=false,changeDuringRead=false;
+const board=(league,type)=>({id:league+'-'+type,revision,content_version:content,suspension_reason:reason});
+const cache=createCategoryBoardCache(async league=>{manifests++;if(denied)return null;return{week:5,weekly:board(league,'weekly'),future:board(league,'future')};},async(league,category)=>{
+ downloads++;if(offline&&category==='Player Points')throw Error('Synthetic source outage');
+ if(changeDuringRead&&category==='Player Points'){changeDuringRead=false;revision++;}
+ const b=board(league,category==='Season Futures'?'future':'weekly');
+ const value={week:5,board:b,markets:Array.from({length:category==='Player Points'?400:20},(_,i)=>({id:'same-market-'+i,board_id:b.id,kind:kinds[category],text:'x'.repeat(600)}))};
+ bytes+=Buffer.byteLength(JSON.stringify(value));return value;
+});
+assert.deepEqual(requiredCategories('Player Points',true,[]),['Matchups','Player Points']);
+assert.deepEqual(requiredCategories('Head to Head',true,[]),['Matchups','Head to Head']);
+assert.deepEqual(requiredCategories('Season Futures',true,[{kind:'player_points'}]),['Player Points','Season Futures']);
+assert.deepEqual(requiredCategories('Matchups',false,[]),[]);
+assert.deepEqual(requiredCategories('Matchups',false,[{kind:'future_champion'}]),['Season Futures']);
+assert.deepEqual(requiredCategories('Matchups',false,[{kind:'player_points'}],true),[]);
+await Promise.all([cache.load('owner','A',['Matchups']),cache.load('owner','A',['Matchups'])]);
+assert.equal(manifests,1);assert.equal(downloads,1);const initialBytes=bytes;
+for(let i=0;i<120;i++){const value=await cache.load('owner','A',['Matchups']);assert.equal(value.future.markets.length,0);}
+assert.equal(downloads,1);assert.equal(bytes,initialBytes);
+reason='Synthetic suspension';assert.equal((await cache.load('owner','A',['Matchups'])).weekly.board.suspension_reason,reason);assert.equal(downloads,1);
+content++;await cache.load('owner','A',['Matchups']);assert.equal(downloads,2);
+await cache.load('owner','A',['Matchups','Player Points']);assert.equal(downloads,3);
+await cache.load('owner','A',['Season Futures']);assert.equal(downloads,4);
+const readsBefore=manifests;
+await Promise.all([cache.load('owner','B',['Matchups','Player Points']),cache.load('owner','B',['Matchups','Head to Head'])]);
+assert.equal(manifests,readsBefore+1,'different categories share an in-flight authorized manifest');assert.equal(downloads,7,'shared matchup read is downloaded once');
+const b=await cache.load('owner','B',['Matchups']);assert(b.weekly.markets.every(m=>m.board_id==='B-weekly'));
+offline=true;revision++;const partial=await cache.load('owner','A',['Matchups','Player Points']);assert(partial.errorsByCategory['Player Points']);assert(partial.loaded.includes('Matchups'));
+offline=false;assert((await cache.load('owner','A',['Player Points'])).loaded.includes('Player Points'));
+changeDuringRead=true;revision++;const coherent=await cache.load('owner','A',['Matchups','Player Points']);assert.equal(coherent.weekly.board.revision,revision);assert.equal(coherent.weekly.markets.length,420);
+denied=true;await assert.rejects(cache.load('owner','A',['Matchups']),/authorization/);denied=false;const before=downloads;await cache.load('owner','A',['Matchups']);assert.equal(downloads,before+1);
+let release;const gate=new Promise(r=>release=r);const racing=createCategoryBoardCache(async()=>{await gate;return{week:5,weekly:board('A','weekly'),future:null};},async()=>{throw Error('Must not read after account reset');});
+const stale=racing.load('first','A',['Matchups']);racing.clear();release();await assert.rejects(stale,/Account changed/);
+const budget=createCategoryBoardCache(async()=>({week:5,weekly:board('A','weekly'),future:null}),async()=>({week:5,board:board('A','weekly'),markets:[{id:'q',board_id:'A-weekly',kind:'spread',text:'x'.repeat(1048576)}]}));
+assert((await budget.load('owner','A',['Matchups'])).errorsByCategory.Matchups);
+const mismatched=createCategoryBoardCache(async()=>({week:5,weekly:board('A','weekly'),future:null}),async()=>({week:5,board:board('A','weekly'),markets:[{id:'q',board_id:'A-weekly',kind:'player_points'}]}));
+assert((await mismatched.load('owner','A',['Matchups'])).errorsByCategory.Matchups);
+console.log('Passed lazy family/slip dependencies, an unchanged 120-round hour with one category body, in-flight manifest/category sharing, content/suspension freshness, coherent version retries, tenant/account denial, isolated category failure and byte admission.');

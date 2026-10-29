@@ -1,3 +1,4 @@
+const {marketCategory}=require('../src/lib/market-categories.ts');
 const { chromium } = require("playwright"),
   assert = require("node:assert/strict"),
   fs = require("node:fs"),
@@ -137,14 +138,14 @@ fs.mkdirSync(output, { recursive: true });
             return json(null);
           }
           if (
-            endpoint === "sportsbook_current_snapshot" &&
+            endpoint === "sportsbook_category_snapshot" &&
             body.p_league === b.league_id &&
-            body.p_type === "weekly"
+            body.p_category !== "Season Futures"
           )
             return json({
               week: 5,
               board: b,
-              markets: [...quotes(b), ...points],
+              markets: [...quotes(b), ...points].filter(m=>marketCategory(m.kind)===body.p_category),
             });
           if (endpoint === "promo_offers") return json([]);
           if (endpoint === "promo_usage") return json([]);
