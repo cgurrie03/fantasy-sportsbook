@@ -13,7 +13,7 @@
     "test:teasers": "node scripts/test-teasers.mjs",
     "test:teasers:ux": "node scripts/test-teasers-ux.mjs",
     "research:teasers": "node scripts/research-teasers.mjs",
-    "test:model": "node scripts/test-model-assessment.mjs",
+    "test:model": "node scripts/test-model-assessment.mjs && node scripts/test-model-review-reads.mjs",
     "dev": "vite",
     "build": "node scripts/verify-hosted-development.mjs && tsc -b && node scripts/test-api-runtime.mjs && vite build",
     "lint": "oxlint",
@@ -45,7 +45,10 @@
     "test:refresh-retention": "node scripts/test-refresh-retention.mjs",
     "test:sleeper-links": "node scripts/test-sleeper-links.mjs",
     "test:board-cache": "node scripts/test-board-cache.mjs",
-    "schema:development": "node scripts/build-development-schema.mjs"
+    "schema:development": "node scripts/build-development-schema.mjs",
+    "test:financial-recovery": "node scripts/test-financial-recovery.mjs",
+    "recovery:prepare": "node scripts/financial-recovery.mjs prepare",
+    "recovery:verify": "node scripts/financial-recovery.mjs verify"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -61,6 +64,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "openpgp": "6.3.2",
     "oxlint": "^1.81.0",
     "playwright": "^1.58.2",
     "prettier": "^3.9.9",

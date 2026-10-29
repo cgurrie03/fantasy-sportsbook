@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-const suites = ["lint", "build:fixture", "test:environment", "test:board-cache",
+const suites = ["lint", "build:fixture", "test:financial-recovery", "test:environment", "test:board-cache",
   "test:refresh-retention", "test:futures-edit", "test:accounts", "test:lines",
   "test:import", "test:refresh", "test:starters", "test:live", "test:weekly",
   "test:transitions", "test:futures", "test:reporting", "test:reopening",

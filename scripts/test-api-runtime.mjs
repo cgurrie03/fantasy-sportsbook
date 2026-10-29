@@ -29,6 +29,7 @@ try {
     "_lib/ticket-progress",
     "_lib/model-assessment",
     "_lib/model-pipeline",
+    "_lib/assessment-reads",
     "_lib/count-options",
     "_lib/futures-model",
     "_lib/futures-settlement",

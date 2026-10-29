@@ -120,7 +120,7 @@ export function ModelReview({
       {r && (
         <>
           <p className="report-note">
-            All generated forecasts, including unbet and locked markets. Week{" "}
+            Opening and final pregame forecasts, including unbet and locked markets. Week{" "}
             {review.market_week + 1} is excluded until confirmed complete.
             Accuracy is an estimate, not a guarantee.
           </p>
@@ -366,8 +366,7 @@ export function ModelReview({
           <details>
             <summary>Special distributions, futures and largest misses</summary>
             <p>
-              Futures trajectories remain pending until their final event is
-              confirmed. Repeated forecasts of one season event are correlated.
+              {r.futures?.note ?? "Futures results remain pending until their final event is confirmed. Repeated forecasts of one season event are correlated."}
             </p>
             <pre className="model-review-json">
               {JSON.stringify(

@@ -9,6 +9,7 @@ const compiled = await fs.mkdtemp(path.resolve("node_modules/.assessment-"));
 for (const name of [
   "model-assessment",
   "model-pipeline",
+  "assessment-reads",
   "line-model",
   "settlement",
   "futures-settlement",
@@ -329,6 +330,9 @@ const mockDb = {
         return b;
       },
       neq() {
+        return b;
+      },
+      lt() {
         return b;
       },
       in() {

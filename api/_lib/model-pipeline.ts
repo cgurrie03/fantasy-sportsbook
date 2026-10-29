@@ -1,3 +1,4 @@
+import { readAssessmentRows } from "./assessment-reads.js";
 import { score } from "./line-model.js";
 import { parseScoreboard } from "./game-status.js";
 import { regularSeasonResults, settleFuture } from "./futures-settlement.js";
@@ -19,31 +20,6 @@ async function source(url: string) {
   return (await r.json()) as any;
 }
 const sleeper = (path: string) => source(`https://api.sleeper.app/v1/${path}`);
-async function all(
-  db: any,
-  table: string,
-  league: string,
-  season?: number,
-  columns = "*",
-  category?: string,
-) {
-  const rows: any[] = [];
-  for (let offset = 0; offset < 30000; offset += 500) {
-    let query = db.from(table).select(columns).eq("league_id", league);
-    if (season !== undefined) query = query.eq("nfl_season", season);
-    if (category) query = query.eq("category", category);
-    const r = await query
-      .order(table === "model_weekly_reviews" ? "created_at" : "captured_at")
-      .order("id")
-      .range(offset, offset + 499);
-    if (r.error) throw new Error(r.error.message);
-    rows.push(...r.data);
-    if (r.data.length < 500) return rows;
-  }
-  throw new Error(
-    "Assessment pagination safety limit reached; review deferred.",
-  );
-}
 export async function reviewModelWeek(db: any, job: any, league: any) {
   const [
     state,
@@ -72,23 +48,27 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .from("teams")
       .select("id,roster_id,team_name")
       .eq("league_id", job.league_id),
-    all(
+    readAssessmentRows(
       db,
       "model_forecast_runs",
       job.league_id,
-      undefined,
       "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config",
     ),
-    all(
+    readAssessmentRows(
       db,
-      "model_forecast_runs",
+      "sportsbook_model_future_openings",
       job.league_id,
-      league.nfl_season,
-      "id,market_week,nfl_season,captured_at,category,quotes:payload->quotes",
-      "Season Futures",
+      "id,market_week,nfl_season,captured_at,category,quotes",
+      { season: league.nfl_season, pageSize: 2 },
     ),
-    all(db, "forecast_snapshots", job.league_id, league.nfl_season),
-    all(db, "model_weekly_reviews", job.league_id),
+    readAssessmentRows(db, "sportsbook_model_publications", job.league_id,
+      "id,market_week,quotes,captured_at",
+      { season: league.nfl_season, week: job.market_week, pageSize: 2 }),
+    db.from("sportsbook_model_latest_reviews")
+      .select("id,nfl_season,market_week,created_at,outcome_id,report")
+      .eq("league_id", job.league_id)
+      .lt("period", league.nfl_season * 100 + job.market_week)
+      .order("period", { ascending: false }).limit(51),
     db
       .from("model_controls")
       .select("*")
@@ -103,7 +83,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .neq("ticket_type", "future")
       .eq("status", "OPEN"),
   ]);
-  for (const r of [teamsResult, controlResult, openTickets])
+  for (const r of [teamsResult, controlResult, openTickets, reviews])
     if (r.error) throw new Error(r.error.message);
   const observation = parseScoreboard(games);
   if (Number(settings.season) !== league.nfl_season)
@@ -254,7 +234,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     },
   };
   const latestForReplay = new Map<number, any>();
-  for (const review of reviews)
+  for (const review of reviews.data)
     latestForReplay.set(review.nfl_season * 100 + review.market_week, review);
   const replayReviews = [...latestForReplay.values()]
     .filter(
@@ -301,18 +281,16 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
   }
   const unique = [...new Set(ids)],
     runs: any[] = [];
-  const payloadPages = await Promise.all(
-    Array.from({ length: Math.ceil(unique.length / 20) }, (_, i) =>
-      db
+  // Archive rows are large. Keep at most two in flight and never launch all
+  // historical payload pages concurrently. Compact/checkpointed replay follows.
+  for (let start = 0; start < unique.length; start += 2) {
+    const page = await db
         .from("model_forecast_runs")
         .select(
           "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config,payload",
         )
         .eq("league_id", job.league_id)
-        .in("id", unique.slice(i * 20, i * 20 + 20)),
-    ),
-  );
-  for (const page of payloadPages) {
+        .in("id", unique.slice(start, start + 2));
     if (page.error) throw new Error(page.error.message);
     runs.push(...page.data);
   }
@@ -370,7 +348,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
         };
       }),
     );
-  // Trajectories retain all times; final scores select one opening forecast per origin-week/event.
+  // Designated opening forecasts only; refreshes are not independent trials.
   const futureSelected = new Map<string, any>();
   for (const r of futureRows.sort((a: any, b: any) =>
     a.captured_at.localeCompare(b.captured_at),
@@ -394,7 +372,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
           )
           .map((r) => ({ predicted: r.expected_wins, actual: r.actual_value })),
       ),
-      note: "Origin weeks forecast the same season events; these are correlated trajectories, not independent trials.",
+      note: "Fixed opening forecasts by origin week; complete refresh history is not retained by this review. Origin weeks forecast the same season events and are correlated, not independent trials.",
     },
   });
   const control = controlResult.data,

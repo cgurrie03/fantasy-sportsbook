@@ -4,7 +4,12 @@
 
 See [13-implementation-checkpoint.md](13-implementation-checkpoint.md) for the implementation branch, verification and hosted gates. Development now has a reviewed schema-only baseline, migrations 055–059, explicit API privileges and small synthetic fixtures. No production application/database release or support deployment has occurred. The original dirty checkout is preserved.
 
-The protected development application is now deployed. See [14-hosted-development-checkpoint.md](14-hosted-development-checkpoint.md) for the exact source/deployment, signed-out checks and pending owner sign-in verification. The full handoff is still in progress.
+The protected development application is now deployed. See [14-hosted-development-checkpoint.md](14-hosted-development-checkpoint.md) for the hosting checkpoint and successful owner sign-in verification. The full handoff is still in progress.
+
+Owner sign-in and both synthetic leagues are verified. The next unit adds a
+tested encrypted financial recovery checkpoint and narrower worker review reads;
+see [15-recovery-and-review-reads.md](15-recovery-and-review-reads.md). Raw archive
+writes and full-platform recovery remain open; no production cleanup occurred.
 
 New explicit owner decision: **each approved user has their own wallet, including co-owners of the same fantasy team.** Wallets remain separate between leagues. This supersedes the unresolved shared-team-wallet question below. The existing team-keyed financial schema has not yet been migrated; do not represent the legacy wallet tests as verification of independent user wallets.
 
