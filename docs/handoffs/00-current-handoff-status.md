@@ -1,4 +1,4 @@
-Latest continuation: [handoff 22](22-account-aggregates-and-report-pages.md). Selected-league account pages, complete database aggregates and bounded financial reports/exports are verified in protected dev. Counter **13 complete / 11 remaining**. Milestone 15 is next; historical production cleanup and production release remain gated. No scheduled continuation is configured.
+Latest continuation: [handoff 23](23-lazy-categories-and-shared-starters.md). Lazy member categories and shared bounded starter/provider status are verified in protected dev. Counter **14 complete / 10 remaining**. Milestone 16 roles/settings/import/claims is next; historical production cleanup and production release remain gated. No scheduled continuation is configured.
 
 Current continuation: [handoff 20](20-summary-retention-and-frozen-candidates.md) records compact summary retention and prospective candidate integration in development. The 2 a.m. scheduled run was canceled on October 29. The remaining historical notes below describe earlier checkpoints.
 

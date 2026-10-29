@@ -1,8 +1,7 @@
 # Lazy member categories and shared starter display — October 29, 2026
 
-Milestone 15 implementation. Delivery remains pending until the tested source,
-development migration mapping, protected deployment and postflight below are
-recorded. Production and historical cleanup are unchanged.
+Milestone 15 is complete in protected development. The stable counter is now
+**14 complete / 10 remaining**. Production and historical cleanup are unchanged.
 
 ## Read inventory and resulting behavior
 
@@ -95,3 +94,19 @@ The full release run passed **36/36** suites. After adding the memory-tier egres
 guard, the starter SQL/helper/real-API fixture suite, explicit API TypeScript
 check, lint and fixture build were rerun. No production schema/data operation,
 GitHub push, owner session use, actual bet or email send occurred.
+
+## Protected development delivery
+
+- Application source: `4e636ce262eeb685ff77a87474721da7d664f809`.
+- READY Preview deployment: `dpl_7rnXQ8WUJCxWY4UkDEAiaY7b4TFs`, generated host
+  `fantasy-sportsbook-gzi9is4mx-cooper-gurrie-projects.vercel.app`.
+- Canonical `dev.sportsbook.coopergurrie.com` and both development project aliases
+  point to this deployment. Signed-out checks of all four hosts return the
+  expected 302 to Vercel SSO; no bypass link or owner browser/session was used.
+- Hosted build preflight verified the independent dev target/server key/owner,
+  closed signup, captured mail and manual automation; API runtime/build completed.
+- Filtered upload includes 136 application/build files, excluding migrations,
+  documents, local work, environment files and recovery material. No GitHub push.
+- Migration/role probes used rollback-only fixtures, not actual league activity.
+  Existing owner sign-in evidence predates this delivery; no new human session
+  check is claimed. Milestone 16 roles/settings/import/claims is next.
