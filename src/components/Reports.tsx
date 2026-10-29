@@ -94,6 +94,7 @@ export function Reports({
 }) {
   const [expectedCompleted, setExpectedCompleted] = useState(0);
   const [forecastStatus, setForecastStatus] = useState("");
+  const [captureNotice,setCaptureNotice]=useState<{scope:string;text:string}|null>(null);
   const forecastRequest = useRef<{ scope: string; pending: boolean } | null>(
     null,
   );
@@ -173,13 +174,20 @@ export function Reports({
     ) {
       const request = { scope, pending: true };
       forecastRequest.current = request;
+      void supabase!.from("published_forecast_health")
+        .select("skipped,last_gap_reason").eq("league_id",leagueId).maybeSingle()
+        .then(({data:health,error})=>{
+          if(forecastRequest.current!==request)return;
+          setCaptureNotice({scope,text:!error && Number(health?.skipped)>0 && health?.last_gap_reason!=="ineligible"
+            ? "Some publication horizons could not be retained. Report coverage may be incomplete; current lines remain available." : ""});
+        });
       setForecastStatus(
         "Loading forecast history; saved results load separately.",
       );
       void loadReportForecasts(
         (from, to) =>
           supabase!
-            .from("forecast_snapshots")
+            .from("sportsbook_report_forecasts")
             .select(forecastMetadataColumns)
             .eq("league_id", leagueId)
             .eq("nfl_season", season)
@@ -1111,7 +1119,7 @@ export function Reports({
       "Average vs. Expectations",
       `${bias !== null && bias > 0 ? "+" : ""}${fixed(bias)} pts`,
     ],
-    ["Saved Forecast Versions", forecasts.length],
+    ["Retained Forecast Horizons", forecasts.length],
   ];
   if ([1, 2, 3, 4, 12].includes(report))
     kpis = [
@@ -1144,7 +1152,7 @@ export function Reports({
           : "—",
       ],
       [
-        "Archived future revisions",
+        "Retained future horizons",
         forecasts.filter((f) => f.board_type === "future").length,
       ],
     ];
@@ -1225,7 +1233,7 @@ export function Reports({
           3,
         ),
       ],
-      ["Forecast versions archived", forecasts.length],
+      ["Forecast horizons retained", forecasts.length],
     ];
   if ([14, 15].includes(report)) {
     const records = report === 14 ? jobs : emails;
@@ -1465,7 +1473,7 @@ export function Reports({
                       "Number of completed team scores in view.",
                       "Average miss in points, ignoring direction (MAE).",
                       "Positive means actual scores beat projections on average.",
-                      "Archived snapshots, including recalculations; not an accuracy score.",
+                      "Fixed opening/latest horizons; not every refresh or an accuracy score.",
                     ][index]
                   }
                 </p>
@@ -1674,8 +1682,8 @@ export function Reports({
           )}
           {report === 4 && (
             <p className="report-note">
-              *The optimal score uses the eligible roster archived at opening,
-              not later waiver additions. Missing archived eligibility or player
+              *New compact forecasts do not retain rosters for hindsight lineup
+              optimization. Missing archived eligibility or player
               scores produces an unavailable value, rather than a guessed
               optimum. Players without provider names retain their Sleeper IDs.
             </p>
@@ -1689,13 +1697,15 @@ export function Reports({
           {report === 13 && (
             <>
               <p className="report-note">
-                Evaluation uses the final pre-opening snapshot, or the first
-                opening publication snapshot when it commits just after opening,
+                Evaluation uses a designated opening publication. Historical
+                records use the last pre-opening snapshot when available. It
                 includes unbet selections, excludes locked markets and
                 unresolved/push outcomes from Brier scores. Each binary market
                 is counted once. Lower Brier scores are better; small samples
                 are preliminary.
               </p>
+              <p className="report-note">Futures history shows designated opening/latest pregame observations, not every refresh. Historical roster reconstruction and complete line movement are no longer retained.</p>
+              {captureNotice?.scope===leagueId+":"+season && captureNotice.text && <p className="report-note">{captureNotice.text}</p>}
               <h3>Accuracy by market and model</h3>
               <div className="report-table-wrap">
                 <table className="report-table">

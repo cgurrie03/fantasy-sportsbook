@@ -487,7 +487,7 @@ try {
   );
   const snapshot = (
     await rows(
-      "select * from public.forecast_snapshots where board_id=$1 order by revision limit 1",
+      "select * from public.published_forecast_samples where board_id=$1 order by revision limit 1",
       [board],
     )
   )[0];
@@ -502,7 +502,7 @@ try {
   assert.equal(
     JSON.stringify(
       (
-        await rows("select quotes from public.forecast_snapshots where id=$1", [
+        await rows("select quotes from public.published_forecast_samples where id=$1", [
           snapshot.id,
         ])
       )[0].quotes,
@@ -521,7 +521,7 @@ try {
   );
   await assert.rejects(
     () =>
-      rows("update public.forecast_snapshots set quotes='[]' where id=$1", [
+      rows("update public.published_forecast_samples set quotes='[]' where id=$1", [
         snapshot.id,
       ]),
     /permission/,
@@ -814,6 +814,7 @@ try {
     (await rows("select * from public.forecast_snapshots")).length,
     0,
   );
+  assert.equal((await rows("select * from public.published_forecast_samples")).length,0);
   assert.equal(
     (await rows("select * from public.league_result_weeks")).length,
     0,

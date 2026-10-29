@@ -1,13 +1,11 @@
 import { deduplicateForecasts } from "./reporting.ts";
-import { readAllRows } from "./pagination.ts";
 import type { Forecast } from "./reporting.ts";
 
 export const forecastMetadataColumns =
-  "id,board_id,revision,nfl_season,market_week,board_type,captured_at,opens_at,closes_at,provenance";
+  "id,board_id,revision,nfl_season,market_week,board_type,captured_at,opens_at,closes_at,provenance,horizon";
 
-// Keep all version metadata for counts, but do not download the same weekly
-// slate on every recalculation. Reports grade the immutable opening snapshot;
-// futures charts retain every saved season snapshot.
+// The database selects fixed horizons before JSON hydration. Never fetch every
+// historical revision, and fail visibly if a scoped season exceeds its budget.
 export async function loadReportForecasts(
   metadata: (
     from: number,
@@ -20,8 +18,15 @@ export async function loadReportForecasts(
     error: unknown;
   }>,
 ) {
-  const result = await readAllRows(metadata);
-  const versions = (result.data as Forecast[]).map((f) => ({
+  const data: unknown[]=[];
+  for(let from=0;;from+=64) {
+    const page=await metadata(from,from+63);
+    if(page.error)throw page.error;
+    data.push(...(page.data??[]));
+    if(data.length>256)throw Error("Forecast horizon metadata exceeded the season budget.");
+    if((page.data?.length??0)<64)break;
+  }
+  const versions = (data as Forecast[]).map((f) => ({
     ...f,
     quotes: [],
   }));
@@ -31,14 +36,14 @@ export async function loadReportForecasts(
   ]);
   const loaded = new Map<string, Forecast["quotes"]>();
   const ids = [...needed];
-  for (let start = 0; start < ids.length; start += 20) {
-    const response = await quotes(ids.slice(start, start + 20));
+  for (let start = 0; start < ids.length; start += 2) {
+    const response = await quotes(ids.slice(start, start + 2));
     if (response.error) throw response.error;
     for (const row of response.data ?? []) loaded.set(row.id, row.quotes);
   }
   if (ids.some((id) => !loaded.has(id)))
     throw Error(
-      "Archived forecast details could not load. Refresh reports to retry.",
+      "Fixed-horizon forecast details could not load. Refresh reports to retry.",
     );
   return {
     data: versions.map((f) => ({ ...f, quotes: loaded.get(f.id) ?? [] })),

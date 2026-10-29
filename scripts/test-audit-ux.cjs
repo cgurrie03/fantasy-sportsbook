@@ -114,7 +114,7 @@ const { setup, A, B, teams } = require("./test-ux.cjs");
       releaseForecast = resolve;
     });
     await coverage.context.route(
-      "**/rest/v1/forecast_snapshots*",
+      "**/rest/v1/sportsbook_report_forecasts*",
       async (route) => {
         await forecastGate;
         return route.fulfill({ contentType: "application/json", body: "[]" });

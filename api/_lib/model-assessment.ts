@@ -3,7 +3,7 @@ import { highLowProbabilities } from "./line-model.js";
 import { settleLeg } from "./settlement.js";
 import { settleFuture } from "./futures-settlement.js";
 
-export const ASSESSMENT_VERSION = "weekly-review-v3-compact-sleeper-baseline";
+export const ASSESSMENT_VERSION = "weekly-review-v3-compact-sleeper-publications";
 export interface Config {
   score_scale: number;
   variance_scale: number;
@@ -691,6 +691,7 @@ export function assessWeek(
       "Futures final results require confirmed qualification, champion or regular-season outcomes.",
       "Sleeper comparison uses matched as-of inputs with league scoring and actual starters; missing historical input benchmarks are not reconstructed.",
       "Evaluation retains fixed-horizon numeric predictions and target IDs; raw provider, roster and simulation bodies are not retained for unrestricted replay.",
+      "Published counts match retained opening/latest publication horizons; intermediate refresh publication history is intentionally unavailable.",
     ],
   };
 }

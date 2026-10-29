@@ -401,10 +401,8 @@ try {
   assert.equal(reportRow.home_projection, 125.5);
   assert.equal(reportRow.metadata.home_lineup, undefined);
   assert.equal(reportRow.metadata.scoring_settings, undefined);
-  assert.deepEqual(reportRow.metadata.home_eligible_players, [
-    { id: "p", positions: ["QB"] },
-  ]);
-  assert.deepEqual(reportRow.metadata.roster_positions, ["QB"]);
+  assert.equal(reportRow.metadata.home_eligible_players, undefined,"Compact report contract retires roster replay");
+  assert.equal(reportRow.metadata.roster_positions, undefined);
   assert.deepEqual(
     (
       await rows("select quotes from forecast_snapshots where id=$1", [

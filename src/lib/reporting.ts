@@ -13,6 +13,7 @@ export interface Forecast {
   opens_at: string;
   closes_at: string;
   provenance: string;
+  horizon?: "opening" | "latest_pregame";
   quotes: Market[];
 }
 export interface ScoreWeek {
@@ -176,6 +177,10 @@ export function deduplicateForecasts(forecasts: Forecast[]) {
     groups.set(f.board_id, [...(groups.get(f.board_id) ?? []), f]);
   return [...groups.values()].flatMap((group) => {
     const sorted = [...group].sort((a, b) => a.revision - b.revision);
+    if(sorted[0].board_type==='weekly' && group.some(f=>f.horizon==='opening')) {
+      const opening=sorted.find(f=>f.horizon==='opening' && f.provenance==='published_snapshot');
+      return opening?[opening]:[];
+    }
     // Existing boards have no original opening snapshot: never pretend a late copy was a pregame forecast.
     if (sorted[0].provenance !== "published_snapshot") return [];
     if (sorted[0].board_type === "future") return [sorted.at(-1)!];

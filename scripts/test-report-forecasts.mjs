@@ -49,7 +49,9 @@ const versions = [
   })),
 ];
 let requested = [];
+const batches=[];
 const load = (ids) => {
+  batches.push(ids);
   requested.push(...ids);
   return Promise.resolve({
     data: ids.map((id) => ({
@@ -64,7 +66,8 @@ const result = await loadReportForecasts(
   load,
 );
 assert.deepEqual(requested.sort(), ["a2", "f1", "f2"]);
-assert.equal(result.data.length, 6, "keep the real archived-version count");
+assert.equal(result.data.length, 6, "keep supplied fixed-horizon metadata");
+assert(batches.every(ids=>ids.length<=2));
 assert.equal(
   deduplicateForecasts(result.data).find((f) => f.board_id === "a").quotes[0]
     .home_projection,
@@ -75,7 +78,7 @@ assert(
   result.data
     .filter((f) => f.board_type === "future")
     .every((f) => f.quotes.length === 1),
-  "keep every futures trend snapshot",
+  "hydrate every designated futures horizon",
 );
 assert.equal(
   result.data.find((f) => f.id === "a3").quotes.length,
@@ -88,8 +91,10 @@ await assert.rejects(
       () => Promise.resolve({ data: versions, error: null }),
       () => Promise.resolve({ data: [], error: null }),
     ),
-  /Archived forecast details/,
+  /Fixed-horizon forecast details/,
 );
+await assert.rejects(loadReportForecasts(()=>Promise.resolve({data:Array(64).fill(versions[0]),error:null}),load),/season budget/);
+assert.equal(deduplicateForecasts([{...versions[0],horizon:'opening',quotes:[]},{...versions[1],horizon:'latest_pregame',quotes:[]}])[0].id,'a1');
 console.log(
-  "Passed metadata-first report hydration, exact opening baseline, complete futures trends, real archive counts and missing-detail failure.",
+  "Passed fixed-horizon hydration, opening baseline, two-row batches, metadata budget and missing-detail failure.",
 );
