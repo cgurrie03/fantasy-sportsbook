@@ -4,7 +4,7 @@ import {
   scoreboardWindow,
   parseScoreboard,
 } from "./game-status.js";
-import { buildLiveForecast, LIVE_MODEL } from "./live-model.js";
+import { buildLiveForecast, compactLivePayload, LIVE_MODEL } from "./live-model.js";
 import { evaluateLiveWeek } from "./live-review.js";
 const hash = (v: unknown) =>
   createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -160,8 +160,8 @@ export async function collectLiveShadow(
       model_config: LIVE_MODEL,
       observed_at: observedAt,
       source_hash: hash(sources),
-      sources,
-      payload,
+      sources: {},
+      payload:compactLivePayload(payload),
     },
   });
   if (saved.error) throw new Error(saved.error.message);
@@ -177,13 +177,13 @@ export async function reviewLiveWeek(db: any, job: any, league: any) {
     sleeper("state/nfl"),
     sleeper(`league/${league.sleeper_league_id}/matchups/${job.market_week}`),
     db
-      .from("live_forecast_runs")
+      .from("sportsbook_live_forecasts")
       .select("id,captured_at,status,payload")
       .eq("league_id", job.league_id)
       .eq("nfl_season", league.nfl_season)
       .eq("market_week", job.market_week)
       .order("captured_at")
-      .limit(3000),
+      .limit(10),
   ]);
   if (forecasts.error) throw new Error(forecasts.error.message);
   if (!(
@@ -219,8 +219,8 @@ export async function reviewLiveWeek(db: any, job: any, league: any) {
     )
   )
     throw new Error("Final weekly results incomplete.");
-  if (forecasts.data.length === 3000)
-    throw new Error("Review snapshot limit reached; pagination required.");
+  if (forecasts.data.length === 10)
+    throw new Error("Fixed-horizon live review budget exceeded.");
   const outcomes = matchups
     .map((m) => ({
       roster_id: m.roster_id,

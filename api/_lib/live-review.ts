@@ -137,6 +137,6 @@ export function evaluateLiveWeek(
     change_decision:
       "No model change: experimental shadow model; insufficient independent completed weeks.",
     methodology:
-      "Latest valid forecast per team/matchup in each league-game progress quartile. Horizons and teammates are correlated, not independent trials. Changed final starting lineups are excluded from forecast metrics. Tie outcomes are reported separately. No futures accuracy is inferred.",
+      "Latest fully eligible compact forecast in each league-game progress quartile. Partial captures are coverage gaps. Horizons and teammates are correlated, not independent trials. Changed final starting lineups are excluded from forecast metrics. Tie outcomes are reported separately. No futures accuracy is inferred; full refresh trajectories are not retained.",
   };
 }

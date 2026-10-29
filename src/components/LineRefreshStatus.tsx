@@ -47,7 +47,7 @@ export function LineRefreshStatus({
             .order("fetched_at", { ascending: false })
             .limit(1),
           supabase!
-            .from("live_forecast_runs")
+            .from("sportsbook_live_forecasts")
             .select("captured_at,status,market_week")
             .eq("league_id", leagueId)
             .order("captured_at", { ascending: false })

@@ -24,7 +24,7 @@ export function LiveModelLog({
     const load = async () => {
       const [r, v] = await Promise.all([
         supabase!
-          .from("live_forecast_runs")
+          .from("sportsbook_live_forecasts")
           .select("id,captured_at,market_week,status,model_version,payload")
           .eq("league_id", leagueId)
           .order("captured_at", { ascending: false })
@@ -72,10 +72,11 @@ export function LiveModelLog({
     <section className="live-model-log" aria-label="Live forecast history">
       <h3>Live forecast history</h3>
       <p>
-        Shadow forecasts are logged every refresh. Published lines and accepted
-        tickets retain their own immutable histories. Live acceptance is
-        disabled while the model is being evaluated.
+        Evaluation keeps the latest fully eligible forecast in each progress
+        quartile. Partial or over-budget captures are reported as gaps. Accepted
+        tickets retain their saved terms. Live acceptance is disabled.
       </p>
+      <p className="muted">This clock-based shadow model is uncalibrated; provider feed freshness and game correlations are not verified.</p>
       {loading ? (
         <p role="status">Loading shadow forecast history…</p>
       ) : error ? (
@@ -95,7 +96,7 @@ export function LiveModelLog({
         </p>
       ))}
       <details>
-        <summary>Recent revisions · {shownRuns.length}</summary>
+        <summary>Retained horizons and latest status · {shownRuns.length}</summary>
         <table className="execution-balances">
           <thead>
             <tr>

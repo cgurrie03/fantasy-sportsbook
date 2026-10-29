@@ -27,7 +27,7 @@ try {
     await fs.writeFile(path.join(dir, `${file}.js`), outputText);
   }
   await fs.writeFile(path.join(dir, "package.json"), '{"type":"module"}');
-  const { remainingForecast, buildLiveForecast, elapsedMinutes, sameGameDate } =
+  const { remainingForecast, buildLiveForecast, elapsedMinutes, sameGameDate,compactLivePayload } =
     await import(pathToFileURL(path.join(dir, "live-model.js")).href);
   const { evaluateLiveWeek } = await import(
     pathToFileURL(path.join(dir, "live-review.js")).href
@@ -313,13 +313,17 @@ try {
     "insert into automation_jobs(id,league_id,event_key,operation,market_week,refresh_cycle_id,status,attempts,lease_until) values($1,$2,'shadow-test','interval_matchups',5,$3,'running',1,now()+interval '5 minutes')",
     [job, league, cycle],
   );
+  const dbTeams=(await db.query('select id,roster_id from teams where league_id=$1 order by roster_id',[league])).rows;
+  const dbPayload={...built,teams:dbTeams.map((t,i)=>({...built.teams[i%2],team_id:t.id,roster_id:t.roster_id,matchup_id:Math.floor(i/2)+1})),
+    quotes:dbTeams.filter((_,i)=>i%2===0).map((t,i)=>({...built.quotes[0],matchup_id:i+1,home_team_id:t.id,away_team_id:dbTeams[i*2+1].id}))};
+  assert(!JSON.stringify(compactLivePayload(dbPayload)).includes('source_updated_at'));
   const snapshot = {
     model_version: "live-clock-shadow-v1",
     model_config: { mode: "shadow" },
     observed_at: new Date().toISOString(),
     source_hash: "a".repeat(64),
     sources: {},
-    payload: built,
+    payload: dbPayload,
   };
   const save = async (attempt = 1) =>
     (
@@ -332,20 +336,37 @@ try {
   const saved = await save();
   assert.equal(await save(), saved);
   await assert.rejects(() => save(2), /lease/);
-  await assert.rejects(
-    () =>
-      db.query("update live_forecast_runs set status='blocked' where id=$1", [
-        saved,
-      ]),
-    /append-only/,
-  );
-  await assert.rejects(
-    () => db.query("delete from live_forecast_runs where id=$1", [saved]),
-    /append-only/,
-  );
+  assert.equal((await db.query('select count(*)::int n from live_forecast_runs')).rows[0].n,0,'No permanent raw live writes');
+  const compact=(await db.query('select payload from live_forecast_samples where id=$1',[saved])).rows[0].payload;
+  assert(!JSON.stringify(compact).includes('source_updated_at'));
+  assert(!compact.teams[0].players);
+  const dbOutcomes=dbPayload.teams.map(t=>({roster_id:t.roster_id,points:t.mean+2,starters:t.starters}));
+  assert.deepEqual(evaluateLiveWeek([{id:saved,captured_at:'2026-01-01',status:'shadow',payload:compact}],dbOutcomes),
+    evaluateLiveWeek([{id:saved,captured_at:'2026-01-01',status:'shadow',payload:dbPayload}],dbOutcomes));
+  for(let i=1;i<=100;i++){
+    const cycleId=randomUUID();
+    await db.query('insert into line_refresh_cycles(id,league_id,market_week,slot)values($1,$2,5,$3)',[cycleId,league,123+i]);
+    await db.query('update automation_jobs set refresh_cycle_id=$2 where id=$1',[job,cycleId]);
+    snapshot.observed_at=new Date(Date.now()+i).toISOString();
+    await save();
+  }
+  assert.equal((await db.query('select count(*)::int n from live_forecast_samples where league_id=$1',[league])).rows[0].n,1,'100 refreshes keep one quartile sample');
+  const latestObservation=snapshot.observed_at;
+  snapshot.observed_at=new Date(Date.now()-60000).toISOString();
+  snapshot.payload={status:'blocked',horizon:2,teams:[],quotes:[],reason:'Late worker response'};
+  await save();
+  assert.equal((await db.query('select status from live_forecast_health where league_id=$1',[league])).rows[0].status,'shadow','Older blocked observation cannot hide newer successful capture');
+  snapshot.observed_at=latestObservation;snapshot.payload=dbPayload;
+  await db.query(`insert into live_forecast_samples(league_id,nfl_season,market_week,horizon,cycle_id,captured_at,observed_at,model_version,payload)
+   select league_id,1000+s,market_week,horizon,cycle_id,captured_at,observed_at,model_version,payload from live_forecast_samples cross join generate_series(1,127) s where id=$1`,[saved]);
+  snapshot.payload={...dbPayload,horizon:0};
+  await save();
+  assert.equal((await db.query('select last_gap_reason from live_forecast_health where league_id=$1',[league])).rows[0].last_gap_reason,'row_budget');
+  assert.equal((await db.query('select count(*)::int n from live_forecast_samples where league_id=$1',[league])).rows[0].n,128);
+  snapshot.payload=dbPayload;
   await db.exec(`set role authenticated;set request.jwt.claim.sub='${admin}';`);
   assert.equal(
-    (await db.query("select count(*)::int as n from live_forecast_runs"))
+    (await db.query("select count(*)::int as n from live_forecast_samples where nfl_season=2026"))
       .rows[0].n,
     1,
   );
@@ -353,7 +374,7 @@ try {
     "set request.jwt.claim.sub='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';",
   );
   assert.equal(
-    (await db.query("select count(*)::int as n from live_forecast_runs"))
+    (await db.query("select count(*)::int as n from sportsbook_live_forecasts"))
       .rows[0].n,
     0,
   );

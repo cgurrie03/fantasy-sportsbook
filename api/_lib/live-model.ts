@@ -53,6 +53,18 @@ export type TeamForecast = {
   players: PlayerForecast[];
   reasons: string[];
 };
+export function compactLivePayload(payload:any) {
+  if(!Array.isArray(payload.teams)||payload.teams.length>16||!Array.isArray(payload.quotes)||payload.quotes.length>8)
+    return {status:'blocked',horizon:0,teams:[],quotes:[],reason:'Evaluation target budget exceeded.'};
+  if(payload.teams.some((t:any)=>!Array.isArray(t.starters)||t.starters.length>32||!Array.isArray(t.reasons)||t.reasons.length>16))
+    return {status:'blocked',horizon:0,teams:[],quotes:[],reason:'Evaluation target budget exceeded.'};
+  const pick=(row:any,keys:string[])=>Object.fromEntries(keys.filter(k=>row[k]!==undefined).map(k=>[k,row[k]]));
+  return {status:payload.status,horizon:payload.horizon,reason:payload.reason?.slice(0,240),source_quality:{live_freshness_verified:false},
+    teams:payload.teams.map((t:any)=>({...pick(t,['team_id','roster_id','matchup_id','mean','sd','observed']),
+      name:String(t.name??'').slice(0,160),starters:(t.starters??[]).slice(0,32),reasons:(t.reasons??[]).slice(0,16).map((r:string)=>r.slice(0,160))})),
+    quotes:payload.quotes.map((q:any)=>({...pick(q,['matchup_id','home_team_id','away_team_id','home_mean','away_mean',
+      'spread','total','home_fair_probability','away_fair_probability','home_odds','away_odds']),shadow:true,acceptance_enabled:false,promotion_pct:0}))};
+}
 const aliases: Record<string, string> = { WAS: "WSH", JAC: "JAX", LA: "LAR" };
 const nflTeam = (v: string) => aliases[v] ?? v;
 export function sameGameDate(priorDate: string | undefined, startsAt: string) {
