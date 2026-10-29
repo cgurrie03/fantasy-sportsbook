@@ -58,6 +58,7 @@ export interface Ledger {
   kind: string;
 }
 export interface AccountData {
+  history_league_id?: string;
   history_loading?: boolean;
   history_error?: string;
   leagues: League[];
@@ -111,38 +112,56 @@ export interface TicketLeg {
 export async function loadAccounts(
   previous?: AccountData,
   onCore?: (data: AccountData) => void,
+  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal} = {},
 ): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
-  const claim = await supabase
+  const signal=options.signal??AbortSignal.timeout(30000);
+  if(options.claim){const claim = await supabase
     .rpc("claim_memberships")
-    .abortSignal(AbortSignal.timeout(15000));
-  if (claim.error) throw claim.error;
+    .abortSignal(signal);
+  if (claim.error) throw claim.error;}
   const queries = [
     supabase
       .from("leagues")
       .select("*")
-      .abortSignal(AbortSignal.timeout(15000)),
+      .abortSignal(signal),
     supabase
       .from("teams")
       .select("*")
       .order("roster_id")
-      .abortSignal(AbortSignal.timeout(15000)),
+      .abortSignal(signal),
     supabase
       .from("league_memberships")
       .select("*")
-      .abortSignal(AbortSignal.timeout(15000)),
+      .abortSignal(signal),
     supabase
       .from("wallets")
       .select("*")
-      .abortSignal(AbortSignal.timeout(15000)),
+      .abortSignal(signal),
+  ];
+  const core=await Promise.all(queries);
+  for(const result of core)if(result.error)throw result.error;
+  signal.throwIfAborted();
+  const leagueId=options.leagueId??core[0].data?.[0]?.id;
+  if(options.leagueId&&!core[0].data?.some(l=>l.id===options.leagueId))throw new Error('League access is no longer available.');
+  const prior=previous?.history_league_id===leagueId?previous:undefined;
+  const snapshot:AccountData={leagues:core[0].data as League[],teams:core[1].data as Team[],memberships:core[2].data as Membership[],wallets:core[3].data as Wallet[],
+    events:prior?.events??[],ledger:prior?.ledger??[],tickets:prior?.tickets??[],legs:prior?.legs??[],ticketPromotions:prior?.ticketPromotions??[],
+    history_league_id:options.coreOnly?undefined:leagueId,history_loading:!options.coreOnly};
+  if(options.coreOnly||!leagueId)return {...snapshot,history_loading:false};
+  onCore?.(snapshot);
+  const teamIds=snapshot.teams.filter(t=>t.league_id===leagueId).map(t=>t.id);
+  if(!teamIds.length)return {...snapshot,history_loading:false};
+  const historyQueries=[
     readAllRows((from, to) =>
       supabase!
         .from("balance_events")
         .select("*")
+        .in('team_id',teamIds)
         .order("created_at", { ascending: false })
         .order("id")
         .range(from, to)
-        .abortSignal(AbortSignal.timeout(15000)),
+        .abortSignal(signal),
     ),
     readAllRows((from, to) =>
       supabase!
@@ -150,58 +169,48 @@ export async function loadAccounts(
         .select(
           "id,league_id,nfl_season,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,ticket_type,accepted_potential_payout,actual_payout,status",
         )
+        .eq('league_id',leagueId)
         .order("placed_at", { ascending: false })
         .order("id")
         .range(from, to)
-        .abortSignal(AbortSignal.timeout(15000)),
+        .abortSignal(signal),
     ),
     readAllRows((from, to) =>
       supabase!
         .from("ticket_legs")
         .select(
-          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,accepted_line,settlement_context,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id",
+          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,accepted_line,settlement_context,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id,ticket:tickets!inner(league_id)",
         )
+        .eq('ticket.league_id',leagueId)
         .order("leg_number")
         .order("id")
         .range(from, to)
-        .abortSignal(AbortSignal.timeout(15000)),
+        .abortSignal(signal),
     ),
     readAllRows((from, to) =>
       supabase!
         .from("wallet_ledger")
         .select("*")
+        .in('team_id',teamIds)
         .order("created_at", { ascending: false })
         .order("id")
         .range(from, to)
-        .abortSignal(AbortSignal.timeout(15000)),
+        .abortSignal(signal),
     ),
     readAllRows((from, to) =>
       supabase!
         .from("ticket_promotions")
-        .select("ticket_id,kind,boost_pct,base_decimal")
+        .select("ticket_id,kind,boost_pct,base_decimal,ticket:tickets!inner(league_id)")
+        .eq('ticket.league_id',leagueId)
         .order("ticket_id")
         .range(from, to)
-        .abortSignal(AbortSignal.timeout(15000)),
+        .abortSignal(signal),
     ),
   ].map((query) =>
     Promise.resolve(query).catch((error) => ({ data: null, error })),
   );
-  const core = await Promise.all(queries.slice(0, 4));
-  for (const result of core) if (result.error) throw result.error;
-  onCore?.({
-    ...previous,
-    leagues: core[0].data as League[],
-    teams: core[1].data as Team[],
-    memberships: core[2].data as Membership[],
-    wallets: core[3].data as Wallet[],
-    events: previous?.events ?? [],
-    ledger: previous?.ledger ?? [],
-    tickets: previous?.tickets ?? [],
-    legs: previous?.legs ?? [],
-    ticketPromotions: previous?.ticketPromotions ?? [],
-    history_loading: true,
-  });
-  const results = await Promise.all(queries);
+  const results = [...core,...await Promise.all(historyQueries)];
+  signal.throwIfAborted();
   const ticketFailure = !!(
     results[5].error ||
     results[6].error ||
@@ -215,6 +224,7 @@ export async function loadAccounts(
       results.slice(4).map((r) => r.error),
     );
   return {
+    history_league_id:leagueId,
     history_loading: false,
     history_error: historyFailure
       ? "History could not refresh. Showing the last available records."
@@ -224,19 +234,19 @@ export async function loadAccounts(
     memberships: results[2].data as Membership[],
     wallets: results[3].data as Wallet[],
     events: (results[4].error
-      ? (previous?.events ?? [])
+      ? (prior?.events ?? [])
       : results[4].data) as Event[],
     ledger: (results[7].error
-      ? (previous?.ledger ?? [])
+      ? (prior?.ledger ?? [])
       : results[7].data) as Ledger[],
     tickets: (ticketFailure
-      ? (previous?.tickets ?? [])
+      ? (prior?.tickets ?? [])
       : results[5].data) as Ticket[],
     legs: (ticketFailure
-      ? (previous?.legs ?? [])
+      ? (prior?.legs ?? [])
       : results[6].data) as TicketLeg[],
     ticketPromotions: (ticketFailure
-      ? (previous?.ticketPromotions ?? [])
+      ? (prior?.ticketPromotions ?? [])
       : results[8].data) as TicketPromotion[],
   };
 }

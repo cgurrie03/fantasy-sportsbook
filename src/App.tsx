@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, developmentUserAllowed } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
+import {AccountRequest} from './lib/account-request';
 import type { AccountData, Team, Membership } from "./lib/accounts";
 import "./App.css";
 const AdminHub = lazy(() =>
@@ -603,48 +604,72 @@ export default function App() {
   const userId = session?.user.id;
   const currentUser = useRef(userId);
   currentUser.current = userId;
+  const currentLeague=useRef(leagueId);currentLeague.current=leagueId;
+  const accountRequest=useRef(new AccountRequest());
+  const bootstrapRequest=useRef(new AccountRequest());
+  const [accountUser,setAccountUser]=useState('');
+  const [bootstrapAttempt,setBootstrapAttempt]=useState(0);
   // Reset private account state when the external authentication identity changes.
   useEffect(() => {
     let active = true;
+    const bootstrap=bootstrapRequest.current;
+    const request=bootstrap.start();
+    accountRequest.current.cancel();
     // oxlint-disable-next-line react/set-state-in-effect
     setData(null);
+    setAccountUser('');
     setError("");
     if (!userId) return;
     void loadSportsbook();
     setLoading(true);
     loadAccounts(undefined, (next) => {
-      if (active) {
+      if (active&&request.current()) {
         setData(next);
         setLeagueId((current) => next.leagues.some((league) => league.id === current)
           ? current : (next.leagues[0]?.id ?? ""));
         setLoading(false);
       }
-    })
+    },{claim:true,coreOnly:true,signal:request.signal})
       .then((next) => {
-        if (active) {
+        if (active&&request.current()) {
           setData(next);
+          setAccountUser(userId);
           setLeagueId((current) => next.leagues.some((league) => league.id === current)
             ? current : (next.leagues[0]?.id ?? ""));
         }
       })
       .catch((e) => {
-        if (active) setError(errorMessage(e));
+        if (active&&request.current()) setError(errorMessage(e));
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active&&request.current()) setLoading(false);
       });
     return () => {
       active = false;
+      bootstrap.cancel();
     };
-  }, [userId]);
-  async function refresh() {
-    const next = await loadAccounts(data ?? undefined, (core) => {
-      if (currentUser.current === userId) {
+  }, [userId,bootstrapAttempt]);
+  useEffect(()=>{
+    if(!userId||accountUser!==userId||!leagueId)return;
+    const requests=accountRequest.current;
+    void refresh().catch(e=>{if(currentUser.current===userId&&currentLeague.current===leagueId)setError(errorMessage(e));});
+    return()=>requests.cancel();
+    // Refresh on identity/league selection, not on each history response.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[userId,accountUser,leagueId]);
+  async function refresh(claim=false) {
+    if(!userId)return;
+    if(!leagueId){if(claim)setBootstrapAttempt(n=>n+1);return;}
+    const request=accountRequest.current.start();
+    const current=()=>request.current()&&currentUser.current===userId&&currentLeague.current===leagueId;
+    let next:AccountData;
+    try{next = await loadAccounts(data ?? undefined, (core) => {
+      if (current()) {
         setData(core);
         setLoading(false);
       }
-    });
-    if (currentUser.current !== userId) return;
+    },{leagueId,claim,signal:request.signal});}catch(e){if(current())throw e;return;}
+    if (!current()) return;
     setData(next);
     setLeagueId((current) =>
       next.leagues.some((league) => league.id === current)
@@ -821,6 +846,7 @@ export default function App() {
                     aria-label="League"
                     value={leagueId}
                     onChange={(e) => {
+                      accountRequest.current.cancel();
                       setLeagueId(e.target.value);
                       setPage("account");
                     }}
@@ -842,6 +868,7 @@ export default function App() {
                   className="primary"
                   onClick={() => {
                     setError("");
+                    if(!leagueId||accountUser!==userId){setBootstrapAttempt(n=>n+1);return;}
                     setLoading(true);
                     refresh()
                       .catch((e) => setError(errorMessage(e)))
@@ -899,7 +926,7 @@ export default function App() {
                   onClick={() => {
                     setError("");
                     setLoading(true);
-                    refresh()
+                    refresh(true)
                       .catch((e) => setError(errorMessage(e)))
                       .finally(() => setLoading(false));
                   }}

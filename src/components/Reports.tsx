@@ -276,7 +276,7 @@ export function Reports({
     setExpectedCompleted(expected);
     setJobs((responses[1].data ?? []) as Log[]);
     setEmails((responses[2].data ?? []) as Log[]);
-    setLiveData(await loadAccounts());
+    setLiveData(await loadAccounts(undefined,undefined,{leagueId}));
     setAsOf(
       new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
     );
