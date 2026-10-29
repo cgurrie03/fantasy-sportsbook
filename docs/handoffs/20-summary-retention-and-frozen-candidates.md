@@ -89,3 +89,17 @@ No synthetic probe rows were retained. Production was not modified.
 
 Broader log/email/media retention, off-site recovery, physical capacity and exact
 production release approval remain separate incomplete milestones.
+
+## Deployment and counter
+
+Application source `62df9991f167cba801662c5f39eff39c5ad2df32` was uploaded
+as 129 filtered application/build files. Deployment
+`dpl_EfotcfxXG2wiYtkXMhW2KeWojK8V` reached READY. Hosted build verification
+confirmed development identity, independent owner/key, closed signup, captured
+mail and manual automation. All three dev aliases and the generated deployment
+URL redirect signed-out requests to Vercel SSO. No bypass was used. The owner
+session was not operated; previous owner sign-in verification remains the latest
+human session check.
+
+Counter: **12 complete / 12 remaining**. Continue milestone 14; milestone 13
+requires the separate recovery and exact production cleanup approval gates.
