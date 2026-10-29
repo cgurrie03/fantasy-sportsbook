@@ -17,6 +17,7 @@ import {
 import { cdf } from "./_lib/model-assessment.js";
 import { BASELINE, fairProbability } from "./_lib/model-assessment.js";
 import { createServerClient } from "./_lib/server-client.js";
+import { compactForecastPayload } from "./_lib/compact-forecast.js";
 import {
   lineupWithReplacements,
   matchupSpread,
@@ -284,17 +285,20 @@ export async function generateMarkets(
       );
     const control = await userClient
       .from("model_controls")
-      .select("active_id")
+      .select("active_id,baseline_id")
       .eq("league_id", input.league_id)
       .single();
     if (control.error)
       throw new Error(
         "Model configuration unavailable; existing lines retained.",
       );
+    const adjustable = category === "Matchups" || category === "Weekly Specials";
+    const appliedVersion = adjustable ? control.data.active_id : control.data.baseline_id;
+    if (!appliedVersion) throw new Error("Applied model version unavailable.");
     const version = await userClient
       .from("model_config_versions")
       .select("id,config")
-      .eq("id", control.data.active_id)
+      .eq("id", appliedVersion)
       .eq("league_id", input.league_id)
       .single();
     if (version.error) throw new Error("Active model version unavailable.");
@@ -473,6 +477,7 @@ export async function generateMarkets(
       const weight = past.length / (past.length + 8);
       return {
         ...p,
+        sleeper_projection: p.projection,
         assessment_sd: Math.sqrt(
           Math.max(
             4,
@@ -621,6 +626,7 @@ export async function generateMarkets(
           );
           q.metadata = {
             ...q.metadata,
+            sleeper_projection: player?.sleeper_projection ?? null,
             cutoff_at: kickoff,
             ...(!kickoff
               ? {
@@ -664,55 +670,34 @@ export async function generateMarkets(
         };
       }
       if (input.reopening_preview) return;
-      const saved = await userClient.rpc("save_model_forecast", {
-        p_run: assessmentRun,
-        p_league: input.league_id,
-        p_season: input.nfl_season,
-        p_week: input.week,
-        p_category: category,
-        p_version: version.data.id,
-        p_sources: Object.fromEntries(
-          Object.entries(sources).map(([path, value]) => {
-            const source = value as { payload: any };
-            return [
-              path,
-              path.includes("/projections/nfl/") &&
-              Array.isArray(source.payload)
-                ? {
-                    ...source,
-                    payload: source.payload.filter((p) =>
-                      forecastPlayerIds.has(p.player_id),
-                    ),
-                    filter_note:
-                      "Rostered players and free agents contributing to replacement estimates retained; replacement sources and their projections are recorded per slot.",
-                  }
-                : source,
-            ];
-          }),
-        ),
-        p_payload: {
-          models,
-          pool: pool.filter((p) => forecastPlayerIds.has(p.id)),
-          algorithm_version: reopening
-            ? REOPENING_MODEL
-            : "weekly-lineup-fa-v4",
-          reopening: reopeningSnapshot ?? null,
-          assessment_version: "weekly-review-v1",
-          simulation_seed: input.week,
+      let compact;
+      try {
+        compact = compactForecastPayload({
+          models, pool: pool.filter((p) => forecastPlayerIds.has(p.id)), quotes,
+          algorithm_version: reopening ? REOPENING_MODEL : "weekly-lineup-fa-v4",
+          scoring_settings: league.scoring_settings, roster_positions: league.roster_positions,
+          specials: archivedSpecials ?? null,
           source_quality: {
             source_count: Object.keys(sources).length,
-            unknown_observation_times: Object.values(sources).filter(
-              (s: any) => !s.source_observed_at,
-            ).length,
+            unknown_observation_times: Object.values(sources).filter((s: any) => !s.source_observed_at).length,
           },
-          quotes,
-          specials: archivedSpecials ?? null,
-          model_config: config,
-          generated_at: generatedAt,
-        },
+        }, category);
+      } catch {
+        // Optional evaluation must not stop valid current prices when a target
+        // set exceeds its bounded evidence contract. The RPC records a gap.
+        compact = { context: {}, payload: { retention_format: "evaluation-unavailable", quotes: [] } };
+      }
+      const kickoffTimes = eventGames.map((g: { starts_at?: string }) => exactEventTime(g.starts_at));
+      const pregameCutoff = kickoffTimes.length && kickoffTimes.every(Boolean)
+        ? [...kickoffTimes].sort()[0] : null;
+      const saved = await userClient.rpc("save_model_forecast", {
+        p_run: assessmentRun, p_league: input.league_id, p_season: input.nfl_season,
+        p_week: input.week, p_category: category, p_version: version.data.id,
+        p_sources: compact.context,
+        p_payload: { ...compact.payload, pregame_cutoff: pregameCutoff, generated_at: generatedAt },
       });
       if (saved.error) {
-        console.error("Forecast archive failed", {
+        console.error("Evaluation capture failed", {
           code: saved.error.code,
           message: saved.error.message,
           details: saved.error.details,
@@ -720,7 +705,7 @@ export async function generateMarkets(
           category,
         });
         throw new Error(
-          `Forecast archive failed (${saved.error.code ?? "database"}): ${saved.error.message}. Existing lines retained.`,
+          `Evaluation capture failed (${saved.error.code ?? "database"}): ${saved.error.message}. Existing lines retained.`,
         );
       }
     };

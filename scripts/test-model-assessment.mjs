@@ -106,6 +106,12 @@ assert.equal(
 );
 assert.equal(report.selection[0].forecast_selection_gap, -20);
 assert.equal(report.selection[0].realized_selection_gap, -20);
+const inputBenchmark=assessWeek([{...run,payload:{...run.payload,pool:run.payload.pool.map(p=>({...p,sleeper_projection:p.id==="q"?95:85}))}}],[],outcome,cutoff)
+  .sleeper_comparison.find(r=>r.view==="actual_starters" && r.horizon==="opening");
+assert.equal(inputBenchmark.paired_n,1);
+assert.equal(inputBenchmark.adjusted.mae,10);
+assert.equal(inputBenchmark.sleeper.mae,5);
+assert.equal(inputBenchmark.mae_gain,-5,"The report must show when the Sleeper input is closer");
 assert.equal(
   report.markets.length,
   2,
@@ -269,6 +275,7 @@ const evidence = Array.from({ length: 24 }, (_, i) => {
         horizon: "opening",
         team_id: m.id,
         predicted: 100,
+        sleeper_predicted: 100,
         actual: 110,
         sd: 20,
         model_config: BASELINE,
@@ -277,9 +284,13 @@ const evidence = Array.from({ length: 24 }, (_, i) => {
     },
   };
 });
-const comparison = compareCandidate(evidence, BASELINE, false);
+const comparison = compareCandidate(evidence, BASELINE, false,{requireSleeper:true});
 assert(comparison.passed, JSON.stringify(comparison));
 assert.equal(comparison.candidate.score_scale, 1.02);
+const perfectSleeper=evidence.map(w=>({...w,report:{...w.report,scores:w.report.scores.map(r=>({...r,sleeper_predicted:r.actual}))}}));
+assert(!compareCandidate(perfectSleeper,BASELINE,false,{requireSleeper:true}).passed,"An adjustment cannot promote when Sleeper is better");
+const noSleeper=evidence.map(w=>({...w,report:{...w.report,scores:w.report.scores.map(r=>({...r,sleeper_predicted:null}))}}));
+assert(!compareCandidate(noSleeper,BASELINE,false,{requireSleeper:true}).passed,"Missing baseline is a coverage gap, not evidence of improvement");
 assert(!compareCandidate(evidence, BASELINE, true).passed);
 const leaked = evidence.map((w) => ({ ...w, known_at: "2030-01-01" }));
 assert(
@@ -310,7 +321,7 @@ const mockDb = {
           ? { active_id: "baseline", baseline_id: "baseline", paused: false }
           : name === "model_config_versions"
             ? { id: "baseline", config: BASELINE, parent_id: null }
-            : name === "model_forecast_runs"
+            : name === "sportsbook_evaluation_runs"
               ? [
                   {
                     ...run,
@@ -469,8 +480,15 @@ try {
   assert.equal(
     (await db.query("select count(*)::int as n from model_forecast_runs"))
       .rows[0].n,
-    1,
+    0,
+    "Legacy callers finish without creating another permanent raw archive.",
   );
+  assert.equal((await db.query("select skipped_requests::int n from model_evaluation_health where league_id=$1", [league])).rows[0].n, 2);
+  // Existing historical rows remain append-only. Seed this legacy record only
+  // in the disposable regression database; the normal writer no longer does so.
+  await db.query(`insert into model_forecast_runs(id,league_id,nfl_season,market_week,category,phase,provenance,
+    model_version,model_config,source_hash,sources,payload) values($1,$2,2026,4,'Matchups','pregame','as_of',$3,$4,'fixture','{}',$5)`,
+    [runId,league,c.active_id,JSON.stringify(c.config ?? BASELINE),JSON.stringify(payload)]);
   await assert.rejects(
     db.query("update model_forecast_runs set sources=$1 where id=$2", [
       "{}",

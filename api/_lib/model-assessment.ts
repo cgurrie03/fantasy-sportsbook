@@ -3,7 +3,7 @@ import { highLowProbabilities } from "./line-model.js";
 import { settleLeg } from "./settlement.js";
 import { settleFuture } from "./futures-settlement.js";
 
-export const ASSESSMENT_VERSION = "weekly-review-v2-fixed-horizons";
+export const ASSESSMENT_VERSION = "weekly-review-v3-compact-sleeper-baseline";
 export interface Config {
   score_scale: number;
   variance_scale: number;
@@ -279,7 +279,7 @@ export function assessWeek(
       model_version: run.model_version,
       model_config: run.payload.model_config,
     };
-    const archivedSettings = run.payload.quotes[0]?.metadata?.scoring_settings;
+    const archivedSettings = run.payload.scoring_settings ?? run.payload.quotes[0]?.metadata?.scoring_settings;
     if (
       archivedSettings &&
       outcome.sources?.settings?.scoring_settings &&
@@ -310,6 +310,10 @@ export function assessWeek(
         ? null
         : actualPicks.reduce((s: number, p: any) => s + p.expected, 0) *
           run.payload.model_config.score_scale;
+      const sleeperValue = (p: any) => Number.isFinite(p?.sleeper_projection)
+        ? p.sleeper_projection : Number.isFinite(p?.projection) ? p.projection : null;
+      const sleeperMean = !missing && actualPicks.every((p: any) => sleeperValue(p)!==null)
+        ? actualPicks.reduce((sum:number,p:any)=>sum+sleeperValue(p),0) : null;
       const selectedPoints = model.lineup.map(
         (p: any) => outcome.players[p.id],
       );
@@ -339,6 +343,7 @@ export function assessWeek(
           team_id: model.id,
           view: "actual_starters",
           predicted: starterMean,
+          sleeper_predicted: sleeperMean,
           actual: actual.points,
           sd: model.sd,
         });
@@ -371,6 +376,7 @@ export function assessWeek(
           injury: p.injury,
           played: final.played,
           predicted: p.expected,
+          sleeper_predicted: sleeperValue(p),
           actual: final.points,
           sd: p.assessment_sd ?? null,
         });
@@ -542,21 +548,25 @@ export function assessWeek(
             histogram: dist,
           });
         }
-        for (const [kind, samples, actual] of [
-          ["weekly_average", specials.averageScores, mean(values)],
-          ["weekly_highest_score", specials.highestScores, Math.max(...values)],
-        ] as const)
+        for (const [kind, field, compactField, actual] of [
+          ["weekly_average", "averageScores", "average_summary", mean(values)],
+          ["weekly_highest_score", "highestScores", "highest_summary", Math.max(...values)],
+        ] as const) {
+          const samples = specials[field] ?? [];
+          const { p10, p90, ...distribution } = specials[compactField] ?? {
+            ...describe(samples), p10: quantile(samples, 0.1), p90: quantile(samples, 0.9),
+          };
           distributions.push({
             ...context,
             kind,
-            predicted: mean(samples),
+            predicted: distribution.mean,
             actual,
             coverage80: Number(
-              actual! >= quantile(samples, 0.1)! &&
-                actual! <= quantile(samples, 0.9)!,
+              actual! >= p10! && actual! <= p90!,
             ),
-            distribution: describe(samples),
+            distribution,
           });
+        }
       }
     }
   }
@@ -596,6 +606,15 @@ export function assessWeek(
     cutoff,
     score_views: scoreViews,
     player_scores: numeric(players),
+    sleeper_comparison: ["opening","final_pregame"].flatMap((horizon)=>[
+      {view:"actual_starters",rows:scores.filter((r)=>r.view==="actual_starters" && r.horizon===horizon)},
+      {view:"players",rows:players.filter((r)=>r.horizon===horizon)},
+    ].map(({view,rows})=>{
+      const paired=rows.filter((r)=>Number.isFinite(r.sleeper_predicted));
+      const adjusted=numeric(paired),sleeper=numeric(paired.map((r)=>({...r,predicted:r.sleeper_predicted})));
+      return {view,horizon,paired_n:paired.length,missing:rows.length-paired.length,adjusted,sleeper,
+        mae_gain:paired.length?sleeper.mae!-adjusted.mae!:null};
+    })),
     players_by_position: [...new Set(players.map((p) => p.position))].flatMap(
       (position) =>
         ["opening", "final_pregame"].map((horizon) => ({
@@ -670,6 +689,8 @@ export function assessWeek(
       "Player probabilities and intervals are a new shadow normal diagnostic with shrunk historical variance; original fixed -110 prices are unchanged and availability mixtures are unvalidated.",
       "Normal independent-team uncertainty and joint simulations are assumptions, not guarantees.",
       "Futures final results require confirmed qualification, champion or regular-season outcomes.",
+      "Sleeper comparison uses matched as-of inputs with league scoring and actual starters; missing historical input benchmarks are not reconstructed.",
+      "Evaluation retains fixed-horizon numeric predictions and target IDs; raw provider, roster and simulation bodies are not retained for unrestricted replay.",
     ],
   };
 }
@@ -741,6 +762,7 @@ export function compareCandidate(
   weeks: any[],
   current: Config,
   paused: boolean,
+  options: { requireSleeper?: boolean } = {},
 ) {
   const ordered = [...weeks].sort((a, b) => a.period - b.period),
     n = ordered.length;
@@ -776,8 +798,9 @@ export function compareCandidate(
     ["holdout", holdout],
   ] as const) {
     const gains: number[] = [],
-      baselineGains: number[] = [];
+      baselineGains: number[] = [],sleeperGains:number[]=[];
     let count = 0;
+    let sleeperCount=0;
     for (const week of segment) {
       const rows = week.report.scores.filter(
         (r: any) => r.view === "actual_starters" && r.horizon === "opening",
@@ -804,6 +827,13 @@ export function compareCandidate(
         Math.abs(r.predicted / (r.model_config?.score_scale ?? 1) - r.actual),
       );
       count += rows.length;
+      if(options.requireSleeper) {
+        const paired=rows.filter((r:any)=>Number.isFinite(r.sleeper_predicted));
+        sleeperCount+=paired.length;
+        if(paired.length!==rows.length) reasons.push("Complete as-of Sleeper input benchmarks are required for promotion.");
+        if(rows.length && paired.length===rows.length)
+          sleeperGains.push(mean(paired.map((r:any)=>Math.abs(r.sleeper_predicted-r.actual)))!-mean(adjusted)!);
+      }
       if (rows.length) {
         gains.push(mean(errors)! - mean(adjusted)!);
         baselineGains.push(mean(frozen)! - mean(adjusted)!);
@@ -816,7 +846,10 @@ export function compareCandidate(
       if (!replay.passed) reasons.push(...replay.reasons);
     }
     const interval = blockInterval(gains),
-      frozenInterval = blockInterval(baselineGains);
+      frozenInterval = blockInterval(baselineGains),sleeperInterval=blockInterval(sleeperGains);
+    const sleeperPassed=!options.requireSleeper || (sleeperCount>=
+      (phase==="holdout"?GATES.min_holdout_observations:GATES.min_observations) &&
+      sleeperInterval.low!==null && sleeperInterval.low>=0 && (mean(sleeperGains)??-1)>=0);
     const original =
       mean(
         segment.flatMap((w) =>
@@ -837,7 +870,7 @@ export function compareCandidate(
       interval.low > 0 &&
       frozenInterval.low !== null &&
       frozenInterval.low >= 0 &&
-      (mean(gains) ?? 0) >= original * GATES.min_relative_gain;
+      (mean(gains) ?? 0) >= original * GATES.min_relative_gain && sleeperPassed;
     tests.push({
       phase,
       weeks: segment.length,
@@ -845,18 +878,22 @@ export function compareCandidate(
       mae_gain: mean(gains),
       interval,
       frozen_interval: frozenInterval,
+      sleeper_observations:sleeperCount,sleeper_mae_gain:mean(sleeperGains),
+      sleeper_interval:sleeperInterval,sleeper_passed:sleeperPassed,
       pass,
     });
     if (!pass)
       reasons.push(
         `${phase}: sample, practical improvement or week-block confidence gate failed.`,
       );
+    if(!sleeperPassed) reasons.push(`${phase}: candidate does not meet the matched Sleeper input benchmark.`);
   }
   return {
     candidate,
     current,
     gates: GATES,
     training_weeks: availableTrain.length,
+    require_sleeper:Boolean(options.requireSleeper),
     tests,
     passed: reasons.length === 0,
     reasons: [...new Set(reasons)],

@@ -13,6 +13,7 @@ export function ModelReview({
   const [review, setReview] = useState<any>(preview ?? null),
     [control, setControl] = useState<any>(null),
     [events, setEvents] = useState<any[]>([]),
+    [capture, setCapture] = useState<{leagueId:string;rows:any[]}|null>(null),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -38,7 +39,11 @@ export function ModelReview({
         .eq("league_id", leagueId)
         .order("id", { ascending: false })
         .limit(8),
-    ]).then(([r, c, e]) => {
+      supabase.from("model_evaluation_coverage")
+        .select("nfl_season,market_week,category,stored_requests,eligible_gaps,last_gap_reason")
+        .eq("league_id",leagueId)
+        .order("nfl_season",{ascending:false}).order("market_week",{ascending:false}).order("category").limit(4),
+    ]).then(([r, c, e, h]) => {
       if (cancelled) return;
       if (r.error || c.error || e.error) {
         setNotice(
@@ -49,6 +54,8 @@ export function ModelReview({
       setReview(r.data?.[0] ?? null);
       setControl(c.data);
       setEvents(e.data ?? []);
+      const latest=h.data?.[0];
+      setCapture({leagueId,rows:!h.error && latest ? (h.data??[]).filter((row:any)=>row.nfl_season===latest.nfl_season && row.market_week===latest.market_week) : []});
     });
     return () => {
       cancelled = true;
@@ -95,6 +102,9 @@ export function ModelReview({
           c?.decision ||
           "Waiting for a completed week with confirmed results and reconciled settlement."}
       </p>
+      {capture?.leagueId===leagueId && capture.rows.some((row)=>Number(row.eligible_gaps)>0) && (
+        <p className="report-note">Some {capture.rows[0].nfl_season} Week {capture.rows[0].market_week} forecasts could not be included in model evaluation. Current betting lines remain available; model changes still require sufficient evidence.</p>
+      )}
       {control && (
         <div className="model-review-actions">
           <span>
@@ -119,6 +129,19 @@ export function ModelReview({
       )}
       {r && (
         <>
+          <details>
+            <summary>Sleeper input comparison</summary>
+            <p className="report-note">Matched forecasts from the same prediction time and league scoring. Positive MAE improvement means our adjustment was closer. Missing older benchmarks are not reconstructed.</p>
+            {r.sleeper_comparison?.some((row:any)=>row.paired_n>0) ? (
+              <div className="model-review-scroll"><table>
+                <thead><tr><th>Forecast</th><th>Horizon</th><th>Matched</th><th>Our MAE</th><th>Sleeper input MAE</th><th>MAE improvement</th></tr></thead>
+                <tbody>{r.sleeper_comparison.map((row:any)=><tr key={row.view+row.horizon}>
+                  <td>{row.view==="players"?"Players":"Actual starters (team)"}</td><td>{row.horizon==="opening"?"Opening":"Final pregame"}</td>
+                  <td>{row.paired_n}</td><td>{value(row.adjusted?.mae)}</td><td>{value(row.sleeper?.mae)}</td><td>{value(row.mae_gain)}</td>
+                </tr>)}</tbody>
+              </table></div>
+            ) : <p>No matched Sleeper input benchmarks were recorded for this review.</p>}
+          </details>
           <p className="report-note">
             Opening and final pregame forecasts, including unbet and locked markets. Week{" "}
             {review.market_week + 1} is excluded until confirmed complete.

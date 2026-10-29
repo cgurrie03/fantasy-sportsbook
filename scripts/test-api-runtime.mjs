@@ -30,6 +30,7 @@ try {
     "_lib/model-assessment",
     "_lib/model-pipeline",
     "_lib/assessment-reads",
+    "_lib/compact-forecast",
     "_lib/count-options",
     "_lib/futures-model",
     "_lib/futures-settlement",
@@ -880,7 +881,7 @@ try {
           return json({ sleeper_league_id: "fixture", nfl_season: 2030 });
         if (endpoint === "line_refresh_runtime") return json(null);
         if (endpoint === "model_controls")
-          return json({ active_id: "baseline" });
+          return json({ active_id: "baseline", baseline_id: "baseline" });
         if (endpoint === "model_config_versions")
           return json({
             id: "baseline",
@@ -977,19 +978,22 @@ try {
       assert.equal(emptyResponse.status, 200, JSON.stringify(emptyBody));
       assert.equal(emptyBody.quotes[0].home_projection, 29);
       assert(emptyBody.quotes.every((q) => !q.metadata.lineup_locked));
-      const source = Object.values(archives[0].p_sources).find(
-        (s) => Array.isArray(s.payload) && s.payload.some((p) => p.player_id),
+      const source = archives[0].p_payload.pool;
+      assert(
+        source.some((p) => p.id === "free-k0" && Number.isFinite(p.expected)),
+        "Retain numeric replacement-contributor predictions",
       );
       assert(
-        source.payload.some((p) => p.player_id === "free-k0"),
-        "Archive replacement contributors",
-      );
-      assert(
-        !source.payload.some((p) => p.player_id === "free-k3"),
+        !source.some((p) => p.id === "free-k3"),
         "Omit unused unrostered projections",
       );
+      assert.equal(archives[0].p_payload.retention_format,"compact-forecast-v1");
+      assert.deepEqual(Object.keys(archives[0].p_sources).sort(),["roster_positions","scoring_settings"]);
+      assert(!JSON.stringify(archives[0].p_payload).includes('"stats"'));
+      assert.deepEqual(archives[1].p_payload.pool,[]);
+      assert.deepEqual(archives[1].p_payload.models,[]);
       console.log(
-        "Replacement integration: roster ownership, inactive exclusions, top-three average, unlocked team markets, real-player-only props and archived contributors pass.",
+        "Replacement integration preserves prices/eligibility and retains numeric contributor predictions without provider bodies.",
       );
     } finally {
       globalThis.fetch = originalFetch;

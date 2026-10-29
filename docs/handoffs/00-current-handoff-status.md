@@ -11,6 +11,12 @@ tested encrypted financial recovery checkpoint and narrower worker review reads;
 see [15-recovery-and-review-reads.md](15-recovery-and-review-reads.md). Raw archive
 writes and full-platform recovery remain open; no production cleanup occurred.
 
+The next development unit replaces raw model-evaluation refresh writes with
+bounded opening/latest-pregame numeric evidence and adds an explicit as-of
+Sleeper benchmark. See [16-compact-model-predictions.md](16-compact-model-predictions.md).
+Published-board archives, compact summaries and expiry remain unfinished; no
+production storage reduction or complete prospective learning controller is claimed.
+
 New explicit owner decision: **each approved user has their own wallet, including co-owners of the same fantasy team.** Wallets remain separate between leagues. This supersedes the unresolved shared-team-wallet question below. The existing team-keyed financial schema has not yet been migrated; do not represent the legacy wallet tests as verification of independent user wallets.
 
 Prior chat confirmed the current acceptance lifecycle is Wednesday–Thursday plus explicitly approved reopenings. Handoff 12's Monday-close example is conditional, not a change to acceptance rules.

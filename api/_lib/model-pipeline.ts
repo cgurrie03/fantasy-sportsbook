@@ -50,7 +50,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .eq("league_id", job.league_id),
     readAssessmentRows(
       db,
-      "model_forecast_runs",
+      "sportsbook_evaluation_runs",
       job.league_id,
       "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config",
     ),
@@ -285,7 +285,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
   // historical payload pages concurrently. Compact/checkpointed replay follows.
   for (let start = 0; start < unique.length; start += 2) {
     const page = await db
-        .from("model_forecast_runs")
+        .from("sportsbook_evaluation_runs")
         .select(
           "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config,payload",
         )
@@ -438,6 +438,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     evidence,
     version.data.config,
     control.paused,
+    { requireSleeper: true },
   );
   if (
     version.data.parent_id &&
