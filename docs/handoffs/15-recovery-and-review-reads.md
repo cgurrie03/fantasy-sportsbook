@@ -46,6 +46,9 @@ Production application and database changes still require exact release approval
 - Replay history selects the latest corrected report per period and at most 51
   prior periods. Creation-time ties use the highest ID, preserving the prior
   deterministic selection. It no longer reads every historical review revision.
+- Assessment version is `weekly-review-v2-fixed-horizons`, included in the
+  immutable assessment input hash, so a rerun does not silently reuse a v1 report
+  whose future-trajectory contract differs. Old reports remain preserved.
 - All review page readers require explicit columns. Heavy selected model payloads
   are loaded sequentially in groups of two rather than concurrent groups of 20.
   Tests retain scoring, settlement, chronological and promotion/rollback gates.

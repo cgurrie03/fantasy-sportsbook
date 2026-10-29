@@ -3,7 +3,7 @@ import { highLowProbabilities } from "./line-model.js";
 import { settleLeg } from "./settlement.js";
 import { settleFuture } from "./futures-settlement.js";
 
-export const ASSESSMENT_VERSION = "weekly-review-v1";
+export const ASSESSMENT_VERSION = "weekly-review-v2-fixed-horizons";
 export interface Config {
   score_scale: number;
   variance_scale: number;
