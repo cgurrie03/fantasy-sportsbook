@@ -1,4 +1,5 @@
 import { openSleeperMatchup } from "../lib/sleeper-link";
+import {useTicketPage} from '../lib/account-history';
 import { MatchupScore, MatchupScoresNotice } from "./MatchupScores";
 import { useTicketProgress } from "./TicketProgress";
 import { LeagueStandings } from "./LeagueStandings";
@@ -156,6 +157,11 @@ export function Sportsbook({
     [pendingOffer, setPendingOffer] = useState<PromoOffer | null>(null);
   const [teaserPreview, setTeaserPreview] = useState(false);
   const [placedTicketId, setPlacedTicketId] = useState<string | null>(null);
+  const placedReceipt=useTicketPage(!review&&placedTicketId?{leagueId:member.league_id,personal:true,revision:data.history_revision}:undefined,
+    {status:'All',week:'all',sort:'placed',direction:'desc',query:'',team:'all',personal:true,...(placedTicketId?{ticket:placedTicketId}:{})});
+  const receiptData=placedReceipt.data?{...data,...placedReceipt.data}:data;
+  const futureStakes=data.history_remote?data.betting_totals?.find(t=>t.team_id===member.team_id)?.open_future:
+    (data.tickets??[]).filter(t=>t.ticket_type==='future'&&t.status==='OPEN'&&t.team_id===member.team_id).reduce((sum,t)=>sum+Number(t.stake),0);
   const [teaserAdjustment, setTeaserAdjustment] = useState(9);
   const replaceDialog = useRef<HTMLDialogElement>(null);
   const eligibleOffers = offers.filter((o) => eligible(o, picks, clock));
@@ -440,7 +446,7 @@ export function Sportsbook({
     void reloadQuotes();
   }, [review, reloadQuotes]);
   useEffect(() => {
-    if (review) return;
+    if (review||tab!=='Leaderboard') return;
     let active = true;
     setStandingsLoading(true);
     void Promise.resolve(
@@ -467,7 +473,7 @@ export function Sportsbook({
     return () => {
       active = false;
     };
-  }, [member.league_id, review, data.tickets, reloadQuotes]);
+  }, [member.league_id, review, data.history_revision, reloadQuotes,tab]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -739,15 +745,16 @@ export function Sportsbook({
         </p>
       )}
       {placedTicketId &&
-        data.tickets
+        receiptData.tickets
           ?.filter(
             (t) => t.id === placedTicketId && t.league_id === member.league_id,
           )
           .map((t) => (
             <div className="receipt-placement" key={t.id}>
-              <TicketShare data={data} ticket={t} owner={member.display_name} />
+              <TicketShare data={receiptData} ticket={t} owner={member.display_name} />
             </div>
           ))}
+      {placedTicketId&&placedReceipt.error&&<p role="status">Your bet was accepted, but its share receipt could not load. <button onClick={placedReceipt.retry}>Retry receipt</button></p>}
       {review && (
         <p className="review-notice">
           {review.reviewLabel ??
@@ -1459,7 +1466,7 @@ export function Sportsbook({
               </button>
             </p>
           )}
-          {(!(data.history_loading || data.history_error) ||
+          {(data.history_remote||!(data.history_loading || data.history_error) ||
             !!data.tickets?.length) && (
             <TicketHistory
               leagueId={member.league_id}
@@ -1820,18 +1827,11 @@ export function Sportsbook({
           <p className="wager-help">
             Futures stakes remain part of your active balance. Weekly cash
             minimum:{" "}
-            {money(
+            {futureStakes===undefined||data.betting_error?'Unavailable until account totals refresh':money(
               Math.max(
                 25,
                 100 -
-                  (data.tickets ?? [])
-                    .filter(
-                      (t) =>
-                        t.ticket_type === "future" &&
-                        t.status === "OPEN" &&
-                        t.team_id === member.team_id,
-                    )
-                    .reduce((sum, t) => sum + Number(t.stake), 0) -
+                  futureStakes -
                   wager,
               ),
             )}

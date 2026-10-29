@@ -5,7 +5,10 @@ import { ModelReview } from "./ModelReview";
 import "./ModelReview.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccountData } from "../lib/accounts";
-import { errorMessage, money, loadAccounts } from "../lib/accounts";
+import { errorMessage, money } from "../lib/accounts";
+import {useFinancialReport,fetchFinancialPage} from '../lib/financial-reports';
+import type {FinancialScope,FinancialPage} from '../lib/financial-reports';
+import {collectReportRows} from '../lib/paged-report-export';
 import {
   loadReportForecasts,
   forecastMetadataColumns,
@@ -97,12 +100,11 @@ export function Reports({
   const [forecastStatus, setForecastStatus] = useState("");
   const [captureNotice,setCaptureNotice]=useState<{scope:string;text:string}|null>(null);
   const [archive,setArchive]=useState<{scope:string;rows:any[];error:string}>({scope:'',rows:[],error:''});
+  const [historySeasons,setHistorySeasons]=useState<{leagueId:string;rows:number[];error:string}>({leagueId:'',rows:[],error:''});
   const forecastRequest = useRef<{ scope: string; pending: boolean } | null>(
     null,
   );
-  const [liveData, setLiveData] = useState(initialData);
-  const data = previewData ? initialData : liveData;
-  useEffect(() => setLiveData(initialData), [initialData]);
+  const data=initialData;
   const inFlight = useRef(false);
   const exportNode = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -155,6 +157,26 @@ export function Reports({
   const teams = data.teams.filter(
     (t) => t.league_id === leagueId && (!team || t.id === team),
   );
+  const financialScope:FinancialScope|undefined=!previewData&&[8,9,10,11].includes(report)?
+    {leagueId,report:report as 8|9|10|11,season,week,team}:undefined;
+  const financial=useFinancialReport(financialScope);
+  const financialTotals=(financial.data?.totals??[]).filter(t=>teams.some(team=>team.id===t.team_id));
+  const financialReady=!!financial.data&&(![8,11].includes(report)||teams.every(team=>financialTotals.some(t=>t.team_id===team.id)));
+  const needsScores=report<=7||report===12||report===13;
+  const sourceScope=`${leagueId}:${season}:${report}`;
+  const currentSourceScope=useRef(sourceScope);currentSourceScope.current=sourceScope;
+  const exportScope=JSON.stringify([leagueId,season,report,week,team]);
+  const currentExportScope=useRef(exportScope);currentExportScope.current=exportScope;
+  const exportAlive=useRef(true);
+  useEffect(()=>{exportAlive.current=true;return()=>{exportAlive.current=false;};},[]);
+  useEffect(()=>{
+    if(previewData||!supabase)return;
+    let current=true;const controller=new AbortController();
+    void supabase.rpc('account_history_seasons',{p_league:leagueId}).abortSignal(AbortSignal.any([controller.signal,AbortSignal.timeout(15000)]))
+      .then(({data,error})=>{if(current)setHistorySeasons({leagueId,rows:!error&&Array.isArray(data)?data.filter((year:unknown)=>Number.isInteger(year)&&Number(year)>=2020&&Number(year)<=2100):[],
+        error:error?'Historical season list could not load. Reopen Reports to retry.':''});});
+    return()=>{current=false;controller.abort();};
+  },[leagueId,previewData]);
   useEffect(()=>{
     if(previewData||!supabase||report!==13)return;
     let active=true;const controller=new AbortController();const scope=`${leagueId}:${season}:${week}`;
@@ -192,10 +214,13 @@ export function Reports({
       setReport(routeReport);
   }, [routeReport, previewData]);
   const load = useCallback(async () => {
+    if(currentSourceScope.current!==sourceScope)return false;
+    if(!needsScores){forecastRequest.current=null;setForecastStatus('');}
     const scope = leagueId + ":" + season;
     if (
+      needsScores&&(
       !forecastRequest.current?.pending ||
-      forecastRequest.current.scope !== scope
+      forecastRequest.current.scope !== scope)
     ) {
       const request = { scope, pending: true };
       forecastRequest.current = request;
@@ -246,26 +271,27 @@ export function Reports({
         });
     }
     const responses = await Promise.all([
-      supabase!
+      needsScores?supabase!
         .from("league_result_weeks")
-        .select("*")
+        .select("nfl_season,market_week,final,fetched_at,results")
         .eq("league_id", leagueId)
         .eq("nfl_season", season)
-        .order("market_week"),
-      supabase!
+        .order("market_week").limit(18):Promise.resolve({data:[],error:null}),
+      report===14?supabase!
         .from("automation_jobs")
         .select("id,status,operation,created_at,last_error")
         .eq("league_id", leagueId)
         .order("created_at", { ascending: false })
-        .limit(100),
-      supabase!
+        .limit(100):Promise.resolve({data:[],error:null}),
+      report===15?supabase!
         .from("outbound_emails")
         .select("id,status,kind,recipient,created_at,last_error")
         .eq("league_id", leagueId)
         .order("created_at", { ascending: false })
-        .limit(100),
-      supabase!.rpc("sportsbook_period", { p_league: leagueId }),
+        .limit(100):Promise.resolve({data:[],error:null}),
+      needsScores?supabase!.rpc("sportsbook_period", { p_league: leagueId }):Promise.resolve({data:[],error:null}),
     ]);
+    if(currentSourceScope.current!==sourceScope)return false;
     for (const r of responses) if (r.error) throw r.error;
     const cached = (responses[0].data ?? []) as ScoreWeek[];
     setWeeks(cached);
@@ -276,11 +302,10 @@ export function Reports({
     setExpectedCompleted(expected);
     setJobs((responses[1].data ?? []) as Log[]);
     setEmails((responses[2].data ?? []) as Log[]);
-    setLiveData(await loadAccounts(undefined,undefined,{leagueId}));
     setAsOf(
       new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
     );
-    return (
+    return needsScores&&(
       Array.from({ length: expected }, (_, i) => i + 1).some(
         (w) => !cached.some((row) => row.market_week === w && row.final),
       ) ||
@@ -289,7 +314,7 @@ export function Reports({
         (w) => !w.final && Date.now() - Date.parse(w.fetched_at) > 300000,
       )
     );
-  }, [leagueId, season]);
+  }, [leagueId, season,report,needsScores,sourceScope]);
   const refresh = useCallback(
     async (allWeeks = false) => {
       if (inFlight.current) return;
@@ -297,6 +322,7 @@ export function Reports({
       setBusy(true);
       setNotice("");
       try {
+        if(currentSourceScope.current!==sourceScope)return;
         if (season !== league.nfl_season)
           throw new Error(
             "Historical seasons show stored data; Sleeper refresh is available for the connected season.",
@@ -305,6 +331,7 @@ export function Reports({
           ?.access_token;
         // Backfill at most 18 weeks in resumable two-week batches, without sending emails.
         for (let i = 0; i < 9; i++) {
+          if(currentSourceScope.current!==sourceScope)return;
           const response = await fetch("/api/report-results", {
             method: "POST",
             headers: {
@@ -315,6 +342,7 @@ export function Reports({
               league_id: leagueId,
               ...(week && !allWeeks ? { week } : {}),
             }),
+            signal:AbortSignal.timeout(30000),
           });
           const raw = await response.text();
           let result: {
@@ -336,15 +364,15 @@ export function Reports({
             break;
         }
         await load();
-        setNotice("Sleeper results refreshed successfully.");
+        if(currentSourceScope.current===sourceScope)setNotice("Sleeper results refreshed successfully.");
       } catch (e) {
-        setNotice(errorMessage(e));
+        if(currentSourceScope.current===sourceScope)setNotice(errorMessage(e));
       } finally {
         inFlight.current = false;
         setBusy(false);
       }
     },
-    [load, season, league.nfl_season, leagueId, week],
+    [load, season, league.nfl_season, leagueId, week,sourceScope],
   );
   useEffect(() => {
     if (previewData) return;
@@ -627,20 +655,20 @@ export function Reports({
     add(
       ["Team", "Tickets", "Settled", "Net profit", "ROI"],
       teams.map((t) => {
-        const s = bettingStats(data, t.id, week, season);
+        const s = financialScope?financialTotals.find(row=>row.team_id===t.id):bettingStats(data, t.id, week, season);
         return [
           owner(t.id),
-          s.placed,
-          s.settled,
-          money(s.profit),
-          percent(s.roi),
+          s?.placed??'—',
+          s?.settled??'—',
+          s?money(s.profit):'—',
+          s?percent(s.roi):'—',
         ];
       }),
     );
   if (report === 9)
     add(
       ["Date", "Team", "Event", "Balance before", "Balance after"],
-      data.ledger
+      (financialScope?(financial.data?.rows??[]):data.ledger)
         .filter((l) => teams.some((t) => t.id === l.team_id))
         .map((l) => [
           new Date(l.created_at).toLocaleString("en-US", {
@@ -696,7 +724,7 @@ export function Reports({
         "Push / Void",
         "Pending",
       ],
-      [...counts]
+      financialScope?(financial.data?.rows??[]).map(r=>[r.label,r.count,money(r.stakes),r.won,r.lost,r.pushed,r.open]):[...counts]
         .sort((a, b) => b[1].count - a[1].count)
         .map(([s, n]) => [
           s,
@@ -719,7 +747,7 @@ export function Reports({
         "Stake",
         "Potential payout",
       ],
-      filteredTickets
+      (financialScope?(financial.data?.tickets??[]):filteredTickets)
         .filter((t) => t.status === "OPEN")
         .map((t) => [
           owner(t.team_id),
@@ -1012,14 +1040,15 @@ export function Reports({
       "$",
       "Totals use entries with known before/after balances. Opening entries are excluded. Credits include replenishments and admin changes, so this is cash flow rather than betting ROI.",
       teams.map((t) => {
+        const total=financialScope?financial.data?.by_team?.find(row=>row.team_id===t.id):undefined;
         const changes = data.ledger
           .filter((l) => l.team_id === t.id && l.balance_before !== null)
           .map((l) => Number(l.balance_after) - Number(l.balance_before))
           .filter(Number.isFinite);
         return {
           label: owner(t.id),
-          value: changes.filter((n) => n < 0).reduce((sum, n) => sum - n, 0),
-          second: changes.filter((n) => n > 0).reduce((sum, n) => sum + n, 0),
+          value: total?.debits??changes.filter((n) => n < 0).reduce((sum, n) => sum - n, 0),
+          second: total?.credits??changes.filter((n) => n > 0).reduce((sum, n) => sum + n, 0),
         };
       }),
       ["Deductions", "Credits"],
@@ -1030,7 +1059,7 @@ export function Reports({
       "Most frequently selected lines",
       "tickets",
       "Top 12 by ticket appearances. A parlay contributes one appearance to each selection it contains, so these counts are not independent tickets.",
-      table
+      (financialScope?(financial.data?.top??[]).map(r=>[r.label,r.count]):table)
         .slice(0, 12)
         .map((r) => ({ label: String(r[0]), value: number(r[1]) })),
     );
@@ -1042,7 +1071,7 @@ export function Reports({
       "Stake committed to open tickets, grouped by team and category. This compares tied-up cash; it does not sum potential payouts.",
       teams.map((t) => ({
         label: owner(t.id),
-        value: filteredTickets
+        value: financialScope?financialTotals.filter(row=>row.team_id===t.id).reduce((n,row)=>n+row.open-row.open_future,0):filteredTickets
           .filter(
             (q) =>
               q.team_id === t.id &&
@@ -1050,7 +1079,7 @@ export function Reports({
               q.ticket_type !== "future",
           )
           .reduce((n, q) => n + Number(q.stake), 0),
-        second: filteredTickets
+        second: financialScope?financialTotals.filter(row=>row.team_id===t.id).reduce((n,row)=>n+row.open_future,0):filteredTickets
           .filter(
             (q) =>
               q.team_id === t.id &&
@@ -1191,13 +1220,13 @@ export function Reports({
     const settled = filteredTickets.filter((t) =>
         ["WON", "LOST", "PUSH"].includes(t.status),
       ),
-      stake = settled.reduce((n, t) => n + Number(t.stake), 0),
-      profit = settled.reduce(
+      stake = financialScope?financialTotals.reduce((n,t)=>n+t.stake,0):settled.reduce((n, t) => n + Number(t.stake), 0),
+      profit = financialScope?financialTotals.reduce((n,t)=>n+t.profit,0):settled.reduce(
         (n, t) => n + Number(t.actual_payout) - Number(t.stake),
         0,
       );
     kpis = [
-      ["Settled tickets", settled.length],
+      ["Settled tickets", financialScope?financialTotals.reduce((n,t)=>n+t.settled,0):settled.length],
       ["Settled stakes", money(stake)],
       ["Net settled profit", money(profit)],
       ["Return on settled stakes", percent(stake ? profit / stake : null)],
@@ -1205,33 +1234,33 @@ export function Reports({
   }
   if (report === 9)
     kpis = [
-      ["Balance entries", table.length],
+      ["Balance entries", financialScope?financial.data?.total??'—':table.length],
       ["Teams in view", teams.length],
       [
         "Recorded current cash",
-        money(
+        data.wallets.filter(w=>teams.some(t=>t.id===w.team_id)&&w.balance!==null).length!==teams.length?'Some balances are not set':money(
           data.wallets
             .filter((w) => teams.some((t) => t.id === w.team_id))
             .reduce((n, w) => n + Number(w.balance), 0),
         ),
       ],
-      ["Displayed history", "Latest available"],
+      ["Displayed history", financialScope?'Current page · All seasons':"Latest available"],
     ];
   if (report === 10)
     kpis = [
-      ["Unique selection labels", table.length],
-      ["Ticket appearances", table.reduce((n, r) => n + number(r[1]), 0)],
-      ["Most selected appearances", table[0]?.[1] ?? "—"],
+      ["Unique selection labels", financialScope?financial.data?.total??'—':table.length],
+      ["Ticket appearances", financialScope?financial.data?.appearances??'—':table.reduce((n, r) => n + number(r[1]), 0)],
+      ["Most selected appearances", financialScope?financial.data?.maximum??'—':table[0]?.[1] ?? "—"],
       ["Stake basis", "Per appearance"],
     ];
   if (report === 11) {
     const open = filteredTickets.filter((t) => t.status === "OPEN");
     kpis = [
-      ["Open tickets", open.length],
+      ["Open tickets", financialScope?financialTotals.reduce((n,t)=>n+t.open_count,0):open.length],
       [
         "Weekly stakes",
         money(
-          open
+          financialScope?financialTotals.reduce((n,t)=>n+t.open-t.open_future,0):open
             .filter((t) => t.ticket_type !== "future")
             .reduce((n, t) => n + Number(t.stake), 0),
         ),
@@ -1239,14 +1268,14 @@ export function Reports({
       [
         "Futures stakes",
         money(
-          open
+          financialScope?financialTotals.reduce((n,t)=>n+t.open_future,0):open
             .filter((t) => t.ticket_type === "future")
             .reduce((n, t) => n + Number(t.stake), 0),
         ),
       ],
       [
         "Total committed stakes",
-        money(open.reduce((n, t) => n + Number(t.stake), 0)),
+        money(financialScope?financialTotals.reduce((n,t)=>n+t.open,0):open.reduce((n, t) => n + Number(t.stake), 0)),
       ],
     ];
   }
@@ -1299,7 +1328,7 @@ export function Reports({
         format,
       );
       setNotice(
-        `${format.toUpperCase()} prepared with the selected filters. Long detail tables show 40 rows; CSV includes every row.`,
+        `${format.toUpperCase()} prepared with the selected filters. ${financialScope&&report!==8?'This image/document shows the current detail page and full filtered summary totals; CSV retrieves all matching records within the export budget.':'Long detail tables show 40 rows; CSV includes every row.'}`,
       );
     } catch (e) {
       setNotice(`Export failed: ${errorMessage(e)}`);
@@ -1332,11 +1361,26 @@ export function Reports({
         teamPerformance(r.team).average ?? "",
       ]),
     );
-  const exportCsv = () => {
+  const financialCsvRows=(result:FinancialPage):(string|number)[][]=>report===9?(result.rows??[]).map(row=>[
+    new Date(row.created_at).toLocaleString('en-US',{timeZone:'America/New_York'}),owner(row.team_id),row.reason,row.balance_before===null?'—':money(row.balance_before),money(row.balance_after)]):
+    report===10?(result.rows??[]).map(row=>[row.label,row.count,money(row.stakes),row.won,row.lost,row.pushed,row.open]):
+    (result.tickets??[]).map(t=>[owner(t.team_id),t.legacy_ticket_id??t.id.slice(0,8),t.market_week,t.ticket_type??'weekly',money(t.stake),money(t.accepted_potential_payout??0)]);
+  const exportCsv = async () => {
     setExportOpen(false);
-    const csv = [columns, ...table]
+    setExporting(true);
+    const stillCurrent=()=>exportAlive.current&&currentExportScope.current===exportScope;
+    try{
+    let exportedTable=table;
+    if(financialScope&&report!==8){
+      const signal=AbortSignal.timeout(60000);
+      const rows=await collectReportRows(cursor=>fetchFinancialPage(financialScope,cursor,AbortSignal.any([signal,AbortSignal.timeout(20000)]),40),signal,stillCurrent);
+      exportedTable=financialCsvRows(report===11?{tickets:rows as NonNullable<FinancialPage['tickets']>}:{rows});
+    }
+    if(!stillCurrent())throw new Error('Report filters changed. Export canceled.');
+    const csv = [columns, ...exportedTable]
       .map((row) => row.map(csvCell).join(","))
       .join("\r\n");
+    if(new TextEncoder().encode(csv).length>10*1024*1024)throw new Error('CSV exceeds its size budget. Choose narrower filters.');
     const url = URL.createObjectURL(
       new Blob([csv], { type: "text/csv;charset=utf-8" }),
     );
@@ -1345,6 +1389,8 @@ export function Reports({
     link.download = `league-${leagueId}-report-${season}-${report}${week ? `-week-${week}` : ""}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    }catch(e){if(stillCurrent())setNotice(`Export failed: ${errorMessage(e)}`);}
+    finally{if(exportAlive.current)setExporting(false);}
   };
   return (
     <section className="admin-workspace reports">
@@ -1375,6 +1421,7 @@ export function Reports({
         <label>
           Season
           <select
+            disabled={report===9}
             value={season}
             onChange={(e) => {
               setSeason(Number(e.target.value));
@@ -1384,6 +1431,7 @@ export function Reports({
             {[
               ...new Set([
                 league.nfl_season,
+                ...(historySeasons.leagueId===leagueId?historySeasons.rows:[]),
                 ...forecasts.map((f) => f.nfl_season),
               ]),
             ].map((s) => (
@@ -1400,11 +1448,11 @@ export function Reports({
           >
             <option value={0}>All weeks</option>
             {[
-              ...new Set(
+              ...new Set([...(financialScope&&report!==9?Array.from({length:18},(_,i)=>i+1):[]),...
                 (report === 0 ? weeks.filter((w) => w.final) : weeks).map(
                   (w) => w.market_week,
                 ),
-              ),
+              ]),
             ].map((w) => (
               <option key={w} value={w}>
                 Week {w}
@@ -1431,14 +1479,14 @@ export function Reports({
         </label>
         <button
           className="primary"
-          disabled={busy || Boolean(previewData)}
-          onClick={() => void refresh()}
+          disabled={busy || Boolean(previewData)||Boolean(financialScope&&financial.busy)}
+          onClick={() => financialScope?financial.refresh():needsScores?void refresh():void load()}
         >
-          {busy ? "Refreshing…" : "Refresh Sleeper Data"}
+          {busy||financialScope&&financial.busy ? "Refreshing…" : financialScope||!needsScores?"Refresh report":"Refresh Sleeper Data"}
         </button>
         <div className="report-export-menu" ref={exportMenu}>
           <button
-            disabled={exporting}
+            disabled={exporting||Boolean(financialScope&&!financialReady)}
             aria-expanded={exportOpen}
             aria-controls="report-export-options"
             onClick={() => setExportOpen(!exportOpen)}
@@ -1463,7 +1511,7 @@ export function Reports({
           )}
         </div>
       </div>
-      {forecastStatus && (
+      {needsScores&&forecastStatus && (
         <p className="report-notice" role="status">
           {forecastStatus}
         </p>
@@ -1476,7 +1524,9 @@ export function Reports({
           {notice}
         </p>
       )}
-      <div ref={exportNode} className="report-export-surface">
+      {historySeasons.leagueId===leagueId&&historySeasons.error&&<p role="status">{historySeasons.error}</p>}
+      {financialScope&&!financialReady&&<p role={financial.error?'alert':'status'}>{financial.error|| (financial.busy?'Loading financial report…':'Financial summary is incomplete. Refresh the report.')} <button onClick={financial.refresh} disabled={financial.busy}>Retry financial report</button></p>}
+      {(!financialScope||financialReady)&&<div ref={exportNode} className="report-export-surface">
         {report === 13 && !previewData && (
           <ModelReview key={leagueId} leagueId={leagueId} />
         )}
@@ -1515,10 +1565,10 @@ export function Reports({
         <article className="admin-panel">
           <div className="report-heading">
             <h2>{titles[report]}</h2>
-            <small>Page checked {asOf || "—"} · Eastern</small>
+            <small>Page checked {financialScope?new Date(financial.data!.checked_at!).toLocaleString('en-US',{timeZone:'America/New_York'}):asOf || "—"} · Eastern</small>
           </div>
           <p className="report-description">{descriptions[report]}</p>
-          <section className="report-note" aria-label="Report source freshness">
+          {needsScores&&<section className="report-note" aria-label="Report source freshness">
             <strong>
               Source coverage:{" "}
               {weeks.filter((w) => w.final).length
@@ -1547,7 +1597,7 @@ export function Reports({
                     : "No saved results yet. Refresh results to import this week."}
                 </p>
               ))}
-          </section>
+          </section>}
           {report === 13 && (
             <p className="report-note report-model-explainer">
               This report needs an original archived opening forecast and a
@@ -1893,8 +1943,14 @@ export function Reports({
               not confirmed inbox delivery.
             </p>
           )}
+          {financialScope&&report!==8&&<nav aria-label="Financial report pages">
+            <p>Page {financial.page} · {financial.data?.total} {report===9?'balance entries':report===10?'selection labels':'open tickets'}. Summary totals and charts cover all matching records.</p>
+            <button disabled={financial.busy||financial.page<=1} onClick={financial.previous}>Previous page</button>
+            <button disabled={financial.busy||!financial.data?.next} onClick={financial.next}>Next page</button>
+          </nav>}
+          {financialScope&&report===9&&<p className="report-note">Recorded ledger entries and balance adjustments across all seasons. Opening entries are excluded from cash-flow totals. Imported wagers without ledger records appear in Balance History.</p>}
         </article>
-      </div>
+      </div>}
     </section>
   );
 }

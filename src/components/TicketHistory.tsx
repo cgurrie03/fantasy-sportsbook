@@ -142,7 +142,7 @@ export function TicketHistory({
       owner={owner}
       personal={personal}
       id="admin-ticket-filters"
-      remote={remote&&leagueId?{leagueId,personal,revision:data}:undefined}
+      remote={remote&&leagueId?{leagueId,personal,revision:data.history_revision}:undefined}
       teamOptions={data.teams.filter(t=>t.league_id===(leagueId??tickets[0]?.league_id)).map(t=>t.id)}
       onVisibleChange={remote?setVisibleTickets:undefined}
       searchText={(t) =>
@@ -426,7 +426,7 @@ export function BettingLogs({
 }) {
   return (
     <TicketFilters tickets={tickets} owner={owner} id="admin-log-filters"
-      remote={data?.history_remote&&leagueId?{leagueId,revision:data}:undefined}
+      remote={data?.history_remote&&leagueId?{leagueId,revision:data.history_revision,details:false}:undefined}
       teamOptions={data?.teams.filter(t=>t.league_id===leagueId).map(t=>t.id)}>
       {(visible) => <BettingLogTable tickets={visible} owner={owner} />}
     </TicketFilters>

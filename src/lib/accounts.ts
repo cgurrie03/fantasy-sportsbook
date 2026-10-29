@@ -1,5 +1,4 @@
 import { supabase } from "./supabase";
-import { readAllRows } from "./pagination";
 export interface League {
   sportsbook_url?: string | null;
   email_sender?: string | null;
@@ -58,6 +57,10 @@ export interface Ledger {
   kind: string;
 }
 export interface AccountData {
+  history_revision?:number;
+  betting_totals?:BettingTotal[];
+  betting_scope?:{leagueId:string;season:number|null;week:number|null};
+  betting_error?:string;
   history_remote?:boolean;
   history_league_id?: string;
   history_loading?: boolean;
@@ -71,6 +74,10 @@ export interface AccountData {
   tickets?: Ticket[];
   legs?: TicketLeg[];
   ticketPromotions?: TicketPromotion[];
+}
+export interface BettingTotal {
+  team_id:string;placed:number;settled:number;stake:number;profit:number;roi:number|null;
+  open:number;open_future:number;open_count:number;open_weekly_count:number;all_stake:number;
 }
 export interface TicketPromotion {
   ticket_id: string;
@@ -113,144 +120,42 @@ export interface TicketLeg {
 export async function loadAccounts(
   previous?: AccountData,
   onCore?: (data: AccountData) => void,
-  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal;history?:'all'|'tickets'|'balance'} = {},
+  options: {leagueId?:string;claim?:boolean;coreOnly?:boolean;signal?:AbortSignal;history?:'tickets'|'balance'|'aggregate'|'none'} = {},
 ): Promise<AccountData> {
   if (!supabase) throw new Error("Account Service Is Not Configured.");
   const signal=options.signal??AbortSignal.timeout(30000);
-  if(options.claim){const claim = await supabase
-    .rpc("claim_memberships")
-    .abortSignal(signal);
-  if (claim.error) throw claim.error;}
-  const queries = [
-    supabase
-      .from("leagues")
-      .select("*")
-      .abortSignal(signal),
-    supabase
-      .from("teams")
-      .select("*")
-      .order("roster_id")
-      .abortSignal(signal),
-    supabase
-      .from("league_memberships")
-      .select("*")
-      .abortSignal(signal),
-    supabase
-      .from("wallets")
-      .select("*")
-      .abortSignal(signal),
-  ];
-  const core=await Promise.all(queries);
+  if(options.claim){
+    const claim=await supabase.rpc('claim_memberships').abortSignal(signal);
+    if(claim.error)throw claim.error;
+  }
+  // Directory reads are small and explicit. Financial detail belongs to scoped page RPCs.
+  const core=await Promise.all([
+    supabase.from('leagues').select('id,name,league_season,nfl_season,avatar_url,sleeper_league_id,sportsbook_url,email_sender,operations_enabled').order('id').limit(129).abortSignal(signal),
+    supabase.from('teams').select('id,league_id,roster_id,team_name,sportsbook_owner_id,sportsbook_owner_name,co_owner_names,avatar_url,wins,losses,ties').order('roster_id').order('id').limit(513).abortSignal(signal),
+    supabase.from('league_memberships').select('id,league_id,team_id,user_id,invited_email,display_name,role').order('league_id').order('id').limit(513).abortSignal(signal),
+    supabase.from('wallets').select('team_id,balance').order('team_id').limit(513).abortSignal(signal),
+  ]);
   for(const result of core)if(result.error)throw result.error;
   signal.throwIfAborted();
+  if(core.some((r,i)=>(r.data?.length??0)>(i===0?128:512))||new TextEncoder().encode(JSON.stringify(core.map(r=>r.data))).length>524288)
+    throw new Error('Account directory exceeds its read budget. Contact the league administrator.');
   const leagueId=options.leagueId??core[0].data?.[0]?.id;
   if(options.leagueId&&!core[0].data?.some(l=>l.id===options.leagueId))throw new Error('League access is no longer available.');
-  const prior=previous?.history_league_id===leagueId?previous:undefined;
   const snapshot:AccountData={leagues:core[0].data as League[],teams:core[1].data as Team[],memberships:core[2].data as Membership[],wallets:core[3].data as Wallet[],
-    events:prior?.events??[],ledger:prior?.ledger??[],tickets:prior?.tickets??[],legs:prior?.legs??[],ticketPromotions:prior?.ticketPromotions??[],
-    history_league_id:options.coreOnly?undefined:leagueId,history_loading:!options.coreOnly};
-  if(options.coreOnly||!leagueId)return {...snapshot,history_loading:false};
-  if(options.history==='tickets'||options.history==='balance')return {...snapshot,events:[],ledger:[],tickets:[],legs:[],ticketPromotions:[],history_remote:true,history_loading:false};
-  onCore?.(snapshot);
-  const teamIds=snapshot.teams.filter(t=>t.league_id===leagueId).map(t=>t.id);
-  if(!teamIds.length)return {...snapshot,history_loading:false};
-  const historyQueries=[
-    readAllRows((from, to) =>
-      supabase!
-        .from("balance_events")
-        .select("*")
-        .in('team_id',teamIds)
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(from, to)
-        .abortSignal(signal),
-    ),
-    readAllRows((from, to) =>
-      supabase!
-        .from("tickets")
-        .select(
-          "id,league_id,nfl_season,team_id,legacy_ticket_id,placement_week,market_week,placed_at,settled_at,stake,accepted_combined_odds,ticket_type,accepted_potential_payout,actual_payout,status",
-        )
-        .eq('league_id',leagueId)
-        .order("placed_at", { ascending: false })
-        .order("id")
-        .range(from, to)
-        .abortSignal(signal),
-    ),
-    readAllRows((from, to) =>
-      supabase!
-        .from("ticket_legs")
-        .select(
-          "id,ticket_id,leg_number,selection,market_type,matchup,status,actual_value,result_evidence,accepted_line,settlement_context,market_kind:settlement_context->>kind,subject_team_id:settlement_context->>team_id,ticket:tickets!inner(league_id)",
-        )
-        .eq('ticket.league_id',leagueId)
-        .order("leg_number")
-        .order("id")
-        .range(from, to)
-        .abortSignal(signal),
-    ),
-    readAllRows((from, to) =>
-      supabase!
-        .from("wallet_ledger")
-        .select("*")
-        .in('team_id',teamIds)
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(from, to)
-        .abortSignal(signal),
-    ),
-    readAllRows((from, to) =>
-      supabase!
-        .from("ticket_promotions")
-        .select("ticket_id,kind,boost_pct,base_decimal,ticket:tickets!inner(league_id)")
-        .eq('ticket.league_id',leagueId)
-        .order("ticket_id")
-        .range(from, to)
-        .abortSignal(signal),
-    ),
-  ].map((query) =>
-    Promise.resolve(query).catch((error) => ({ data: null, error })),
-  );
-  const results = [...core,...await Promise.all(historyQueries)];
+    events:[],ledger:[],tickets:[],legs:[],ticketPromotions:[],history_remote:true,
+    history_league_id:options.coreOnly?undefined:leagueId,history_loading:false,
+    history_revision:previous?.history_league_id===leagueId?(previous?.history_revision??0)+1:0};
+  if(options.coreOnly||!leagueId||options.history!=='aggregate')return snapshot;
+  const prior=previous?.history_league_id===leagueId?previous:undefined;
+  const previousScope=prior?.betting_scope;
+  const cached=previousScope&&previousScope.leagueId===leagueId&&previousScope.season===null&&previousScope.week===null?prior?.betting_totals:undefined;
+  onCore?.({...snapshot,history_revision:previous?.history_revision??0,betting_totals:cached,betting_scope:{leagueId,season:null,week:null},history_loading:true});
+  const totals=await supabase.rpc('account_betting_totals',{p_league:leagueId,p_season:null,p_week:null}).abortSignal(signal);
   signal.throwIfAborted();
-  const ticketFailure = !!(
-    results[5].error ||
-    results[6].error ||
-    results[8].error
-  );
-  const historyFailure =
-    ticketFailure || !!(results[4].error || results[7].error);
-  if (historyFailure)
-    console.error(
-      "Account history refresh failed",
-      results.slice(4).map((r) => r.error),
-    );
-  return {
-    history_league_id:leagueId,
-    history_loading: false,
-    history_error: historyFailure
-      ? "History could not refresh. Showing the last available records."
-      : undefined,
-    leagues: results[0].data as League[],
-    teams: results[1].data as Team[],
-    memberships: results[2].data as Membership[],
-    wallets: results[3].data as Wallet[],
-    events: (results[4].error
-      ? (prior?.events ?? [])
-      : results[4].data) as Event[],
-    ledger: (results[7].error
-      ? (prior?.ledger ?? [])
-      : results[7].data) as Ledger[],
-    tickets: (ticketFailure
-      ? (prior?.tickets ?? [])
-      : results[5].data) as Ticket[],
-    legs: (ticketFailure
-      ? (prior?.legs ?? [])
-      : results[6].data) as TicketLeg[],
-    ticketPromotions: (ticketFailure
-      ? (prior?.ticketPromotions ?? [])
-      : results[8].data) as TicketPromotion[],
-  };
+  const valid=!totals.error&&Array.isArray(totals.data)&&totals.data.length<=128&&totals.data.every((t:BettingTotal)=>
+    snapshot.teams.some(team=>team.league_id===leagueId&&team.id===t.team_id)&&Number.isFinite(t.open)&&Number.isFinite(t.stake)&&Number.isFinite(t.open_future));
+  return {...snapshot,betting_scope:{leagueId,season:null,week:null},betting_totals:valid?totals.data as BettingTotal[]:cached,
+    betting_error:valid?undefined:'Betting totals could not refresh. Try refreshing your account.'};
 }
 export const money = (value: number | string | null | undefined) =>
   value == null

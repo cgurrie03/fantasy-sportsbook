@@ -167,7 +167,7 @@ function SignIn({
   );
 }
 function History({ data, team }: { data: AccountData; team: Team }) {
-  const remote=useBalancePage(data.history_remote?{leagueId:team.league_id,teamId:team.id,revision:data}:undefined);
+  const remote=useBalancePage(data.history_remote?{leagueId:team.league_id,teamId:team.id,revision:data.history_revision}:undefined);
   const entries = data.history_remote?(remote.data?.entries??[]):buildBalanceHistory(data, team.id);
   const loading=data.history_remote?remote.busy:data.history_loading;
   const error=data.history_remote?remote.error:data.history_error;
@@ -549,8 +549,9 @@ export default function App() {
     : route.startsWith("/account")
       ? "account"
       : "home";
-  const historyMode=['/bets','/all-bets','/admin/tickets','/admin/logs'].includes(route.split('?')[0])?'tickets':
-    ['/account','/admin/users'].includes(route.split('?')[0])?'balance':'all';
+  const historyMode=['/admin/tickets','/admin/logs'].includes(route.split('?')[0])?'tickets':
+    ['/account','/admin/users'].includes(route.split('?')[0])?'balance':
+    page==='home'||route.startsWith('/admin/approvals')?'aggregate':'none';
   const setPage = (next: "home" | "account" | "admin") => navigate("/" + next);
   const profileMenu = useRef<HTMLDetailsElement>(null);
   const [linkRecovery, setLinkRecovery] = useState(authRecoveryMessage);
@@ -633,14 +634,7 @@ export default function App() {
     if (!userId) return;
     void loadSportsbook();
     setLoading(true);
-    loadAccounts(undefined, (next) => {
-      if (active&&request.current()) {
-        setData(next);
-        setLeagueId((current) => next.leagues.some((league) => league.id === current)
-          ? current : (next.leagues[0]?.id ?? ""));
-        setLoading(false);
-      }
-    },{claim:true,coreOnly:true,signal:request.signal})
+    loadAccounts(undefined,undefined,{claim:true,coreOnly:true,signal:request.signal})
       .then((next) => {
         if (active&&request.current()) {
           setData(next);

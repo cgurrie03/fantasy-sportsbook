@@ -2,15 +2,14 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {setup,A,B,teams}=require('./test-ux.cjs');
+setTimeout(()=>{console.error('Account scope browser test exceeded 60 seconds.');process.exit(1);},60000).unref();
 (async()=>{const browser=await chromium.launch({headless:true});try{
  const f=await setup(browser,1280,844);let release,started;
  const gate=new Promise(r=>release=r),seen=new Promise(r=>started=r),calls=[];
- await f.context.route('**/rest/v1/balance_events*',async route=>{
-  const url=new URL(route.request().url()),team=url.searchParams.get('team_id');calls.push(team);
-  const league=team.includes(teams[0].id)?A:B;
+ await f.context.route('**/rpc/account_betting_totals',async route=>{
+  const league=route.request().postDataJSON().p_league;calls.push(league);
   if(league===A){started();await gate;}
-  await route.fulfill({contentType:'application/json',body:JSON.stringify([{id:'event-'+league,team_id:teams.find(t=>t.league_id===league).id,
-   reason:league===A?'Delayed League A adjustment':'Current League B adjustment',kind:'admin_adjustment',previous_balance:90,new_balance:100,created_at:'2026-10-28T16:00:00Z'}])}).catch(()=>{});
+  await route.fulfill({contentType:'application/json',body:'[]'}).catch(()=>{});
  });
  await f.context.route('**/rpc/account_balance_page',route=>{
   const body=route.request().postDataJSON();assert.equal(body.p_league,B);assert.equal(body.p_team,teams.find(t=>t.league_id===B).id);
@@ -22,7 +21,7 @@ const {setup,A,B,teams}=require('./test-ux.cjs');
  release();await f.page.waitForLoadState('networkidle');
  assert.equal(await f.page.getByLabel('League',{exact:true}).inputValue(),B);
  assert.equal(await f.page.getByText('Delayed League A adjustment',{exact:true}).count(),0);
- assert(calls.length>=1&&calls.every(x=>x?.startsWith('in.(')));
+ assert(calls.length>=1&&calls.every(x=>x===A));
  assert.deepEqual(f.errors,[]);await f.context.close();
  const paged=await setup(browser,390,844),historyRequests=[];
  paged.state.ledger=Array.from({length:41},(_,i)=>({id:'ledger-'+String(i).padStart(2,'0'),team_id:teams[0].id,reason:'Fixture change '+i,

@@ -16,8 +16,8 @@ try{
   await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season) values($1::uuid,'Page fixture',($1::uuid)::text,2026,1)`,[league]);
   await q(`insert into teams(id,league_id,roster_id,team_name,sleeper_owner_id,owner_name,sportsbook_owner_id,sportsbook_owner_name)
    values($1,$2,1,'Fixture team','fixture','Fixture owner','fixture','Fixture owner')`,[team,league]);
-  await q(`insert into league_memberships(league_id,team_id,user_id,invited_email,display_name,sleeper_user_id)
-   values($1,$2,$3,'page-owner@example.test','Page owner','fixture')`,[league,team,owner]);
+  await q(`insert into league_memberships(league_id,team_id,user_id,invited_email,display_name,sleeper_user_id,role)
+   values($1,$2,$3,'page-owner@example.test','Page owner','fixture','admin')`,[league,team,owner]);
   await q(`insert into tickets(source_batch,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,stake,accepted_combined_odds,
    accepted_potential_payout,status,actual_payout,settled_at,legacy_ticket_id,ticket_type,source_record)
    select 'synthetic-pages',$1,$2,1,2026,(i%18)+1,(i%18)+1,now()-interval '1 day'-(i%7)*interval '1 minute',10,
@@ -26,6 +26,8 @@ try{
    'fixture-'||i,case when i%4=0 then 'future' else 'single' end,'{"excluded_source":"raw_import"}'
    from generate_series(1,$3::integer) i`,[league,team,league===A?1205:3]);
  }
+ await q(`insert into tickets(id,source_batch,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,stake,accepted_combined_odds,accepted_potential_payout,status,actual_payout,settled_at,legacy_ticket_id,ticket_type)
+  values(gen_random_uuid(),'synthetic-pages',$1,$2,1,2025,1,1,now()-interval '1 year',7,100,14,'WON',14,now()-interval '1 year','past-season-B','single')`,[B,TB]);
  await q(`insert into ticket_legs(ticket_id,leg_number,selection,market_type,accepted_odds,status,result_evidence,settlement_context)
   select id,1,'Needle '||legacy_ticket_id,'Player Points',100,status,'Fixture result','{"kind":"player_points","metadata":{"player_id":"fixture"}}'
   from tickets`);
@@ -48,19 +50,23 @@ try{
   values($1,$2,$3,$4,$5,'boost',50,3.64,'{"accepted":"fixture"}')`,[visible.id,A,TA,owner,offer]);
  for(const league of [A,B])for(const week of [visible.market_week,19-visible.market_week])await q(`insert into ticket_score_observations(league_id,nfl_season,market_week,fetched_at,cadence_minutes,payload)
   values($1,2026,$2,now(),15,jsonb_build_object('teams','{}'::jsonb,'players',jsonb_build_object('fixture',0,'UNRELATED_PLAYER',99),'week_final',false)) on conflict do nothing`,[league,week]);
+ await db.exec('analyze public.tickets');
  const financial=async()=>JSON.stringify(await q(`select (select jsonb_agg(to_jsonb(t) order by id) from tickets t) tickets,
   (select jsonb_agg(to_jsonb(l) order by id) from ticket_legs l) legs,(select jsonb_agg(to_jsonb(w) order by team_id) from wallets w) wallets,
   (select jsonb_agg(to_jsonb(l) order by id) from wallet_ledger l) ledger,(select jsonb_agg(to_jsonb(e) order by id) from balance_events e) events,
   (select jsonb_agg(to_jsonb(p) order by ticket_id) from ticket_promotions p) promotions`));
  const before=await financial();
  await act(owner);
+ assert.deepEqual((await q('select account_history_seasons($1) value',[B]))[0].value,[2026,2025]);
  const page=async(filters={},cursor=null,limit=37,league=A)=>(await q('select account_ticket_page($1,$2,$3,$4) value',[league,JSON.stringify(filters),cursor?JSON.stringify(cursor):null,limit]))[0].value;
  const all=(await q('select id,placed_at,settled_at,actual_payout,accepted_combined_odds from tickets where league_id=$1',[A]));
+ const completeProjection={tickets:[],legs:[],ticketPromotions:[]};
  for(const sort of ['placed','settled','winnings','odds'])for(const direction of ['asc','desc']){
   let cursor=null;const ids=[];do{const p=await page({sort,direction},cursor);
    assert.equal(p.total,1205);assert(p.tickets.length<=37);assert.equal(p.legs.length,p.tickets.length);
    assert(p.tickets.every(t=>t.league_id===A&&!('source_record'in t)));assert(p.legs.every(l=>p.tickets.some(t=>t.id===l.ticket_id)));
    assert.deepEqual(p.ticketPromotions,p.tickets.some(t=>t.id===visible.id)?[{ticket_id:visible.id,kind:'boost',boost_pct:50,base_decimal:3.64}]:[]);
+   if(sort==='placed'&&direction==='desc'){completeProjection.tickets.push(...p.tickets);completeProjection.legs.push(...p.legs);completeProjection.ticketPromotions.push(...p.ticketPromotions);}
    ids.push(...p.tickets.map(t=>t.id));cursor=p.next;
   }while(cursor);
   const val=t=>sort==='placed'?Date.parse(t.placed_at):sort==='settled'?(t.settled_at?Date.parse(t.settled_at):null):sort==='winnings'?Number(t.actual_payout):t.accepted_combined_odds>0?1+t.accepted_combined_odds/100:1+100/Math.abs(t.accepted_combined_odds);
@@ -69,10 +75,52 @@ try{
   assert.deepEqual(ids,expected,sort+':'+direction);assert.equal(new Set(ids).size,1205);
  }
  assert.equal((await page({query:'Needle fixture-1205'})).total,1);
+ const pageBytes=Buffer.byteLength(JSON.stringify(await page({},null,20))),fullBytes=Buffer.byteLength(JSON.stringify(completeProjection));
+ assert(pageBytes<fullBytes/10);
+ console.log('Synthetic serialized JSON bytes (not production wire or physical storage):',JSON.stringify({twentyTicketPage:pageBytes,complete1205TicketProjection:fullBytes}));
  assert.equal((await page({query:'%'})).total,0,'search is literal, not an accidental wildcard');
  assert((await page({week:'futures'})).tickets.every(t=>t.ticket_type==='future'));
  assert((await page({week:'5',status:'Settled'})).tickets.every(t=>t.placement_week===5&&t.status!=='OPEN'));
  assert((await page({personal:true})).tickets.every(t=>t.team_id===TA));
+ const exact=await page({ticket:visible.id,personal:true,season:2026});assert.equal(exact.total,1);assert.equal(exact.tickets[0].id,visible.id);
+ assert.equal((await page({ticket:visible.id,season:2025})).total,0);
+ assert((await page({market_week:5})).tickets.every(t=>t.market_week===5));
+ await assert.rejects(page({season:'2026'}),/filter/);
+ const totals=(await q('select account_betting_totals($1,null,null) value',[A]))[0].value;
+ assert.deepEqual(totals,[{team_id:TA,placed:1205,settled:401,stake:4010,profit:4010,roi:1,open:8040,open_future:2010,open_count:804,open_weekly_count:603,all_stake:12050}]);
+ const filteredTotals=(await q('select account_betting_totals($1,2026,5) value',[A]))[0].value[0];
+ assert.equal(filteredTotals.placed,67);assert.equal(filteredTotals.open,670);assert.equal(filteredTotals.open_future,340);assert.equal(filteredTotals.stake,0);assert.equal(filteredTotals.roi,null);
+ assert.equal((await q('select account_betting_totals($1,2025,null) value',[A]))[0].value[0].placed,0);
+ await assert.rejects(q('select account_betting_totals($1,2026,19)',[A]),/period/);
+ const detailFree=await page({ticket:visible.id,details:false});assert.deepEqual(detailFree.legs,[]);assert.deepEqual(detailFree.ticketPromotions,[]);
+ let walletCursor=null;const walletRows=[];
+ do{const result=(await q('select account_wallet_report($1,null,$2,3) value',[A,walletCursor?JSON.stringify(walletCursor):null]))[0].value;
+  assert.equal(result.total,18);assert.equal(result.by_team[0].credits,260);assert.equal(result.by_team[0].debits,180);
+  walletRows.push(...result.rows);walletCursor=result.next;
+ }while(walletCursor);
+ assert.equal(new Set(walletRows.map(r=>r.source+':'+r.id)).size,18);assert(walletRows.every(r=>r.team_id===TA));
+ let selectionCursor=null;const selectionRows=[];
+ do{const result=(await q('select account_selection_report($1,2026,null,null,$2,43) value',[A,selectionCursor?JSON.stringify(selectionCursor):null]))[0].value;
+  assert.equal(result.total,1205);assert.equal(result.appearances,1205);assert.equal(result.maximum,1);
+  selectionRows.push(...result.rows);selectionCursor=result.next;
+ }while(selectionCursor);
+ assert.equal(new Set(selectionRows.map(r=>r.label)).size,1205);assert.equal(selectionRows.reduce((n,r)=>n+r.stakes,0),12050);
+ const openReport=(await q('select account_open_ticket_report($1,2026,null,null,null,20) value',[A]))[0].value;
+ assert.equal(openReport.total,804);assert.equal(openReport.tickets.length,20);assert.deepEqual(openReport.legs,[]);assert.equal(openReport.totals[0].open,8040);
+ const weekReport=(await q('select account_open_ticket_report($1,2026,5,$2,null,20) value',[A,TA]))[0].value;
+ assert.equal(weekReport.total,67);assert.equal(weekReport.totals[0].open,670);assert(weekReport.tickets.every(t=>t.market_week===5));
+ const walletFirst=(await q('select account_wallet_report($1,null,null,2) value',[A]))[0].value;
+ await assert.rejects(q('select account_wallet_report($1,null,$2,2)',[B,JSON.stringify(walletFirst.next)]),/cursor/);
+ await assert.rejects(q('select account_open_ticket_report($1,2026,null,null,$2,20)',[B,JSON.stringify(openReport.next)]),/cursor/);
+ const plan=(await q('explain (format json) select id from tickets where league_id=$1 and nfl_season=2025 order by placed_at desc,id limit 20',[B]))[0]['QUERY PLAN'];
+ const planIndexes=[];const walkPlan=node=>{if(!node||typeof node!=='object')return;if(node['Index Name'])planIndexes.push(node['Index Name']);for(const value of Object.values(node))if(value&&typeof value==='object')Array.isArray(value)?value.forEach(walkPlan):walkPlan(value);};walkPlan(plan);
+ assert(planIndexes.length>0,'selective selected-league/season read uses an index at the synthetic cardinality');
+ console.log('Synthetic selected-league/season plan indexes:',[...new Set(planIndexes)].join(', '));
+ const selectionFirst=(await q('select account_selection_report($1,2026,null,null,null,2) value',[A]))[0].value;
+ await db.exec('reset role;begin;');
+ await q("update ticket_legs set status='WON' where ticket_id=$1",[visible.id]);
+ await assert.rejects(q('select account_selection_report($1,2026,null,null,$2,2)',[A,JSON.stringify(selectionFirst.next)]),/results changed/);
+ await db.exec('rollback;');await act(owner);
  const historyData={tickets:await q('select * from tickets where league_id=$1',[A]),ledger:await q('select * from wallet_ledger where team_id=$1',[TA]),
   events:await q('select * from balance_events where team_id=$1',[TA]),wallets:await q('select * from wallets where team_id=$1',[TA])};
  const expectedHistory=buildBalanceHistory(historyData,TA);let historyCursor=null;const history=[];
@@ -106,13 +154,18 @@ try{
  await q(`insert into league_memberships(league_id,team_id,user_id,invited_email,display_name,sleeper_user_id)
   values($1,$2,$3,'page-other@example.test','Peer','peer')`,[A,peerTeam,other]);
  await act(other);assert.equal((await page()).total,1205);
+ await assert.rejects(q('select account_wallet_report($1)',[A]),/admin/);
+ await assert.rejects(q('select account_selection_report($1,2026)',[A]),/admin/);
+ await assert.rejects(q('select account_open_ticket_report($1,2026)',[A]),/admin/);
  await assert.rejects(page({},first.next),/cursor/,'a second authorized member cannot reuse another user cursor');
  assert.equal((await page({personal:true,team:TA})).total,0,'personal scope ignores another team supplied by the caller');
  await assert.rejects(q('select account_balance_page($1,$2,null,1)',[A,TA]),/access/,'a peer cannot read another wallet history');
- await db.exec('reset role;set role anon;');await assert.rejects(page(),/permission/);
- await db.exec('reset role;set role service_role;');await assert.rejects(page(),/permission/);
+ for(const role of ['anon','service_role']){await db.exec('reset role;set role '+role);await assert.rejects(page(),/permission/);
+  await assert.rejects(q('select account_betting_totals($1)',[A]),/permission/);
+  await assert.rejects(q('select account_wallet_report($1)',[A]),/permission/);
+ }
  await db.exec('reset role;');
- assert.equal((await q('select count(*) n from tickets'))[0].n,1208);
+ assert.equal((await q('select count(*) n from tickets'))[0].n,1209);
  assert.equal(await financial(),before,'read endpoints preserve every accepted term, wallet, ledger and adjustment byte');
- console.log('Passed 1,205-ticket traversal across eight sorts, receipt/cursor/tenant isolation, visible-player score projection, canonical imported/current balance parity and exact financial preservation.');
+ console.log('Passed 1,205-ticket traversal across eight sorts, complete-scope aggregates, historical seasons, report/receipt cursor and tenant isolation, visible-player projection, canonical balance parity, revision fences and exact financial preservation.');
 }finally{await db.close();}

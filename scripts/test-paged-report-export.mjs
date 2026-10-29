@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {collectReportRows} from '../src/lib/paged-report-export.ts';
+const signal=AbortSignal.timeout(10000);let reads=0;
+const rows=await collectReportRows(async cursor=>{reads++;const start=Number(cursor?.start??0),items=Array.from({length:Math.min(40,95-start)},(_,i)=>({id:start+i}));
+ return {rows:items,total:95,revision:'fixed',next:start+items.length<95?{start:start+items.length}:null};},signal);
+assert.equal(reads,3);assert.deepEqual(rows.map(r=>r.id),Array.from({length:95},(_,i)=>i));
+await assert.rejects(collectReportRows(async()=>({rows:[{}],total:2,next:null}),signal),/incomplete/);
+reads=0;await assert.rejects(collectReportRows(async cursor=>({rows:[{}],total:2,revision:++reads===1?'first':'changed',next:cursor?null:{start:1}}),signal),/changed/);
+await assert.rejects(collectReportRows(async()=>({rows:[{}],total:2,next:{same:true}}),signal),/advance/);
+await assert.rejects(collectReportRows(async()=>({rows:[{body:'x'.repeat(11*1024*1024)}],total:1,next:null}),signal),/size budget/);
+let current=true;reads=0;await assert.rejects(collectReportRows(async()=>{reads++;current=false;return {rows:[{}],total:1,next:null};},signal,()=>current),/canceled/);assert.equal(reads,1);
+const aborted=new AbortController();aborted.abort();reads=0;
+await assert.rejects(collectReportRows(async()=>{reads++;return {rows:[],total:0,next:null};},aborted.signal),e=>e.name==='AbortError');assert.equal(reads,0);
+console.log('Passed complete multi-page export, incomplete/revised/repeated-cursor denial, byte budget, changed-filter cancellation and pre-aborted request fencing. No partial export is returned.');

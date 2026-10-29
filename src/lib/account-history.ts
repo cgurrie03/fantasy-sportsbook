@@ -2,9 +2,9 @@ import {useEffect,useState} from 'react';
 import {supabase} from './supabase';
 import {errorMessage} from './accounts';
 import type {Ticket,TicketLeg,TicketPromotion} from './accounts';
-export type TicketFilterState={status:string;week:string;sort:string;direction:string;query:string;team:string;personal:boolean};
+export type TicketFilterState={status:string;week:string;sort:string;direction:string;query:string;team:string;personal:boolean;season?:number;market_week?:number;ticket?:string;details?:boolean};
 export type TicketPage={tickets:Ticket[];legs:TicketLeg[];ticketPromotions:TicketPromotion[];total:number;next:Record<string,unknown>|null;as_of:string};
-export type RemoteTicketScope={leagueId:string;personal?:boolean;revision?:unknown};
+export type RemoteTicketScope={leagueId:string;personal?:boolean;revision?:unknown;details?:boolean};
 export function useTicketPage(scope:RemoteTicketScope|undefined,filters:TicketFilterState){
  const signature=JSON.stringify([scope?.leagueId,filters]);
  const [navigation,setNavigation]=useState<{signature:string;revision?:unknown;cursors:(Record<string,unknown>|null)[]}>({signature:'',cursors:[null]});

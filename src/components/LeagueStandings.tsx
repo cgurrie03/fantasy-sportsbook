@@ -29,11 +29,13 @@ export function LeagueStandings({
         </thead>
         <tbody>
           {standings.map((s, i) => {
-            const open = (data.tickets ?? [])
+            const totals=data.betting_scope?.season===null&&data.betting_scope.week===null?
+              data.betting_totals?.find(t=>t.team_id===s.team_id):undefined;
+            const open = totals?.open??(data.tickets ?? [])
               .filter((t) => t.team_id === s.team_id && t.status === "OPEN")
               .reduce((n, t) => n + Number(t.stake), 0);
-            const complete = !data.history_error && !data.history_loading;
-            const settled = Number(s.total_wagered) - open;
+            const complete = data.history_remote?!!totals&&!data.betting_error:!data.history_error&&!data.history_loading;
+            const settled = totals?.stake??Number(s.total_wagered) - open;
             return (
               <Fragment key={s.team_id}>
                 <tr>

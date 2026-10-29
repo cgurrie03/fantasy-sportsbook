@@ -40,7 +40,7 @@ export function TicketFilters({
   useEffect(() => setQuery(routeTicket), [routeTicket]);
   const signature = [status, week, bettor, sort, direction, query].join("|");
   const limit = pagination.signature === signature ? pagination.count : 20;
-  const page=useTicketPage(remote,{status,week,sort,direction,query,team:bettor,personal});
+  const page=useTicketPage(remote,{status,week,sort,direction,query,team:bettor,personal,...(remote?.details===false?{details:false}:{})});
   const active = [
     status !== "All",
     week !== "all",

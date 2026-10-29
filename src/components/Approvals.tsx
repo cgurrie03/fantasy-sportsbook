@@ -173,7 +173,7 @@ export function Approvals({
         </article>
         <article>
           <small>Open weekly tickets to check</small>
-          <strong>{oldTickets.length}</strong>
+          <strong>{data.history_remote?(data.betting_totals&&!data.betting_error?data.betting_totals.reduce((n,t)=>n+t.open_weekly_count,0):'Unavailable'):oldTickets.length}</strong>
         </article>
       </div>
       <button onClick={() => void load()}>Recheck exception inbox</button>

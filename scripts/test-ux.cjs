@@ -17,6 +17,13 @@ function futureQuotes(b){return teams.filter(t=>t.league_id===b.league_id).flatM
 function quotes(b){const t=teams.filter(t=>t.league_id===b.league_id);return [['spread',t[0].id,-4.5,-110],['spread',t[1].id,4.5,-110],['moneyline',t[0].id,null,-150],['moneyline',t[1].id,null,130],['match_total','over',250.5,-110],['match_total','under',250.5,-110]].map(([kind,side,line,odds],i)=>({id:`${b.id}-q${i}`,board_id:b.id,market_key:kind,matchup_key:'same-roster-numbers',kind,side,line,odds,label:kind==='match_total'?`${side} ${line}`:`${t.find(t=>t.id===side).team_name} ${line??'Win'}`,subject:'Fixture league',team_id:kind==='match_total'?null:side,home_team_id:t[0].id,away_team_id:t[1].id,home_projection:127.5,away_projection:123,featured:'Game of the Week',boost_pct:kind==='moneyline'?25:0,metadata:{},active:true,market_state:'open'}))}
 function specialQuotes(b,state){const exact = ['weekly_high','weekly_low','weekly_count_150','weekly_count_projection','weekly_average','weekly_highest_score','weekly_any_below_100','weekly_any_200'].map(kind=>({id:`${b.id}-${kind}`,board_id:b.id,market_key:kind,kind,side:kind.startsWith('weekly_count')?'exact':'yes',line:kind.startsWith('weekly_count')?4:150,odds:300+(state.movement||0)*20,boost_pct:0,label:kind==='weekly_count_150'?'4 Teams Scoring 150+':kind==='weekly_count_projection'?'4 Teams Beating Projection':'Fixture selection',subject:'Fixture league',team_id:null,active:true,market_state:'open',metadata:{}}));return [...exact,...exact.filter(q=>q.kind.startsWith('weekly_count')).map(q=>({...q,id:q.id+'-at-least',side:'4+',odds:-125,label:q.kind==='weekly_count_150'?'At Least 4 Teams Scoring 150+':'At Least 4 Teams Beating Projection'}))]}
 const evidence=[];
+function fixtureTotals(state,league,season,week){return teams.filter(t=>t.league_id===league).map(team=>{
+ const rows=state.tickets.filter(t=>t.team_id===team.id&&(!season||t.nfl_season===season)&&(!week||t.market_week===week));
+ const settled=rows.filter(t=>['WON','LOST','PUSH'].includes(t.status)),stake=settled.reduce((n,t)=>n+Number(t.stake),0),profit=settled.reduce((n,t)=>n+Number(t.actual_payout)-Number(t.stake),0);
+ return {team_id:team.id,placed:rows.length,settled:settled.length,stake,profit,roi:stake?profit/stake:null,
+  open:rows.filter(t=>t.status==='OPEN').reduce((n,t)=>n+Number(t.stake),0),open_future:rows.filter(t=>t.status==='OPEN'&&t.ticket_type==='future').reduce((n,t)=>n+Number(t.stake),0),
+  open_count:rows.filter(t=>t.status==='OPEN').length,open_weekly_count:rows.filter(t=>t.status==='OPEN'&&t.ticket_type!=='future').length,all_stake:rows.filter(t=>t.status!=='VOIDED').reduce((n,t)=>n+Number(t.stake),0)};
+});}
 async function oneLineCopy(page){
  for(const item of await page.locator('.market-description, .market-eligibility').all()){
   const fit=await item.evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);return {text:el.textContent,lines:range.getClientRects().length,fits:el.scrollWidth<=el.clientWidth+1};});
@@ -39,6 +46,34 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(state.fail)return json({message:'Fixture connection unavailable. Try again.'},503);
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
+   if(endpoint==='account_history_seasons')return json([...new Set([2026,...state.tickets.filter(t=>t.league_id===body.p_league).map(t=>t.nfl_season)])].filter(Number.isInteger).sort((a,b)=>b-a));
+   if(endpoint==='account_wallet_report'){
+    (state.financialReportCalls??=[]).push({endpoint,...body});
+    const selected=teams.filter(t=>t.league_id===body.p_league&&(!body.p_team||t.id===body.p_team)).map(t=>t.id);
+    const all=[...(state.ledger??[]).map(l=>({...l,source:'ledger'})),...(state.events??[]).map(e=>({...e,source:'adjustment',balance_before:e.previous_balance,balance_after:e.new_balance}))]
+     .filter(r=>selected.includes(r.team_id)).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||a.source.localeCompare(b.source)||a.id.localeCompare(b.id));
+    const start=body.p_cursor?all.findIndex(r=>r.id===body.p_cursor.id&&r.source===body.p_cursor.source)+1:0,rows=all.slice(start,start+(body.p_limit??40));
+    return json({rows,total:all.length,by_team:selected.map(team_id=>{const changes=all.filter(r=>r.team_id===team_id&&r.balance_before!==null&&!['historical_opening','opening_balance'].includes(r.kind));return {team_id,
+     credits:changes.reduce((n,r)=>n+Math.max(Number(r.balance_after)-Number(r.balance_before),0),0),debits:changes.reduce((n,r)=>n+Math.max(Number(r.balance_before)-Number(r.balance_after),0),0)};}),
+     next:start+rows.length<all.length?{id:rows.at(-1).id,source:rows.at(-1).source}:null,as_of:new Date().toISOString()});
+   }
+   if(endpoint==='account_selection_report'){
+    (state.financialReportCalls??=[]).push({endpoint,...body});const counts=new Map();
+    for(const t of state.tickets.filter(t=>t.league_id===body.p_league&&t.nfl_season===body.p_season&&(!body.p_week||t.market_week===body.p_week)&&(!body.p_team||t.team_id===body.p_team)&&t.status!=='VOIDED'))for(const l of state.legs.filter(l=>l.ticket_id===t.id)){
+     const label=/moneyline|^ml$/i.test(l.market_type)?l.selection.replace(/\s*·?\s*ML$/i,'')+' · ML':l.selection;
+     const r=counts.get(label)??{label,count:0,stakes:0,won:0,lost:0,pushed:0,open:0};r.count++;r.stakes+=Number(t.stake);
+     if(l.status==='WON')r.won++;else if(l.status==='LOST')r.lost++;else if(['PUSH','VOIDED'].includes(l.status))r.pushed++;else r.open++;counts.set(label,r);
+    }
+    const all=[...counts.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label)),revision=JSON.stringify(all);
+    if(body.p_cursor?.revision&&body.p_cursor.revision!==revision)return json({message:'Selection results changed; refresh report before continuing'},409);
+    const start=body.p_cursor?all.findIndex(r=>r.label===body.p_cursor.label)+1:0,rows=all.slice(start,start+(body.p_limit??40));
+    return json({rows,total:all.length,top:all.slice(0,12),appearances:all.reduce((n,r)=>n+r.count,0),maximum:all[0]?.count??0,revision,
+     next:start+rows.length<all.length?{label:rows.at(-1).label,revision}:null,as_of:new Date().toISOString()});
+   }
+   if(endpoint==='account_betting_totals'){
+    (state.bettingTotalCalls??=[]).push(body);
+    return json(fixtureTotals(state,body.p_league,body.p_season,body.p_week));
+   }
    if(endpoint==='account_balance_page'){
     (state.balancePageCalls??=[]).push(body);
     const entries=buildBalanceHistory({tickets:state.tickets,ledger:state.ledger??[],events:state.events??[],
@@ -52,10 +87,15 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
      ...state.tickets.filter(t=>(body.p_tickets??[]).includes(t.id))];
     return json((state.scoreRows??[]).filter(r=>r.league_id===body.p_league&&periods.some(p=>p.nfl_season===r.nfl_season&&p.market_week===r.market_week)));
    }
-   if(endpoint==='account_ticket_page'){
+   if(endpoint==='account_ticket_page'||endpoint==='account_open_ticket_report'){
+    if(endpoint==='account_open_ticket_report'){
+     (state.financialReportCalls??=[]).push({endpoint,...body});
+     body.p_filters={status:'Open',season:body.p_season,market_week:body.p_week||undefined,team:body.p_team||'all',details:false};
+    }
     (state.historyPageCalls??=[]).push(body);
     const f=body.p_filters??{},league=body.p_league,personal=memberships.find(m=>m.league_id===league)?.team_id;
     const rows=state.tickets.filter(t=>t.league_id===league&&(!f.personal||t.team_id===personal)
+     &&(!f.ticket||t.id===f.ticket)&&(!f.season||t.nfl_season===f.season)&&(!f.market_week||t.market_week===f.market_week)
      &&(!f.team||f.team==='all'||f.personal||t.team_id===f.team)
      &&(!f.status||f.status==='All'||(f.status==='Settled'?t.status!=='OPEN':t.status===f.status.toUpperCase()))
      &&(!f.week||f.week==='all'||(f.week==='futures'?t.ticket_type==='future':t.placement_week===Number(f.week)))
@@ -66,7 +106,8 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
     rows.sort((a,b)=>{const x=value(a),y=value(b);return x===null&&y!==null?1:y===null&&x!==null?-1:
      (x===null||y===null?0:(f.direction==='asc'?x-y:y-x))||Date.parse(b.placed_at)-Date.parse(a.placed_at)||a.id.localeCompare(b.id);});
     const start=body.p_cursor?rows.findIndex(t=>t.id===body.p_cursor.id)+1:0,page=rows.slice(start,start+(body.p_limit??20));
-    return json({tickets:page,legs:state.legs.filter(l=>page.some(t=>t.id===l.ticket_id)),ticketPromotions:(state.ticketPromotions??[]).filter(p=>page.some(t=>t.id===p.ticket_id)),
+    return json({tickets:page,legs:f.details===false?[]:state.legs.filter(l=>page.some(t=>t.id===l.ticket_id)),ticketPromotions:f.details===false?[]:(state.ticketPromotions??[]).filter(p=>page.some(t=>t.id===p.ticket_id)),
+     ...(endpoint==='account_open_ticket_report'?{totals:fixtureTotals(state,body.p_league,body.p_season,body.p_week)}:{}),
      total:rows.length,next:start+page.length<rows.length?{id:page.at(-1).id}:null,as_of:new Date().toISOString()});
    }
    if(endpoint==='sportsbook_period')return json([{week:5,league_season:body.p_league===B?9:3,nfl_season:2026}]);
