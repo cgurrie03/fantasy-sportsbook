@@ -88,5 +88,12 @@ Full platform/off-site restore and key custody, exact release approval enforceme
 per-user wallets, bounded account history, multi-league capability imports and
 notification work remain open. No production cleanup, second-league launch,
 experimental acceptance, paid upgrade or support deployment is authorized here.
-Tested source/deployment identity and final release checks are recorded in the
-dated output report after deployment.
+Tested application source: `ff29f6997c5c5d9de632553d71ec9ec51e9699eb`;
+all 35 release checks passed. Protected development deployment
+`dpl_Hw4PrmpAkGoHdVPqBLbMmRJyJ5sg` is READY at
+https://dev.sportsbook.coopergurrie.com. Hosted build verified the development
+identity, server-key target, independent owner, closed signup, captured mail and
+manual automation. All three aliases and the generated deployment hostname
+returned signed-out 302 redirects to Vercel SSO; no bypass was used. Production
+still serves `dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`. The dated output report contains
+the size comparison, release-check results and unit patch. No branch was pushed.
