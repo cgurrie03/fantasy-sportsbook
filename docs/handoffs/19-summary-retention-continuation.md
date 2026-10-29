@@ -2,7 +2,7 @@
 
 Milestones 11 and 12 remain incomplete. The additive summary kernel and synthetic
 tests are a foundation only: no writer, expiry job or new candidate controller is
-connected. Do not delete samples based on this module's existence.
+connected to the application. Do not delete samples based on this module's existence.
 
 The engineering proposal preserves automatic improvement with frozen candidates;
 the owner asked about storage cost and acceptable Sleeper-level accuracy, not for
@@ -40,8 +40,43 @@ The new `evaluation-summary.ts` kernel preserves additive error sums, squared
 errors, interval counts and five-bin probability/calibration sums. Weighted totals
 must be merged before division; arbitrary quantiles and unrestricted retraining
 are intentionally not reconstructible. Still add categorical/distribution/live/
-futures summary coverage, version/context keys, safe correction persistence and
+futures summary coverage, version/context integration, safe correction persistence and
 archived-summary UI before calling milestone 11 complete.
+
+## Local persistence foundation (not hosted)
+
+Source migration `20261029034008_compact_weekly_summary_store.sql` defines one
+latest corrected 64 KiB summary per league/season/week, with admin RLS and a
+worker-only save RPC. It requires a confirmed scoped weekly review carrying
+`summary_context_hash`, validates bounded additive fields, fences stale job
+attempts and corrections, and leaves known-at unchanged on an identical retry.
+Synthetic PGlite tests passed idempotency, correction revision ordering, missing
+confirmed review, unexpected body fields and role/tenant denial. It is registered
+in `test:model` together with the math kernel tests.
+
+**This migration has not been applied to hosted development or production.**
+It is not yet called by `model-pipeline.ts`. Before applying/integrating, review
+the complete validation contract and test empty/partial summaries, malformed
+nested fields, dimension/context changes, competing reviews, positive admin
+reads and the current-week outcome guard. Add the context hash to the saved
+review before calling the summary RPC. The stored summary must not be interpreted
+as sufficient for unsupported quantiles/categorical/futures metrics or arbitrary
+model fitting. Do not activate cleanup until candidate/review readers are migrated.
+
+## Scheduled continuation
+
+Milestones 09 and 10 are complete in protected development; counter remains
+10 complete / 14 remaining. Deployed application source is
+`a87fce855dc8ee86500b30dd47f13671aa879b88`, deployment
+`dpl_EVadC6xk2eC6erTLhXsrTi9Hy8iJ`; later local commits include only summary
+foundation work and checkpoint documentation and have not been deployed.
+The one-time thread automation `resume-boff-handoff-at-2-am` is active for
+October 29, 2026 at 2:00 a.m. America/New_York, after the observed 1:56 a.m.
+five-hour limit reset. Inspect current state first and avoid duplicate active
+work. Continue sequentially without asking for routine confirmation; report
+completed/remaining counts after verified milestones. Preserve exact production
+approval, original-checkout, privacy, no-paid-upgrade and experimental-betting
+constraints. Do not mistake a foundation commit for completed retention.
 
 Use the validation-design skill's locked chronological protocol. No reported
 candidate performance or accuracy advantage exists yet. All production release,
