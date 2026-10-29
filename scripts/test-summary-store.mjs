@@ -36,7 +36,20 @@ try{
  await assert.rejects(save('z'),/Confirmed scoped review/);
  await assert.rejects(save('a',summary,started,2),/lease/);
  await assert.rejects(save('a',{...summary,provider:{raw:'forbidden'}}),/Unexpected summary field/);
+ const malformed=structuredClone(summary);malformed.markets[0].totals.bands[0].n=-1;
+ await assert.rejects(save('a',malformed),/Invalid/);
+ const missingDimension=structuredClone(summary);delete missingDimension.scores[0].model_version;
+ await assert.rejects(save('a',missingDimension),/outside league/);
+ const wrongVersion=structuredClone(summary);wrongVersion.scores[0].model_version=randomUUID();
+ await assert.rejects(save('a',wrongVersion),/outside league/);
+ const admin=randomUUID(),team=randomUUID();
+ await query("insert into auth.users values($1,'summary-admin@example.test',now())",[admin]);
+ await query(`insert into teams(id,league_id,roster_id,team_name,sleeper_owner_id,owner_name,sportsbook_owner_id,sportsbook_owner_name)
+  values($1,$2,1,'Synthetic','fixture','Synthetic','fixture','Synthetic')`,[team,league]);
+ await query("insert into league_memberships(league_id,team_id,user_id,invited_email,display_name,sleeper_user_id,role) values($1,$2,$3,'summary-admin@example.test','Synthetic','fixture','admin')",[league,team,admin]);
  await db.exec('set row_security=on;set role authenticated');
+ await query("select set_config('request.jwt.claim.sub',$1,false)",[admin]);
+ assert.equal((await query('select * from model_evaluation_summaries')).length,1,'Authorized admin can read compact summaries');
  await query("select set_config('request.jwt.claim.sub',$1,false)",[randomUUID()]);
  assert.equal((await query('select * from model_evaluation_summaries')).length,0);
  await assert.rejects(save(),/permission denied/);

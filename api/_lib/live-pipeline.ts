@@ -173,6 +173,9 @@ export async function collectLiveShadow(
   };
 }
 export async function reviewLiveWeek(db: any, job: any, league: any) {
+  const checkpoint=await db.rpc("evaluation_review_checkpoint",{p_job:job.id,p_attempt:job.attempts});
+  if(checkpoint.error)throw new Error(checkpoint.error.message);
+  if(checkpoint.data?.retired_at)return {status:"complete",summary_only:true};
   const [state, matchups, forecasts] = await Promise.all([
     sleeper("state/nfl"),
     sleeper(`league/${league.sleeper_league_id}/matchups/${job.market_week}`),
@@ -240,11 +243,12 @@ export async function reviewLiveWeek(db: any, job: any, league: any) {
   )
     throw new Error("Final team coverage is incomplete.");
   const report = evaluateLiveWeek(forecasts.data, outcomes);
+  Object.assign(report,{retention_format:"transient-live-v1"});
   const stored = await db.rpc("save_live_model_review", {
     p_job: job.id,
     p_attempt: job.attempts,
     p_outcome_hash: hash(outcomes),
-    p_forecast_hash: hash(forecasts.data.map((r: any) => r.id)),
+    p_forecast_hash: hash(forecasts.data),
     p_outcomes: outcomes,
     p_report: report,
   });

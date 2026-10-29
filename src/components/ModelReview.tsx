@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
+import {archivedReview} from "../../api/_lib/evaluation-summary";
 const value = (v: number | null | undefined) =>
   v == null ? "—" : v.toFixed(2);
 export function ModelReview({
@@ -14,6 +15,8 @@ export function ModelReview({
     [control, setControl] = useState<any>(null),
     [events, setEvents] = useState<any[]>([]),
     [capture, setCapture] = useState<{leagueId:string;rows:any[]}|null>(null),
+    [retention,setRetention]=useState<{leagueId:string;data:any}|null>(null),
+    [loadedLeague,setLoadedLeague]=useState(preview?leagueId:''),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -27,6 +30,7 @@ export function ModelReview({
         .order("nfl_season", { ascending: false })
         .order("market_week", { ascending: false })
         .order("created_at", { ascending: false })
+        .order("id",{ascending:false})
         .limit(1),
       supabase
         .from("model_controls")
@@ -43,17 +47,21 @@ export function ModelReview({
         .select("nfl_season,market_week,category,stored_requests,eligible_gaps,last_gap_reason")
         .eq("league_id",leagueId)
         .order("nfl_season",{ascending:false}).order("market_week",{ascending:false}).order("category").limit(4),
-    ]).then(([r, c, e, h]) => {
+      supabase.from('evaluation_retention_health').select('heartbeat_at,unresolved_periods,oldest_unresolved_period').eq('league_id',leagueId).maybeSingle(),
+    ]).then(([r, c, e, h, retentionHealth]) => {
       if (cancelled) return;
       if (r.error || c.error || e.error) {
+        setLoadedLeague(leagueId);setReview(null);setControl(null);setEvents([]);
         setNotice(
           "Model review unavailable. Retry after the assessment service recovers.",
         );
         return;
       }
       setReview(r.data?.[0] ?? null);
+      setLoadedLeague(leagueId);
       setControl(c.data);
       setEvents(e.data ?? []);
+      setRetention({leagueId,data:retentionHealth.error?null:retentionHealth.data});
       const latest=h.data?.[0];
       setCapture({leagueId,rows:!h.error && latest ? (h.data??[]).filter((row:any)=>row.nfl_season===latest.nfl_season && row.market_week===latest.market_week) : []});
     });
@@ -62,7 +70,7 @@ export function ModelReview({
     };
   }, [leagueId, preview]);
   const action = async (kind: string) => {
-    if (!supabase) return;
+    if (!supabase||loadedLeague!==leagueId) return;
     setBusy(true);
     setNotice("");
     const r = await supabase.rpc("control_model", {
@@ -85,27 +93,29 @@ export function ModelReview({
     }
     setBusy(false);
   };
-  const r = review?.report,
-    c = review?.comparison;
+  const visibleReview=preview||loadedLeague===leagueId?review:null;
+  const r = visibleReview?.report?.summary?archivedReview(visibleReview.report.summary):visibleReview?.report,
+    c = visibleReview?.comparison;
   return (
     <section className="model-review" aria-label="This Week's Model Review">
       <div className="model-review-header">
         <h3>This Week’s Model Review</h3>
-        {review && (
+        {visibleReview && (
           <span>
-            {review.nfl_season} · Week {review.market_week}
+            {visibleReview.nfl_season} · Week {visibleReview.market_week}
           </span>
         )}
       </div>
       <p role="status">
-        {notice ||
+        {(loadedLeague===leagueId?notice:'') ||
           c?.decision ||
           "Waiting for a completed week with confirmed results and reconciled settlement."}
       </p>
       {capture?.leagueId===leagueId && capture.rows.some((row)=>Number(row.eligible_gaps)>0) && (
         <p className="report-note">Some {capture.rows[0].nfl_season} Week {capture.rows[0].market_week} forecasts could not be included in model evaluation. Current betting lines remain available; model changes still require sufficient evidence.</p>
       )}
-      {control && (
+      {retention?.leagueId===leagueId&&Number(retention.data?.unresolved_periods)>0&&<p role="status">{retention.data.unresolved_periods} evaluation periods have unresolved work after 14 days. Optional evidence remains capped; these periods need operator review.</p>}
+      {control && loadedLeague===leagueId && (
         <div className="model-review-actions">
           <span>
             Active version {control.active_id.slice(0, 8)} ·{" "}
@@ -143,6 +153,7 @@ export function ModelReview({
             ) : <p>No matched Sleeper input benchmarks were recorded for this review.</p>}
           </details>
           <p className="report-note">
+            {r.row_level_retired&&"Row-level records have expired; this view uses finalized compact summaries. "}
             Opening and final pregame forecasts, including unbet and locked markets. Week{" "}
             {review.market_week + 1} is excluded until confirmed complete.
             Accuracy is an estimate, not a guarantee.

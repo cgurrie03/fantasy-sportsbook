@@ -4,8 +4,13 @@ import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import {createServer} from 'vite';
+import react from '@vitejs/plugin-react';
+for(const key of Object.keys(process.env))if(/^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET|VERCEL)/.test(key))delete process.env[key];
+const fixtureServer=process.env.TEASER_UX_ORIGIN?null:await createServer({configFile:false,envDir:false,plugins:[react()],mode:'test',server:{host:'127.0.0.1',port:0,strictPort:true}});
+if(fixtureServer)await fixtureServer.listen();
 const output = path.resolve(process.env.TEASER_UX_OUTPUT || "work/teasers/ux");
-const origin = process.env.TEASER_UX_ORIGIN || "http://127.0.0.1:5188";
+const origin = process.env.TEASER_UX_ORIGIN || `http://127.0.0.1:${fixtureServer.httpServer.address().port}`;
 assert(["127.0.0.1", "localhost"].includes(new URL(origin).hostname));
 fs.mkdirSync(output, { recursive: true });
 const evidence = [],
@@ -26,12 +31,7 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("**/*", async (route) => {
       const url = route.request().url();
-      if (
-        url.startsWith(origin + "/") ||
-        url.startsWith("data:") ||
-        url.startsWith("blob:")
-      )
-        return route.continue();
+      if(url.startsWith(origin+'/')||url.startsWith('data:')||url.startsWith('blob:'))return route.continue();
       external.push(url);
       await route.abort();
     });
@@ -178,6 +178,7 @@ try {
   }
 } finally {
   await browser.close();
+  if(fixtureServer)await fixtureServer.close();
 }
 fs.writeFileSync(
   path.join(output, "checks.json"),

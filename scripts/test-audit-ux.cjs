@@ -159,6 +159,32 @@ const { setup, A, B, teams } = require("./test-ux.cjs");
     );
     assert.deepEqual(coverage.errors, []);
     await coverage.context.close();
+    const archivedFixture=await setup(browser,1280,844),archiveCalls=[];
+    await archivedFixture.context.route('**/rest/v1/model_controls*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({active_id:'fixture-active',baseline_id:'fixture-active',paused:true})}));
+    const totals={n:10,absolute_error:20,squared_error:40,error:0,interval_n:10,covered80:8};
+    const compact={format:'weekly-additive-v1',scores:[{view:'actual_starters',horizon:'opening',model_version:'fixture',missing:0,totals}],players:[],paired_sleeper:[],
+      markets:[],diagnostics:[],futures:[],future_final:false,live:[],coverage:{selected_runs:1,missing_families:[]},note:'Synthetic archived summary'};
+    await archivedFixture.context.route('**/rest/v1/model_evaluation_summaries*',route=>{
+      const url=new URL(route.request().url());archiveCalls.push(url);
+      return route.fulfill({contentType:'application/json',body:JSON.stringify(url.searchParams.get('select')==='market_week'?[{market_week:5}]:[{market_week:5,summary:compact}])});
+    });
+    await archivedFixture.context.route('**/rest/v1/model_weekly_reviews*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify([{nfl_season:2026,market_week:5,
+      report:{summary:compact},comparison:{decision:'Fixture compact summary',training_weeks:8,tests:[],reasons:[]}}])}));
+    await archivedFixture.page.goto('http://127.0.0.1:5185/#/admin/reports?report=13');
+    await archivedFixture.page.getByText('Archived league-wide accuracy summaries',{exact:true}).waitFor();
+    await archivedFixture.page.getByText(/Individual forecast rows, largest misses/).waitFor();
+    assert.match(await archivedFixture.page.locator('details').filter({hasText:'Archived league-wide accuracy summaries'}).innerText(),/actual starters/);
+    assert(archiveCalls.length>=2&&archiveCalls.every(url=>url.searchParams.get('league_id')==='eq.'+A));
+    await archivedFixture.page.getByRole('button',{name:'Export',exact:true}).click();
+    const download=archivedFixture.page.waitForEvent('download');
+    await archivedFixture.page.getByRole('button',{name:/CSV Data/}).click();
+    const chunks=[];for await(const part of await (await download).createReadStream())chunks.push(part);
+    assert(Buffer.concat(chunks).toString('utf8').includes('Archived league score aggregate'));
+    await archivedFixture.page.getByLabel('League',{exact:true}).selectOption(B);
+    await archivedFixture.page.goto('http://127.0.0.1:5185/#/admin/reports?report=13');
+    await archivedFixture.page.getByRole('heading',{name:'Admin access required'}).waitFor();
+    assert.equal(await archivedFixture.page.getByText('Archived league-wide accuracy summaries',{exact:true}).count(),0);
+    assert.deepEqual(archivedFixture.errors,[]);await archivedFixture.context.close();
     const f = await setup(browser, 390, 844, false),
       p = f.page;
     await p.goto(

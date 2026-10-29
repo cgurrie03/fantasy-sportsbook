@@ -236,7 +236,8 @@ try {
       };
       return builder;
     },
-    rpc: async () => {
+    rpc: async (name) => {
+      if(name==='evaluation_review_checkpoint')return {data:{retired_at:null},error:null};
       reviewSaved = true;
       return { data: "review", error: null };
     },
@@ -283,6 +284,9 @@ try {
       "complete",
     );
     assert.equal(reviewSaved, true);
+    globalThis.fetch=async()=>{throw new Error('Retired live periods must not fetch provider data.');};
+    const retired=await reviewLiveWeek({rpc:async()=>({data:{retired_at:'2026-01-01'},error:null})},{id:'fixture',attempts:1,league_id:'fixture',market_week:5},{nfl_season:2026});
+    assert.equal(retired.summary_only,true);
   } finally {
     globalThis.fetch = savedFetch;
   }
@@ -392,6 +396,7 @@ try {
     "insert into automation_jobs(id,league_id,event_key,operation,market_week,status,attempts,lease_until) values($1,$2,'review-test','model_review',4,'running',1,now()+interval '5 minutes')",
     [reviewJob, league],
   );
+  Object.assign(report,{retention_format:'transient-live-v1'});
   const reviewSave = async () =>
     (
       await db.query("select save_live_model_review($1,1,$2,$3,$4,$5) as id", [

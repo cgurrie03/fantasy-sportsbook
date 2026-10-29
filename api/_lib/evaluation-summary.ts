@@ -1,5 +1,5 @@
-// Additive sufficient statistics for the supported metrics. This module is not
-// yet connected to retention; do not expire evidence merely because it exists.
+// Additive sufficient statistics for the supported metrics. Retention eligibility
+// is enforced by the leased database checkpoint and cleanup contract.
 export type NumericTotals={n:number;absolute_error:number;squared_error:number;error:number;interval_n:number;covered80:number};
 export function numericTotals(rows:any[]):NumericTotals {
  const result={n:0,absolute_error:0,squared_error:0,error:0,interval_n:0,covered80:0};
@@ -60,7 +60,24 @@ export function summarizeEvaluation(report:any){
   return {...key,missing:rows.length-matched.length,adjusted:numericTotals(matched),
    sleeper:numericTotals(matched.map(r=>({...r,predicted:r.sleeper_predicted})))};
  });
+ const diagnostics=[...groups(report.categorical??[],['kind','horizon','model_version']).map(g=>({...g,type:'categorical'})),
+  ...groups(report.distributions??[],['kind','horizon','model_version']).map(g=>({...g,type:'distribution'}))].map(({key,rows,type})=>({
+   ...key,type,totals:numericTotals(rows),n:rows.length,ties:rows.filter(r=>r.tie).length,
+   probability_n:rows.filter(r=>Number.isFinite(r.brier)&&Number.isFinite(r.log_loss)).length,
+   brier:rows.reduce((s,r)=>s+(Number.isFinite(r.brier)?r.brier:0),0),log_loss:rows.reduce((s,r)=>s+(Number.isFinite(r.log_loss)?r.log_loss:0),0),
+   coverage_n:rows.filter(r=>Number.isFinite(r.coverage80)).length,covered80:rows.reduce((s,r)=>s+(Number.isFinite(r.coverage80)?r.coverage80:0),0)}));
+ const futures=report.futures?.opening_by_origin_week??[];
+ if(futures.length>2000)throw new Error('Future summary target budget exceeded.');
+ const kinds=[...new Set<string>(futures.map((r:any)=>r.kind))];
+ if(kinds.length>4)throw new Error('Future summary segment budget exceeded.');
  const summary={format:'weekly-additive-v1',
+  diagnostics,
+  futures:kinds.map(kind=>{const rows=futures.filter((r:any)=>r.kind===kind);return {kind,generated:rows.length,pending:rows.filter((r:any)=>![0,1].includes(r.y)||!Number.isFinite(r.p)||r.p<0||r.p>1).length,
+   totals:probabilityTotals(rows),wins:numericTotals(rows.filter((r:any)=>r.kind==='future_win_total'&&r.side==='over'&&Number.isFinite(r.expected_wins)&&r.y!==null)
+    .map((r:any)=>({predicted:r.expected_wins,actual:r.actual_value})))}}),
+  future_final:futures.length>0&&futures.every((r:any)=>[0,1].includes(r.y)&&Number.isFinite(r.p)&&r.p>=0&&r.p<=1),
+  live:(report.live_horizons??[]).slice(0,4).map((r:any)=>({horizon:r.horizon,team_count:r.team_count,matchup_count:r.matchup_count,
+   mae:r.mae,rmse:r.rmse,bias:r.bias,coverage80:r.coverage80,brier:r.brier,log_loss:r.log_loss,margin_mae:r.margin_mae,total_mae:r.total_mae})),
   scores:scoreGroups.map(({key,rows})=>({...key,missing:rows.length-numericTotals(rows).n,totals:numericTotals(rows)})),
   players:playerGroups.map(({key,rows})=>({...key,missing:rows.length-numericTotals(rows).n,totals:numericTotals(rows)})),paired_sleeper:paired,
   markets:marketGroups.map(({key,rows})=>({...key,generated:rows.length,locked:rows.filter(r=>r.locked).length,
@@ -74,4 +91,14 @@ export function summarizeEvaluation(report:any){
   note:'Selection-level descriptive counts/errors/calibration; correlated selections are not independent trials. No arbitrary quantiles, roster reconstruction or unrestricted retraining.'};
  if(new TextEncoder().encode(JSON.stringify(summary)).length>65536)throw new Error('Weekly summary byte budget exceeded.');
  return summary;
+}
+export function archivedReview(summary:any){
+ const score_views=summary.scores.map((r:any)=>({...r,...numericMetrics(r.totals)}));
+ const sleeper_comparison=summary.paired_sleeper.map((r:any)=>({...r,paired_n:r.adjusted.n,adjusted:numericMetrics(r.adjusted),sleeper:numericMetrics(r.sleeper),
+  mae_gain:r.adjusted.n?r.sleeper.absolute_error/r.sleeper.n-r.adjusted.absolute_error/r.adjusted.n:null}));
+ return {row_level_retired:true,score_views,sleeper_comparison,largest_misses:[],event_errors:[],excluded:[],
+  families:summary.markets.map((r:any)=>({...r,...probabilityMetrics(r.totals)})),
+  categorical:summary.diagnostics.filter((r:any)=>r.type==='categorical'),distributions:summary.diagnostics.filter((r:any)=>r.type==='distribution'),
+  live_horizons:summary.live,futures:{scores:summary.futures,note:'Finalized compact future metrics; correlated origin weeks are not independent trials.'},coverage:summary.coverage,
+  limitations:[summary.note,'Row-level correction window is closed. Largest misses, player-level records, rosters and full trajectories expired; financial settlement remains independent.']};
 }

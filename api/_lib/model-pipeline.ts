@@ -1,10 +1,11 @@
+import {advanceProspective,prospectiveComparison} from "./prospective-model.js";
+import {summarizeEvaluation} from "./evaluation-summary.js";
 import { readAssessmentRows } from "./assessment-reads.js";
 import { score } from "./line-model.js";
 import { parseScoreboard } from "./game-status.js";
 import { regularSeasonResults, settleFuture } from "./futures-settlement.js";
 import {
   assessWeek,
-  compareCandidate,
   digest,
   ASSESSMENT_VERSION,
   numeric,
@@ -21,6 +22,10 @@ async function source(url: string) {
 }
 const sleeper = (path: string) => source(`https://api.sleeper.app/v1/${path}`);
 export async function reviewModelWeek(db: any, job: any, league: any) {
+  const readStarted=new Date().toISOString();
+  const checkpoint=await db.rpc("evaluation_review_checkpoint",{p_job:job.id,p_attempt:job.attempts});
+  if(checkpoint.error)throw new Error(checkpoint.error.message);
+  if(checkpoint.data?.retired_at)return {status:"complete",summary_only:true,reason:"Row-level correction window closed; compact summary retained."};
   const [
     state,
     settings,
@@ -31,7 +36,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     runMetadata,
     futureRuns,
     published,
-    reviews,
+    prospective,
     controlResult,
     openTickets,
   ] = await Promise.all([
@@ -53,6 +58,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       "sportsbook_evaluation_runs",
       job.league_id,
       "id,league_id,nfl_season,market_week,category,captured_at,phase,provenance,model_version,model_config",
+      {season:league.nfl_season,week:job.market_week,pageSize:2},
     ),
     readAssessmentRows(
       db,
@@ -64,11 +70,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     readAssessmentRows(db, "sportsbook_model_publications", job.league_id,
       "id,market_week,quotes,captured_at",
       { season: league.nfl_season, week: job.market_week, pageSize: 2 }),
-    db.from("sportsbook_model_latest_reviews")
-      .select("id,nfl_season,market_week,created_at,outcome_id,report")
-      .eq("league_id", job.league_id)
-      .lt("period", league.nfl_season * 100 + job.market_week)
-      .order("period", { ascending: false }).limit(51),
+    db.from("model_prospective_state").select("state,revision").eq("league_id",job.league_id).maybeSingle(),
     db
       .from("model_controls")
       .select("*")
@@ -83,7 +85,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .neq("ticket_type", "future")
       .eq("status", "OPEN"),
   ]);
-  for (const r of [teamsResult, controlResult, openTickets, reviews])
+  for (const r of [teamsResult, controlResult, openTickets, prospective])
     if (r.error) throw new Error(r.error.message);
   const observation = parseScoreboard(games);
   if (Number(settings.season) !== league.nfl_season)
@@ -233,27 +235,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       fetch_note: "Current corrected final results; not prediction inputs.",
     },
   };
-  const latestForReplay = new Map<number, any>();
-  for (const review of reviews.data)
-    latestForReplay.set(review.nfl_season * 100 + review.market_week, review);
-  const replayReviews = [...latestForReplay.values()]
-    .filter(
-      (r) =>
-        r.nfl_season * 100 + r.market_week <
-        league.nfl_season * 100 + job.market_week,
-    )
-    .sort(
-      (a, b) =>
-        a.nfl_season * 100 + a.market_week - b.nfl_season * 100 - b.market_week,
-    )
-    .slice(-51);
-  const cutoffByPeriod = new Map(
-    replayReviews.map((r) => [
-      r.nfl_season * 100 + r.market_week,
-      r.report.cutoff,
-    ]),
-  );
-  cutoffByPeriod.set(league.nfl_season * 100 + job.market_week, cutoff);
+  const cutoffByPeriod=new Map([[league.nfl_season*100+job.market_week,cutoff]]);
   const ids: string[] = [];
   for (const [period, limit] of cutoffByPeriod) {
     const meta = runMetadata
@@ -281,8 +263,8 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
   }
   const unique = [...new Set(ids)],
     runs: any[] = [];
-  // Archive rows are large. Keep at most two in flight and never launch all
-  // historical payload pages concurrently. Compact/checkpointed replay follows.
+  // Only this completed week's designated records are hydrated, two at a time.
+  // Candidate state no longer depends on historical payload replay.
   for (let start = 0; start < unique.length; start += 2) {
     const page = await db
         .from("sportsbook_evaluation_runs")
@@ -298,7 +280,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     (r) =>
       r.nfl_season === league.nfl_season && r.market_week === job.market_week,
   );
-  const report = assessWeek(
+  const report:any = assessWeek(
     weekRuns,
     published.filter((p) => p.market_week === job.market_week),
     outcome,
@@ -383,63 +365,19 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
       .eq("league_id", job.league_id)
       .single();
   if (version.error) throw new Error(version.error.message);
-  const latest = new Map<number, any>();
-  for (const review of replayReviews)
-    latest.set(review.nfl_season * 100 + review.market_week, review);
-  const evidence: any[] = [];
-  for (const [period, review] of latest) {
-    if (period >= league.nfl_season * 100 + job.market_week) continue;
-    const out = await db
-      .from("model_outcome_revisions")
-      .select("outcome")
-      .eq("id", review.outcome_id)
-      .eq("league_id", job.league_id)
-      .single();
-    if (out.error) throw new Error(out.error.message);
-    if (
-      digest(out.data.outcome.sources.settings.scoring_settings) !==
-        digest(settings.scoring_settings) ||
-      digest(out.data.outcome.sources.settings.roster_positions) !==
-        digest(settings.roster_positions)
-    )
-      continue;
-    evidence.push({
-      period,
-      week: review.market_week,
-      report: review.report,
-      outcome: out.data.outcome,
-      runs: runs.filter(
-        (r) =>
-          r.nfl_season === review.nfl_season &&
-          r.market_week === review.market_week,
-      ),
-      known_at: review.created_at,
-      prediction_at:
-        runs
-          .filter(
-            (r) =>
-              r.nfl_season === review.nfl_season &&
-              r.market_week === review.market_week,
-          )
-          .map((r) => r.captured_at)
-          .sort()[0] ?? "",
-    });
-  }
-  evidence.push({
-    period: league.nfl_season * 100 + job.market_week,
-    week: job.market_week,
-    report,
-    outcome,
-    runs: weekRuns,
-    known_at: new Date().toISOString(),
-    prediction_at: weekRuns.map((r) => r.captured_at).sort()[0] ?? "",
-  });
-  const comparison = compareCandidate(
-    evidence,
-    version.data.config,
-    control.paused,
-    { requireSleeper: true },
-  );
+  report.summary_context_hash=digest({scoring:settings.scoring_settings,positions:settings.roster_positions});
+  report.retention_format="transient-evaluation-v1";
+  const summary=summarizeEvaluation(report);
+  const period=league.nfl_season*100+job.market_week;
+  const previous=prospective.data?{...prospective.data.state,revision:prospective.data.revision}:null;
+  const next=advanceProspective(previous,{active_id:control.active_id,context_hash:report.summary_context_hash,period,
+    current:version.data.config,report,runs:weekRuns,outcome,team_count:teamsResult.data.length});
+  const transition=await db.rpc("save_prospective_state",{p_job:job.id,p_attempt:job.attempts,p_active:control.active_id,
+    p_revision:previous?.revision??0,p_context:report.summary_context_hash,
+    p_hash:digest({period,context:report.summary_context_hash,active:control.active_id,scores:report.scores,markets:report.markets,run_ids:weekRuns.map(r=>r.id)}),p_state:next});
+  if(transition.error)throw new Error(transition.error.message);
+  const candidateState=transition.data;
+  const comparison=prospectiveComparison(candidateState,version.data.config,control.paused,period);
   if (
     version.data.parent_id &&
     Date.parse(version.data.created_at) > Date.now() - 7 * 86400000
@@ -451,7 +389,7 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
   }
   const key = digest({
     assessment: ASSESSMENT_VERSION,
-    outcome,
+    outcome:{teams:outcome.teams,players:outcome.players,rosters:outcome.rosters,season_results:outcome.season_results},
     run_ids: weekRuns.map((r) => r.id),
     published: published
       .filter((p) => p.market_week === job.market_week)
@@ -460,31 +398,31 @@ export async function reviewModelWeek(db: any, job: any, league: any) {
     paused: control.paused,
     comparison,
   });
+  const targetIds=new Set<string>();
+  for(const run of weekRuns){
+    for(const p of run.payload.pool??[])targetIds.add(p.id);
+    for(const model of run.payload.models??[])for(const p of model.lineup??[])targetIds.add(p.id);
+    for(const q of run.payload.quotes??[])for(const k of ["player_id","opponent_player_id"])if(q.metadata?.[k])targetIds.add(q.metadata[k]);
+  }
+  const compactOutcome={...outcome,retention_format:"transient-evaluation-v1",
+    players:Object.fromEntries(Object.entries(outcome.players).filter(([id])=>targetIds.has(id))),
+    rosters:outcome.rosters.map((r:any)=>({roster_id:r.roster_id,points:r.points,starters:r.starters})),
+    sources:{settings:{scoring_settings:settings.scoring_settings,roster_positions:settings.roster_positions},fetch_note:"Confirmed corrected final numeric results."}};
   const saved = await db.rpc("save_model_assessment", {
     p_job: job.id,
     p_attempt: job.attempts,
     p_hash: key,
-    p_outcome: outcome,
+    p_outcome: compactOutcome,
     p_report: report,
     p_comparison: comparison,
   });
   if (saved.error) throw new Error(saved.error.message);
+  const storedSummary=await db.rpc("save_evaluation_summary",{p_job:job.id,p_attempt:job.attempts,
+    p_context:report.summary_context_hash,p_hash:key,p_started:readStarted,p_summary:summary});
+  if(storedSummary.error)throw new Error(storedSummary.error.message);
   let change = "hold";
   if (control.active_id !== control.baseline_id) {
-    const deltas = evidence.slice(-4).flatMap((w) => {
-      const rows = w.report.scores.filter(
-        (r: any) =>
-          r.view === "actual_starters" &&
-          r.horizon === "opening" &&
-          r.model_version === control.active_id,
-      );
-      if (!rows.length) return [];
-      const frozen = rows.map((r: any) => ({
-        ...r,
-        predicted: r.predicted / r.model_config.score_scale,
-      }));
-      return [numeric(rows).mae! - numeric(frozen).mae!];
-    });
+    const deltas=candidateState.monitor.map((w:any)=>w.delta);
     if (
       report.coverage.missing_families.length ||
       !deltas.every(Number.isFinite) ||

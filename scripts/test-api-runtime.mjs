@@ -29,6 +29,8 @@ try {
     "_lib/ticket-progress",
     "_lib/model-assessment",
     "_lib/model-pipeline",
+    "_lib/prospective-model",
+    "_lib/evaluation-summary",
     "_lib/assessment-reads",
     "_lib/compact-forecast",
     "_lib/count-options",

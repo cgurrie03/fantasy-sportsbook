@@ -1,3 +1,5 @@
+Current continuation: [handoff 20](20-summary-retention-and-frozen-candidates.md) records compact summary retention and prospective candidate integration in development. The 2 a.m. scheduled run was canceled on October 29. The remaining historical notes below describe earlier checkpoints.
+
 # Current handoff status — October 28, 2026
 
 ## Implementation continuation — October 28

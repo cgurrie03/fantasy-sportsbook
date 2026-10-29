@@ -9,6 +9,8 @@ const compiled = await fs.mkdtemp(path.resolve("node_modules/.assessment-"));
 for (const name of [
   "model-assessment",
   "model-pipeline",
+  "prospective-model",
+  "evaluation-summary",
   "assessment-reads",
   "line-model",
   "settlement",
@@ -314,7 +316,7 @@ const settings = {
 };
 const mockDb = {
   from(name) {
-    const data =
+    const data = name === "model_prospective_state" ? null :
       name === "teams"
         ? [{ id: "a", roster_id: 1, team_name: "A" }]
         : name === "model_controls"
@@ -358,6 +360,7 @@ const mockDb = {
       single() {
         return b;
       },
+      maybeSingle() {return b;},
       limit() {
         return b;
       },
@@ -368,6 +371,9 @@ const mockDb = {
     return b;
   },
   async rpc(name, args) {
+    if(name==='evaluation_review_checkpoint')return {data:{retired_at:null},error:null};
+    if(name==='save_prospective_state')return {data:{...args.p_state,revision:1},error:null};
+    if(name==='save_evaluation_summary')return {data:1,error:null};
     assert.equal(name, "save_model_assessment");
     storedHashes.push(args.p_hash);
     return { data: args.p_hash, error: null };
@@ -435,6 +441,9 @@ try {
     3,
     "incomplete week and unresolved tickets do not write a completed review",
   );
+  globalThis.fetch=async()=>{throw new Error('Retired periods must not fetch provider data.');};
+  const retired=await reviewModelWeek({rpc:async name=>{assert.equal(name,'evaluation_review_checkpoint');return {data:{retired_at:'2026-01-01'},error:null};}},job,l);
+  assert.equal(retired.summary_only,true);
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -442,7 +451,9 @@ try {
   await db.exec(
     `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;grant usage on schema public,auth to authenticated,anon;grant execute on function auth.uid(),auth.role() to authenticated,anon,service_role;`,
   );
-  for (const file of (await fs.readdir("supabase/migrations")).sort())
+  // Preserve the pre-prospective controller's regression fixtures. The current
+  // schema/promotion contract is exercised in test-prospective-model.mjs.
+  for (const file of (await fs.readdir("supabase/migrations")).sort().filter(f=>f<'20261029130921'))
     await db.exec(await fs.readFile(`supabase/migrations/${file}`, "utf8"));
   await db.query("insert into auth.users values($1,$2,now())", [
     admin,

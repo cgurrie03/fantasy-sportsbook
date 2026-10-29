@@ -1,5 +1,6 @@
 import { useRoute, navigate } from "../lib/navigation";
 import { csvCell } from "../lib/csv";
+import {numericMetrics,probabilityMetrics} from "../../api/_lib/evaluation-summary";
 import { ModelReview } from "./ModelReview";
 import "./ModelReview.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -95,6 +96,7 @@ export function Reports({
   const [expectedCompleted, setExpectedCompleted] = useState(0);
   const [forecastStatus, setForecastStatus] = useState("");
   const [captureNotice,setCaptureNotice]=useState<{scope:string;text:string}|null>(null);
+  const [archive,setArchive]=useState<{scope:string;rows:any[];error:string}>({scope:'',rows:[],error:''});
   const forecastRequest = useRef<{ scope: string; pending: boolean } | null>(
     null,
   );
@@ -153,6 +155,29 @@ export function Reports({
   const teams = data.teams.filter(
     (t) => t.league_id === leagueId && (!team || t.id === team),
   );
+  useEffect(()=>{
+    if(previewData||!supabase||report!==13)return;
+    let active=true;const controller=new AbortController();const scope=`${leagueId}:${season}:${week}`;
+    const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]);
+    void(async()=>{
+      try{
+        let query=supabase.from('model_evaluation_summaries').select('market_week').eq('league_id',leagueId).eq('nfl_season',season)
+          .not('retired_at','is',null).order('market_week').limit(18).abortSignal(signal);
+        if(week)query=query.eq('market_week',week);
+        const metadata=await query;if(metadata.error)throw metadata.error;
+        const result:any[]=[];const weeks=(metadata.data??[]).map(r=>r.market_week);
+        for(let start=0;start<weeks.length;start+=2){
+          const page=await supabase.from('model_evaluation_summaries').select('market_week,summary').eq('league_id',leagueId).eq('nfl_season',season)
+            .in('market_week',weeks.slice(start,start+2)).order('market_week').abortSignal(signal);
+          if(page.error)throw page.error;result.push(...(page.data??[]));
+        }
+        if(result.length!==weeks.length)throw new Error('Archived summary incomplete.');
+        if(active)setArchive({scope,rows:result,error:''});
+      }catch{if(active)setArchive({scope,rows:[],error:'Archived quality summaries could not load. Retry this report.'});}
+    })();
+    return()=>{active=false;controller.abort();};
+  },[leagueId,season,week,report,previewData]);
+  const archived=archive.scope===`${leagueId}:${season}:${week}`?archive.rows:[];
   const owner = (id: string) =>
     data.teams.find((t) => t.id === id)?.sportsbook_owner_name ??
     data.memberships.find((m) => m.team_id === id)?.display_name ??
@@ -824,6 +849,12 @@ export function Reports({
         fixed(e.brier, 3),
       ]),
     );
+  if(report===13)for(const entry of archived){
+    for(const row of entry.summary.markets){const m=probabilityMetrics(row.totals);
+      table.push([entry.market_week,row.kind,`Archived league aggregate (${row.horizon})`,'—',`n=${m.n}`,'Aggregate','—',fixed(m.brier,3)]);}
+    for(const row of entry.summary.scores){const m=numericMetrics(row.totals);
+      table.push([entry.market_week,row.view,`Archived league score aggregate (${row.horizon})`,'—',`n=${m.n}`,'Aggregate',`MAE ${fixed(m.mae)}; RMSE ${fixed(m.rmse)}; bias ${fixed(m.bias)}`,'—']);}
+  }
   if (report === 14)
     add(
       ["Date", "Operation", "Status", "Details"],
@@ -1705,6 +1736,14 @@ export function Reports({
                 are preliminary.
               </p>
               <p className="report-note">Futures history shows designated opening/latest pregame observations, not every refresh. Historical roster reconstruction and complete line movement are no longer retained.</p>
+              {archive.scope===`${leagueId}:${season}:${week}`&&archive.error&&<p role="status">{archive.error}</p>}
+              {!!archived.length&&<details open><summary>Archived league-wide accuracy summaries</summary>
+                <p className="report-note">These finalized aggregates cover the whole league. Individual forecast rows, largest misses and complete trajectories expired after the correction window. The team filter does not reconstruct those records.</p>
+                <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Week</th><th>View / market</th><th>Horizon</th><th>Count</th><th>MAE</th><th>Brier</th><th>Log loss</th></tr></thead>
+                  <tbody>{archived.flatMap(entry=>[
+                    ...entry.summary.scores.map((row:any)=>{const m=numericMetrics(row.totals);return <tr key={`${entry.market_week}:score:${row.view}:${row.horizon}:${row.model_version}`}><td>{entry.market_week}</td><td>{row.view.replaceAll('_',' ')}</td><td>{row.horizon.replaceAll('_',' ')}</td><td>{m.n}</td><td>{fixed(m.mae)}</td><td>—</td><td>—</td></tr>;}),
+                    ...entry.summary.markets.map((row:any)=>{const m=probabilityMetrics(row.totals);return <tr key={`${entry.market_week}:market:${row.kind}:${row.horizon}:${row.model_version}`}><td>{entry.market_week}</td><td>{marketType[row.kind as keyof typeof marketType]??row.kind}</td><td>{row.horizon.replaceAll('_',' ')}</td><td>{m.n}</td><td>—</td><td>{fixed(m.brier,3)}</td><td>{fixed(m.log_loss,3)}</td></tr>;})
+                  ])}</tbody></table></div></details>}
               {captureNotice?.scope===leagueId+":"+season && captureNotice.text && <p className="report-note">{captureNotice.text}</p>}
               <h3>Accuracy by market and model</h3>
               <div className="report-table-wrap">

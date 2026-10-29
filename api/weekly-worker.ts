@@ -180,6 +180,8 @@ export async function POST(request: Request) {
     // Maintenance failure must not starve settlement or replenishment.
     const cleanup = await db.rpc("cleanup_terminal_refresh_payloads", { p_limit: 5 });
     if (cleanup.error) console.error("Refresh cleanup failed", { code: cleanup.error.code });
+    const evaluationCleanup=await db.rpc("cleanup_evaluated_samples",{p_limit:2});
+    if(evaluationCleanup.error)console.error("Evaluation cleanup failed",{code:evaluationCleanup.error.code});
     // Cadence detection never waits for the next two-hour pricing interval.
     // A source outage suspends refresh/acceptance, but must not starve settlement.
     let statusError: string | null = null;

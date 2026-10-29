@@ -1,3 +1,5 @@
+Superseded checkpoint: see [handoff 20](20-summary-retention-and-frozen-candidates.md) for hosted summary/expiry integration and prospective evaluation. The scheduled continuation below was canceled on October 29 at the owner's request.
+
 # Summary/retention continuation — work in progress
 
 Milestones 11 and 12 remain incomplete. The additive summary kernel and synthetic
@@ -70,7 +72,7 @@ Milestones 09 and 10 are complete in protected development; counter remains
 `a87fce855dc8ee86500b30dd47f13671aa879b88`, deployment
 `dpl_EVadC6xk2eC6erTLhXsrTi9Hy8iJ`; later local commits include only summary
 foundation work and checkpoint documentation and have not been deployed.
-The one-time thread automation `resume-boff-handoff-at-2-am` is active for
+The one-time thread automation `resume-boff-handoff-at-2-am` was previously configured for
 October 29, 2026 at 2:00 a.m. America/New_York, after the observed 1:56 a.m.
 five-hour limit reset. Inspect current state first and avoid duplicate active
 work. Continue sequentially without asking for routine confirmation; report
