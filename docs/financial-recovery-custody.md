@@ -19,8 +19,12 @@ The integrations cannot choose your password or import a key into your password
 manager. Run this yourself in PowerShell under the original Windows account:
 
 ```powershell
-pwsh -NoProfile -File "C:\Users\coope\Documents\Codex\2026-10-28\co\work\fantasy-sportsbook\scripts\export-recovery-key.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\coope\Documents\Codex\2026-10-28\co\work\fantasy-sportsbook\scripts\export-recovery-key.ps1"
 ```
+
+This uses built-in Windows PowerShell; `pwsh` installation is not required. The
+execution-policy option applies only to this launched process and does not change
+your saved Windows policy.
 
 1. Generate/save a new password of at least 20 characters in your password manager.
    Enter it twice at the hidden local prompts. Never send it through chat.
