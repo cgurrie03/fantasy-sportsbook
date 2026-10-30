@@ -21,6 +21,7 @@ import { buildBalanceHistory } from "./lib/balanceHistory";
 const loadSportsbook = () =>
   import("./components/Sportsbook").then((m) => ({ default: m.Sportsbook }));
 const Sportsbook = lazy(loadSportsbook);
+const UserWalletAdmin = lazy(() => import("./components/UserWalletAdmin").then(m=>({default:m.UserWalletAdmin})));
 function Avatar({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -319,7 +320,8 @@ export function Account({
           <div>
             <dt>Access</dt>
             <dd>
-              {member.role === "admin" ? "League Admin" : "League Member"}
+              {data.access?.find(a=>a.league_id===team.league_id)?.platform_owner ? "Platform Owner" :
+                data.access?.find(a=>a.league_id===team.league_id)?.admin || member.role === "admin" ? "League Admin" : "League Member"}
             </dd>
           </div>
         </dl>
@@ -518,6 +520,8 @@ function UsersAdmin({
   const teams = data.teams.filter((t) => t.league_id === leagueId),
     [selected, setSelected] = useState(teams[0]?.id);
   const team = teams.find((t) => t.id === selected) ?? teams[0];
+  if(data.access?.find(a=>a.league_id===leagueId)?.wallet_model==='user')
+    return <Suspense fallback={<p role="status">Loading financial controls…</p>}><UserWalletAdmin key={leagueId} data={data} leagueId={leagueId} refresh={refresh}/></Suspense>;
   return (
     <section className="admin-layout">
       <div className="page-heading">

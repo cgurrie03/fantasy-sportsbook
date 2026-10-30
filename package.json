@@ -53,7 +53,7 @@
     "test:routine-retention": "node scripts/test-routine-retention.mjs",
     "test:release-evidence": "node scripts/test-release-evidence.mjs",
     "release:review": "node scripts/release-evidence.mjs",
-    "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs && node scripts/test-user-wallets-ux.cjs"
+    "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs && node scripts/test-user-wallets-ux.cjs && node scripts/test-user-wallet-admin-ux.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

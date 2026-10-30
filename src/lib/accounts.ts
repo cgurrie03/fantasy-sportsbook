@@ -100,6 +100,7 @@ export interface AccountData {
   ticketPromotions?: TicketPromotion[];
 }
 export interface BettingTotal {
+  wallet_id?: string;
   team_id: string;
   placed: number;
   settled: number;

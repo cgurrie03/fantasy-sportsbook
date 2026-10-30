@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       week: number;
       nfl_season: number;
     };
-    const [teamsResponse, ticketsResponse, walletsResponse] = await Promise.all(
+    const [teamsResponse, ticketsResponse] = await Promise.all(
       [
         client
           .from("teams")
@@ -89,10 +89,9 @@ export async function POST(request: Request) {
           .eq("league_id", input.league_id)
           .eq("status", "OPEN")
           .eq("nfl_season", season),
-        client.from("wallets").select("team_id,balance"),
       ],
     );
-    for (const r of [teamsResponse, ticketsResponse, walletsResponse])
+    for (const r of [teamsResponse, ticketsResponse])
       if (r.error) throw new Error(r.error.message);
     const teams = teamsResponse.data ?? [],
       tickets = ticketsResponse.data ?? [];
@@ -496,28 +495,25 @@ export async function POST(request: Request) {
       if (saved.error) throw new Error(saved.error.message);
       replenishment = saved.data;
     }
-    const [currentWallets, currentTickets, ledger] = await Promise.all([
-      client.from("wallets").select("team_id,balance"),
+    const [financeSnapshot, currentTickets] = await Promise.all([
+      client.rpc("weekly_finance_wallets", { p_league: input.league_id, p_season: season, p_week: week }),
       client
         .from("tickets")
-        .select("team_id,market_week,status,ticket_type,nfl_season,stake")
+        .select("team_id,user_wallet_id,market_week,status,ticket_type,nfl_season,stake")
         .eq("league_id", input.league_id),
-      client
-        .from("wallet_ledger")
-        .select("team_id,event_key")
-        .like("event_key", `weekly:replenish:${season}:${week}:%`),
     ]);
-    for (const r of [currentWallets, currentTickets, ledger])
+    for (const r of [financeSnapshot, currentTickets])
       if (r.error) throw new Error(r.error.message);
-    const balances = (currentWallets.data ?? [])
+    if (!Array.isArray(financeSnapshot.data?.wallets) || financeSnapshot.data.wallets.length > 128)
+      throw new Error("Financial preview is incomplete.");
+    const balances = (financeSnapshot.data.wallets as {wallet_id?:string|null;team_id:string;balance:number|string|null;display_name?:string;legacy_primary:boolean;processed:boolean}[])
       .filter((w) => teams.some((t) => t.id === w.team_id))
       .map((w) => {
         const userTickets = (currentTickets.data ?? []).filter(
-          (t) => t.team_id === w.team_id,
+          (t) => w.wallet_id ? t.user_wallet_id === w.wallet_id ||
+            (w.legacy_primary && !t.user_wallet_id && t.team_id === w.team_id) : t.team_id === w.team_id,
         );
-        const processed = (ledger.data ?? []).some(
-          (l) => l.team_id === w.team_id,
-        );
+        const processed = w.processed;
         const reason = processed
           ? "Already processed this week"
           : w.balance === null
@@ -543,8 +539,9 @@ export async function POST(request: Request) {
                   : "Eligible";
         return {
           team_id: w.team_id,
-          name: teams.find((t) => t.id === w.team_id)?.team_name,
-          current: Number(w.balance),
+          wallet_id: w.wallet_id ?? null,
+          name: (w.wallet_id ? `${w.display_name} · ` : "") + (teams.find((t) => t.id === w.team_id)?.team_name ?? "Team"),
+          current: w.balance === null ? null : Number(w.balance),
           eligible: reason === "Eligible",
           reason,
           target:

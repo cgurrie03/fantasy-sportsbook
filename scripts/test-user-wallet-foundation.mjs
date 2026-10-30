@@ -26,6 +26,7 @@ try {
  const p=(await approve(A,primary))[0].r,c=(await approve(A,coowner))[0].r,b=(await approve(B,primary,foreignTeam))[0].r;
  assert.notEqual(p.wallet_id,c.wallet_id);assert.notEqual(p.wallet_id,b.wallet_id);assert(p.funding_pending&&c.funding_pending);
  assert.equal((await approve(A,primary))[0].r.duplicate,true);
+ await db.exec('reset role');await q('insert into sportsbook_private.user_finance_modes(league_id,enabled) values($1,true)',[A]);await act(owner);
  await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',40,'Explicit funding decision',$3)",[A,coowner,randomUUID()]),/primary participant/);
  await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',39,'Explicit funding decision',$3)",[A,primary,request]),/Legacy cash changed/);
  await db.exec('reset role;begin;set local session_replication_role=replica');
@@ -33,6 +34,7 @@ try {
  await db.exec('set local session_replication_role=origin');await act(owner);
  await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',40,'Explicit funding decision',$3)",[A,primary,request]),/Open legacy liabilities/);
  await db.exec('rollback');await act(owner);
+ await assert.rejects(q("select initialize_user_wallet($1,$2,'zero',null,'Explicit zero opening review',$3)",[A,primary,randomUUID()]),/Existing primary cash/);
  const initialize=(user,mode,amount,id)=>q('select initialize_user_wallet($1,$2,$3,$4,$5,$6) r',[A,user,mode,amount,'Explicit reviewed opening decision',id]);
  await initialize(coowner,'zero',null,randomUUID());
  assert.equal((await initialize(primary,'transfer_legacy',40,request))[0].r.balance,40);
@@ -54,7 +56,7 @@ try {
  await assert.rejects(q('delete from user_wallet_entries'),/immutable/);
 
  // Local-only mode fixture: no public activation API or hosted mode exists yet.
- await q('insert into sportsbook_private.user_finance_modes(league_id,enabled) values($1,true)',[A]);
+
  await act(owner);
  await q('select set_user_wallet_balance($1,40,100,$2,$3)',[p.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
  await q('select set_user_wallet_balance($1,0,100,$2,$3)',[c.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
@@ -145,5 +147,23 @@ try {
  assert.equal((await q('select account_ticket_page($1,$2,null,20) r',[A,JSON.stringify({personal:true})]))[0].r.total,2);
  assert.equal(Number((await q('select account_personal_totals($1,null,null) r',[A]))[0].r[0].open_future),80);
  await assert.rejects(q('select account_user_balance_page($1,$2,$3,1)',[A,p.wallet_id,JSON.stringify(balancePage.next)]),/Invalid financial balance cursor/);
+
+ await act(owner);
+ const audit=(await q('select account_wallet_report($1,null,null,40) r',[A]))[0].r;
+ assert(audit.rows.some(e=>e.source==='user_ledger'&&e.wallet_id===c.wallet_id));
+ const cash=audit.by_team.find(t=>t.team_id===team);assert.equal(Number(cash.credits)-Number(cash.debits),85,'internal cash transfers are not new inflow/outflow');
+ const weekly=(await q('select weekly_finance_wallets($1,2026,6) r',[A]))[0].r;
+ assert.equal(weekly.wallet_model,'user');assert.equal(weekly.wallets.length,2);assert(weekly.wallets.every(w=>w.processed));
+ assert.equal(weekly.wallets.find(w=>w.wallet_id===c.wallet_id).legacy_primary,false);
+ await act(coowner);await assert.rejects(q('select weekly_finance_wallets($1,2026,6)',[A]),/operator required/);
+ const standings=await q('select * from user_leaderboard($1)',[A]);assert.equal(standings.length,2);
+ assert.equal(standings.find(s=>s.wallet_id===p.wallet_id).current_balance,null);
+ assert.equal(standings.find(s=>s.wallet_id===p.wallet_id).balance_visible,false);
+ assert.equal(Number(standings.find(s=>s.wallet_id===c.wallet_id).current_balance),100);
+ assert.equal(Number(standings.find(s=>s.wallet_id===p.wallet_id).open_stakes),80);
+ await act(outsider);await assert.rejects(q('select * from user_leaderboard($1)',[A]),/league access required/);
+
+ await act(owner);await assert.rejects(q('select set_team_balance($1,100,$2,$3)',[team,'Wrong legacy cash action after cutover',randomUUID()]),/per-user financial accounts/);
+ await db.exec('reset role');await assert.rejects(q('update sportsbook_private.user_finance_modes set enabled=false where league_id=$1',[A]),/separately reviewed migration/);
  console.log('Passed independent co-owner and cross-league wallets, pending funding, explicit CAS legacy transfer once, zero co-owner funds, owner/verified/team scope, private reads and immutable identity/ledger; local engine proves wagers, duplicate-request isolation, confirmation scope, refunds/settlement once and independent futures/replenishment. Hosted routing remains inactive.');
 }finally{await db.close();}

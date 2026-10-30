@@ -200,7 +200,8 @@ export function Reports({
     return()=>{active=false;controller.abort();};
   },[leagueId,season,week,report,previewData]);
   const archived=archive.scope===`${leagueId}:${season}:${week}`?archive.rows:[];
-  const owner = (id: string) =>
+  const financialMode=data.access?.some(a=>a.league_id===leagueId&&a.wallet_model==='user');
+  const owner = (id: string) => financialMode ? data.teams.find(t=>t.id===id)?.team_name??id :
     data.teams.find((t) => t.id === id)?.sportsbook_owner_name ??
     data.memberships.find((m) => m.team_id === id)?.display_name ??
     id;
@@ -674,7 +675,7 @@ export function Reports({
           new Date(l.created_at).toLocaleString("en-US", {
             timeZone: "America/New_York",
           }),
-          owner(l.team_id),
+          l.display_name ?? owner(l.team_id),
           l.reason,
           l.balance_before === null ? "—" : money(l.balance_before),
           money(l.balance_after),
@@ -750,7 +751,7 @@ export function Reports({
       (financialScope?(financial.data?.tickets??[]):filteredTickets)
         .filter((t) => t.status === "OPEN")
         .map((t) => [
-          owner(t.team_id),
+          t.bettor_display_name ?? owner(t.team_id),
           t.legacy_ticket_id ?? t.id.slice(0, 8),
           t.market_week,
           t.ticket_type ?? "weekly",
@@ -1038,7 +1039,7 @@ export function Reports({
       "paired",
       "Recorded cash credits versus deductions",
       "$",
-      "Totals use entries with known before/after balances. Opening entries are excluded. Credits include replenishments and admin changes, so this is cash flow rather than betting ROI.",
+      "Totals use entries with known before/after balances. Opening entries and internal account transfers are excluded. Credits include replenishments and admin changes, so this is cash flow rather than betting ROI.",
       teams.map((t) => {
         const total=financialScope?financial.data?.by_team?.find(row=>row.team_id===t.id):undefined;
         const changes = data.ledger
@@ -1362,9 +1363,9 @@ export function Reports({
       ]),
     );
   const financialCsvRows=(result:FinancialPage):(string|number)[][]=>report===9?(result.rows??[]).map(row=>[
-    new Date(row.created_at).toLocaleString('en-US',{timeZone:'America/New_York'}),owner(row.team_id),row.reason,row.balance_before===null?'—':money(row.balance_before),money(row.balance_after)]):
+    new Date(row.created_at).toLocaleString('en-US',{timeZone:'America/New_York'}),row.display_name??owner(row.team_id),row.reason,row.balance_before===null?'—':money(row.balance_before),money(row.balance_after)]):
     report===10?(result.rows??[]).map(row=>[row.label,row.count,money(row.stakes),row.won,row.lost,row.pushed,row.open]):
-    (result.tickets??[]).map(t=>[owner(t.team_id),t.legacy_ticket_id??t.id.slice(0,8),t.market_week,t.ticket_type??'weekly',money(t.stake),money(t.accepted_potential_payout??0)]);
+    (result.tickets??[]).map(t=>[t.bettor_display_name??owner(t.team_id),t.legacy_ticket_id??t.id.slice(0,8),t.market_week,t.ticket_type??'weekly',money(t.stake),money(t.accepted_potential_payout??0)]);
   const exportCsv = async () => {
     setExportOpen(false);
     setExporting(true);

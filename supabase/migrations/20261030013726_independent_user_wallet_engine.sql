@@ -1,5 +1,6 @@
 begin;
 -- No public activation operation yet. Empty mode table preserves legacy runtime.
+alter table public.outbound_emails add column wallet_model text not null default 'legacy' check(wallet_model in ('legacy','user'));
 create table sportsbook_private.user_finance_modes(league_id uuid primary key references public.leagues(id),enabled boolean not null default false);
 alter table sportsbook_private.user_finance_modes enable row level security;
 revoke all on sportsbook_private.user_finance_modes from public,anon,authenticated,service_role;
@@ -676,6 +677,9 @@ grant execute on function public.set_user_wallet_status(uuid,integer,text,text) 
 create or replace function sportsbook_private.guard_outbox_recipient() returns trigger
 language plpgsql security definer set search_path='' as $$
 begin
+ if tg_op='INSERT' then
+  new.wallet_model:=case when exists(select 1 from sportsbook_private.user_finance_modes where league_id=new.league_id and enabled) then 'user' else 'legacy' end;
+ elsif new.wallet_model is distinct from old.wallet_model then raise exception 'Queued financial model is immutable.';end if;
  if tg_op='UPDATE' and new.payload is null and old.payload is not null
   and row(new.league_id,new.team_id,new.ticket_id,new.recipient,new.kind) is not distinct from
       row(old.league_id,old.team_id,old.ticket_id,old.recipient,old.kind) then return new;end if;
@@ -693,6 +697,10 @@ begin
 end $$;
 
 
+drop trigger outbox_recipient_guard on public.outbound_emails;
+create trigger outbox_recipient_guard before insert or update of league_id,team_id,ticket_id,recipient,payload,wallet_model
+ on public.outbound_emails for each row execute function sportsbook_private.guard_outbox_recipient();
+
 create function public.financial_email_recipient(p_ticket uuid) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
 declare result jsonb;
@@ -705,9 +713,33 @@ begin
  from public.tickets t join public.user_wallets w on w.id=t.user_wallet_id join auth.users a on a.id=w.user_id
  where t.id=p_ticket and w.status='approved' and a.email_confirmed_at is not null;
  if result is null then raise exception 'Accepted financial recipient is no longer approved or verified.';end if;
+ if result->'accepted_balance'='null'::jsonb then raise exception 'Accepted wager receipt is unavailable.';end if;
  return result;
 end $$;
 revoke all on function public.financial_email_recipient(uuid) from public,anon,authenticated;
 grant execute on function public.financial_email_recipient(uuid) to service_role;
+
+
+create function public.financial_email_context(p_league uuid,p_team uuid,p_recipient text) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+declare result jsonb;
+begin
+ if auth.role() is distinct from 'service_role' then raise exception 'Mail worker only.';end if;
+ if not exists(select 1 from sportsbook_private.user_finance_modes where league_id=p_league and enabled) then return null;end if;
+ select jsonb_build_object('wallet_id',w.id,'user_id',w.user_id,'league_id',w.league_id,'team_id',w.team_id,
+  'recipient',a.email,'display_name',w.display_name,'balance',w.balance) into result
+ from public.user_wallets w join auth.users a on a.id=w.user_id where w.league_id=p_league and w.team_id=p_team
+  and w.status='approved' and a.email_confirmed_at is not null and a.email=p_recipient;
+ if result is null then raise exception 'Financial recipient is pending approval or verification.';end if;
+ if (select count(*) from public.user_wallets where league_id=p_league)>128 then raise exception 'Financial email participant budget exceeded.';end if;
+ result:=result||coalesce((select jsonb_build_object('rank',r.rank,'participants',r.participants) from (
+  select w.id,row_number() over(order by x.profit desc,x.bets desc,w.id) rank,count(*) over() participants
+  from public.user_wallets w cross join lateral(select count(*) bets,coalesce(sum(t.net_profit) filter(where t.status<>'OPEN'),0) profit
+   from public.tickets t where t.user_wallet_id=w.id and t.status<>'VOIDED') x where w.league_id=p_league
+ ) r where r.id=(result->>'wallet_id')::uuid),'{}'::jsonb);
+ return result;
+end $$;
+revoke all on function public.financial_email_context(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.financial_email_context(uuid,uuid,text) to service_role;
 
 commit;

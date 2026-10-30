@@ -16,6 +16,11 @@ const user='cccccccc-3333-4333-8333-333333333333',wallet='eeeeeeee-4444-4444-844
    const body=route.request().postDataJSON();calls.push(body);assert.equal(body.p_wallet,wallet);assert.equal(body.p_league,A);
    return route.fulfill({json:{wallet_id:wallet,entries:[{id:'own-entry',ticketId:null,title:'Balance Adjustment',reason:'Own wallet change',amount:-7,date:'2026-10-29T16:00:00Z',imported:false,balanceAfter:93}],total:1,next:null,as_of:new Date().toISOString()}});
   });
+
+  await p.route('**/rpc/user_leaderboard',route=>route.fulfill({json:[
+   {wallet_id:'ffffffff-6666-4666-8666-666666666666',team_id:teams[0].id,display_name:'Primary Participant',bets_placed:2,bets_won:1,bets_lost:0,bets_push:0,total_wagered:90,total_payout:20,net_profit:10,roi:100,win_percentage:100,biggest_parlay_legs:1,biggest_parlay_odds:100,biggest_payout:20,current_balance:null,balance_visible:false,open_stakes:80,settled_stakes:10},
+   {wallet_id:wallet,team_id:teams[0].id,display_name:'Approved Co-owner',bets_placed:1,bets_won:0,bets_lost:0,bets_push:0,total_wagered:7,total_payout:0,net_profit:0,roi:0,win_percentage:0,biggest_parlay_legs:0,biggest_parlay_odds:null,biggest_payout:0,current_balance:93,balance_visible:true,open_stakes:7,settled_stakes:0}
+  ]}));
   await p.goto('http://127.0.0.1:5185/#/account');await p.reload();
   await p.getByRole('heading',{name:'Approved Co-owner',exact:true}).waitFor();
   await p.getByText('Own wallet change',{exact:true}).waitFor();
@@ -24,6 +29,15 @@ const user='cccccccc-3333-4333-8333-333333333333',wallet='eeeeeeee-4444-4444-844
   assert(!/100\.00/.test(await p.locator('.profile-copy').innerText()),'legacy primary balance is not shown');
   assert.equal(await p.getByRole('link',{name:'My Bets',exact:true}).count(),1);
   assert.equal(await p.getByText('Membership Pending',{exact:true}).count(),0);
+
+  await p.getByRole('link',{name:'Leaderboard',exact:true}).click();
+  await p.getByRole('button',{name:/Primary Participant/}).waitFor();
+  assert.equal(await p.locator('.standing-expand').count(),2,'co-owners have distinct rows despite sharing a fantasy team');
+  await p.getByRole('button',{name:/Primary Participant/}).click();
+  const primaryStats=p.getByRole('region',{name:'Primary Participant statistics',exact:true});
+  assert.match(await primaryStats.innerText(),/Open stakes\s*\$80\.00/);
+  const primaryRow=p.getByRole('row').filter({has:p.getByRole('button',{name:/Primary Participant/})});
+  assert.match(await primaryRow.innerText(),/Private/);
   await p.getByLabel('League',{exact:true}).selectOption(B);
   await p.getByText('League viewing access',{exact:true}).waitFor();
   assert.equal(await p.getByRole('link',{name:'My Bets',exact:true}).count(),0);

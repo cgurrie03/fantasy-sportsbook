@@ -60,6 +60,11 @@ import type { TeaserPreviewPrice } from "./TeaserConversion";
 import type { StarterSnapshot } from "../lib/starter-activity";
 
 export interface Standing {
+  wallet_id?: string;
+  display_name?: string;
+  open_stakes?: number;
+  settled_stakes?: number;
+  balance_visible?: boolean;
   team_id: string;
   bets_placed: number;
   bets_won: number;
@@ -73,7 +78,7 @@ export interface Standing {
   biggest_parlay_legs: number;
   biggest_parlay_odds: number;
   biggest_payout: number;
-  current_balance: number;
+  current_balance: number | null;
 }
 export interface BoardReview {
   embedded?: boolean;
@@ -512,7 +517,7 @@ export function Sportsbook({
     let active = true;
     setStandingsLoading(true);
     void Promise.resolve(
-      supabase?.rpc("league_leaderboard", { p_league: member.league_id }),
+      supabase?.rpc(member.wallet_id ? "user_leaderboard" : "league_leaderboard", { p_league: member.league_id }),
     )
       .then((s) => {
         if (!active) return;
@@ -535,7 +540,7 @@ export function Sportsbook({
     return () => {
       active = false;
     };
-  }, [member.league_id, review, data.history_revision, reloadQuotes, tab]);
+  }, [member.league_id, member.wallet_id, review, data.history_revision, reloadQuotes, tab]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -1546,7 +1551,7 @@ export function Sportsbook({
         <>
           <h1>League Leaderboard</h1>
           <p className="muted">
-            <em>Ranked by Net Profit, Balance, then Bets Placed</em>
+            <em>{member.wallet_id ? "Ranked by Net Profit, then Bets Placed" : "Ranked by Net Profit, Balance, then Bets Placed"}</em>
           </p>
           {standingsLoading && !standings.length && (
             <p role="status">Loading standings...</p>

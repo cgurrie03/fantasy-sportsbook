@@ -16,8 +16,7 @@ export function LeagueStandings({
     <div className="standings-scroll">
       <table className="accessible-standings">
         <caption>
-          Ranked by settled net profit, balance, then bets placed. Expand a
-          member for statistics.
+          {standings.some(s=>s.wallet_id) ? "Ranked by settled net profit, then bets placed." : "Ranked by settled net profit, balance, then bets placed."} Expand a member for statistics.
         </caption>
         <thead>
           <tr>
@@ -30,25 +29,26 @@ export function LeagueStandings({
         <tbody>
           {standings.map((s, i) => {
             const totals=data.betting_scope?.season===null&&data.betting_scope.week===null?
-              data.betting_totals?.find(t=>t.team_id===s.team_id):undefined;
-            const open = totals?.open??(data.tickets ?? [])
+              data.betting_totals?.find(t=>s.wallet_id?t.wallet_id===s.wallet_id:t.team_id===s.team_id):undefined;
+            const key=s.wallet_id??s.team_id,name=s.display_name??owner(s.team_id);
+            const open = s.open_stakes??totals?.open??(data.tickets ?? [])
               .filter((t) => t.team_id === s.team_id && t.status === "OPEN")
               .reduce((n, t) => n + Number(t.stake), 0);
-            const complete = data.history_remote?!!totals&&!data.betting_error:!data.history_error&&!data.history_loading;
-            const settled = totals?.stake??Number(s.total_wagered) - open;
+            const complete = s.wallet_id ? s.open_stakes!==undefined&&s.settled_stakes!==undefined : data.history_remote?!!totals&&!data.betting_error:!data.history_error&&!data.history_loading;
+            const settled = s.settled_stakes??totals?.stake??Number(s.total_wagered) - open;
             return (
-              <Fragment key={s.team_id}>
+              <Fragment key={key}>
                 <tr>
                   <th scope="row">
                     <button
                       className="standing-expand"
-                      aria-expanded={expanded === s.team_id}
-                      aria-controls={`standing-${s.team_id}`}
+                      aria-expanded={expanded === key}
+                      aria-controls={`standing-${key}`}
                       onClick={() =>
-                        setExpanded(expanded === s.team_id ? null : s.team_id)
+                        setExpanded(expanded === key ? null : key)
                       }
                     >
-                      {i + 1}. {owner(s.team_id)}
+                      {i + 1}. {name}
                       <small>
                         {data.teams.find((t) => t.id === s.team_id)?.team_name}
                       </small>
@@ -63,15 +63,15 @@ export function LeagueStandings({
                   >
                     {money(s.net_profit)}
                   </td>
-                  <td>{money(s.current_balance)}</td>
+                  <td>{s.balance_visible === false ? "Private" : money(s.current_balance)}</td>
                   <td>{s.bets_placed}</td>
                 </tr>
-                <tr hidden={expanded !== s.team_id}>
+                <tr hidden={expanded !== key}>
                   <td colSpan={4}>
                     <section
-                      id={`standing-${s.team_id}`}
+                      id={`standing-${key}`}
                       role="region"
-                      aria-label={`${owner(s.team_id)} statistics`}
+                      aria-label={`${name} statistics`}
                     >
                       <dl className="standing-metrics">
                         {[

@@ -1,3 +1,5 @@
+Next-session entry point: [consolidated handoff](../NEXT-SESSION.md), prepared October 30 ET at the owner’s usage-budget request. Counter **15 complete / 9 remaining**. Wallet work is local and unactivated; recovery-format coverage and final hosted validation remain. Production Git unlink is verified and its running deployment is unchanged. No scheduled continuation.
+
 Wallet continuation: [handoff 28](28-independent-wallets-in-progress.md). Local independent-account engine/read/mail tests pass; UI/report/recovery and hosted validation remain. No wallet migration/activation is hosted yet. Production Git disconnection is owner-confirmed and verified; the running production deployment is unchanged. Counter **15 complete / 9 remaining**. Continue implementation; no new scope confirmation needed.
 
 Latest release-control continuation: [handoff 27](27-exact-release-evidence-and-controls.md). Exact-source evidence and unapproved review preparation are implemented locally; live publication containment/owner approval remain in progress. Counter stays **15 complete / 9 remaining**. No production change or GitHub push.

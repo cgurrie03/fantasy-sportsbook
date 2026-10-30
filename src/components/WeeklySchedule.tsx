@@ -55,9 +55,10 @@ interface Preview {
   mode: string;
   replenishment_due?: boolean;
   balances?: {
+    wallet_id?: string | null;
     team_id: string;
     name: string;
-    current: number;
+    current: number | null;
     eligible: boolean;
     reason: string;
     target: number | null;
@@ -781,16 +782,16 @@ export function WeeklySchedule({
               </thead>
               <tbody>
                 {preview.balances?.map((b) => (
-                  <tr key={b.team_id}>
+                  <tr key={b.wallet_id ?? b.team_id}>
                     <td>{b.name}</td>
-                    <td>${b.current.toFixed(2)}</td>
+                    <td>{b.current === null ? "Funding pending" : "$" + b.current.toFixed(2)}</td>
                     <td>
                       {b.target === null ? "—" : "$" + b.target.toFixed(2)}
                     </td>
                     <td>
                       <span title={b.reason}>
                         {b.eligible
-                          ? b.target! > b.current
+                          ? b.current !== null && b.target! > b.current
                             ? "Top Up"
                             : "Keep Balance"
                           : b.reason === "Already processed this week"

@@ -95,11 +95,12 @@ declare w public.user_wallets;old_balance numeric;entry public.user_wallet_entri
  if not exists(select 1 from auth.users where id=p_user and email_confirmed_at is not null) then raise exception 'Verified account required before initialization.';end if;
  select * into entry from public.user_wallet_entries where wallet_id=w.id and event_key='initialize';
  if found then
-  if entry.request_key<>p_request or entry.metadata->>'mode'<>p_mode or entry.metadata->'expected_legacy' is distinct from coalesce(to_jsonb(p_expected_legacy),'null'::jsonb)
+  if entry.request_key<>p_request or entry.reason<>trim(p_reason) or entry.metadata->>'mode'<>p_mode or entry.metadata->'expected_legacy' is distinct from coalesce(to_jsonb(p_expected_legacy),'null'::jsonb)
   then raise exception 'Financial initialization already used another request or terms.';end if;
   return jsonb_build_object('wallet_id',w.id,'duplicate',true,'balance',w.balance);
  end if;
  if w.balance is not null then raise exception 'Initialized balance lacks its receipt; review required.';end if;
+ if not sportsbook_private.user_finance_enabled(p_league) then raise exception 'Financial routing must pass activation before moving opening cash.';end if;
  if p_mode='transfer_legacy' then
   if not exists(select 1 from public.league_memberships where league_id=p_league and team_id=w.team_id and user_id=p_user)
   then raise exception 'Legacy cash requires the existing primary participant and explicit owner approval.';end if;
@@ -112,6 +113,9 @@ declare w public.user_wallets;old_balance numeric;entry public.user_wallet_entri
    values(w.team_id,'account:transfer:'||w.id,'account_transfer_out',-value,value,0,trim(p_reason));
  else
   if p_expected_legacy is not null then raise exception 'Zero initialization cannot claim a legacy balance.';end if;
+  if exists(select 1 from public.league_memberships m where m.league_id=p_league and m.team_id=w.team_id and m.user_id=p_user)
+   and (exists(select 1 from public.wallets where team_id=w.team_id and balance>0) or exists(select 1 from public.tickets where team_id=w.team_id and status='OPEN'))
+  then raise exception 'Existing primary cash or open liabilities require a reviewed transfer after settlement.';end if;
   value:=0;
  end if;
  update public.user_wallets set balance=value,updated_at=clock_timestamp() where id=w.id;

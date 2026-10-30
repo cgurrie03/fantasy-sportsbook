@@ -355,7 +355,7 @@ export async function mondayEmail(
   base: any,
 ): Promise<EmailContent> {
   // A personal query, including voided tickets, and excluding season futures.
-  const personal = await db
+  const personalQuery = db
     .from("tickets")
     .select("*")
     .eq("league_id", row.league_id)
@@ -364,6 +364,7 @@ export async function mondayEmail(
     .eq("market_week", row.market_week)
     .neq("ticket_type", "future")
     .order("placed_at", { ascending: false });
+  const personal = await (row.financial_wallet_id ? personalQuery.eq("user_wallet_id",row.financial_wallet_id) : personalQuery);
   if (personal.error) throw new Error(personal.error.message);
   const tickets = personal.data ?? [];
   const common = {

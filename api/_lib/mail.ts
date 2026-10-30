@@ -59,6 +59,13 @@ export async function buildEmail(
         financialRecipient.league_id !== row.league_id || financialRecipient.team_id !== row.team_id || financialRecipient.recipient !== row.recipient)
       throw new Error("Accepted financial recipient unavailable.");
   }
+  if (!financialRecipient && row.wallet_model === "user" && row.kind !== "attention" && row.kind !== "confirmation") {
+    const result = await db.rpc("financial_email_context", {p_league:row.league_id,p_team:row.team_id,p_recipient:row.recipient});
+    financialRecipient = result.data;
+    if (result.error || !financialRecipient || financialRecipient.league_id !== row.league_id ||
+        financialRecipient.team_id !== row.team_id || financialRecipient.recipient !== row.recipient)
+      throw new Error("Financial recipient approval is unavailable.");
+  }
   const [members, teams, wallets, leagues] = await Promise.all([
     financialRecipient ? Promise.resolve([{team_id: row.team_id, display_name: financialRecipient.display_name}]) : read(
       db.from("league_memberships").select("*").eq("league_id", row.league_id),
@@ -75,6 +82,7 @@ export async function buildEmail(
     throw new Error("League email membership unavailable.");
   const identity = communicationIdentity(league);
   const balance = wallets[0]?.balance;
+  const availableBalance = financialRecipient && balance === null ? "Funding pending" : money(balance);
   const base = {
     greeting: `Hi ${member.display_name},`,
     url: identity.url,
@@ -122,7 +130,7 @@ export async function buildEmail(
     });
   }
   if (row.kind === "monday_watch")
-    return mondayEmail(db, row, league, teams, base);
+    return mondayEmail(db, {...row,financial_wallet_id:financialRecipient?.wallet_id}, league, teams, base);
   if (row.kind === "confirmation") {
     const ticket = acceptedTicket;
     if (!ticket) throw new Error("Accepted ticket unavailable.");
@@ -199,7 +207,7 @@ export async function buildEmail(
         ],
         details: [
           ["Betting closes", date(board.closes_at)],
-          ["Your available balance", money(balance)],
+          ["Your available balance", availableBalance],
         ],
         button: "Finish Your Picks",
       };
@@ -269,7 +277,7 @@ export async function buildEmail(
       details: [
         ["Betting opens", date(board.opens_at)],
         ["Betting closes", date(board.closes_at)],
-        ["Your balance", money(balance)],
+        ["Your balance", availableBalance],
       ],
       stories: openingWeekStories(
         teams
@@ -340,9 +348,9 @@ export async function buildEmail(
   const settled = tickets.filter((t) =>
       ["WON", "LOST", "PUSH"].includes(t.status),
     ),
-    mine = settled.filter((t) => t.team_id === row.team_id),
+    mine = settled.filter((t) => financialRecipient ? t.user_wallet_id === financialRecipient.wallet_id : t.team_id === row.team_id),
     open = tickets.filter(
-      (t) => t.team_id === row.team_id && t.status === "OPEN",
+      (t) => (financialRecipient ? t.user_wallet_id === financialRecipient.wallet_id : t.team_id === row.team_id) && t.status === "OPEN",
     ).length;
   const legs = tickets.length
     ? await read(
@@ -438,15 +446,13 @@ export async function buildEmail(
         )} led with ${money(best)} in net betting profit. Fake money. Very real receipts.`,
     });
   const ledger = await read(
-    db
-      .from("wallet_ledger")
-      .select("amount,created_at")
-      .eq("team_id", row.team_id)
+    (financialRecipient ? db.from("user_wallet_entries").select("amount,created_at").eq("wallet_id",financialRecipient.wallet_id) :
+      db.from("wallet_ledger").select("amount,created_at").eq("team_id", row.team_id))
       .eq("kind", "weekly_replenishment")
       .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
   );
   const replenished = ledger.reduce((n, l) => n + Number(l.amount), 0);
-  const seasonTickets = await read(
+  const seasonTickets = financialRecipient ? [] : await read(
     db
       .from("tickets")
       .select("team_id,status,stake,actual_payout")
@@ -454,7 +460,7 @@ export async function buildEmail(
       .eq("nfl_season", league.nfl_season)
       .neq("status", "VOIDED"),
   );
-  const leagueWallets = await read(
+  const leagueWallets = financialRecipient ? [] : await read(
     db
       .from("wallets")
       .select("team_id,balance")
@@ -511,8 +517,8 @@ export async function buildEmail(
       ["Total paid out", money(paid)],
       ["Net betting profit", money(paid - wagered)],
       ["Weekly replenishment", money(replenished)],
-      ["Current balance", money(balance)],
-      ["League standing", `${standing} of ${teams.length}`],
+      ["Current balance", availableBalance],
+      [financialRecipient ? "Account standing (all seasons)" : "League standing", financialRecipient ? `${financialRecipient.rank} of ${financialRecipient.participants}` : `${standing} of ${teams.length}`],
     ],
     button: "View Results & Leaderboard",
   };
@@ -563,9 +569,12 @@ export async function deliverEmails(
         }
       }
       if (row.kind === "reminder") {
-        const w = await read(
-          db.from("wallets").select("balance").eq("team_id", row.team_id),
-        );
+        let w;
+        if(row.wallet_model==='user'){
+          const scoped=await db.rpc('financial_email_context',{p_league:row.league_id,p_team:row.team_id,p_recipient:row.recipient});
+          if(scoped.error||!scoped.data||scoped.data.recipient!==row.recipient)throw new Error('Financial reminder recipient unavailable.');
+          w=[{balance:scoped.data.balance}];
+        }else w = await read(db.from("wallets").select("balance").eq("team_id", row.team_id));
         if (!(Number(w[0]?.balance) > 0)) {
           await db
             .from("outbound_emails")
