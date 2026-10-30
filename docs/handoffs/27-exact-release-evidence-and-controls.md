@@ -90,3 +90,20 @@ experimental market acceptance or scheduler activation is authorized by this fil
 - [Vercel Git settings / disconnect](https://vercel.com/docs/project-configuration/git-settings)
 - [GitHub environment protection](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
 - [GitHub environment administration](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
+
+## Owner containment and local verification update
+
+The owner confirmed **Disconnected** in chat. Vercel linked-project inventory now
+omits the sportsbook production project while still listing the unrelated landing
+project. Production's latest deployment remains the same READY deployment
+`dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`, with its existing domains. This is the owner's
+specific Git-configuration action; the agent performed read-only postflight only.
+No source, schema, domain or application release was performed in production.
+
+Exact clean source `a477f204786d29f49bb174b3497fdd5fd50f34d1` passed **38/38** checks,
+with valid provenance. `release:review` generated its exclusive **unapproved**
+manifest. Subsequent wallet implementation changes intentionally invalidate that
+receipt for newer commits; it remains historical evidence for a477f20 only.
+Milestone 21 remains open for the actual protected owner-controlled publication
+boundary and other routes/credentials inventory; Git disconnection alone does not
+close it. No deploy token has been requested or retrieved.

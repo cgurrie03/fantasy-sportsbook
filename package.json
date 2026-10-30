@@ -52,7 +52,8 @@
     "recovery:verify": "node scripts/financial-recovery.mjs verify",
     "test:routine-retention": "node scripts/test-routine-retention.mjs",
     "test:release-evidence": "node scripts/test-release-evidence.mjs",
-    "release:review": "node scripts/release-evidence.mjs"
+    "release:review": "node scripts/release-evidence.mjs",
+    "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
