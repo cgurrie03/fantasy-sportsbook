@@ -1,4 +1,5 @@
 import { communicationIdentity } from "./_lib/league-communications.js";
+import { retireRoutinePayloads } from "./_lib/routine-retention.js";
 import { createServerClient } from "./_lib/server-client.js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { POST as generate } from "./generate-markets.js";
@@ -924,13 +925,16 @@ export async function POST(request: Request) {
         }
       }
     }
+    const delivery = job && /^(generate|refresh)_/.test(job.operation)
+      ? { delivery_deferred: true }
+      : await deliverEmails(db);
+    const routineRetention = await retireRoutinePayloads(db);
     return json({
       job: job?.operation ?? null,
       cleanup: cleanup.error ? { failed: true } : cleanup.data,
       status_source_error: statusError,
-      ...(job && /^(generate|refresh)_/.test(job.operation)
-        ? { delivery_deferred: true }
-        : await deliverEmails(db)),
+      ...delivery,
+      routine_retention: routineRetention,
     });
   } catch (e) {
     const error = e instanceof Error ? e.message : "Scheduled execution failed";

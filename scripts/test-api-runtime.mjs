@@ -17,6 +17,7 @@ const root = await mkdtemp(path.resolve("node_modules/.api-runtime-"));
 try {
   await mkdir(path.join(root, "_lib"));
   for (const file of [
+    "_lib/routine-retention",
     "_lib/environment-policy",
     "_lib/server-client",
     "generate-markets",

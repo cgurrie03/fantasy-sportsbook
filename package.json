@@ -49,7 +49,8 @@
     "schema:development": "node scripts/build-development-schema.mjs",
     "test:financial-recovery": "node scripts/test-financial-recovery.mjs && node scripts/test-recovery-custody.mjs",
     "recovery:prepare": "node scripts/financial-recovery.mjs prepare",
-    "recovery:verify": "node scripts/financial-recovery.mjs verify"
+    "recovery:verify": "node scripts/financial-recovery.mjs verify",
+    "test:routine-retention": "node scripts/test-routine-retention.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
