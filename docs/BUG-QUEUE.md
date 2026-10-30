@@ -11,7 +11,7 @@ Closing a development fix does not mean it has shipped to production.
 
 | Order | ID | Priority / kind | Work and evidence | Status / dependency | Done when |
 |---|---|---|---|---|---|
-| 1 | B001 | P1 / confirmed historical production problem | A01/A06/A12: bulk archives/storage and broad review work; October 28 audit recorded quota overage and review failures | Dev preventive formats/readers/retention delivered; production conversion/cleanup blocked by recovery and exact approval; milestones 13/20/21/23/24 | Fresh measurements, useful summaries/dependency inventory, verified recovery, approved bounded cleanup and measured physical/wire impact |
+| 1 | B001 | P1 / confirmed historical production problem | A01/A06/A12: bulk archives/storage and broad review work; October 28 audit recorded quota overage/review failures; fresh Oct 29 read-only measurement is 1.289 GB physical, with about 94% in the same three bulk tables | Dev preventive formats/readers/retention delivered; production conversion/cleanup blocked by recovery and exact approval; milestones 13/20/21/23/24 | Fresh measurements, useful summaries/dependency inventory, verified recovery, approved bounded cleanup and measured physical/wire impact |
 | 2 | B002 | P1 / validation gate | A04/A13: even 8/10/12/14/16 scorer partition is fixed/tested in dev; whole supported rules/generation/acceptance/settlement contract is not fully proved; odd fields reject explicitly | Milestones 16/22; no universal compatibility claim | Contrasting full journeys pass for declared supported settings; unsupported settings stay visible and cannot silently activate |
 | 3 | B003 | P1 / validation gate | A15/A18: local release checks pass, but exact owner-approved production SHA/migration enforcement and deployment configuration still need the release gate | Milestone 21; production untouched | A push/build cannot silently publish an unapproved release; reviewed rollback/restore constraints and exact approvals are enforced |
 | 4 | B004 | P1 / validation gate | A01/A11/A20: synthetic request/JSON savings are proved; physical storage, real wire bytes, queue fairness, combined quotas and two-week plateau remain | Milestone 23; baseline can run early, final gate follows the final lifecycle/settings changes | Measured one-/two-league load and growth fit the agreed reserve; no second real league enabled on estimates |
@@ -22,6 +22,16 @@ P0 is reserved for an evidenced active financial-integrity, data-loss or exposur
 incident. A report can be marked suspected P0 for immediate triage; reproduce or
 contain it before claiming the cause. Lower order breaks ties within a priority;
 blocked work does not stop independent ready items.
+
+## Current follow-up
+
+B007 (P1, staff administration consistency) is fixed and verified in dev: operator
+wallet visibility, verified promo-image authorization and teamless worker fallback
+now follow staff capabilities; unverified staff grants are rejected. The baseline
+regression reproduced zero visible B wallets versus one expected; the corrected
+SQL/hosted probes pass without fabricating accounts or changing financial records.
+See [handoff 25](handoffs/25-recovery-inventory-and-staff-followup.md). Production
+is unchanged. This closes B007 in dev, not the broader milestone 16.
 
 ## Development fixes awaiting production release
 

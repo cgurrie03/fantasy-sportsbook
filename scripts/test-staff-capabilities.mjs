@@ -33,6 +33,7 @@ try{
  const caps=async league=>(await q('select league_capabilities($1) value',[league]))[0].value;
  const grant=async(role='operator',active=true,expected=null)=>(await q('select set_league_staff($1,$2,$3,$4,$5,$6) revision',[B,staff,role,active,'Verified oversight access',expected]))[0].revision;
  await act(owner);
+ await assert.rejects(q("select set_league_staff($1,$2,'operator',true,'Unverified staff must be rejected',null)",[B,unverified]),/verified staff/);
  assert.equal((await caps(B)).configure,true,'platform owner can oversee the second league without joining it');
  assert.equal((await caps(B)).team_id,null);assert.equal((await caps(B)).bet,false);
  assert.equal(await grant(),1);

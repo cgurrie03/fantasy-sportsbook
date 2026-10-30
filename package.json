@@ -32,7 +32,7 @@
     "test:reporting": "node scripts/test-paged-report-export.mjs && node scripts/test-reporting.mjs && node scripts/test-report-forecasts.mjs && node scripts/test-publication-retention.mjs",
     "test:futures": "node scripts/test-futures.mjs",
     "format": "prettier --write src scripts",
-    "test:isolation": "node scripts/test-league-isolation.mjs && node scripts/test-staff-capabilities.mjs && node scripts/test-staff-access-ux.cjs",
+    "test:isolation": "node scripts/test-league-isolation.mjs && node scripts/test-staff-capabilities.mjs && node scripts/test-staff-operations.mjs && node scripts/test-staff-access-ux.cjs",
     "test:ux": "node scripts/test-ux.cjs",
     "test:promos": "node scripts/test-promotions.mjs",
     "test:promos:ux": "node scripts/test-promos-ux.cjs",
@@ -47,7 +47,7 @@
     "test:sleeper-links": "node scripts/test-sleeper-links.mjs",
     "test:board-cache": "node scripts/test-board-cache.mjs && node scripts/test-category-cache.mjs && node scripts/test-category-snapshots.mjs && node scripts/test-category-loading-ux.cjs",
     "schema:development": "node scripts/build-development-schema.mjs",
-    "test:financial-recovery": "node scripts/test-financial-recovery.mjs",
+    "test:financial-recovery": "node scripts/test-financial-recovery.mjs && node scripts/test-recovery-custody.mjs",
     "recovery:prepare": "node scripts/financial-recovery.mjs prepare",
     "recovery:verify": "node scripts/financial-recovery.mjs verify"
   },

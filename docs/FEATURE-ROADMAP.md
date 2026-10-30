@@ -7,7 +7,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 
 | Order | ID | Priority | Feature / delivery | Milestone | Status / dependencies |
 |---|---|---|---|---|---|
-| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | Remaining; financial-only local recovery is already done, full scope is not |
+| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner password-manager import and full-platform coverage/drill remain |
 | 2 | F002 | P1 | Exact tested-release approval and safe CI/publication workflow | 21 | Remaining; required before any production release or cleanup |
 | 3 | F003 | P1 | Operational log/email-body/unused-media retention budgets | 19 | Remaining; preserve retry/deduplication and necessary audit evidence |
 | 4 | F004 | P1 | Separate per-user, per-league financial accounts/wallets, including co-owners | 17 | Remaining; preserve original balances/accepted terms and never copy another owner's funds; retries credit once per account |
@@ -19,7 +19,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 | 10 | F010 | P1 | Recovery-approved historical conversion/cleanup | 13 | Blocked on useful summaries/dependency plan, F001/F002 and exact owner approval; measure physical recovery separately from JSON deletion |
 | 11 | F012 | P1 release gate | Owner-reviewed production rollout and postflight | 24 | Blocked on exact tested source/migrations, required recovery/capacity/product gates; not an automatic final push |
 | 12 | F011 | P2 | Window-aware notifications/preferences, receipt lifecycle and season storylines | 18 | Remaining; derive from approved policy, preserve Wed–Thu acceptance plus approved reopenings |
-| 13 | F013 | Optional | Owner-only in-app bug/feature board | Outside stable counter | Proposal only; Markdown/chat tracking is prepared now; select a backend/UI before implementing it |
+| 13 | F013 | Optional | Owner-only in-app bug/feature board | Outside stable counter | Not selected; owner confirmed Markdown + chat; no in-app queue work is authorized by that choice |
 | 14 | F014 | Deferred | Public support button/automatic error reporting described in handoff 11 | Deferred / excluded | No deployment authorization inferred from an internal queue request |
 
 Suggested working sequence: recovery/release foundations and early capacity

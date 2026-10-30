@@ -1,6 +1,6 @@
 # Queue options, workflow and capacity
 
-Prepared October 29, 2026. Recommendation: keep [bugs](BUG-QUEUE.md) and
+Owner selected Markdown + chat on October 29, 2026. Working convention: keep [bugs](BUG-QUEUE.md) and
 [features](FEATURE-ROADMAP.md) as the canonical project records now, and use chat
 to add, reprioritize and implement them. This creates a durable reviewable list
 without new application tables, API polling, object storage or recurring jobs.

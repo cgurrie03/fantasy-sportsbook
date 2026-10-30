@@ -24,7 +24,7 @@ const authStub = `create role anon;create role authenticated;create role service
   create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
   grant usage on schema public,auth to authenticated,anon;
   grant execute on function auth.uid(),auth.role() to authenticated,anon,service_role;`;
-function protect(value, mode) {
+export function protect(value, mode) {
   if (process.platform !== "win32") throw new Error("This local key wrapper requires Windows DPAPI.");
   const method = mode === "protect" ? "Protect" : "Unprotect";
   const script = `$ErrorActionPreference='Stop';Add-Type -AssemblyName System.Security;
