@@ -9,7 +9,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 |---|---|---|---|---|---|
 | 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner password-manager import and full-platform coverage/drill remain |
 | 2 | F002 | P1 | Exact tested-release approval and safe CI/publication workflow | 21 | Remaining; required before any production release or cleanup |
-| 3 | F003 | P1 | Operational log/email-body/unused-media retention budgets | 19 | Remaining; preserve retry/deduplication and necessary audit evidence |
+| 3 | F003 | P1 | Operational log/email-body/unused-media retention budgets | 19 | Done dev; handoff 26, 37/37 checks, protected deployment; unresolved mail/retries/financial audits and referenced art preserved |
 | 4 | F004 | P1 | Separate per-user, per-league financial accounts/wallets, including co-owners | 17 | Remaining; preserve original balances/accepted terms and never copy another owner's funds; retries credit once per account |
 | 5 | F005 | P1 | Versioned provider capability contract and typed shared sportsbook defaults/league overrides | 16 | In progress; independent staff/owner access is delivered, policy versioning/effective dates/runtime consumers remain |
 | 6 | F006 | P1 | Owner-only resumable draft league importer and reviewed capability report | 16 | Remaining; real teams exist before signup, no fabricated owner participant/wallet, jobs/mail/publication off; depends on F005 |
@@ -29,11 +29,11 @@ after its policy dependencies. Historical production cleanup stays approval-gate
 
 ## Current development completion summary
 
-Milestones 01–12, 14 and 15 are complete in their stated isolated-development
+Milestones 01–12, 14, 15 and 19 are complete in their stated isolated-development
 scope: independent dev/Auth/hosting; revision cache; refresh fencing/cleanup;
 futures edits; financial local recovery; bounded model/publication/live evidence;
 compact summaries/expiry/prospective evaluation; paged financial histories/
-aggregates/exports; lazy market categories/shared provider display cache.
+aggregates/exports; lazy market categories/shared provider display cache; prospective routine payload admission and expiry.
 
 The staff-access portion of 16 adds verified independent ownership, scoped staff
 grants, owner-only configuration controls, fresh API capability checks, teamless

@@ -4,7 +4,7 @@ Updated October 29, 2026. Canonical local project queue, maintained through chat
 Keep private reports/financial evidence out of this public-repository-ready file.
 An observation from the October 28 audit is dated evidence, not a new live probe.
 Original A01–A25 definitions remain in [the audit](handoffs/10-expanded-audit-implementation.md).
-The milestone counter remains [14 complete / 10 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
+The milestone counter remains [15 complete / 9 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
 Closing a development fix does not mean it has shipped to production.
 
 ## Priority order
@@ -41,6 +41,7 @@ is unchanged. This closes B007 in dev, not the broader milestone 16.
 | B102 | A11 repeated full-board/provider work | Milestones 03/15; lazy categories, source-time TTLs, per-request authorization and bounded shared cache | Unreleased; actual wire/capacity remains B004 |
 | B103 | A12 broad account history/report loading | Milestone 14; scoped pages, complete aggregates, bounded export | Unreleased |
 | B104 | A02 team membership required for oversight | Staff-access portion of 16; teamless capabilities/API/UI/audit tests | Unreleased; remaining onboarding/settings are F005–F007 |
+| B106 | A01/A06 routine payload growth | Milestone 19; prospective body/detail budgets and TTL, protected retries/duplicate keys/referenced art, restricted cleanup and status | Unreleased; legacy/prod conversion and physical measurements remain gated |
 | B105 | A06 expensive model review and raw retention | Milestones 07–12; bounded reads/writes/summaries, expiry and prospective candidate guards | Unreleased; B001/B004 remain; no measured model accuracy gain claimed |
 
 For each new bug record its source/environment/build, expected and actual result,

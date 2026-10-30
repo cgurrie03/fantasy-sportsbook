@@ -6,7 +6,7 @@ units. It is not a count of individual code changes or the 25 audit findings.
 production rollout and broader related work remain separate milestones. Partially
 implemented milestones remain in the remaining count. Deferred support is excluded.
 
-Current counter: **14 complete / 10 remaining**. Milestone 16 is in progress: independent staff access is verified; settings/import/claims remain. Production historical cleanup (13) remains approval-gated.
+Current counter: **15 complete / 9 remaining**. Milestone 16 is in progress: independent staff access is verified; settings/import/claims remain. Production historical cleanup (13) remains approval-gated.
 
 | ID | Milestone | Status | Evidence / scope |
 |---|---|---|---|
@@ -28,7 +28,7 @@ Current counter: **14 complete / 10 remaining**. Milestone 16 is in progress: in
 | 16 | Staff roles, versioned settings, imports and approved team claims | In progress | Handoff 24 completes independent staff/owner capabilities, API/UI and grant audit; versioned policy, draft import/capability review and invitation/claims remain; final co-owner admission depends on 17 |
 | 17 | Separate per-user, per-league wallets | Remaining | Preserve balances/history; no duplicate co-owner credits |
 | 18 | Notification lifecycle and season storylines | Remaining | Actual windows, preferences, receipts and bounded communication volume |
-| 19 | Routine log, email-body and unused media retention budgets | Remaining | Durable deduplication, retry preservation and bounded cleanup |
+| 19 | Routine log, email-body and unused media retention budgets | Complete | Handoff 26; prospective admission caps, terminal body/detail TTLs, referenced-art protection, isolated bounded worker cleanup and selected-league status; legacy/prod conversion and measured physical plateau remain separate |
 | 20 | Full platform/off-site recovery and owner key custody | Remaining | Financial-only local drill is insufficient |
 | 21 | Enforced exact-release owner approval workflow | Remaining | Resolve automatic main publication before any push; tested SHA/migration gate |
 | 22 | Remaining product/audit and multi-league operation verification | Remaining | Track A01–A25 residuals, supported settings, tenant negatives, peaks/outages/season changes; no incidental experimental launch |

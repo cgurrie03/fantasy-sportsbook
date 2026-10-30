@@ -88,3 +88,36 @@ rolled back; outbox/jobs/images remain zero. The before/after financial digest i
 `d0274d9641a5954673be2e62be23cb59` for canonical wallets/tickets/ledger JSON.
 The earlier B007 financial postflight is also covered by this subsequent unchanged
 inventory (18 wallets, zero tickets/ledger). No production mutation occurred.
+
+## Verified development delivery
+
+- Application source: `01edd29e92fb24094d08b59a5bac25e88d5f0164` (later documentation-only commits do not change the deployed source).
+- READY Preview deployment: `dpl_3aXS7fchnfnrrMQCXXY8tJXFwsLf`, generated host
+  `fantasy-sportsbook-72f536hqg-cooper-gurrie-projects.vercel.app`.
+- Canonical `https://dev.sportsbook.coopergurrie.com` and both existing project
+  aliases point to this deployment. All four hosts return signed-out 302 to Vercel
+  SSO. No bypass link or owner browser was used.
+- Hosted build verified the independent dev identity, owner, closed signup,
+  captured mail and manual automation; compiled API fixture and frontend build pass.
+- Final local release run: **37/37 checks passed**. The earlier run exposed a
+  missing new-module entry in the compiled test fixture; that was corrected before
+  this final full run and hosting build.
+- Hosted operator status RPC returns zero due work/bytes after rollback, under the
+  authenticated owner role. No real job/provider/financial smoke operation ran.
+- Security advisor WARN baseline stays 37 authenticated-definer / 2 anon-definer /
+  1 Auth-password findings. RLS-no-policy INFO drops from 11 to 10 because scoped
+  image metadata now has a SELECT policy. Remaining findings still require review;
+  this is not a clean-audit assertion. See the [Supabase linter guidance](https://supabase.com/docs/guides/database/database-linter).
+
+Counter: **15 complete / 9 remaining**. Complete: 01–12, 14, 15, 19. Remaining:
+13 historical cleanup; 16 versioned settings/import/claims (staff portion done);
+17 per-user wallets; 18 notifications/storylines; 20 full recovery/custody/drill;
+21 exact-release enforcement; 22 residual audits/journeys; 23 measured capacity and
+plateau; 24 approved production rollout. Support remains deferred/excluded.
+
+F002 / milestone 21 is next ready. The current GitHub check workflow runs tests
+with read-only contents permission and seven-day artifacts; it contains no deploy
+step, but CI passing alone is not owner approval. The connected Vercel project
+summary omits repository/branch/auto-publication controls, so those controls remain
+unverified. No absence of Git linkage is inferred from omitted fields. No GitHub
+push, production configuration change, release or cleanup was performed.
