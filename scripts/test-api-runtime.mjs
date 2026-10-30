@@ -508,6 +508,31 @@ try {
   const mail = await import(
     pathToFileURL(path.join(root, "_lib/mail.js")).href
   );
+  const financialRecipient = {wallet_id:"wallet-2",league_id:"league",team_id:"shared-team",recipient:"coowner@example.invalid",display_name:"Participant",balance:100,accepted_balance:93};
+  const financialTables = {
+    tickets:[{id:"wallet-ticket",user_wallet_id:"wallet-2",league_id:"league",team_id:"shared-team",ticket_type:"parlay",market_week:5,league_season:1,placed_at:"2026-10-29T12:00:00Z",stake:7,accepted_combined_odds:100,accepted_potential_payout:14}],
+    teams:[{id:"shared-team",team_name:"Shared team"}],
+    leagues:[{id:"league",name:"Wallet fixture",sportsbook_url:"https://example.invalid",email_sender:"fixture@example.invalid"}],
+    ticket_legs:[{selection:"Accepted pick",market_type:"Weekly Special"}],
+  };
+  const financialMailDb = {
+    rpc:async(name)=>{assert.equal(name,"financial_email_recipient");return {data:financialRecipient,error:null};},
+    from:table=>{
+      assert(!["wallets","wallet_ledger","league_memberships"].includes(table),"user confirmation must not read legacy team finances/contact");
+      const query={select:()=>query,eq:()=>query,order:()=>query,
+        maybeSingle:async()=>({data:financialTables[table]?.[0],error:null}),
+        then:(resolve,reject)=>Promise.resolve({data:financialTables[table]??[],error:null}).then(resolve,reject)};
+      return query;
+    },
+  };
+  const financialMailRow={kind:"confirmation",ticket_id:"wallet-ticket",team_id:"shared-team",league_id:"league",recipient:"coowner@example.invalid"};
+  const {validateDeliveryScope}=await import(pathToFileURL(path.join(root,"_lib/league-communications.js")).href);
+  await validateDeliveryScope(financialMailDb,financialMailRow);
+  await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial account/);
+  await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,payload:{to:["primary@example.invalid"]}}),/payload recipient mismatch/);
+  const financialConfirmation=await mail.buildEmail(financialMailDb,financialMailRow);
+  assert(financialConfirmation.details.some(([label,value])=>label==="Balance after placement"&&value==="$93.00"));
+  await assert.rejects(mail.buildEmail(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial recipient unavailable/);
   const oldMailFetch = globalThis.fetch,
     oldMailKey = process.env.RESEND_API_KEY;
   // Opening content must be built from the final published board, not preview fixtures.

@@ -52,5 +52,98 @@ try {
  assert.equal((await q('select count(*)::int n from tickets'))[0].n,0,'no betting/settlement activation');
  await assert.rejects(q('update user_wallets set user_id=$1 where id=$2',[outsider,p.wallet_id]),/identity is immutable/);
  await assert.rejects(q('delete from user_wallet_entries'),/immutable/);
- console.log('Passed independent co-owner and cross-league wallets, pending funding, explicit CAS legacy transfer once, zero co-owner funds, owner/verified/team scope, private reads and immutable identity/ledger without activation.');
+
+ // Local-only mode fixture: no public activation API or hosted mode exists yet.
+ await q('insert into sportsbook_private.user_finance_modes(league_id,enabled) values($1,true)',[A]);
+ await act(owner);
+ await q('select set_user_wallet_balance($1,40,100,$2,$3)',[p.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
+ await q('select set_user_wallet_balance($1,0,100,$2,$3)',[c.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
+ const once=(await q('select replenish_weekly_balances($1,2026,5) r',[A]))[0].r;
+ assert.equal(once.already_processed,0);
+ assert.equal((await q('select replenish_weekly_balances($1,2026,5) r',[A]))[0].r.already_processed,2);
+ await db.exec('reset role');
+ const board=randomUUID(),quote=randomUUID();
+ // Intercepted local fixture only: activation/provider eligibility is a separate gate.
+ await db.exec('set session_replication_role=replica');
+ await q("update leagues set operations_enabled=true where id=$1",[A]);
+ await db.exec('set session_replication_role=origin');
+ await q(`insert into sportsbook_boards(id,league_id,market_week,nfl_season,league_season,opens_at,closes_at,status,board_type)
+  values($1,$2,5,2026,1,now()-interval '1 hour',now()+interval '1 hour','published','weekly')`,[board,A]);
+ await q(`insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,active)
+  values($1,$2,'fixture:high','weekly_high','Fixture high scorer','League','yes',100,true)`,[quote,board]);
+ const revision=(await q('select revision from sportsbook_boards where id=$1',[board]))[0].revision;
+ const betRequest=randomUUID();await act(primary);
+ const bet=(await q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4) r',[board,revision,[quote],betRequest]))[0].r;
+ assert.equal(Number(bet.balance),90);
+ assert.equal((await q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4) r',[board,revision,[quote],betRequest]))[0].r.duplicate,true);
+ await act(coowner);
+ await assert.rejects(q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4)',[board,revision,[quote],betRequest]),/another financial account/);
+ const coBet=(await q('select place_sportsbook_ticket($1,$2,$3::uuid[],7,$4) r',[board,revision,[quote],randomUUID()]))[0].r;
+ assert.equal(Number(coBet.balance),93);
+ await db.exec('reset role');
+ assert.equal((await q('select user_wallet_id from tickets where id=$1',[bet.ticket_id]))[0].user_wallet_id,p.wallet_id);
+ assert.equal((await q('select user_wallet_id from tickets where id=$1',[coBet.ticket_id]))[0].user_wallet_id,c.wallet_id);
+ const recipient=(await q('select recipient from outbound_emails where ticket_id=$1',[coBet.ticket_id]))[0].recipient;
+ assert.equal(recipient,coowner+'@example.test');
+ await assert.rejects(q('update outbound_emails set recipient=$2 where ticket_id=$1',[coBet.ticket_id,primary+'@example.test']),/financial account owner/);
+ await act(owner);
+ await q('select void_sportsbook_ticket($1,$2)',[coBet.ticket_id,'Synthetic refund account test']);
+ assert.equal((await q('select void_sportsbook_ticket($1,$2) r',[coBet.ticket_id,'Synthetic refund account test']))[0].r.duplicate,true);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),90);
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100);
+ assert.equal((await q("select count(*)::int n from user_wallet_entries where wallet_id=$1 and kind='void_refund'",[c.wallet_id]))[0].n,1);
+
+ const leg=(await q('select id from ticket_legs where ticket_id=$1',[bet.ticket_id]))[0].id;
+ const results=JSON.stringify([{id:leg,status:'WON',actual_value:150,evidence:'Synthetic final result'}]);await act(owner);
+ assert.equal(Number((await q('select settle_weekly_ticket($1,$2) r',[bet.ticket_id,results]))[0].r.payout),20);
+ assert.equal((await q('select settle_weekly_ticket($1,$2) r',[bet.ticket_id,results]))[0].r.duplicate,true);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),110);
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100);
+ assert.equal((await q("select count(*)::int n from user_wallet_entries where wallet_id=$1 and kind='settlement'",[p.wallet_id]))[0].n,1);
+ const futureBoard=randomUUID(),futureQuote=randomUUID();
+ await q(`insert into sportsbook_boards(id,league_id,market_week,nfl_season,league_season,opens_at,closes_at,status,board_type)
+  values($1,$2,1,2026,1,now()-interval '1 hour',now()+interval '1 hour','published','future')`,[futureBoard,A]);
+ await q(`insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,line,odds,active,team_id)
+  values($1,$2,'fixture:future','future_win_total','Fixture season wins','Team','over',8.5,100,true,$3)`,[futureQuote,futureBoard,team]);
+ const futureRevision=(await q('select revision from sportsbook_boards where id=$1',[futureBoard]))[0].revision;
+ await act(primary);await q('select place_sportsbook_ticket($1,$2,$3::uuid[],80,$4)',[futureBoard,futureRevision,[futureQuote],randomUUID()]);
+ await act(owner);
+ await q('select set_user_wallet_balance($1,30,0,$2,$3)',[p.wallet_id,'Synthetic depletion before next week',randomUUID()]);
+ await q('select set_user_wallet_balance($1,100,0,$2,$3)',[c.wallet_id,'Synthetic depletion before next week',randomUUID()]);
+ await q('select replenish_weekly_balances($1,2026,6)',[A]);await q('select replenish_weekly_balances($1,2026,6)',[A]);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),25,'own futures floor');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100,'co-owner futures do not reduce own allowance');
+ assert.equal(Number((await q('select balance from wallets where team_id=$1',[team]))[0].balance),0,'legacy wallet was never replenished by the new engine');
+
+ await db.exec("set request.jwt.claim.role='service_role';set role service_role");
+ const delivery=(await q('select financial_email_recipient($1) r',[coBet.ticket_id]))[0].r;
+ assert.equal(delivery.recipient,coowner+'@example.test');assert.equal(Number(delivery.accepted_balance),93);
+ await act(coowner);await assert.rejects(q('select financial_email_recipient($1)',[coBet.ticket_id]),/permission denied/);
+ await act(owner);assert.equal((await q("select set_user_wallet_status($1,1,'revoked','Synthetic financial access revocation') revision",[c.wallet_id]))[0].revision,2);
+ await assert.rejects(q("select set_user_wallet_status($1,1,'approved','Synthetic stale grant review')",[c.wallet_id]),/approval changed/);
+ await act(coowner);assert.equal((await q('select count(*)::int n from user_wallets'))[0].n,0);
+ await assert.rejects(q('select place_sportsbook_ticket($1,$2,$3::uuid[],7,$4)',[board,revision,[quote],randomUUID()]),/approved league account/);
+ await db.exec("reset role;set request.jwt.claim.role='service_role';set role service_role");
+ await assert.rejects(q('select financial_email_recipient($1)',[coBet.ticket_id]),/no longer approved/);
+ await act(owner);assert.equal((await q("select set_user_wallet_status($1,2,'approved','Synthetic verified restoration') revision",[c.wallet_id]))[0].revision,3);
+
+ await act(coowner);
+ const capabilities=(await q('select league_capabilities($1) r',[A]))[0].r;
+ assert.equal(capabilities.wallet_model,'user');assert.equal(capabilities.participant.wallet_id,c.wallet_id);assert.equal(capabilities.bet,true);
+ const personal=(await q('select account_ticket_page($1,$2,null,20) r',[A,JSON.stringify({personal:true})]))[0].r;
+ assert.equal(personal.total,1);assert.equal(personal.tickets[0].user_wallet_id,c.wallet_id);
+ const totals=(await q('select account_personal_totals($1,null,null) r',[A]))[0].r;
+ assert.equal(totals.length,1);assert.equal(totals[0].wallet_id,c.wallet_id);assert.equal(Number(totals[0].open_future),0);
+ const balancePage=(await q('select account_user_balance_page($1,$2,null,1) r',[A,c.wallet_id]))[0].r;
+ assert.equal(balancePage.entries.length,1);assert(balancePage.total>1);assert.equal(Number(balancePage.entries[0].balanceAfter),100);
+ await assert.rejects(q('select account_user_balance_page($1,$2,null,30)',[A,p.wallet_id]),/account access required/);
+ await assert.rejects(q('select account_user_balance_page($1,$2,$3,1)',[B,b.wallet_id,JSON.stringify(balancePage.next)]),/account access required/);
+ await act(primary);
+ assert.equal((await q('select account_ticket_page($1,$2,null,20) r',[A,JSON.stringify({personal:true})]))[0].r.total,2);
+ assert.equal(Number((await q('select account_personal_totals($1,null,null) r',[A]))[0].r[0].open_future),80);
+ await assert.rejects(q('select account_user_balance_page($1,$2,$3,1)',[A,p.wallet_id,JSON.stringify(balancePage.next)]),/Invalid financial balance cursor/);
+ console.log('Passed independent co-owner and cross-league wallets, pending funding, explicit CAS legacy transfer once, zero co-owner funds, owner/verified/team scope, private reads and immutable identity/ledger; local engine proves wagers, duplicate-request isolation, confirmation scope, refunds/settlement once and independent futures/replenishment. Hosted routing remains inactive.');
 }finally{await db.close();}

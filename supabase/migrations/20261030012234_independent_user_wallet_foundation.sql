@@ -4,12 +4,13 @@ begin;
 create table public.user_wallets(
  id uuid primary key default gen_random_uuid(),league_id uuid not null references public.leagues(id),
  user_id uuid not null references auth.users(id),team_id uuid not null,
+ display_name text not null check(length(trim(display_name)) between 1 and 80),
  balance numeric(12,2) check(balance>=0 and balance::text not in ('NaN','Infinity','-Infinity')),status text not null default 'approved' check(status in ('approved','revoked')),
  revision integer not null default 1,created_at timestamptz not null default clock_timestamp(),updated_at timestamptz not null default clock_timestamp(),
  unique(league_id,user_id),unique(id,league_id,team_id),
  foreign key(team_id,league_id) references public.teams(id,league_id)
 );
-alter table public.tickets add column user_wallet_id uuid;
+alter table public.tickets add column user_wallet_id uuid,add column bettor_display_name text check(length(bettor_display_name) between 1 and 80);
 alter table public.tickets add constraint ticket_user_wallet_scope foreign key(user_wallet_id,league_id,team_id)
  references public.user_wallets(id,league_id,team_id);
 alter table public.tickets add constraint ticket_user_wallet_identity unique(id,user_wallet_id);
@@ -54,11 +55,12 @@ create trigger user_wallet_identity before update on public.user_wallets for eac
 create trigger user_wallet_ledger_immutable before update or delete on public.user_wallet_entries for each row execute function sportsbook_private.promo_snapshot_immutable();
 create trigger user_wallet_approval_immutable before update or delete on sportsbook_private.user_wallet_approvals for each row execute function sportsbook_private.promo_snapshot_immutable();
 
-create function public.approve_user_wallet(p_league uuid,p_user uuid,p_team uuid,p_reason text) returns jsonb
+create function public.approve_user_wallet(p_league uuid,p_user uuid,p_team uuid,p_reason text,p_display_name text default 'Participant') returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare w public.user_wallets;begin
  if not sportsbook_private.is_platform_owner() or not exists(select 1 from auth.users where id=auth.uid() and email_confirmed_at is not null)
   then raise exception 'Platform owner approval required.';end if;
+ if p_display_name is null or length(trim(p_display_name)) not between 1 and 80 then raise exception 'Reviewed participant display name required.';end if;
  if p_reason is null or length(trim(p_reason)) not between 8 and 500 then raise exception 'Record the reviewed financial-account approval reason.';end if;
  if not exists(select 1 from auth.users where id=p_user and email_confirmed_at is not null)
   or not exists(select 1 from public.teams where id=p_team and league_id=p_league) then raise exception 'Verified user and scoped team required.';end if;
@@ -69,12 +71,12 @@ declare w public.user_wallets;begin
   return jsonb_build_object('wallet_id',w.id,'duplicate',true,'funding_pending',w.balance is null);
  end if;
  if (select count(*) from public.user_wallets where league_id=p_league)>=128 then raise exception 'Financial account count budget reached.';end if;
- insert into public.user_wallets(league_id,user_id,team_id) values(p_league,p_user,p_team) returning * into w;
+ insert into public.user_wallets(league_id,user_id,team_id,display_name) values(p_league,p_user,p_team,trim(p_display_name)) returning * into w;
  insert into sportsbook_private.user_wallet_approvals(wallet_id,actor,reason) values(w.id,auth.uid(),trim(p_reason));
  return jsonb_build_object('wallet_id',w.id,'duplicate',false,'funding_pending',true);
 end $$;
-revoke all on function public.approve_user_wallet(uuid,uuid,uuid,text) from public,anon,service_role;
-grant execute on function public.approve_user_wallet(uuid,uuid,uuid,text) to authenticated;
+revoke all on function public.approve_user_wallet(uuid,uuid,uuid,text,text) from public,anon,service_role;
+grant execute on function public.approve_user_wallet(uuid,uuid,uuid,text,text) to authenticated;
 
 -- No automatic migration of another owner's money. Explicit primary-owner cash
 -- transfers use a compare-and-set amount and an immutable exactly-once receipt.
@@ -115,7 +117,7 @@ declare w public.user_wallets;old_balance numeric;entry public.user_wallet_entri
  update public.user_wallets set balance=value,updated_at=clock_timestamp() where id=w.id;
  insert into public.user_wallet_entries(wallet_id,league_id,team_id,event_key,request_key,kind,amount,balance_before,balance_after,reason,metadata)
  values(w.id,w.league_id,w.team_id,'initialize',p_request,case when p_mode='transfer_legacy' then 'legacy_transfer_in' else 'opening' end,value,null,value,trim(p_reason),
-  jsonb_build_object('mode',p_mode,'expected_legacy',p_expected_legacy));
+  jsonb_build_object('mode',p_mode,'expected_legacy',p_expected_legacy,'actor_id',auth.uid()));
  return jsonb_build_object('wallet_id',w.id,'duplicate',false,'balance',value);
 end $$;
 revoke all on function public.initialize_user_wallet(uuid,uuid,text,numeric,text,uuid) from public,anon,service_role;

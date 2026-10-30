@@ -49,12 +49,22 @@ export async function buildEmail(
   db: SupabaseClient,
   row: any,
 ): Promise<EmailContent> {
+  const acceptedTicket = row.kind === "confirmation" ? (await read(db.from("tickets")
+    .select("*").eq("id", row.ticket_id).eq("league_id", row.league_id).eq("team_id", row.team_id)))[0] : null;
+  let financialRecipient: any = null;
+  if (acceptedTicket?.user_wallet_id) {
+    const result = await db.rpc("financial_email_recipient", { p_ticket: row.ticket_id });
+    financialRecipient = result.data;
+    if (result.error || !financialRecipient || financialRecipient.wallet_id !== acceptedTicket.user_wallet_id ||
+        financialRecipient.league_id !== row.league_id || financialRecipient.team_id !== row.team_id || financialRecipient.recipient !== row.recipient)
+      throw new Error("Accepted financial recipient unavailable.");
+  }
   const [members, teams, wallets, leagues] = await Promise.all([
-    read(
+    financialRecipient ? Promise.resolve([{team_id: row.team_id, display_name: financialRecipient.display_name}]) : read(
       db.from("league_memberships").select("*").eq("league_id", row.league_id),
     ),
     read(db.from("teams").select("*").eq("league_id", row.league_id)),
-    read(
+    financialRecipient ? Promise.resolve([{balance: financialRecipient.balance}]) : read(
       db.from("wallets").select("team_id,balance").eq("team_id", row.team_id),
     ),
     read(db.from("leagues").select("*").eq("id", row.league_id)),
@@ -114,16 +124,7 @@ export async function buildEmail(
   if (row.kind === "monday_watch")
     return mondayEmail(db, row, league, teams, base);
   if (row.kind === "confirmation") {
-    const ticket = (
-      await read(
-        db
-          .from("tickets")
-          .select("*")
-          .eq("id", row.ticket_id)
-          .eq("league_id", row.league_id)
-          .eq("team_id", row.team_id),
-      )
-    )[0];
+    const ticket = acceptedTicket;
     if (!ticket) throw new Error("Accepted ticket unavailable.");
     const legs = await read(
       db
@@ -132,7 +133,7 @@ export async function buildEmail(
         .eq("ticket_id", row.ticket_id)
         .order("leg_number"),
     );
-    const ledger = (
+    const ledger = financialRecipient ? { balance_after: financialRecipient.accepted_balance } : (
       await read(
         db
           .from("wallet_ledger")

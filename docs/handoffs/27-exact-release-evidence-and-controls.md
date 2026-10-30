@@ -1,8 +1,8 @@
 # Exact release evidence and publication controls
 
 F002 / milestone 21 is in progress, not complete. Counter stays **15 complete /
-9 remaining**. No production configuration, application, schema or GitHub push has
-been performed. The protected dev runtime remains source `01edd29` / deployment
+9 remaining**. The owner specifically disconnected the production Git link, verified below.
+No production application/schema change or GitHub push has been performed. The protected dev runtime remains source `01edd29` / deployment
 `dpl_3aXS7fchnfnrrMQCXXY8tJXFwsLf` from handoff 26. Owner password-manager import
 was confirmed; independent restore and full-platform recovery remain open.
 
