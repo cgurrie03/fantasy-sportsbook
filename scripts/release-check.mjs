@@ -1,19 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-const suites = ["lint", "build:fixture", "test:financial-recovery", "test:environment", "test:board-cache",
-  "test:refresh-retention", "test:routine-retention", "test:futures-edit", "test:accounts", "test:accounts:ux", "test:lines",
-  "test:import", "test:refresh", "test:starters", "test:live", "test:weekly",
-  "test:transitions", "test:futures", "test:reporting", "test:reopening",
-  "test:isolation", "test:promos", "test:model", "test:teasers", "test:monday",
-  "test:extra-markets", "test:operations", "test:transitions:ux", "test:quick-start",
-  "test:featured-cards", "test:extra-markets:ux", "test:audit", "test:receipts",
-  "test:promos:ux", "test:teasers:ux", "test:ux", "test:sleeper-links"];
+import {releaseSuites as suites} from "./release-suite-plan.mjs";
+import {sourceIdentity,createEvidence} from "./release-evidence.mjs";
+const sourceStart=sourceIdentity(),startedAt=new Date().toISOString();
 if (!process.env.npm_execpath) throw new Error("Run npm run test:release.");
 const env = { ...process.env };
 for (const key of Object.keys(env))
-  if (/^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET)/.test(key)) delete env[key];
+  if (/^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET|VERCEL(?:_|$)|GH_TOKEN$|GITHUB_TOKEN$|PGPASSWORD$|DATABASE_URL$)/.test(key)) delete env[key];
 mkdirSync("work/release-checks", { recursive: true });
 const results = [];
+writeFileSync("work/release-checks/provenance.json", JSON.stringify({format:"boff-release-evidence-v1",valid:false,started_at:startedAt},null,2));
 for (const suite of suites) {
   const start = Date.now();
   console.log(`Checking ${suite}`);
@@ -31,4 +27,7 @@ for (const suite of suites) {
 }
 const failed = results.filter((r) => !r.passed);
 console.log(`${results.length - failed.length}/${results.length} checks passed. This does not authorize a production release.`);
-process.exitCode = failed.length ? 1 : 0;
+const evidence=createEvidence({start:sourceStart,end:sourceIdentity(),results,suites,startedAt,finishedAt:new Date().toISOString()});
+writeFileSync("work/release-checks/provenance.json",JSON.stringify(evidence,null,2)+"\n");
+if(!evidence.valid)console.error("Release evidence invalid: checks failed or source was dirty/changed during verification.");
+process.exitCode = failed.length || !evidence.valid ? 1 : 0;
