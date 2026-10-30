@@ -2,8 +2,8 @@
 
 Milestone 19 / F003. The canonical queues remain project Markdown, updated through
 chat. Financial off-site custody is separately tracked in handoff 25 and
-`docs/financial-recovery-custody.md`; password-manager import and independent-device
-restore are still owner-pending. No scheduled continuation is configured.
+`docs/financial-recovery-custody.md`; the owner confirmed password-manager import on October 29; independent-device
+restore remains pending. No scheduled continuation is configured.
 
 ## Prospective policy
 
@@ -121,3 +121,9 @@ step, but CI passing alone is not owner approval. The connected Vercel project
 summary omits repository/branch/auto-publication controls, so those controls remain
 unverified. No absence of Git linkage is inferred from omitted fields. No GitHub
 push, production configuration change, release or cleanup was performed.
+
+Owner custody update (October 29 ET): import into the separate password manager is
+confirmed by the owner. The matching public export receipt reports successful
+local decrypt verification; the original receipt is preserved. No private key
+was opened by the agent. The independent-device drill/full-platform recovery
+remain open, so the counter stays **15 complete / 9 remaining**.

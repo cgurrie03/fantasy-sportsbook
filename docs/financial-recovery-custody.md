@@ -13,7 +13,17 @@ Newer transactions, Auth credentials/configuration, complete unbet/model archive
 hosting/DNS/scheduler configuration and other platform recovery work remain F001.
 No production deletion or restore is authorized by this checkpoint.
 
-## One owner action now
+## Owner import confirmed — October 29, 2026
+
+The owner replied “imported” in chat. The public export receipt matches the known
+key fingerprint and snapshot digest and reports successful local portable-key
+decryption. This records owner attestation of password-manager import, not direct
+inspection of the password manager. The agent did not open the private key.
+Independent-device restoration and full-platform recovery are not yet confirmed.
+The original export receipt is preserved; a separate ignored owner-attestation
+receipt records this later confirmation. Do not rerun export over existing output.
+
+## Original export instructions (already completed)
 
 The integrations cannot choose your password or import a key into your password
 manager. Run this yourself in PowerShell under the original Windows account:

@@ -7,7 +7,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 
 | Order | ID | Priority | Feature / delivery | Milestone | Status / dependencies |
 |---|---|---|---|---|---|
-| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner password-manager import and full-platform coverage/drill remain |
+| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner confirmed password-manager import October 29; independent-device drill and full-platform coverage remain |
 | 2 | F002 | P1 | Exact tested-release approval and safe CI/publication workflow | 21 | Remaining; required before any production release or cleanup |
 | 3 | F003 | P1 | Operational log/email-body/unused-media retention budgets | 19 | Done dev; handoff 26, 37/37 checks, protected deployment; unresolved mail/retries/financial audits and referenced art preserved |
 | 4 | F004 | P1 | Separate per-user, per-league financial accounts/wallets, including co-owners | 17 | Remaining; preserve original balances/accepted terms and never copy another owner's funds; retries credit once per account |
