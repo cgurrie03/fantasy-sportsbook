@@ -106,3 +106,21 @@ not exact counts. Measurements use PostgreSQL metadata, with no raw body reads.
 Ignored `work/capacity-baseline-2026-10-29.json` holds the bounded top-20 inventory.
 Dev's empty/unfunded fixtures are not representative two-league load. No physical
 reclamation, real wire measurement or two-week plateau is claimed; F009 stays open.
+
+## Viewer integration checkpoint
+
+The profile loader now consumes only the authenticated viewer's approved financial
+participant from capabilities and replaces legacy team balances for finance-mode
+leagues with that viewer's wallet. Stored legacy membership records remain intact;
+a staff-only viewer never receives an invented participant. The main member/key
+uses the approved financial participant, balance pagination carries the wallet ID
+in both its RPC and request key, and personal statistics use own-wallet totals.
+Accepted bettor snapshots label cards/share/CSV rows rather than another
+co-owner's current team mapping. All-bet filtering is labeled Team for user mode.
+
+Targeted fixture build and phone/desktop co-owner tests pass, including no legacy
+membership, own $93 history rather than the primary's $100, and a staff-only second
+league without a balance or personal tools. Every browser request is intercepted.
+The package's wallet test includes these browser fixtures. Remaining owner controls,
+admin reports/exports/leaderboard, worker reads, generic primary balance mail,
+new-format recovery and hosted activation remain required. Do not apply yet.

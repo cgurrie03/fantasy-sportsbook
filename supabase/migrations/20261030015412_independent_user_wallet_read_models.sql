@@ -94,6 +94,7 @@ do $$declare d text;begin
  d:=replace(d,'and (v_team is null or t.team_id=v_team)',
   'and (v_team is null or t.team_id=v_team) and (not v_personal or not sportsbook_private.user_finance_enabled(p_league) or t.user_wallet_id=(select id from public.user_wallets where league_id=p_league and user_id=auth.uid() and status=''approved''))');
  d:=replace(d,'''legacy_ticket_id'',legacy_ticket_id,','''user_wallet_id'',user_wallet_id,''bettor_display_name'',bettor_display_name,''legacy_ticket_id'',legacy_ticket_id,');
+ d:=replace(d,$a$coalesce(t.legacy_ticket_id,'')$a$,$b$coalesce(t.legacy_ticket_id,'')||' '||coalesce(t.bettor_display_name,'')$b$);
  execute d;
 end $$;
 commit;

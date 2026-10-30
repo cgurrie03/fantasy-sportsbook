@@ -10,6 +10,7 @@ export function TicketFilters({
   children,
   id,
   personal = false,
+  groupLabel = "Bettor",
   searchText = (t) => t.id,
   remote,
   teamOptions,
@@ -20,6 +21,7 @@ export function TicketFilters({
   children: (filtered: Ticket[],page?:TicketPage) => ReactNode;
   id: string;
   personal?: boolean;
+  groupLabel?: string;
   searchText?: (ticket: Ticket) => string;
   remote?:RemoteTicketScope;
   teamOptions?:string[];
@@ -139,9 +141,9 @@ export function TicketFilters({
         </label>
         {!personal && (
           <label>
-            Bettor
+            {groupLabel}
             <select value={bettor} onChange={(e) => setBettor(e.target.value)}>
-              <option value="all">All members</option>
+              <option value="all">{groupLabel === "Team" ? "All teams" : "All members"}</option>
               {[...new Set(teamOptions??tickets.map((t) => t.team_id))].map((v) => (
                 <option key={v} value={v}>
                   {owner(v)}

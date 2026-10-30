@@ -172,6 +172,7 @@ function History({ data, team }: { data: AccountData; team: Team }) {
       ? {
           leagueId: team.league_id,
           teamId: team.id,
+          walletId: data.wallets.find((w) => w.team_id === team.id)?.wallet_id,
           revision: data.history_revision,
         }
       : undefined,
@@ -284,7 +285,7 @@ export function Account({
             <p>{team.team_name}</p>
             <span>
               {team.wins}–{team.losses}
-              {team.ties ? `–${team.ties}` : ""} · Sleeper Connected{" "}
+              {team.ties ? `–${team.ties}` : ""} · {member.wallet_id ? "Team Data Connected" : "Sleeper Connected"}{" "}
               <span className="connected-check" aria-label="Connected">
                 <svg
                   viewBox="0 0 24 24"
@@ -312,8 +313,8 @@ export function Account({
             <dd>{member.invited_email}</dd>
           </div>
           <div>
-            <dt>Sleeper Account</dt>
-            <dd>{team.sportsbook_owner_name}</dd>
+            <dt>{member.wallet_id ? "Sportsbook Account" : "Sleeper Account"}</dt>
+            <dd>{member.wallet_id ? member.display_name : team.sportsbook_owner_name}</dd>
           </div>
           <div>
             <dt>Access</dt>
@@ -766,7 +767,12 @@ export default function App() {
         : (next.leagues[0]?.id ?? ""),
     );
   }
-  const member = data?.memberships.find(
+  const financialParticipant = data?.viewer_participants?.find(
+    (p) => p.user_id === userId && p.league_id === leagueId,
+  );
+  const member: Membership | undefined = financialParticipant ? {
+      ...financialParticipant, invited_email: session?.user.email ?? "",
+    } : data?.memberships.find(
       (m) => m.user_id === userId && m.league_id === leagueId,
     ),
     team = data?.teams.find((t) => t.id === member?.team_id),

@@ -36,8 +36,8 @@ export function useTicketPage(scope:RemoteTicketScope|undefined,filters:TicketFi
 }
 export type BalanceEntry={id:string;ticketId:string|null;title:string;reason:string;amount:number;date:string;imported:boolean;balanceAfter:number|null};
 type BalancePage={entries:BalanceEntry[];total:number;next:Record<string,unknown>|null;as_of:string};
-export function useBalancePage(scope:{leagueId:string;teamId:string;revision?:unknown}|undefined){
- const signature=JSON.stringify([scope?.leagueId,scope?.teamId]);
+export function useBalancePage(scope:{leagueId:string;teamId:string;walletId?:string;revision?:unknown}|undefined){
+ const signature=JSON.stringify([scope?.leagueId,scope?.teamId,scope?.walletId]);
  const [navigation,setNavigation]=useState<{signature:string;revision?:unknown;cursors:(Record<string,unknown>|null)[]}>({signature:'',cursors:[null]});
  const cursors=navigation.signature===signature&&navigation.revision===scope?.revision?navigation.cursors:[null];
  const cursor=cursors[cursors.length-1],key=signature+JSON.stringify(cursor);
@@ -48,11 +48,14 @@ export function useBalancePage(scope:{leagueId:string;teamId:string;revision?:un
   const controller=new AbortController();let current=true;
   setResult(s=>({key,data:s.key===key?s.data:null,error:'',busy:true}));
   void(async()=>{try{
-   const response=await supabase!.rpc('account_balance_page',{p_league:scope.leagueId,p_team:scope.teamId,p_cursor:cursor,p_limit:30})
+   const response=await supabase!.rpc(scope.walletId?'account_user_balance_page':'account_balance_page',scope.walletId?
+    {p_league:scope.leagueId,p_wallet:scope.walletId,p_cursor:cursor,p_limit:30}:
+    {p_league:scope.leagueId,p_team:scope.teamId,p_cursor:cursor,p_limit:30})
     .abortSignal(AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]));
    if(response.error)throw response.error;
    const page=response.data as BalancePage;
-   if(!page||!Array.isArray(page.entries)||page.entries.length>30||!Number.isFinite(page.total))throw new Error('Balance history response is incomplete.');
+   if(!page||!Array.isArray(page.entries)||page.entries.length>30||!Number.isFinite(page.total)||
+     (scope.walletId&&(response.data as {wallet_id?:string}).wallet_id!==scope.walletId))throw new Error('Balance history response is incomplete.');
    if(current)setResult({key,data:page,error:'',busy:false});
   }catch(e){if(current)setResult({key,data:null,error:errorMessage(e),busy:false});}})();
   return()=>{current=false;controller.abort();};

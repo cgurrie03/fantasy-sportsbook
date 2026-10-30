@@ -110,6 +110,7 @@ export function TicketHistory({
   const [feedback, setFeedback] = useState("");
   const [visibleTickets,setVisibleTickets]=useState<Ticket[]>([]);
   const remote=!!data.history_remote&&!readOnly;
+  const financialMode=data.access?.some(a=>a.league_id===leagueId&&a.wallet_model==='user');
   const observations = useTicketProgress(
     leagueId??tickets[0]?.league_id,
     remote?visibleTickets:tickets,
@@ -139,7 +140,8 @@ export function TicketHistory({
   return (
     <TicketFilters
       tickets={tickets}
-      owner={owner}
+      owner={financialMode ? id=>data.teams.find(t=>t.id===id)?.team_name??"Team" : owner}
+      groupLabel={financialMode ? "Team" : "Bettor"}
       personal={personal}
       id="admin-ticket-filters"
       remote={remote&&leagueId?{leagueId,personal,revision:data.history_revision}:undefined}
@@ -149,7 +151,7 @@ export function TicketHistory({
         [
           t.id,
           t.legacy_ticket_id,
-          owner(t.team_id),
+          t.bettor_display_name ?? owner(t.team_id),
           data.teams.find((team) => team.id === t.team_id)?.team_name,
           ...(data.legs ?? [])
             .filter((l) => l.ticket_id === t.id)
@@ -203,7 +205,7 @@ export function TicketHistory({
                     <summary>
                       <div className="ticket-top">
                         <div className="ticket-owner">
-                          <strong>{owner(t.team_id)}</strong>
+                          <strong>{t.bettor_display_name ?? owner(t.team_id)}</strong>
                           <small>
                             {
                               data.teams.find((team) => team.id === t.team_id)
@@ -363,7 +365,7 @@ export function TicketHistory({
                       <TicketShare
                         data={pageData?{...data,...pageData}:data}
                         ticket={t}
-                        owner={owner(t.team_id)}
+                        owner={t.bettor_display_name ?? owner(t.team_id)}
                       />
                       <p className={"ticket-meta " + t.status.toLowerCase()}>
                         {t.status !== "OPEN" &&
