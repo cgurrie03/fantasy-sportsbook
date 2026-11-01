@@ -14,7 +14,9 @@ assert.equal((await rows("select display_name from public.league_memberships m j
 await db.exec('set role anon;')
 assert.equal((await rows("select count(*)::int n from public.sportsbook_period('13121261-5398-4391-8240-000000000003')"))[0].n,1)
 await db.exec('reset role;')
-await db.exec("update public.leagues set week_anchor=now()-interval '7 days';")
+// The approved period uses Eastern civil weeks. Subtracting seven days in the
+// database session's timezone drifts by an hour across daylight-saving changes.
+await db.exec("update public.leagues set week_anchor=((now() at time zone 'America/New_York')-interval '7 days') at time zone 'America/New_York';")
 assert.equal((await rows("select week from public.sportsbook_period('13121261-5398-4391-8240-000000000003')"))[0].week,6)
 assert.equal((await rows('select count(*)::int n from public.league_memberships'))[0].n,12)
 assert.equal((await rows('select sum(balance) n from public.wallets'))[0].n,'1517.40')

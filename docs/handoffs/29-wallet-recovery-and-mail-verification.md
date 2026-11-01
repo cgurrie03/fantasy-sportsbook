@@ -33,6 +33,12 @@ The wallet fixture now loads every post-baseline development migration, includin
 environment identity and captured-mail constraints, rather than skipping the
 first five. This adds the capture-table FK to the recovery validation count.
 
+The November 1 full run also exposed a historical import fixture using seven
+elapsed days instead of seven Eastern civil days for its week anchor. Correcting
+the test's anchor preserves the application's existing DST-aware period policy;
+the historical import/balance/replay checks pass again. No production period or
+calendar configuration was changed.
+
 ## Remaining before hosted acceptance
 
 1. Implement and review the explicit owner-controlled cutover action/UI, including
