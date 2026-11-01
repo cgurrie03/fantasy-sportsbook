@@ -1,8 +1,10 @@
 # Owner-reviewed development wallet cutover
 
 Milestone 17 is in progress; the stable counter is still **15 complete / 9 remaining**.
-The first four wallet migrations and the new CLI-created
-`20261101201144_owner_reviewed_development_wallet_cutover.sql` are not yet hosted.
+All five wallet migrations, including CLI-created
+`20261101201144_owner_reviewed_development_wallet_cutover.sql`, are now hosted in
+DEV and immutable. Source `efb98df` passed 39/39 and is the READY protected build.
+Owner session verification is pending; opening funds and routing remain inactive.
 Inspect the ignored `work/wallet-cutover-hosted-receipt.json` if present for later
 hosted evidence, rather than assuming this planned rollout occurred.
 

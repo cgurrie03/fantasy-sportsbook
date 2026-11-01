@@ -43,7 +43,7 @@ Complete in their stated isolated-development scope: **01–12, 14, 15, 19**.
 Canonical priorities: [bugs](BUG-QUEUE.md), [features](FEATURE-ROADMAP.md),
 [counter](handoffs/IMPLEMENTATION-CHECKLIST.md). Support remains deferred/excluded.
 
-## Hosted state — unchanged by local wallet work
+## Hosted state — wallet source deployed to inactive development
 
 - DEV Supabase: `whlcnlacueweaqpsupqs`; PROD read-only: `bmvjcdgxwxqalaohpsnw`.
 - DEV verified owner: `d320882c-8a06-443b-a2a9-2e29a0d29cdd`.
@@ -51,8 +51,8 @@ Canonical priorities: [bugs](BUG-QUEUE.md), [features](FEATURE-ROADMAP.md),
   `8ced0f01-e845-697c-ea32-05ced48b210e`.
 - DEV operations remain manual/captured, unfunded fixtures, owner-only independent
   Auth and closed signup. Verify `application_environment_identity()` before writes.
-- Last deployed DEV source: `01edd29e92fb24094d08b59a5bac25e88d5f0164`.
-  READY deployment `dpl_3aXS7fchnfnrrMQCXXY8tJXFwsLf`, canonical
+- Last deployed DEV source: `efb98dff60199978ae7dd2a4c6403e9b2c0d319f`.
+  READY deployment `dpl_J48q1UwaaQ1ycCiUqWAcwgNeE1PP`, canonical
   `https://dev.sportsbook.coopergurrie.com`. Its generated URL and project aliases
   were signed-out 302 to Vercel SSO. No bypass or owner browser session was used.
 - Production Vercel project: `prj_xQNaH7f1SPr8bgn2GV92a9MODQu8`; DEV:
@@ -98,8 +98,9 @@ will require a fresh advisory review; do not reuse these counts after applying t
 
 ## Current wallet implementation — LOCAL ONLY
 
-These five CLI-created migrations have **not been applied to hosted development
-or production**. They can still be edited; do not apply the partial implementation.
+These five CLI-created migrations are **applied to hosted development and are
+immutable**. They have not been applied to production. Routing and funding remain
+inactive pending the owner account-session check; do not replay these migrations.
 
 1. `20261030012234_independent_user_wallet_foundation.sql`
 2. `20261030013726_independent_user_wallet_engine.sql`
@@ -162,16 +163,18 @@ explicit local fixture setup, not a hosted activation. Local preview uses port
    recap/replenishment/standing. Attention messages retain existing admin behavior.
 3. The explicit owner-only DEV activation action/UI and shared-writer fencing
    are now implemented and locally verified; handoff 30 documents the audited,
-   expiring, state-bound review and once-only activation receipt. Keep all five
-   migrations unapplied until final source checks and hosted preflight complete; don't enable betting,
+   expiring, state-bound review and once-only activation receipt. All five
+   migrations are now applied to DEV following 39/39 checks, advisory review and
+   rollback probes; owner session verification is pending; don't enable betting,
    automation or fund accounts merely to switch financial identity. Pending old
    mail/jobs must be resolved without rewriting payloads/provider retry evidence.
 4. Run the required checks on the exact final clean commit; inspect genuine
    failures and advisor changes. New source invalidates old release provenance.
-5. Only then apply all reviewed migrations to DEV with identity preflight,
-   rollback-only financial/ACL probes and fresh postflight. Keep operations/mail
-   manual/captured; no real bet/provider smoke action. Follow filtered deployment
-   procedure from earlier handoffs, verify READY/source SHA and SSO on all aliases.
+5. DEV migrations/deployment are complete for `efb98df`; all four hostnames
+   redirect signed-out visitors to SSO. The owner has been asked to exercise the
+   Users preparation/review/cutover flow for both synthetic leagues while leaving
+   opening funds pending. Continue independent milestone work while awaiting that
+   response; do not impersonate the owner for a permanent activation.
 6. Mark 17 complete only after its scoped final verification. Then continue the
    highest-priority ready queue work. Do not increment a milestone for each commit.
 
@@ -215,3 +218,34 @@ still needs an actual protected owner-controlled publication path and other
 credential/hook routes checked. Passing tests/local manifests cannot impersonate
 owner approval. No credential was requested or retrieved for CI. All production
 funds/ownership mapping, cleanup and rollout remain exact-review gated.
+
+## Hosted wallet verification — November 1
+
+- Source `efb98df` passed all 39 release suites; immutable evidence and unapproved
+  review are under ignored `work/release-checks` / `work/release-reviews/<sha>`.
+- Local-to-hosted versions: foundation `20261030012234` -> `20261101202648`;
+  engine `20261030013726` -> `20261101202654`; read models `20261030015412` ->
+  `20261101202655`; operations/reports `20261030132624` -> `20261101202832`;
+  cutover `20261101201144` -> `20261101202842`.
+- The connector collided on a seconds-based migration version for operations/
+  reports: DDL committed but history insertion failed. Nine function bodies, ACLs
+  and search paths plus the reversal trigger exactly matched local source. A
+  guarded history-only reconciliation recorded the existing schema, then the
+  fifth migration was applied. Do not replay the fourth migration.
+- Hosted rollback-only owner/outsider/ACL, pending-funds and once-only cutover
+  probes passed. After rollback: zero user wallets/entries/enabled modes/cutover
+  receipts/tickets/legacy ledger. The new canonical ordered financial digest was
+  unchanged before/after: `137ed5bcf319315520dd111aaf06a3d5`. Earlier handoffs used
+  a different canonical ordering, so do not compare those digest strings directly.
+- Advisor delta: 46 authenticated-definer / 2 anon-definer / 1 Auth-password WARN;
+  12 RLS-without-policy INFO. New nine authenticated wrappers independently gate
+  owner/operator/member scope; two private no-policy tables have no direct API
+  grants. No new anonymous definer endpoint was added.
+- Post-migration physical DEV size 16,815,795 bytes; app relations 3,022,848 bytes.
+  Fresh read-only production baseline is 1,293,604,531 physical / 1,270,030,336 app
+  bytes. These are metadata measurements, not wire/load/plateau proof.
+- Detailed ignored receipt: `work/wallet-cutover-hosted-receipt.json`; metadata
+  inventory: `work/platform-recovery-capacity-inventory-2026-11-01.json`.
+- Owner confirmation is pending; counter remains **15 complete / 9 remaining**.
+  Next ready development work is milestone 16's versioned rules/provider contract,
+  draft import and verified claims. Production deployment/schema remain unchanged.

@@ -52,7 +52,7 @@ export async function testWalletCutover(db,{owner,primary,A,B}) {
   and proname in ('place_sportsbook_ticket','place_boosted_ticket','place_fixed_ticket','settle_weekly_ticket','void_sportsbook_ticket',
   'replenish_weekly_balances','approve_user_wallet','initialize_user_wallet','set_user_wallet_balance','set_user_wallet_status','set_team_balance')`);
  assert.equal(fenced.length,11);assert(fenced.every(f=>/\bbegin perform pg_advisory_xact_lock_shared\(20261101,17\);/i.test(f.prosrc)));
- 
+
  await db.exec('rollback;reset role;');
  console.log('DEV owner cutover rejects production, operators, cross-league/stale/expired reviews; exactly-once activation keeps funds pending and operations disabled, with shared writer fencing.');
 }
