@@ -678,6 +678,7 @@ create or replace function sportsbook_private.guard_outbox_recipient() returns t
 language plpgsql security definer set search_path='' as $$
 begin
  if tg_op='INSERT' then
+  perform 1 from public.leagues where id=new.league_id for share;
   new.wallet_model:=case when exists(select 1 from sportsbook_private.user_finance_modes where league_id=new.league_id and enabled) then 'user' else 'legacy' end;
  elsif new.wallet_model is distinct from old.wallet_model then raise exception 'Queued financial model is immutable.';end if;
  if tg_op='UPDATE' and new.payload is null and old.payload is not null
@@ -688,6 +689,11 @@ begin
    join auth.users a on a.id=w.user_id where t.id=new.ticket_id and t.league_id=new.league_id and t.team_id=new.team_id
     and w.status='approved' and a.email_confirmed_at is not null and a.email=new.recipient)
   then raise exception 'Confirmation must target the accepted financial account owner.';end if;
+ elsif new.wallet_model='user' and new.ticket_id is null and new.kind<>'attention' then
+  if not exists(select 1 from public.user_wallets w join auth.users a on a.id=w.user_id
+    where w.league_id=new.league_id and w.team_id=new.team_id and w.status='approved'
+     and a.email_confirmed_at is not null and a.email=new.recipient)
+   then raise exception 'Email must target an approved financial account owner.';end if;
  elsif new.team_id is null or not exists(select 1 from public.league_memberships m where m.league_id=new.league_id
   and m.team_id=new.team_id and m.invited_email=new.recipient and (new.kind<>'attention' or m.role='admin'))
  then raise exception 'Email recipient must match the approved league membership.';end if;

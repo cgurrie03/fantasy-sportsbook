@@ -526,13 +526,53 @@ try {
     },
   };
   const financialMailRow={kind:"confirmation",ticket_id:"wallet-ticket",team_id:"shared-team",league_id:"league",recipient:"coowner@example.invalid"};
-  const {validateDeliveryScope}=await import(pathToFileURL(path.join(root,"_lib/league-communications.js")).href);
+  const {validateDeliveryScope,participantMailAudience}=await import(pathToFileURL(path.join(root,"_lib/league-communications.js")).href);
   await validateDeliveryScope(financialMailDb,financialMailRow);
   await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial account/);
   await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,payload:{to:["primary@example.invalid"]}}),/payload recipient mismatch/);
   const financialConfirmation=await mail.buildEmail(financialMailDb,financialMailRow);
   assert(financialConfirmation.details.some(([label,value])=>label==="Balance after placement"&&value==="$93.00"));
   await assert.rejects(mail.buildEmail(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial recipient unavailable/);
+  let genericContext={...financialRecipient,rank:2,participants:3};
+  const genericTables={...financialTables,
+    sportsbook_boards:[{status:"published",closes_at:"2026-11-05T23:00:00Z"}],
+    tickets:[
+      {id:"own-won",user_wallet_id:"wallet-2",team_id:"shared-team",status:"WON",stake:7,actual_payout:14},
+      {id:"peer-won",user_wallet_id:"wallet-1",team_id:"shared-team",status:"WON",stake:500,actual_payout:1500},
+      {id:"peer-open",user_wallet_id:"wallet-1",team_id:"shared-team",status:"OPEN",stake:100},
+    ],user_wallet_entries:[{wallet_id:"wallet-2",amount:25},{wallet_id:"wallet-1",amount:900}],ticket_legs:[]};
+  const genericDb={rpc:async(name,args)=>{
+    assert.equal(name,"financial_email_context");assert.equal(args.p_team,"shared-team");
+    return args.p_recipient===genericContext.recipient?{data:genericContext,error:null}:{data:null,error:{message:"pending approval"}};
+  },from:table=>{
+    assert(!["wallets","wallet_ledger","league_memberships"].includes(table),"user generic mail must not fall back to primary finances/contact");
+    const filters=[];const query={select:()=>query,eq:(k,v)=>{filters.push([k,v]);return query;},neq:()=>query,gte:()=>query,in:()=>query,
+      then:(resolve,reject)=>Promise.resolve({data:(genericTables[table]??[]).filter(r=>filters.every(([k,v])=>!(k in r)||r[k]===v)),error:null}).then(resolve,reject)};
+    return query;
+  }};
+  const genericRow={wallet_model:"user",kind:"reminder",league_id:"league",team_id:"shared-team",recipient:genericContext.recipient,market_week:5};
+  await validateDeliveryScope(genericDb,genericRow);
+  const reminder=await mail.buildEmail(genericDb,genericRow);
+  assert(reminder.details.some(([k,v])=>k==="Your available balance"&&v==="$100.00"));
+  genericContext={...genericContext,balance:null};
+  const pendingReminder=await mail.buildEmail(genericDb,genericRow);
+  assert(pendingReminder.details.some(([,v])=>v==="Funding pending"));
+  genericContext={...genericContext,balance:100};
+  const roundup=await mail.buildEmail(genericDb,{...genericRow,kind:"recap"});
+  assert(roundup.details.some(([k,v])=>k==="Net betting profit"&&v==="$7.00"));
+  assert(roundup.details.some(([k,v])=>k==="Weekly replenishment"&&v==="$25.00"));
+  assert(roundup.details.some(([k,v])=>k==="Account standing (all seasons)"&&v==="2 of 3"));
+  assert(!roundup.paragraphs.some(p=>p.includes("under review")),"peer open ticket is not personal pending result");
+  await assert.rejects(validateDeliveryScope(genericDb,{...genericRow,recipient:"primary@example.invalid"}),/financial account/);
+  await assert.rejects(mail.buildEmail(genericDb,{...genericRow,recipient:"primary@example.invalid"}),/approval/);
+  const audience=[{id:"wallet-1",league_id:"league",team_id:"shared-team",invited_email:"primary@example.invalid"},
+    {id:"wallet-2",league_id:"league",team_id:"shared-team",invited_email:"coowner@example.invalid"}];
+  const audienceDb={rpc:async(name,args)=>{assert.equal(name,"financial_email_audience");assert.equal(args.p_league,"league");return {data:audience,error:null};}};
+  assert.deepEqual(await participantMailAudience(audienceDb,"league",[]),audience);
+  assert.deepEqual(await participantMailAudience({rpc:async()=>({data:null,error:null})},"league",["legacy"]),["legacy"]);
+  await assert.rejects(participantMailAudience(audienceDb,"other-league",[]),/strictly equal/);
+  await assert.rejects(participantMailAudience({rpc:async()=>({data:[{...audience[0],league_id:"other"}],error:null})},"league",[]),/scope/);
+  await assert.rejects(participantMailAudience({rpc:async()=>({data:null,error:{message:"unavailable"}})},"league",[]),/unavailable/);
   const oldMailFetch = globalThis.fetch,
     oldMailKey = process.env.RESEND_API_KEY;
   // Opening content must be built from the final published board, not preview fixtures.

@@ -6,6 +6,7 @@ import { randomBytes, createHash } from "node:crypto";
 import * as openpgp from "openpgp";
 import { PGlite } from "@electric-sql/pglite";
 import assert from "node:assert/strict";
+import { verifyUserFinancialRecovery } from "./lib/recovery-wallet-checks.mjs";
 
 // Local-only financial recovery drill. No hosted database client or credentials.
 // The exported auth relation contains identities only, never passwords/sessions.
@@ -18,6 +19,18 @@ export const recoveryTables = [
   "public.ticket_legs", "public.ticket_promotions", "public.tickets", "public.wallet_ledger",
   "public.wallets", "public.weekly_execution_runs", "sportsbook_private.import_batches",
 ];
+// Keep v1 immutable: the owner's existing off-site checkpoint uses this contract.
+export const recoveryTablesV2 = [...recoveryTables,
+  "public.user_wallets", "public.user_wallet_entries", "public.league_staff_grants",
+  "public.league_staff_audit", "sportsbook_private.user_wallet_approvals",
+  "sportsbook_private.user_finance_modes", "sportsbook_private.platform_owners",
+  "sportsbook_private.platform_owner", "sportsbook_private.league_launch_approvals",
+];
+export function tablesForFormat(format) {
+  if (format === "boff-financial-recovery-v1") return recoveryTables;
+  if (format === "boff-financial-recovery-v2") return recoveryTablesV2;
+  throw new Error("Unsupported financial recovery format.");
+}
 const authStub = `create role anon;create role authenticated;create role service_role bypassrls;
   create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);
   create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
@@ -36,44 +49,60 @@ export function protect(value, mode) {
 }
 const ident = (name) => '"' + name.replaceAll('"', '""') + '"';
 const relation = (name) => name.split(".").map(ident).join(".");
-export function snapshotQuery(publicKey) {
+export function snapshotQuery(publicKey, { format = "boff-financial-recovery-v1", projectRef = "bmvjcdgxwxqalaohpsnw" } = {}) {
+  const tableNames = tablesForFormat(format);
+  if (!/^[a-z]{20}$/.test(projectRef)) throw new Error("Explicit Supabase project reference required.");
   if (!publicKey.startsWith("-----BEGIN PGP PUBLIC KEY BLOCK-----") || publicKey.includes("$recovery$"))
     throw new Error("A public recovery key is required.");
-  const entries = recoveryTables.map((name, i) => {
-    const source = name === "auth.users" ? "(select id,email,email_confirmed_at from auth.users)" : relation(name);
+  const entries = tableNames.map((name, i) => {
+    const source = name === "auth.users" ? `(select id,email,email_confirmed_at from auth.users${format.endsWith("v2") ? " where false" : ""})` : relation(name);
     const where = name === "public.sportsbook_markets"
       ? "where r.id in (select market_quote_id from public.ticket_legs where market_quote_id is not null)" : "";
     return `t${i} as materialized (select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) as rows from ${source} r ${where})`;
   });
-  const pairs = recoveryTables.map((name, i) => `'${name}',(select rows from t${i})`).join(",");
+  const pairs = tableNames.map((name, i) => `'${name}',(select rows from t${i})`).join(",");
+  // v2 exports only identities referenced by financial/access records. The FK
+  // catalogue discovers actor/subject/owner columns without exporting Auth secrets.
+  const scopedData = format.endsWith("v2") ? `, scoped_tables as materialized (
+    select jsonb_set(data,'{auth.users}',coalesce((select jsonb_agg(to_jsonb(a) order by to_jsonb(a)::text)
+      from (select id,email,email_confirmed_at from auth.users) a where a.id::text in (
+        select r.value->>att.attname from pg_constraint k
+        join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace
+        join pg_attribute att on att.attrelid=k.conrelid and att.attnum=k.conkey[1]
+        cross join lateral jsonb_array_elements(coalesce(data->(n.nspname||'.'||c.relname),'[]')) r(value)
+        where k.contype='f' and k.confrelid='auth.users'::regclass and cardinality(k.conkey)=1
+      )),'[]'::jsonb)) as data from tables)` : "";
   return `begin isolation level repeatable read read only;
-with ${entries.join(",\n")}, tables as materialized (select jsonb_build_object(${pairs}) as data),
-document as materialized (select jsonb_build_object('format','boff-financial-recovery-v1',
- 'project_ref','bmvjcdgxwxqalaohpsnw','captured_at',statement_timestamp(),
+set local timezone='UTC';
+with ${entries.join(",\n")}, tables as materialized (select jsonb_build_object(${pairs}) as data)${scopedData},
+document as materialized (select jsonb_build_object('format','${format}',
+ 'project_ref','${projectRef}','captured_at',statement_timestamp(),
  'schema_sha256','SCHEMA_HASH_PLACEHOLDER','tables',data,
  'checksums',(select jsonb_object_agg(key,md5(value::text)) from jsonb_each(data)),
- 'counts',(select jsonb_object_agg(key,jsonb_array_length(value)) from jsonb_each(data)))::text as data from tables)
+ 'counts',(select jsonb_object_agg(key,jsonb_array_length(value)) from jsonb_each(data)))::text as data from ${scopedData ? "scoped_tables" : "tables"})
 select encode(extensions.pgp_pub_encrypt(data,extensions.dearmor($recovery$${publicKey}$recovery$),
  'cipher-algo=aes256,compress-algo=1,compress-level=6'),'base64') as encrypted_snapshot,
  octet_length(data) as plaintext_bytes,encode(extensions.digest(data,'sha256'),'hex') as plaintext_sha256 from document;
 commit;`;
 }
-export async function restoreFinancialSnapshot(plaintext, schema) {
+export async function restoreFinancialSnapshot(plaintext, schema, { projectRef = "bmvjcdgxwxqalaohpsnw" } = {}) {
   const snapshot = JSON.parse(plaintext);
-  assert.equal(snapshot.format, "boff-financial-recovery-v1");
-  assert.equal(snapshot.project_ref, "bmvjcdgxwxqalaohpsnw");
+  const tableNames = tablesForFormat(snapshot.format);
+  assert.equal(snapshot.project_ref, projectRef);
   assert.equal(createHash("sha256").update(schema).digest("hex"), snapshot.schema_sha256);
-  assert.deepEqual(Object.keys(snapshot.tables).sort(), [...recoveryTables].sort());
+  for (const field of ["tables", "counts", "checksums"])
+    assert.deepEqual(Object.keys(snapshot[field]).sort(), [...tableNames].sort());
   const db = new PGlite();
   try {
     await db.exec(authStub);
+    if (snapshot.format.endsWith("v2")) await db.exec("create role boff_evaluation_retention nologin noinherit;create role boff_routine_retention nologin noinherit;");
     await db.exec(schema);
-    await db.exec("set timezone='UTC';create temp table recovery_input(data jsonb);");
+    await db.exec("set timezone='UTC';set search_path=public;create temp table recovery_input(data jsonb);");
     // Keep the original JSON text: JS number conversion could change stored
     // high-precision quote probabilities or bigint IDs during a recovery.
     await db.query("insert into recovery_input values($1::jsonb)", [plaintext]);
     await db.exec("begin;set local session_replication_role=replica;");
-    for (const name of recoveryTables) {
+    for (const name of tableNames) {
       const [schemaName, tableName] = name.split(".");
       const cols = (await db.query(`select a.attname from pg_attribute a join pg_class c on c.oid=a.attrelid
         join pg_namespace n on n.oid=c.relnamespace where n.nspname=$1 and c.relname=$2
@@ -85,7 +114,7 @@ export async function restoreFinancialSnapshot(plaintext, schema) {
     }
     await db.exec("commit;");
     const counts = {};
-    for (const name of recoveryTables) {
+    for (const name of tableNames) {
       const check = (await db.query(`select count(*)::int as n,
         md5(coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb)::text) as hash
         from ${relation(name)} r`)).rows[0];
@@ -111,11 +140,13 @@ export async function restoreFinancialSnapshot(plaintext, schema) {
         where ${present} and not exists(select 1 from ${relation(fk.parent_schema + "." + fk.parent)} p where ${match})`);
       assert.equal(result.rows[0].n, 0, `Recovery broke ${fk.conname}`);
     }
+    const userChecks = snapshot.format.endsWith("v2") ? await verifyUserFinancialRecovery(db) : null;
     let refundChecked = false;
     const open = (await db.query(`select t.id,t.team_id,t.stake,m.user_id,w.balance
       from public.tickets t join public.wallets w on w.team_id=t.team_id
       join public.league_memberships m on m.league_id=t.league_id and m.role='admin' and m.user_id is not null
-      where t.status='OPEN' and t.source_batch is null and w.balance is not null order by t.id limit 1`)).rows[0];
+      where t.status='OPEN' and t.source_batch is null and w.balance is not null
+      ${userChecks ? "and t.user_wallet_id is null" : ""} order by t.id limit 1`)).rows[0];
     if (open) {
       const before = (await db.query("select count(*)::int n from wallet_ledger where ticket_id=$1 and kind='void_refund'", [open.id])).rows[0].n;
       await db.query("select set_config('request.jwt.claim.sub',$1,false)", [open.user_id]);
@@ -132,16 +163,19 @@ export async function restoreFinancialSnapshot(plaintext, schema) {
       assert.equal((await db.query(`select count(*)::int n from public.${table}`)).rows[0].n, 0, `Outsider sees ${table}`);
     await db.exec("reset role;set role anon;");
     await assert.rejects(db.query("select * from public.wallets"));
-    return { counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
+    return { format: snapshot.format, counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
+      user_wallet_checks: userChecks,
       outsider_denied: true, anonymous_denied: true };
   } finally { await db.close(); }
 }
 
 async function main() {
   if (process.env.VERCEL) throw new Error("Recovery tooling must never run on hosting.");
-  const [mode, target = "work/financial-recovery"] = process.argv.slice(2);
+  const [mode, target = "work/financial-recovery", schemaFile] = process.argv.slice(2);
   const folder = path.resolve(target);
-  if (mode === "prepare") {
+  if (mode === "prepare" || mode === "prepare-v2") {
+    if (mode === "prepare-v2" && !schemaFile) throw new Error("v2 requires an explicit reviewed schema-only recovery artifact.");
+    const schema = await fs.readFile(schemaFile ?? "supabase/development/baseline-schema.sql", "utf8");
     await fs.mkdir(folder, { recursive: true });
     // Exclusive creation prevents replacing a key needed for an existing export.
     const guard = await fs.open(path.join(folder, "key-created.lock"), "wx");
@@ -154,9 +188,10 @@ async function main() {
     await fs.writeFile(path.join(folder, "public.asc"), keys.publicKey);
     await fs.writeFile(path.join(folder, "private.asc"), keys.privateKey, { mode: 0o600 });
     await fs.writeFile(path.join(folder, "passphrase.dpapi"), wrappedPassphrase, { mode: 0o600 });
-    const schema = await fs.readFile("supabase/development/baseline-schema.sql", "utf8");
     await fs.writeFile(path.join(folder, "schema.sql"), schema);
-    await fs.writeFile(path.join(folder, "export.sql"), snapshotQuery(keys.publicKey)
+    await fs.writeFile(path.join(folder, "export.sql"), snapshotQuery(keys.publicKey, {
+      format: mode === "prepare-v2" ? "boff-financial-recovery-v2" : "boff-financial-recovery-v1",
+    })
       .replace("SCHEMA_HASH_PLACEHOLDER", createHash("sha256").update(schema).digest("hex")));
     console.log("Prepared public-key encrypted financial export. Private key and DPAPI-wrapped passphrase remain local; no secrets logged.");
   } else if (mode === "verify") {
@@ -175,7 +210,7 @@ async function main() {
       scope: "Financial records and FK dependencies; auth identities only, not Auth credentials or a full platform backup.",
     }, null, 2));
     console.log(JSON.stringify(result));
-  } else throw new Error("Use prepare or verify with a local recovery directory.");
+  } else throw new Error("Use prepare, prepare-v2 (with a reviewed schema file), or verify with a local recovery directory.");
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try { await main(); }

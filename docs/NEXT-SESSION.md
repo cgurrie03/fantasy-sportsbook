@@ -1,6 +1,6 @@
 # BOFF — consolidated next-session handoff
 
-Prepared October 30, 2026 ET at the owner's request, with weekly usage 96% used.
+Updated November 1, 2026 ET. The October 30 checkpoint was prepared at the owner's request before the usage limit.
 Resume implementation from this file and the canonical queues. Do not restart the
 original audit, repeat completed owner steps, or treat this document as permission
 to bypass the user's production-review requirements.
@@ -85,11 +85,16 @@ will require a fresh advisory review; do not reuse these counts after applying t
 3. Exact source `a477f204786d29f49bb174b3497fdd5fd50f34d1` passed 38/38; its valid
    historical review is under ignored `work/release-reviews/<sha>/manifest.json`.
    **Later wallet changes invalidate it for current source.**
-4. Current wallet engine/read/UI/report/owner-control work is locally implemented
-   and targeted tests pass. The release plan now has 39 suites. Final checkpoint
+4. Wallet engine/read/UI/report/owner-control work is locally implemented
+   and targeted tests pass. The release plan now has 39 suites. Current checkpoint
    results and tested SHA are in ignored `work/release-checks/provenance.json` and
    `results.json`, with a sanitized copy in the session output folder. Inspect
    these rather than assuming the final run passed.
+
+5. November 1 continuation adds v2 recovery, co-owner offer tests, wallet-aware
+   generic delivery/audiences and read-only DEV cutover preflight. Full details:
+   [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md). Production
+   remains unchanged; hosted development still uses the earlier deployed source.
 
 ## Current wallet implementation — LOCAL ONLY
 
@@ -145,22 +150,21 @@ explicit local fixture setup, not a hosted activation. Local preview uses port
 
 ## Exact next work — finish milestone 17
 
-1. **Recovery format coverage is the main blocker.** Current
-   `scripts/financial-recovery.mjs` supports only original v1 / 23 relations.
-   Add a versioned v2 covering user wallets/entries/private approvals/mode and
-   necessary staff/owner dependencies, while preserving restore of original v1.
-   Test counts/checksums, all FKs, wallet ledger conservation, paired transfers,
-   wager/settlement/refund receipts, privacy and duplicate refunds. Never read a
-   real private key to run tests; use fresh synthetic keys/data.
-2. Complete dedicated boosted/fixed offer tests for two approved co-owners; normal
-   placement/refund/settlement/futures paths already have positive tests. Verify
-   generic financial mail and worker/preview regression fixtures, including pending
-   opening funds, correct own stats and no shared-team recipient fallback.
-3. Add the **owner-only development cutover preflight** after runtime/recovery
-   readiness. There is currently no public activation API and the private mode
-   table starts empty. Block cutover on pending/ambiguous old mail; don't rewrite
-   saved payloads/provider retry evidence. Don't enable betting/automation to
-   switch financial identity. Preserve legacy unsettled liabilities explicitly.
+1. Recovery v2 and dedicated offer/mail verification are now implemented locally.
+   See [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md). v2
+   restores 32 relations, checks 116 current-schema FKs, scoped Auth identities,
+   financial conservation/paired transfers/receipts/privacy and duplicate refunds.
+   v1 restores and synthetic portable-key custody still pass. No real key was read.
+2. Two co-owners' boosted/fixed claims and recipient scopes are tested. Generic
+   email delivery, SQL insertion guards and scheduled/reopening audiences now use
+   fresh approved wallet owners. Compiled fixtures cover pending funds and own
+   recap/replenishment/standing. Attention messages retain existing admin behavior.
+3. Read-only owner-only DEV cutover preflight is implemented and tested. The
+   **explicit activation action/UI and concurrency/stale-review fencing still
+   remain**. No public activation API exists. Keep all four migrations unapplied
+   until that flow and final readiness review are complete; don't enable betting,
+   automation or fund accounts merely to switch financial identity. Pending old
+   mail/jobs must be resolved without rewriting payloads/provider retry evidence.
 4. Run the required checks on the exact final clean commit; inspect genuine
    failures and advisor changes. New source invalidates old release provenance.
 5. Only then apply all reviewed migrations to DEV with identity preflight,

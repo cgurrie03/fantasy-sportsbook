@@ -111,4 +111,83 @@ do $guard$declare d text;pos integer;begin
  $insert$ from pos for 5);execute d;
 end $guard$;
 
+-- Fresh identities for participant mail. Operators already have financial
+-- review access; members cannot enumerate another user's email address.
+create function sportsbook_private.financial_mail_audience(p_league uuid) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+declare result jsonb;
+begin
+ if not sportsbook_private.user_finance_enabled(p_league) then return null;end if;
+ if (select count(*) from public.user_wallets where league_id=p_league)>128 then raise exception 'Financial email audience budget exceeded.';end if;
+ select coalesce(jsonb_agg(jsonb_build_object('id',w.id,'league_id',w.league_id,'team_id',w.team_id,
+   'user_id',w.user_id,'invited_email',a.email,'display_name',w.display_name) order by w.id),'[]') into result
+ from public.user_wallets w join auth.users a on a.id=w.user_id
+ where w.league_id=p_league and w.status='approved' and a.email_confirmed_at is not null;
+ if octet_length(result::text)>65536 then raise exception 'Financial email audience byte budget exceeded.';end if;
+ return result;
+end $$;
+revoke all on function sportsbook_private.financial_mail_audience(uuid) from public,anon,authenticated,service_role;
+create function public.financial_email_audience(p_league uuid) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+begin
+ if auth.role() is distinct from 'service_role' then raise exception 'Mail worker only.';end if;
+ return sportsbook_private.financial_mail_audience(p_league);
+end $$;
+revoke all on function public.financial_email_audience(uuid) from public,anon,authenticated;
+grant execute on function public.financial_email_audience(uuid) to service_role;
+
+-- Preserve the existing reviewed reopening requirements, replacing only its
+-- audience in user mode. The event key uses the immutable wallet identity.
+do $audience$declare d text;needle text;begin
+ select pg_get_functiondef('public.queue_reopening_announcement(uuid)'::regprocedure) into d;
+ needle:='from public.league_memberships m where m.league_id=w.league_id on conflict(event_key) do nothing;';
+ if strpos(d,needle)=0 then raise exception 'Reopening audience source drift';end if;
+ d:=replace(d,needle,$replace$from (
+   select id,invited_email,team_id from public.league_memberships where league_id=w.league_id
+     and not sportsbook_private.user_finance_enabled(w.league_id)
+   union all select x.id,x.invited_email,x.team_id from jsonb_to_recordset(
+     coalesce(sportsbook_private.financial_mail_audience(w.league_id),'[]'::jsonb))
+     as x(id uuid,invited_email text,team_id uuid)
+ ) m on conflict(event_key) do nothing;$replace$);
+ execute d;
+end $audience$;
+
+-- Read-only owner review; this deliberately does not enable routing, operations,
+-- scheduled jobs, mail delivery or opening funds. Production adoption remains a
+-- separate exact-source review rather than a parameter on this development RPC.
+create function public.user_finance_cutover_preflight(p_league uuid) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+declare identity jsonb;l public.leagues;result jsonb;blockers jsonb:='[]';
+ v_mail integer;v_jobs integer;v_unverified integer;v_accounts integer;v_legacy_open integer;v_pending integer;
+begin
+ if not sportsbook_private.is_platform_owner() or not exists(select 1 from auth.users where id=auth.uid() and email_confirmed_at is not null)
+ then raise exception 'Verified platform owner required.';end if;
+ identity:=public.application_environment_identity();
+ if identity->>'environment' is distinct from 'development' or identity->>'project_ref' is distinct from 'whlcnlacueweaqpsupqs'
+ then raise exception 'Independent development environment required.';end if;
+ select * into l from public.leagues where id=p_league;
+ if not found then raise exception 'Selected league unavailable.';end if;
+ if l.operations_enabled then blockers:=blockers||'"League operations must remain disabled"'::jsonb;end if;
+ if exists(select 1 from public.weekly_schedule where league_id=p_league and automation_enabled)
+ then blockers:=blockers||'"Scheduled automation must remain disabled"'::jsonb;end if;
+ select count(*) into v_mail from public.outbound_emails where league_id=p_league and status not in ('sent','captured','skipped');
+ select count(*) into v_jobs from public.automation_jobs where league_id=p_league and status<>'done';
+ select count(*),count(*) filter(where balance is null) into v_accounts,v_pending from public.user_wallets where league_id=p_league and status='approved';
+ select count(*) into v_unverified from public.user_wallets w left join auth.users a on a.id=w.user_id
+  where w.league_id=p_league and w.status='approved' and (a.id is null or a.email_confirmed_at is null);
+ select count(*) into v_legacy_open from public.tickets where league_id=p_league and user_wallet_id is null and status='OPEN';
+ if v_mail>0 then blockers:=blockers||'"Resolve pending or ambiguous mail without changing saved payloads"'::jsonb;end if;
+ if v_jobs>0 then blockers:=blockers||'"Resolve queued, running or failed jobs"'::jsonb;end if;
+ if v_accounts=0 or v_accounts>128 then blockers:=blockers||'"Review between 1 and 128 approved financial accounts"'::jsonb;end if;
+ if v_unverified>0 then blockers:=blockers||'"Financial account verification is incomplete"'::jsonb;end if;
+ result:=jsonb_build_object('league_id',p_league,'ready',jsonb_array_length(blockers)=0,'blockers',blockers,
+  'routing_enabled',sportsbook_private.user_finance_enabled(p_league),'approved_accounts',v_accounts,
+  'funding_pending',v_pending,'legacy_open_tickets',v_legacy_open,'unresolved_mail',v_mail,'unresolved_jobs',v_jobs,
+  'opening_funds_moved',false,'activation_performed',false,
+  'legacy_liability_policy','Legacy tickets retain their ledger; open liabilities block primary opening transfer.');
+ return result;
+end $$;
+revoke all on function public.user_finance_cutover_preflight(uuid) from public,anon,service_role;
+grant execute on function public.user_finance_cutover_preflight(uuid) to authenticated;
+
 commit;

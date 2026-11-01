@@ -2,6 +2,9 @@ import {PGlite} from '@electric-sql/pglite';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {testWalletRecovery} from './lib/test-wallet-recovery.mjs';
+import {testWalletOffers} from './lib/test-wallet-offers.mjs';
+import {testWalletCutover} from './lib/test-wallet-cutover.mjs';
 const db=new PGlite(),q=async(sql,args=[])=>(await db.query(sql,args)).rows;
 const owner=randomUUID(),primary=randomUUID(),coowner=randomUUID(),outsider=randomUUID(),unverified=randomUUID();
 const A=randomUUID(),B=randomUUID(),team=randomUUID(),foreignTeam=randomUUID(),request=randomUUID();
@@ -13,7 +16,7 @@ try {
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
  grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
- for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
  for(const id of [owner,primary,coowner,outsider,unverified])await q('insert into auth.users values($1,$2,$3)',[id,id+'@example.test',id===unverified?null:new Date().toISOString()]);
  for(const id of [A,B])await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor) values($1,'Wallet fixture',($1::uuid)::text,2026,1,5,now())`,[id]);
  for(const [id,league] of [[team,A],[foreignTeam,B]])await q(`insert into teams(id,league_id,roster_id,team_name,sleeper_owner_id,owner_name,sportsbook_owner_id,sportsbook_owner_name) values($1,$2,1,'Fixture team','owner','Owner','owner','Owner')`,[id,league]);
@@ -165,5 +168,9 @@ try {
 
  await act(owner);await assert.rejects(q('select set_team_balance($1,100,$2,$3)',[team,'Wrong legacy cash action after cutover',randomUUID()]),/per-user financial accounts/);
  await db.exec('reset role');await assert.rejects(q('update sportsbook_private.user_finance_modes set enabled=false where league_id=$1',[A]),/separately reviewed migration/);
+ await testWalletOffers(db,{owner,primary,coowner,outsider,A,team,board,p,c});
+ await testWalletCutover(db,{owner,primary,A,B});
+ const recovery=await testWalletRecovery(db,{outsider});
+ console.log(`v2 recovery passed: ${Object.keys(recovery.counts).length} relations, ${recovery.foreign_keys_checked} FKs, scoped Auth identities, financial conservation and duplicate user refund.`);
  console.log('Passed independent co-owner and cross-league wallets, pending funding, explicit CAS legacy transfer once, zero co-owner funds, owner/verified/team scope, private reads and immutable identity/ledger; local engine proves wagers, duplicate-request isolation, confirmation scope, refunds/settlement once and independent futures/replenishment. Hosted routing remains inactive.');
 }finally{await db.close();}

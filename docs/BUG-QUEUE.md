@@ -1,6 +1,6 @@
 # Bug and validation queue
 
-Updated October 29, 2026. Canonical local project queue, maintained through chat.
+Updated November 1, 2026. Canonical local project queue, maintained through chat.
 Keep private reports/financial evidence out of this public-repository-ready file.
 An observation from the October 28 audit is dated evidence, not a new live probe.
 Original A01–A25 definitions remain in [the audit](handoffs/10-expanded-audit-implementation.md).
@@ -32,6 +32,13 @@ regression reproduced zero visible B wallets versus one expected; the corrected
 SQL/hosted probes pass without fabricating accounts or changing financial records.
 See [handoff 25](handoffs/25-recovery-inventory-and-staff-followup.md). Production
 is unchanged. This closes B007 in dev, not the broader milestone 16.
+
+B008 (P1, wallet integration under development) is fixed locally: generic
+financial email validation/insertion and scheduled/reopening audiences still used
+legacy membership contacts, excluding an approved co-owner without that mapping.
+The synthetic regression now admits the wallet owner, rejects substituted contacts,
+and checks personal recap/replenishment totals. See [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md).
+This fix is not hosted yet; milestone 17 remains in progress.
 
 ## Development fixes awaiting production release
 

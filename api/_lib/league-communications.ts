@@ -1,5 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export async function participantMailAudience(db: SupabaseClient, league: string, legacy: any[]) {
+  const result = await db.rpc("financial_email_audience", { p_league: league });
+  if (result.error) throw new Error("Financial email audience is unavailable.");
+  if (result.data === null) return legacy;
+  if (!Array.isArray(result.data) || result.data.length > 128 || result.data.some((r: any) =>
+    !r.id || !r.team_id || !r.invited_email || r.league_id !== league))
+    throw new Error("Financial email audience scope is invalid.");
+  return result.data;
+}
+
 export function communicationIdentity(league: any) {
   if (!league?.name || !league.sportsbook_url || !league.email_sender)
     throw new Error("League communication configuration is incomplete.");
@@ -27,6 +37,16 @@ export async function validateDeliveryScope(db: SupabaseClient, row: any) {
         throw new Error("Email recipient no longer matches the accepted financial account.");
       financial = true;
     }
+  }
+  if (!financial && row.wallet_model === "user" && row.kind !== "attention" && !row.ticket_id) {
+    const result = await db.rpc("financial_email_context", {
+      p_league: row.league_id, p_team: row.team_id, p_recipient: row.recipient,
+    });
+    const recipient = result.data;
+    if (result.error || !recipient?.wallet_id || recipient.league_id !== row.league_id ||
+        recipient.team_id !== row.team_id || recipient.recipient !== row.recipient)
+      throw new Error("Email recipient no longer matches the approved financial account.");
+    financial = true;
   }
   if (!financial) {
     const membership = await db.from("league_memberships").select("id,role")

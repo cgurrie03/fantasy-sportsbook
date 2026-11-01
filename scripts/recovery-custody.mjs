@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import * as openpgp from 'openpgp';
-import {protect,restoreFinancialSnapshot} from './financial-recovery.mjs';
+import {protect,restoreFinancialSnapshot,tablesForFormat} from './financial-recovery.mjs';
 const digest=value=>createHash('sha256').update(value).digest('hex');
 
 export async function portableRecoveryKey({encryptedPrivateKey,oldPassphrase,newPassphrase,ciphertext,expectedPlaintextSha}){
@@ -66,7 +66,7 @@ async function main(){
   catch(error){if(error.code!=='ENOENT')throw error;}
  }
  const manifest=JSON.parse(await fs.readFile(path.join(folder,'manifest.json'),'utf8'));
- if(manifest.format!=='boff-financial-recovery-v1')throw new Error('Unexpected checkpoint format.');
+ tablesForFormat(manifest.format);
  const originalCipher=await fs.readFile(path.join(folder,'snapshot.pgp'));
  const readback=await fs.readFile(path.join(folder,'offsite-readback.pgp')).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
  if(readback&&digest(readback)!==digest(originalCipher))throw new Error('Off-site readback differs from original ciphertext.');

@@ -1,4 +1,4 @@
-import { communicationIdentity } from "./_lib/league-communications.js";
+import { communicationIdentity, participantMailAudience } from "./_lib/league-communications.js";
 import { retireRoutinePayloads } from "./_lib/routine-retention.js";
 import { createServerClient } from "./_lib/server-client.js";
 import { isWorker } from "./_lib/worker-auth.js";
@@ -240,9 +240,9 @@ export async function POST(request: Request) {
           .eq("league_id", job.league_id),
       );
       const enqueue = async (kind: string, week: number, onlyAdmin = false) => {
-        for (const m of recipients.filter(
-          (m: any) => !onlyAdmin || m.role === "admin",
-        ))
+        const audience = onlyAdmin ? recipients.filter((m: any) => m.role === "admin")
+          : await participantMailAudience(db, job.league_id, recipients);
+        for (const m of audience)
           await queueEmail(db, {
             league_id: job.league_id,
             event_key: `${league.nfl_season}:${week}:${kind}:${m.id}`,

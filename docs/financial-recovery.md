@@ -50,6 +50,35 @@ It is part of the maintained release suite.
 
 ## Key custody and present limits
 
+### Wallet-aware v2 — November 1 local verification
+
+`boff-financial-recovery-v2` adds independent wallets/entries/approvals, financial
+routing mode, staff grants/audit and both owner/launch dependencies: 32 relations.
+Its export selects only Auth identities referenced by those records, using the
+actual FK catalogue, and normalizes timestamps to UTC. No passwords or sessions
+are exported. The original v1/23-relation contract and October 28 package remain
+unchanged and restore-compatible.
+
+The synthetic wallet suite restores all 32 relations against a schema-only dump,
+checks all 116 current-schema FKs, opening/ledger conservation, paired legacy
+transfers and wager/payout/refund receipts. It verifies outsider/anonymous denial
+and refunds an open user-wallet ticket twice for one credit. Deliberately changed
+cash, missing approval, missing transfer debit and missing Auth dependencies are
+rejected even after their counts and checksums are recomputed. These checks run in
+`npm run test:user-wallets`; the original custody/restore checks remain in
+`npm run test:financial-recovery`.
+
+Future v2 preparation requires an explicit reviewed schema-only artifact:
+`node scripts/financial-recovery.mjs prepare-v2 work/<new-folder> <schema-file>`.
+Do not substitute the original baseline or concatenate migrations containing seed
+data. Review against the actual source schema before an authorized export. New
+restore packages must include `scripts/lib/recovery-wallet-checks.mjs` beside the
+updated recovery source and dependency lockfile. Never replace the existing v1
+off-site package or create/copy owner keys as part of an agent test.
+
+This is local format/readiness work: no new real financial export, off-site
+checkpoint, full-platform backup or independent-device drill was performed.
+
 The private key and DPAPI-wrapped passphrase remain together in the ignored local
 working directory. The encrypted recovery output contains no private key. The
 current wrapper requires the same Windows account/profile: copying the output
