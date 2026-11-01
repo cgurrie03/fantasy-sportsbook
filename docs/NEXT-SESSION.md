@@ -24,15 +24,15 @@ to bypass the user's production-review requirements.
   Preserve actual Wed–Thu acceptance plus approved reopenings; no Monday-close
   policy was adopted. Queue choice is **project Markdown + chat**, not an app board.
 
-## Stable counter: 15 complete / 9 remaining
+## Stable counter: 16 complete / 8 remaining
 
-Complete in their stated isolated-development scope: **01–12, 14, 15, 19**.
+Complete in their stated isolated-development scope: **01–12, 14, 15, 17, 19**.
 
 | Remaining | State / next gate |
 |---|---|
 | 13 Historical cleanup | Recovery, useful summaries, dependency plan and exact production approval; no cleanup performed |
 | 16 Settings/import/claims | Staff/independent-owner access delivered; versioned settings, supported-provider contract, draft import and verified invitations/claims remain |
-| 17 Per-user wallets | Current active task; substantial local implementation below; **not complete or hosted** |
+| 17 Per-user wallets | **Complete DEV**; owner verified both cutovers, pending funding; production release remains 24 |
 | 18 Notifications/storylines | Actual-window preferences, receipt lifecycle and bounded communications remain |
 | 20 Full recovery | Financial checkpoint/key import done; independent-device drill and full-platform coverage remain |
 | 21 Exact release enforcement | Source evidence and Git containment done; external protected publication boundary/other routes remain |
@@ -96,11 +96,11 @@ will require a fresh advisory review; do not reuse these counts after applying t
    [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md). Production
    remains unchanged; hosted development still uses the earlier deployed source.
 
-## Current wallet implementation — LOCAL ONLY
+## Verified wallet implementation — development only
 
 These five CLI-created migrations are **applied to hosted development and are
-immutable**. They have not been applied to production. Routing and funding remain
-inactive pending the owner account-session check; do not replay these migrations.
+immutable**. They have not been applied to production. Both league routing modes are active after the owner account-session check;
+funding remains pending; do not replay these migrations.
 
 1. `20261030012234_independent_user_wallet_foundation.sql`
 2. `20261030013726_independent_user_wallet_engine.sql`
@@ -150,7 +150,7 @@ explicit local fixture setup, not a hosted activation. Local preview uses port
 5185; if stopped, build fixture then launch `npm run preview -- --host 127.0.0.1
 --port 5185` as a hidden/headless helper. Never use the owner's browser.
 
-## Exact next work — finish milestone 17
+## Completed wallet work and next milestone
 
 1. Recovery v2 and dedicated offer/mail verification are now implemented locally.
    See [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md). v2
@@ -165,7 +165,7 @@ explicit local fixture setup, not a hosted activation. Local preview uses port
    are now implemented and locally verified; handoff 30 documents the audited,
    expiring, state-bound review and once-only activation receipt. All five
    migrations are now applied to DEV following 39/39 checks, advisory review and
-   rollback probes; owner session verification is pending; don't enable betting,
+   rollback probes; owner session verification is complete; don't enable betting,
    automation or fund accounts merely to switch financial identity. Pending old
    mail/jobs must be resolved without rewriting payloads/provider retry evidence.
 4. Run the required checks on the exact final clean commit; inspect genuine
@@ -246,6 +246,19 @@ funds/ownership mapping, cleanup and rollout remain exact-review gated.
   bytes. These are metadata measurements, not wire/load/plateau proof.
 - Detailed ignored receipt: `work/wallet-cutover-hosted-receipt.json`; metadata
   inventory: `work/platform-recovery-capacity-inventory-2026-11-01.json`.
-- Owner confirmation is pending; counter remains **15 complete / 9 remaining**.
+- Owner replied “verified”; read-only postflight confirms both league modes active,
+  one pending/unfunded account each, zero user ledger and operations/automation off.
+  Milestone 17 is complete DEV; counter is **16 complete / 8 remaining**.
   Next ready development work is milestone 16's versioned rules/provider contract,
   draft import and verified claims. Production deployment/schema remain unchanged.
+
+Owner confirmation and server postflight are in ignored `work/wallet-owner-verification.json`. Continue milestone 16; do not repeat the wallet approval/cutover owner step.
+
+## Milestone 16 intake continuation
+
+See [handoff 31](handoffs/31-versioned-league-intake.md). Versioned provider
+normalization/capability review and owner-only resumable inactive draft import are
+implemented locally, with a new 40-suite release plan. The new intake migration is
+unapplied until verification. Shared policy/runtime consumers and verified
+invitations/claims still remain. Do not enable an imported league to bypass its
+quarantine guard. Wallet milestone 17 is complete; stable counter is 16 / 8.

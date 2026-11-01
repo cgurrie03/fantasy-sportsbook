@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
 import { supabase } from "../lib/supabase";
+const LeagueIntake=lazy(()=>import("./LeagueIntake").then(m=>({default:m.LeagueIntake})));
 export function LeagueSettings({
   data,
   leagueId,
@@ -215,6 +216,7 @@ export function LeagueSettings({
           <p>No settings changes recorded.</p>
         )}
       </article>
+    {canConfigure&&<Suspense fallback={<p role="status">Loading league intake…</p>}><LeagueIntake key={leagueId} onImported={onChanged}/></Suspense>}
     </section>
   );
 }

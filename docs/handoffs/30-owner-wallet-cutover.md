@@ -1,10 +1,12 @@
 # Owner-reviewed development wallet cutover
 
-Milestone 17 is in progress; the stable counter is still **15 complete / 9 remaining**.
+Milestone 17 is complete in development; the stable counter is still **16 complete / 8 remaining**.
 All five wallet migrations, including CLI-created
 `20261101201144_owner_reviewed_development_wallet_cutover.sql`, are now hosted in
 DEV and immutable. Source `efb98df` passed 39/39 and is the READY protected build.
-Owner session verification is pending; opening funds and routing remain inactive.
+The owner replied “verified”; read-only postflight confirms both routing modes
+active, one pending account each, no user ledger entries and operations/automation
+disabled. Opening funds remain pending.
 Inspect the ignored `work/wallet-cutover-hosted-receipt.json` if present for later
 hosted evidence, rather than assuming this planned rollout occurred.
 
@@ -53,3 +55,9 @@ lifecycle (18), recovery/release foundations (20/21) and actual capacity/audit g
 (22/23). Historical cleanup (13) and production release (24) require exact owner
 approval and their recovery/capacity prerequisites; they cannot be inferred from
 passing development tests.
+
+## Owner verification complete
+
+Do not repeat the owner cutover steps. Both synthetic leagues were verified by
+the owner and by server state. No production migration or application release
+occurred. Continue the remaining eight milestones in their authorized scope.

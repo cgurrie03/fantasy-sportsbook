@@ -15,7 +15,7 @@ export interface Team {
   league_id: string;
   roster_id: number;
   team_name: string;
-  sportsbook_owner_id: string;
+  sportsbook_owner_id: string | null;
   sportsbook_owner_name: string;
   co_owner_names: string[];
   avatar_url: string | null;

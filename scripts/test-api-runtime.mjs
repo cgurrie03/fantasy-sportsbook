@@ -17,6 +17,8 @@ const root = await mkdtemp(path.resolve("node_modules/.api-runtime-"));
 try {
   await mkdir(path.join(root, "_lib"));
   for (const file of [
+    "_lib/league-intake",
+    "league-intake",
     "_lib/routine-retention",
     "_lib/environment-policy",
     "_lib/server-client",
@@ -573,6 +575,29 @@ try {
   await assert.rejects(participantMailAudience(audienceDb,"other-league",[]),/strictly equal/);
   await assert.rejects(participantMailAudience({rpc:async()=>({data:[{...audience[0],league_id:"other"}],error:null})},"league",[]),/scope/);
   await assert.rejects(participantMailAudience({rpc:async()=>({data:null,error:{message:"unavailable"}})},"league",[]),/unavailable/);
+  const {POST:intakePost}=await import(pathToFileURL(path.join(root,'league-intake.js')).href);
+  const intakeFetch=globalThis.fetch,intakeEnv=Object.fromEntries(['SUPABASE_URL','SUPABASE_ANON_KEY','BOFF_ENVIRONMENT','NODE_ENV'].map(k=>[k,process.env[k]]));
+  try{
+    Object.assign(process.env,{SUPABASE_URL:'https://intake.invalid',SUPABASE_ANON_KEY:'synthetic-key',BOFF_ENVIRONMENT:'test',NODE_ENV:'test'});
+    let owner=false,providerCalls=0,saved=null;
+    const sourceId='1234567890123456789',requestKey='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const rawLeague={league_id:sourceId,name:'API intake fixture',sport:'nfl',season_type:'regular',season:'2026',status:'in_season',total_rosters:8,scoring_settings:{rec:1},roster_positions:['QB','BN'],settings:{playoff_week_start:15,playoff_teams:4}};
+    const rawRosters=Array.from({length:8},(_,i)=>({roster_id:i+1,league_id:sourceId,owner_id:null,settings:{wins:0,losses:0,ties:0}}));
+    globalThis.fetch=async(input,options={})=>{const url=String(input);if(url.includes('/auth/v1/user'))return Response.json({id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email_confirmed_at:'2026-11-01T00:00:00Z'});
+      if(url.includes('/rpc/league_intake_owner'))return Response.json(owner);
+      if(url.includes('/rpc/save_league_intake_draft')){const body=JSON.parse(options.body);assert.equal(body.p_capabilities.admission,'review_required');saved={id:'draft-api',revision:1,state:'draft',source:body.p_source,capabilities:body.p_capabilities,source_league_id:sourceId,expires_at:'2099-01-01T00:00:00Z'};return Response.json({id:'draft-api',revision:1,state:'draft'});}
+      if(url.includes('/rest/v1/league_intake_drafts'))return Response.json(saved?[saved]:[]);
+      assert(url.startsWith('https://api.sleeper.app/v1/league/'));providerCalls++;return Response.json(url.endsWith('/rosters')?rawRosters:url.endsWith('/users')?[]:rawLeague);
+    };
+    const req=(body,auth=true)=>new Request('https://example.invalid/api/league-intake',{method:'POST',headers:auth?{authorization:'Bearer synthetic-owner','Content-Type':'application/json'}:{},body:typeof body==='string'?body:JSON.stringify(body)});
+    assert.equal((await intakePost(req({},false))).status,401);
+    assert.equal((await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}))).status,403);assert.equal(providerCalls,0);
+    owner=true;assert.equal((await intakePost(req({sleeper_league_id:'https://bad.invalid',request_key:requestKey}))).status,400);
+    assert.equal((await intakePost(req('x'.repeat(3000)))).status,413);assert.equal(providerCalls,0);
+    const accepted=await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}));assert.equal(accepted.status,200);assert.equal(providerCalls,3);assert.equal((await accepted.json()).source.total_rosters,8);
+    assert.equal((await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}))).status,200);assert.equal(providerCalls,3,'retries reuse the saved normalized draft before any provider read');
+    assert.equal((await intakePost(req({sleeper_league_id:'999',request_key:requestKey}))).status,409);assert.equal(providerCalls,3);
+  }finally{globalThis.fetch=intakeFetch;for(const[k,v]of Object.entries(intakeEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
   const oldMailFetch = globalThis.fetch,
     oldMailKey = process.env.RESEND_API_KEY;
   // Opening content must be built from the final published board, not preview fixtures.

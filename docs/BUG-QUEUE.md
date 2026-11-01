@@ -4,7 +4,7 @@ Updated November 1, 2026. Canonical local project queue, maintained through chat
 Keep private reports/financial evidence out of this public-repository-ready file.
 An observation from the October 28 audit is dated evidence, not a new live probe.
 Original A01–A25 definitions remain in [the audit](handoffs/10-expanded-audit-implementation.md).
-The milestone counter remains [15 complete / 9 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
+The milestone counter remains [16 complete / 8 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
 Closing a development fix does not mean it has shipped to production.
 
 ## Priority order
