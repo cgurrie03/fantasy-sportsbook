@@ -98,13 +98,14 @@ will require a fresh advisory review; do not reuse these counts after applying t
 
 ## Current wallet implementation — LOCAL ONLY
 
-These four CLI-created migrations have **not been applied to hosted development
+These five CLI-created migrations have **not been applied to hosted development
 or production**. They can still be edited; do not apply the partial implementation.
 
 1. `20261030012234_independent_user_wallet_foundation.sql`
 2. `20261030013726_independent_user_wallet_engine.sql`
 3. `20261030015412_independent_user_wallet_read_models.sql`
 4. `20261030132624_independent_user_wallet_operations_reports.sql`
+5. `20261101201144_owner_reviewed_development_wallet_cutover.sql`
 
 Implemented behavior:
 
@@ -159,10 +160,10 @@ explicit local fixture setup, not a hosted activation. Local preview uses port
    email delivery, SQL insertion guards and scheduled/reopening audiences now use
    fresh approved wallet owners. Compiled fixtures cover pending funds and own
    recap/replenishment/standing. Attention messages retain existing admin behavior.
-3. Read-only owner-only DEV cutover preflight is implemented and tested. The
-   **explicit activation action/UI and concurrency/stale-review fencing still
-   remain**. No public activation API exists. Keep all four migrations unapplied
-   until that flow and final readiness review are complete; don't enable betting,
+3. The explicit owner-only DEV activation action/UI and shared-writer fencing
+   are now implemented and locally verified; handoff 30 documents the audited,
+   expiring, state-bound review and once-only activation receipt. Keep all five
+   migrations unapplied until final source checks and hosted preflight complete; don't enable betting,
    automation or fund accounts merely to switch financial identity. Pending old
    mail/jobs must be resolved without rewriting payloads/provider retry evidence.
 4. Run the required checks on the exact final clean commit; inspect genuine

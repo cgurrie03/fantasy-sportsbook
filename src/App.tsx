@@ -519,14 +519,17 @@ function UsersAdmin({
 }) {
   const teams = data.teams.filter((t) => t.league_id === leagueId),
     [selected, setSelected] = useState(teams[0]?.id);
+  const [walletReview,setWalletReview]=useState(false);
+  const owner=data.access?.find(a=>a.league_id===leagueId)?.configure===true;
   const team = teams.find((t) => t.id === selected) ?? teams[0];
-  if(data.access?.find(a=>a.league_id===leagueId)?.wallet_model==='user')
-    return <Suspense fallback={<p role="status">Loading financial controls…</p>}><UserWalletAdmin key={leagueId} data={data} leagueId={leagueId} refresh={refresh}/></Suspense>;
+  if(data.access?.find(a=>a.league_id===leagueId)?.wallet_model==='user'||(walletReview&&owner))
+    return <Suspense fallback={<p role="status">Loading financial controls…</p>}><UserWalletAdmin key={leagueId} data={data} leagueId={leagueId} refresh={refresh} preparing={walletReview&&owner} onBack={walletReview?()=>setWalletReview(false):undefined}/></Suspense>;
   return (
     <section className="admin-layout">
       <div className="page-heading">
         <h1>Users</h1>
         <p>Manage names, account mappings, and balances for your league.</p>
+        {owner&&import.meta.env.VITE_BOFF_ENVIRONMENT==='development'&&<button className="secondary" onClick={()=>setWalletReview(true)}>Review independent wallets</button>}
       </div>
       <div className="admin-columns">
         <aside aria-label="League Teams" className="team-list">
