@@ -44,7 +44,7 @@ try{
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
  // Replay the reviewed incremental schema exactly in source order.
- for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
  const q=async(sql,args=[])=>(await db.query(sql,args)).rows;
  const league=randomUUID(),job=randomUUID();
  await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor) values($1::uuid,'Prospective fixture',$1::text,2026,1,5,now())`,[league]);

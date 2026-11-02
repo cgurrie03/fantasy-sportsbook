@@ -7,7 +7,7 @@ try{
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
- for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
  const A=randomUUID(),B=randomUUID(),team=randomUUID(),job=randomUUID();
  const summaries=new Map();
  for(const league of [A,B]){

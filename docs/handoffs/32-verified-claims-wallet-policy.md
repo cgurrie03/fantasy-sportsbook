@@ -91,3 +91,8 @@ capability approval, drift and renewal. Imported leagues remain quarantined; thi
 batch does not activate a real league, send mail, fund wallets or change production.
 Milestone 18 remains downstream. See IMPLEMENTATION-CHECKLIST.md for all eight
 remaining milestones and their external/elapsed-time gates.
+
+Release harness maintenance: fixtures that load the current schema now apply every
+post-baseline migration, including the tiny board manifest dependency. The account
+module harness resolves the actual shared policy parser instead of dropping it.
+The failed/interrupted pre-fix run is not release qualification.

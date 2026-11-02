@@ -9,7 +9,7 @@ try{
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
- for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
  for(const [id,email]of[[owner,'page-owner@example.test'],[other,'page-other@example.test']])await q('insert into auth.users values($1,$2,now())',[id,email]);
  await q("insert into sportsbook_private.import_batches(id,source_url) values('synthetic-pages','https://example.invalid/synthetic')");
  for(const [league,team]of[[A,TA],[B,TB]]){

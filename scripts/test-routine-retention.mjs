@@ -14,7 +14,7 @@ try {
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
  grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
- const files=(await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237');
+ const files=(await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055');
  for(const f of files.filter(f=>f<'20261030002655'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
  for(const id of [A,B])await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor)
  values($1,'Routine fixture',($1::uuid)::text,2026,1,5,now())`,[id]);

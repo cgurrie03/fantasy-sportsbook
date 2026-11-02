@@ -8,7 +8,7 @@ try{
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;grant usage on schema public,auth to anon,authenticated;`);
  await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
- for(const file of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='20261028210237'))await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
+ for(const file of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'))await db.exec(await fs.readFile('supabase/migrations/'+file,'utf8'));
  for(const [id,email]of[[owner,'category-owner@example.test'],[member,'category-member@example.test']])await q('insert into auth.users values($1,$2,now())',[id,email]);
  for(const league of [A,B])await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor)
   values($1::uuid,'Category fixture',($1::uuid)::text,2026,1,5,now())`,[league]);
