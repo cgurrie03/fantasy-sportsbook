@@ -2,6 +2,14 @@
 
 ## Current continuation — November 2, 2026 ET
 
+Task group 3 of notification milestone 18 is locally implemented: personal/league
+preferences, three-routine weekly budget, initial/final delivery gates and merged
+personal Monday watch. Handoff 37 records qualification and DEV rollout as they
+finish. Remaining within 18: factual storylines, staff alert scope/cooldowns and
+the complete lifecycle/phase-aware matrix. Overall **16 complete / 8 remaining**
+does not count these task groups as whole milestones. No repeated owner recovery
+action or automation activation is needed/authorized.
+
 Stage 2 relative reminder scheduling is verified and deployed; handoff 36 records
 its checkpoint. Default 60-minute lead (5–1,440 configurable), actual deadlines,
 versioned job keys, safe unattempted schedule reentry, durable recipient duplicate

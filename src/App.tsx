@@ -16,6 +16,11 @@ const AdminHub = lazy(() =>
     default: module.AdminHub,
   })),
 );
+const NotificationPreferences = lazy(() =>
+  import("./components/NotificationPreferences").then((m) => ({
+    default: m.NotificationPreferences,
+  })),
+);
 import { ThemeIcon } from "./components/ThemeIcon";
 import { QuickStart } from "./components/QuickStart";
 import { buildBalanceHistory } from "./lib/balanceHistory";
@@ -355,6 +360,14 @@ export function Account({
         </dl>
       </section>
       <History data={data} team={team} />
+      <Suspense
+        fallback={<p role="status">Loading notification preferences…</p>}
+      >
+        <NotificationPreferences
+          key={team.league_id}
+          leagueId={team.league_id}
+        />
+      </Suspense>
     </main>
   );
 }

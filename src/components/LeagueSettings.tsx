@@ -5,6 +5,11 @@ import { supabase } from "../lib/supabase";
 const LeagueIntake = lazy(() =>
   import("./LeagueIntake").then((m) => ({ default: m.LeagueIntake })),
 );
+const NotificationPreferences = lazy(() =>
+  import("./NotificationPreferences").then((m) => ({
+    default: m.NotificationPreferences,
+  })),
+);
 const TeamClaimAdmin = lazy(() =>
   import("./TeamClaims").then((m) => ({ default: m.TeamClaimAdmin })),
 );
@@ -196,6 +201,16 @@ export function LeagueSettings({
           account.
         </small>
       </article>
+      <Suspense
+        fallback={<p role="status">Loading league notification defaults…</p>}
+      >
+        <NotificationPreferences
+          key={leagueId}
+          leagueId={leagueId}
+          ownerDefaults
+          canConfigure={canConfigure}
+        />
+      </Suspense>
       {canConfigure && (
         <Suspense fallback={<p role="status">Loading policy settings…</p>}>
           <WalletPolicyEditor

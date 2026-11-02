@@ -19,6 +19,7 @@ try {
   for (const file of [
     "_lib/league-intake",
     "_lib/notification-window",
+    "_lib/routine-notifications",
     "_lib/wallet-policy",
     "league-intake",
     "_lib/routine-retention",
@@ -850,12 +851,15 @@ try {
       // Receipts above deliberately have no window dependency or editorial cap.
       const promotionScope={p_league:"test",p_season:2026,p_week:5,p_kind:"reminder"};
       const frozenPromotion={...acceptedPayload,subject:"Weekly betting window",text:"Original frozen body"};
-      async function promotionCase({kind="reminder",boundPatch={},currentPatch={},attempts=1,balance=100,unbound=false,changeAtDispatch=false,rpcFailure=false,fresh=false}={}){
+      async function promotionCase({kind="reminder",boundPatch={},currentPatch={},attempts=1,balance=100,unbound=false,changeAtDispatch=false,rpcFailure=false,fresh=false,routineDeny=false,routineFinalDeny=false,routineFailure=false,mergeWatch=false,wrongRoutineScope=false}={}){
         const scope={...promotionScope,p_kind:kind},bound=windowFixture(scope,{...boundPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{})});
         const row={id:"promotion",league_id:"test",team_id:"team0",recipient:"test@example.invalid",event_key:"promotion:test",kind,market_week:5,attempts,payload:fresh?null:frozenPromotion,notification_context:unbound?null:bound,...(kind==="reopening"?{reopening_id:"review"}:{})};
-        let windowReads=0,captures=0;const updates=[],capturedPayloads=[];
+        const routineContext={contract:"routine-composition-v1",league_id:wrongRoutineScope?"foreign":"test",user_id:"fixture-user",nfl_season:2026,period_start:"2026-10-27",kind,merge_watch:mergeWatch,open_ticket_count:mergeWatch?2:0,prepared_at:"2026-11-02T22:00:00Z"};
+        if(!fresh)row.routine_context=routineContext;
+        let windowReads=0,captures=0,routineReads=0;const updates=[],capturedPayloads=[];
         const fixture={rpc(name,args){
           if(name==="claim_scoped_outbound_emails")return Promise.resolve({data:[row],error:null});
+          if(name==="routine_delivery_permission")return {abortSignal:()=>{routineReads++;return Promise.resolve({data:routineDeny||(routineFinalDeny&&args.p_commit)?{allowed:false,reason:"Synthetic preference/cap rejection"}:{allowed:true,context:routineContext},error:routineFailure?{message:"Synthetic routine outage"}:null});}};
           if(name==="notification_window")return {abortSignal:()=>{windowReads++;return Promise.resolve({data:windowFixture(scope,{...currentPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{}),...(changeAtDispatch&&windowReads>1?{eligible:false,reason:"closed"}:{})}),error:rpcFailure?{message:"Synthetic window outage"}:null});}};
           assert.equal(name,"capture_development_email");if(!fresh)assert.deepEqual(args.p_payload,frozenPromotion);capturedPayloads.push(args.p_payload);captures++;return Promise.resolve({data:null,error:null});
         },from(table){
@@ -865,11 +869,15 @@ try {
           };
         }};
 
-        const result=await mail.deliverEmails(fixture);return {result,updates,captures,windowReads,capturedPayloads};
+        const result=await mail.deliverEmails(fixture);return {result,updates,captures,windowReads,capturedPayloads,routineReads};
       }
       const rendered=await promotionCase({fresh:true});assert.equal(rendered.captures,1);assert(rendered.updates.some(u=>u.payload));assert(!/tonight|last call/i.test(rendered.capturedPayloads[0].subject));
       const closedDuringBuild=await promotionCase({fresh:true,changeAtDispatch:true});assert.equal(closedDuringBuild.captures,0);assert(closedDuringBuild.updates.some(u=>u.payload));assert(closedDuringBuild.updates.some(u=>u.status==="skipped"));
       const valid=await promotionCase();assert.equal(valid.captures,1);assert.equal(valid.windowReads,2);assert.deepEqual(valid.result,{sent:0,captured:1});
+      assert.equal(valid.routineReads,2,'routine permissions rechecked immediately before capture/provider');
+      for(const options of [{routineDeny:true},{routineFinalDeny:true}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==='skipped'));}
+      for(const options of [{routineFailure:true},{wrongRoutineScope:true}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==='failed'));}
+      const combined=await promotionCase({fresh:true,mergeWatch:true});assert.equal(combined.captures,1);assert.match(combined.capturedPayloads[0].text,/2 open weekly tickets/);assert.match(combined.capturedPayloads[0].text,/example\.invalid\/#\/bets/);
       for(const options of [
         {currentPatch:{eligible:false,reason:"closed"}},
         {currentPatch:{eligible:false,reason:"paused"}},

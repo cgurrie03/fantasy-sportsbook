@@ -4,6 +4,8 @@ import {
   windowRejection,
 } from "./notification-window.js";
 import type { NotificationWindow } from "./notification-window.js";
+import { isRoutine, routinePermission } from "./routine-notifications.js";
+import type { RoutineContext } from "./routine-notifications.js";
 import { reopeningEmail } from "./reopening-email.js";
 import { environmentIdentity } from "./environment-policy.js";
 import {
@@ -55,6 +57,7 @@ export async function buildEmail(
   db: SupabaseClient,
   row: any,
   verifiedWindow?: NotificationWindow,
+  routine?: RoutineContext,
 ): Promise<EmailContent> {
   const acceptedTicket =
     row.kind === "confirmation"
@@ -276,6 +279,11 @@ export async function buildEmail(
         heading: "Your Available Weekly Picks",
         paragraphs: [
           "Eligible weekly selections are available now. Individual markets may lock earlier; check the sportsbook for current prices and availability.",
+          ...(routine?.merge_watch
+            ? [
+                `Your Monday ticket watch: at preparation on ${date(routine.prepared_at)}, you had ${routine.open_ticket_count >= 10000 ? "at least " : ""}${routine.open_ticket_count} open weekly ticket${routine.open_ticket_count === 1 ? "" : "s"}. Review your accepted selections and current progress in My Bets: ${new URL("#/bets", base.url).href}`,
+              ]
+            : []),
         ],
         details: [
           ["Available weekly opportunity until", date(promotion!.deadline!)],
@@ -645,6 +653,21 @@ export async function deliverEmails(
   for (const row of claim.data ?? []) {
     try {
       await validateDeliveryScope(db, row);
+      const routine = isRoutine(row.kind)
+        ? await routinePermission(db, row, false)
+        : null;
+      if (routine && !routine.allowed) {
+        const saved = await db
+          .from("outbound_emails")
+          .update({
+            status: row.attempts > 1 ? "needs_review" : "skipped",
+            last_error: routine.reason,
+          })
+          .eq("id", row.id);
+        if (saved.error)
+          throw Error("Routine notification retirement could not be recorded.");
+        continue;
+      }
       let promotion: NotificationWindow | undefined;
       if (isPromotional(row.kind)) {
         const bound = row.notification_context as
@@ -716,7 +739,12 @@ export async function deliverEmails(
       }
       let payload = row.payload;
       if (!payload) {
-        const c = await buildEmail(db, row, promotion);
+        const c = await buildEmail(
+          db,
+          row,
+          promotion,
+          routine?.allowed ? routine.context : undefined,
+        );
         const text = [
           c.heading,
           c.greeting,
@@ -753,7 +781,10 @@ export async function deliverEmails(
         };
         const save = await db
           .from("outbound_emails")
-          .update({ payload })
+          .update({
+            payload,
+            ...(routine?.allowed ? { routine_context: routine.context } : {}),
+          })
           .eq("id", row.id);
         if (save.error) throw new Error(save.error.message);
       }
@@ -775,6 +806,23 @@ export async function deliverEmails(
             .eq("id", row.id);
           if (saved.error)
             throw Error("Promotion retirement could not be recorded.");
+          continue;
+        }
+      }
+      if (routine) {
+        const latest = await routinePermission(db, row, true);
+        if (!latest.allowed) {
+          const saved = await db
+            .from("outbound_emails")
+            .update({
+              status: row.attempts > 1 ? "needs_review" : "skipped",
+              last_error: latest.reason,
+            })
+            .eq("id", row.id);
+          if (saved.error)
+            throw Error(
+              "Routine notification retirement could not be recorded.",
+            );
           continue;
         }
       }

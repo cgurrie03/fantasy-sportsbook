@@ -138,6 +138,10 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(endpoint==='sportsbook_boards')return json(state.empty?[]:(url.searchParams.get('board_type')==='eq.future'?(state.futures?futureBoards:[]):boards).filter(b=>url.searchParams.get('league_id')===`eq.${b.league_id}`));
    if(endpoint==='league_result_weeks')return json([{nfl_season:2026,market_week:4,final:true,fetched_at:new Date().toISOString(),results:Object.fromEntries(teams.filter(t=>t.league_id===A).map((t,i)=>[t.id,{name:t.team_name,points:120+i*10,projection:125,projection_basis:'Fixture archived forecast',matchup_id:1,players_points:{}}]))}]);
    if(endpoint==='weekly_schedule')return json({automation_enabled:false,publication_paused:false,job_times:{}});
+   if(['my_notification_preferences','league_notification_defaults'].includes(endpoint)){
+    const body=req.postDataJSON(),values={opening:true,reminder:true,recap:true,monday_watch:true,reopening:true};
+    return json({league_id:body.p_league,user_id:userId,revision:0,defaults:values,available:values,effective:values,overrides:{},weekly_limit:3});
+   }
    if(req.method()!=='GET'){assert(['sportsbook_period','sportsbook_quote_snapshot','league_leaderboard','claim_memberships'].includes(endpoint),`Unexpected mutation ${endpoint}`);}
    return json([]);
   }

@@ -1257,3 +1257,9 @@ footer {
  .profile.profile-box, .theme-toggle { min-height: 44px; }
  .theme-toggle { width: 44px; }
 }
+.notification-preferences fieldset { display: grid; gap: .8rem; margin: 1rem 0; min-width: 0; }
+.notification-choice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.notification-choice > span { flex: 1 1 11rem; }
+.notification-choice select { max-width: 100%; }
+.notification-choice small { flex-basis: 100%; }
+.notification-preferences > button { margin: .5rem .5rem 0 0; }
