@@ -508,6 +508,19 @@ try {
     true,
     "replacement is allowed only before any attempt",
   );
+  // Switching back must not strand an otherwise valid unattempted reminder.
+  for (const lead of [60, 120]) {
+    await act(owner);
+    await configure(lead);
+    await db.exec("reset role;set request.jwt.claim.role='service_role'");
+    await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+    assert.equal(
+      await queued(),
+      true,
+      "identical unattempted schedule can resume after changing back",
+    );
+    assert.equal(await queued(), false, "resumed schedule still deduplicates");
+  }
   await q(
     "update outbound_emails set status='captured',attempts=1,payload=jsonb_build_object('to',jsonb_build_array(recipient),'subject','Fixture','text','Fixture') where league_id=$1 and kind='reminder' and status='pending'",
     [A],
@@ -587,6 +600,24 @@ try {
       "lead is elapsed time across Eastern DST transitions",
     );
   }
+  await q(
+    "update weekly_schedule set automation_enabled=false where league_id=$1",
+    [A],
+  );
+  assert.equal((await window()).reason, "automation_disabled");
+  assert.equal(await queued("coowner@example.test"), false);
+  await act(owner);
+  assert.equal(
+    (await q("select reminder_schedule_preview($1,60) p", [A]))[0].p.proposed
+      .eligible,
+    true,
+    "read-only timing remains available with automation off",
+  );
+  await db.exec("reset role;set request.jwt.claim.role='service_role'");
+  await q(
+    "update weekly_schedule set automation_enabled=true where league_id=$1",
+    [A],
+  );
   await q(
     "update sportsbook_boards set closes_at=now()-interval '1 second' where id=$1",
     [board],

@@ -52,8 +52,11 @@ unavailable windows, invalid input and delayed-response fencing. Existing transi
 regressions pass. The full release plan remains **43 suites**, with the new UI
 regression included in `test:notifications`.
 
-Local migration: `20261102141500_relative_reminder_schedule.sql`; do not edit it
-after hosting. Production rollout still requires owner review of exact source and
+Local migrations: `20261102141500_relative_reminder_schedule.sql` plus
+`20261102143414_reminder_schedule_revision.sql`. The additive second migration
+allows returning to an identical never-attempted schedule without stranding it;
+attempted/frozen bodies cannot be resurrected. Do not edit migrations after hosting.
+Production rollout still requires owner review of exact source and
 migrations, paused workers and review of obsolete pending reminders. No production
 release, real mail, funding, GitHub push or new scheduled continuation is authorized.
 
