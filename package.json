@@ -51,7 +51,7 @@
     "recovery:prepare": "node scripts/financial-recovery.mjs prepare",
     "recovery:verify": "node scripts/financial-recovery.mjs verify",
     "test:routine-retention": "node scripts/test-routine-retention.mjs",
-    "test:release-evidence": "node scripts/test-release-evidence.mjs",
+    "test:release-evidence": "node scripts/test-release-evidence.mjs && node scripts/test-release-runner.mjs",
     "release:review": "node scripts/release-evidence.mjs",
     "test:league-intake": "node scripts/test-league-intake.mjs && node scripts/test-league-intake-ux.cjs",
     "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs && node scripts/test-user-wallets-ux.cjs && node scripts/test-user-wallet-admin-ux.cjs && node scripts/test-wallet-cutover-ux.cjs",

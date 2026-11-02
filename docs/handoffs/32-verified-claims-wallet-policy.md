@@ -96,3 +96,14 @@ Release harness maintenance: fixtures that load the current schema now apply eve
 post-baseline migration, including the tiny board manifest dependency. The account
 module harness resolves the actual shared policy parser instead of dropping it.
 The failed/interrupted pre-fix run is not release qualification.
+
+
+## Bounded release concurrency
+
+Release checks now run lint and the fixture build as barriers, then at most two
+isolated suite processes. `RELEASE_JOBS=1` selects serial operation. A failed build
+prevents browser suites from reading stale output. Results retain plan order;
+per-suite logs/output/timeouts stay bounded and exact clean-source provenance is
+unchanged. Runner tests check barriers, the concurrency ceiling, failure/timeout
+propagation and log bounds. Isolated futures/extra-market module loaders now include
+the real shared policy dependency. Earlier failed runs do not qualify a release.
