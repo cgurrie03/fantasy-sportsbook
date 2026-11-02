@@ -51,8 +51,8 @@ Canonical priorities: [bugs](BUG-QUEUE.md), [features](FEATURE-ROADMAP.md),
   `8ced0f01-e845-697c-ea32-05ced48b210e`.
 - DEV operations remain manual/captured, unfunded fixtures, owner-only independent
   Auth and closed signup. Verify `application_environment_identity()` before writes.
-- Last deployed DEV source: `efb98dff60199978ae7dd2a4c6403e9b2c0d319f`.
-  READY deployment `dpl_J48q1UwaaQ1ycCiUqWAcwgNeE1PP`, canonical
+- Last deployed DEV source: `6c070a8f0b51faaea6376b69f7d85d854f85e9c9`.
+  READY deployment `dpl_8qSiLyunfdXCXMTQN7rihYyDXr4A`, canonical
   `https://dev.sportsbook.coopergurrie.com`. Its generated URL and project aliases
   were signed-out 302 to Vercel SSO. No bypass or owner browser session was used.
 - Production Vercel project: `prj_xQNaH7f1SPr8bgn2GV92a9MODQu8`; DEV:
@@ -258,7 +258,27 @@ Owner confirmation and server postflight are in ignored `work/wallet-owner-verif
 
 See [handoff 31](handoffs/31-versioned-league-intake.md). Versioned provider
 normalization/capability review and owner-only resumable inactive draft import are
-implemented locally, with a new 40-suite release plan. The new intake migration is
-unapplied until verification. Shared policy/runtime consumers and verified
+deployed to protected DEV after 40/40 exact-source checks and hosted rollback/ACL
+probes. Local migration `20261101203539` maps to hosted `20261101211434` and is
+immutable. Shared policy/runtime consumers and verified
 invitations/claims still remain. Do not enable an imported league to bypass its
 quarantine guard. Wallet milestone 17 is complete; stable counter is 16 / 8.
+
+## Current task closeout — intake stage complete
+
+- The owner-only preview/resume/inactive-import stage is complete DEV; handoff 31
+  records exact source/deployment/history, rollback, security and capacity evidence.
+- No actual new league was imported; existing wallet routing remains active for
+  both synthetic leagues, with funds pending and operations disabled.
+- Encrypted source checkpoint was uploaded/readback-verified in the existing private
+  Drive folder. Only its public key was read; no private recovery material was
+  opened/copied. It is source preservation, not milestone 20 completion.
+- Current task was closed at the user's request. Resume the next ready work only
+  when asked: remaining milestone 16 policy/defaults/runtime consumers and verified
+  invitations/claims, then 18 and the recovery/release/audit/capacity gates.
+- Stable count **16 complete / 8 remaining**. Remaining IDs: 13,16,18,20,21,22,23,24.
+- Efficiency: batch a coherent feature before its full suite. During editing use
+  meaningful focused tests; qualify the final clean source once before deployment.
+  Preserve historical exact-source evidence rather than rerunning the whole suite
+  for a status-only documentation commit. The active model/service tier cannot be
+  changed by this agent; do not claim a different model or service priority.

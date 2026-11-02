@@ -31,10 +31,10 @@ The durable provider/rules report is copied to the league and remains viewable a
 the temporary import payload is retired. A quarantine guard blocks operation
 activation until the remaining supported-policy/capability workflow is delivered.
 
-Migration `20261101203539_versioned_league_intake_drafts.sql` is **local and
-unapplied** until exact-source tests and DEV postflight are complete. The five prior
-wallet migrations are hosted and immutable. Inspect ignored receipts before assuming
-this draft feature has been deployed. Production remains untouched.
+Migration `20261101203539_versioned_league_intake_drafts.sql` is **applied to DEV
+and immutable**, recorded as hosted version `20261101211434`. Source `6c070a8`
+passed 40/40 and is deployed READY as `dpl_8qSiLyunfdXCXMTQN7rihYyDXr4A`. The five prior
+wallet migrations are hosted and immutable. Ignored receipts document the completed hosted checks. Production remains untouched.
 
 ## Capacity and retention
 
@@ -71,3 +71,33 @@ unable to operate before those steps. Do not mark the entire milestone complete.
 
 Provider reference: [Sleeper's public API](https://docs.sleeper.com/), which documents
 league, roster and public user lookup, not ownership verification or a projection SLA.
+
+## Hosted completion and source preservation
+
+- Protected DEV aliases now serve source `6c070a8f0b51faaea6376b69f7d85d854f85e9c9`.
+  Hosted build verified independent DEV identity, closed signup, capture mail and
+  manual automation. All four URLs returned signed-out 302 to Vercel SSO.
+- Rollback-only import/ACL/quarantine probes passed. After rollback there are two
+  existing leagues, zero intake rows and two pending user-wallet accounts. The
+  before/after financial digest including user wallets is unchanged:
+  `d8a3384cb5e33bf26a54c58df09c9e20`. No actual provider league was fetched/imported.
+- Fresh advisor baseline: 49 authenticated-definer / 2 anon-definer / 1 Auth-password
+  WARN, 12 RLS-without-policy INFO. The three new authenticated wrappers check
+  verified independent ownership; no new anonymous definer endpoint was added.
+- DEV metadata size after migration: 16,938,675 database bytes, 3,088,384 application
+  relation bytes. Empty intake tables are not representative loaded capacity.
+- Encrypted source checkpoint (403 tracked files) was stored in the owner's existing
+  private Drive recovery folder using only the existing public recovery key. Cipher
+  size 1,145,430 bytes; downloaded SHA-256 matched
+  `a7bf8b39cbf02a3a728f3d9e760a9c5c9a4f0094f99708e08ac668e0664203a0`.
+  Cipher and manifest permissions are owner-only. No private key was opened, copied
+  or uploaded. The October 28 financial files remain unchanged. This extends source
+  preservation only; full platform/Auth/config recovery and independent-device
+  restore remain milestone 20.
+- Detailed private receipts: `work/league-intake-hosted-receipt.json` and
+  `work/source-checkpoint-offsite-6c070a8.json`.
+
+A documentation-only closeout commit follows the tested/deployed source above.
+The 40-suite receipt qualifies that source, not a later HEAD automatically. A next
+code/migration deployment needs fresh exact-source evidence. Avoid redundant full
+suites for a documentation-only status update that is not being deployed.
