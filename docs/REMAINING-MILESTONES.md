@@ -1,8 +1,9 @@
 # Remaining handoff milestones
 
 Updated November 2, 2026 ET. **17 complete / 7 remaining**.
-The newest qualified source is `40f19c1`, **43/43** in 241.511 seconds.
-Milestone 18 is complete DEV; handoff 38 records protected rollout and verification.
+The newest qualified source is `05381e8`, **43/43** in 243.308 seconds.
+Milestone 18 is complete DEV (handoff 38). Handoff 39 delivers the owner-only
+provider-rule comparison within 16; durable approval and shared policies remain.
 Documentation commits after that source are not claimed to be tested/deployed.
 
 | ID | Remaining implementation / evidence | Owner or elapsed-time gate |
@@ -16,6 +17,11 @@ Documentation commits after that source are not claimed to be tested/deployed.
 | 24 | Exact qualified production source/migration review, restore/rollback constraints, owner-approved deployment and postflight | Explicit owner approval of the concrete release, required recovery/capacity/product evidence; a second real league needs its own capacity approval |
 
 ## Completed in this continuation
+
+- Milestone 16 progress: owner-only read-only provider-rule comparison, including
+  current/baseline fencing and season/status changes; 43/43 on 05381e8 and protected
+  DEV deployment dpl_A2EBtfqXntV2FxYQ6cgFXQpckjBc. No DB migration or activation.
+
 
 - Milestone 18: factual shared opening editions, verified teamless staff alerts,
   exact recap credits, final-week closeout, actual phase/window availability and

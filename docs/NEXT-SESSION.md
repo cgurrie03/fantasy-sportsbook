@@ -2,15 +2,35 @@
 
 Updated November 2, 2026 ET. **17 complete / 7 remaining**.
 
-## Active milestone 16 change
+## Latest development delivery - milestone 16 progress
 
-Owner-only provider-rule comparison is implemented locally; handoff 39 records
-behavior and focused tests. Full qualification and protected DEV rollout are next.
-It compares the retained imported baseline, does not approve capabilities, and
-keeps import quarantine unchanged. No migration or persistent observation archive.
-Counter remains 17 complete / 7 remaining; 16 is still in progress.
+Owner-only provider-rule comparison is verified/deployed. Qualified source
+**05381e8653f8b20808ca68e01c73b33da8edc896** passed **43/43** in **243.308 seconds**.
+READY protected Preview **dpl_A2EBtfqXntV2FxYQ6cgFXQpckjBc** serves all three DEV
+aliases; all four signed-out URLs redirect 302 to SSO, all-deployment protection
+remains enabled, hosted environment/API tests pass with zero TypeScript errors.
+Production canonical remains dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ.
 
-## Latest completed milestone
+[Handoff 39](handoffs/39-PROVIDER-RULE-DRIFT-REVIEW.md) records the comparison:
+scoring/settings/slots/rosters/public owner mappings/season/status; fresh owner and
+baseline revalidation; read-only report, no approval/activation or stored history.
+No migration, database write, actual provider fetch or automated job was added.
+The existing import quarantine remains. Counter **17 complete / 7 remaining**.
+
+Next ready work within 16: typed shared pricing/featured-boost policy and consistent
+generation/editor/acceptance/display/help consumers. Generation and MarketAdmin
+currently encode featured boost rules separately. Preserve accepted quote facts;
+do not expose arbitrary settings before every consumer is updated. Durable
+capability approval, validity/drift enforcement and season renewal also remain.
+No owner question is pending for the delivered comparison.
+
+Ignored evidence: work/provider-review-completion-receipt.json,
+work/provider-review-release.log, API/pure/UX logs, release provenance and unapproved
+review for 05381e8. Older notification provenance/results copied to
+work/notification-qualified-{provenance,results}-40f19c1.json. Fixture server stopped.
+Later docs-only HEAD is not the qualified/deployed app source.
+
+## Completed notification milestone checkpoint (application superseded above)
 
 Milestone 18 (notifications and storylines) is complete in isolated DEV.
 Qualified source **40f19c14473957f9ab0fde8f3323035ba42c7d65**, **43/43** suites,
@@ -18,8 +38,8 @@ Qualified source **40f19c14473957f9ab0fde8f3323035ba42c7d65**, **43/43** suites,
 failed three regression fixture/dependency checks; it is not release evidence.
 Those corrections are included in the qualified source.
 
-READY protected Preview **dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i** serves all three DEV
-aliases. All four generated/canonical/project URLs redirect signed-out requests
+READY protected Preview **dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i** served all three DEV
+aliases. All four generated/canonical/project URLs redirected signed-out requests
 to Vercel SSO. Hosted environment/API checks passed with zero TypeScript errors.
 Later documentation-only HEAD is not the qualified/deployed application source.
 
@@ -74,7 +94,7 @@ Canonical [counter](handoffs/IMPLEMENTATION-CHECKLIST.md),
 | 24 | Exact approved source/migration plan, restore/rollback constraints, all gates, owner-approved production release and postflight |
 
 Next ready implementation: milestone 16's remaining shared settings/capability
-contract. Inspect existing typed wallet policy/intake reports and map supported
+contract, with the observation/comparison task now delivered in handoff 39. Inspect existing typed wallet policy/intake reports and map supported
 consumers before choosing the next coherent change. Recovery coverage and residual
 fixture work can progress independently. Do not relabel synthetic tests as real
 wire/load/elapsed evidence or owner approval. Production cleanup/release stays gated.

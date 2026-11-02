@@ -2,13 +2,13 @@
 
 Milestone 16 progress; counter stays **17 complete / 7 remaining**. This delivers
 the read-only observation/comparison step, not capability approval or activation.
-Full clean-source qualification and protected DEV rollout are pending below.
+Full clean-source qualification and protected DEV rollout are recorded below.
 
 ## Behavior
 
 League Settings exposes an explicit owner-only comparison for the selected league.
 The server verifies current confirmed sign-in and platform ownership before any
-provider request, reads the retained imported contract and original provider roster
+provider request, reads the retained imported contract and stored provider roster
 identities under the user's existing RLS, then uses the existing bounded fixed-host
 Sleeper reader. A caller cannot supply a provider destination or replacement facts.
 Three concurrent provider reads fetch league, public rosters and public users.
@@ -50,3 +50,32 @@ notification/branding policy and consistent consumers; actual supported capabili
 approval, durable validity/drift gates and season renewal workflow. This comparison
 is a prerequisite view, not those gates. Existing draft/intake/claims/wallet-policy
 checkpoints remain in handoffs 31-33. No production change or public Git push.
+
+## Qualified DEV delivery
+
+Clean source **05381e8653f8b20808ca68e01c73b33da8edc896** passed **43/43** release
+suites in **243.308 seconds**. API type checking includes the new endpoint. The
+Vercel React best-practices review retained lazy owner-only loading, keyed league
+scope and parallel independent final baseline/authorization reads. No new lint
+warnings. The new frontend chunk measured 2.84 kB / 1.35 kB gzip in the local build.
+
+READY protected Preview **dpl_A2EBtfqXntV2FxYQ6cgFXQpckjBc** serves all three DEV
+aliases. Hosted independent-environment and compiled API tests passed; full build
+logs contain no TypeScript errors. All four signed-out DEV URLs return 302 to
+Vercel SSO, and all-deployment protection remains enabled. Production canonical
+remains **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ**. No DB migration/write, real provider
+fetch, real mail, automation activation, production write or GitHub push.
+
+Ignored evidence: work/provider-review-completion-receipt.json,
+work/provider-review-release.log, work/provider-review-api.log,
+work/provider-review-pure.log, work/provider-review-ux.log and release provenance /
+unapproved exact-source review. The earlier notification qualification was copied
+to work/notification-qualified-{provenance,results}-40f19c1.json before replacement.
+Fixture server stopped. Later documentation-only HEAD is not the deployed app SHA.
+
+Next coherent milestone-16 work: the typed pricing/featured-boost policy and its
+consistent generation/editor/acceptance/display/help consumers. Existing generation
+and MarketAdmin still encode their featured boost rules separately; do not expose
+new editable values without updating every consumer and retaining accepted facts.
+Provider comparison remains read-only until durable owner approval, version
+validity and renewal gates are separately implemented. Counter **17 / 7**.

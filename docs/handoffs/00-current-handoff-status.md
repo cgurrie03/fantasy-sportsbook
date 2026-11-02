@@ -1,3 +1,8 @@
+Latest development delivery: [handoff 39](39-PROVIDER-RULE-DRIFT-REVIEW.md), owner-only
+provider-rule comparison within milestone 16. Qualified 05381e8 passed 43/43 and
+is deployed to protected DEV. No migration/activation. **17 complete / 7 remaining**;
+16 remains in progress. Read [NEXT-SESSION](../NEXT-SESSION.md) for current state.
+
 Current entry point: [consolidated handoff](../NEXT-SESSION.md), updated November 2.
 **17 complete / 7 remaining**. Milestone 18 is complete DEV: [handoff 38](38-FACTUAL-EDITORIAL-STAFF-AND-LIFECYCLE.md).
 Qualified 40f19c1 passed 43/43 and is deployed to protected DEV; production remains
