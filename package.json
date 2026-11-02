@@ -57,7 +57,7 @@
     "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs && node scripts/test-user-wallets-ux.cjs && node scripts/test-user-wallet-admin-ux.cjs && node scripts/test-wallet-cutover-ux.cjs",
     "test:team-claims": "node scripts/test-team-claims.mjs && node scripts/test-team-claims-ux.cjs",
     "test:wallet-policy": "node scripts/test-wallet-policy.mjs && node scripts/test-wallet-policy-ux.cjs",
-    "test:notifications": "node scripts/test-notification-window.mjs"
+    "test:notifications": "node scripts/test-notification-window.mjs && node scripts/test-reminder-schedule-ux.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

@@ -265,19 +265,40 @@ export async function POST(request: Request) {
             )
           : null;
         if (window && !window.eligible) return;
+        if (kind === "reminder" && window) {
+          const expected = `relative-reminder-v1:${job.league_id}:${league.nfl_season}:${week}:${window.window_key}`;
+          if (
+            job.event_key !== expected ||
+            !window.send_after ||
+            Date.parse(window.send_after) > Date.now()
+          )
+            return;
+        }
         const audience = onlyAdmin
           ? recipients.filter((m: any) => m.role === "admin")
           : await participantMailAudience(db, job.league_id, recipients);
-        for (const m of audience)
-          await queueEmail(db, {
-            league_id: job.league_id,
-            event_key: `${league.nfl_season}:${week}:${kind}:${m.id}`,
-            kind,
-            recipient: m.invited_email,
-            team_id: m.team_id,
-            market_week: week,
-            ...(window ? { notification_context: window } : {}),
-          });
+        for (const m of audience) {
+          if (kind === "reminder" && window) {
+            const queued = await db.rpc("queue_relative_reminder", {
+              p_league: job.league_id,
+              p_week: week,
+              p_team: m.team_id,
+              p_recipient: m.invited_email,
+              p_key: window.window_key,
+            });
+            if (queued.error)
+              throw Error("Relative reminder could not be queued.");
+          } else
+            await queueEmail(db, {
+              league_id: job.league_id,
+              event_key: `${league.nfl_season}:${week}:${kind}:${m.id}`,
+              kind,
+              recipient: m.invited_email,
+              team_id: m.team_id,
+              market_week: week,
+              ...(window ? { notification_context: window } : {}),
+            });
+        }
       };
       let summary: unknown = {};
       if (job.operation.startsWith("interval_")) {

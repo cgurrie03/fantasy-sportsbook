@@ -2,6 +2,12 @@
 
 ## Current continuation — November 2, 2026 ET
 
+Stage 2 relative reminder scheduling is locally implemented; handoff 36 records
+its qualification/DEV rollout checkpoint as verification finishes. Default 60-minute
+lead, actual deadlines, versioned job keys, duplicate suppression and a read-only
+saved/proposed schedule preview. Do not repeat owner recovery checks or activate
+automation. Counter remains **16 complete / 8 remaining**.
+
 Notification milestone 18 stage 1 is verified and deployed: queue-bound actual weekly window,
 fresh and frozen delivery rechecks, real compatible selections/deadlines and factual
 deadline copy. See handoff 35 for qualification/rollout status and remaining stages.

@@ -14,6 +14,9 @@ export interface NotificationWindow {
   board_id?: string;
   deadline?: string;
   send_before?: string;
+  send_after?: string;
+  schedule_contract?: "relative-reminder-v1";
+  lead_minutes?: number;
   window_key?: string;
   minimum_stake?: number;
   policy_revision?: number;
@@ -93,6 +96,19 @@ export function windowRejection(
     );
   if (bound.window_key !== current.window_key)
     return "The betting window or policy changed after this notification was queued.";
+  if (row.kind === "reminder") {
+    if (
+      bound.schedule_contract !== "relative-reminder-v1" ||
+      !Number.isFinite(Date.parse(bound.send_after ?? "")) ||
+      !Number.isFinite(Date.parse(current.send_after ?? ""))
+    )
+      return "Reminder has no verified relative schedule.";
+    if (
+      now <
+      Math.max(Date.parse(bound.send_after!), Date.parse(current.send_after!))
+    )
+      return "The reminder is not due under the current betting window.";
+  }
   if (
     now >= Date.parse(bound.send_before!) ||
     now >= Date.parse(current.deadline!)

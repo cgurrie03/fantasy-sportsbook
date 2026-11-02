@@ -537,7 +537,7 @@ try {
   const financialConfirmation=await mail.buildEmail(financialMailDb,financialMailRow);
   assert(financialConfirmation.details.some(([label,value])=>label==="Balance after placement"&&value==="$93.00"));
   await assert.rejects(mail.buildEmail(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial recipient unavailable/);
-  const windowFixture=(args,patch={})=>{const until=new Date(Date.now()+3600000).toISOString();return {contract:"weekly-notification-window-v1",league_id:args.p_league,nfl_season:args.p_season,market_week:args.p_week,kind:args.p_kind,eligible:true,reason:null,board_id:"weekly",deadline:until,send_before:until,window_key:"a".repeat(32),minimum_stake:1,policy_revision:0,reopening_id:null,window_type:"pregame",...patch};};
+  const windowFixture=(args,patch={})=>{const until=new Date(Date.now()+3600000).toISOString();return {contract:"weekly-notification-window-v1",league_id:args.p_league,nfl_season:args.p_season,market_week:args.p_week,kind:args.p_kind,eligible:true,reason:null,board_id:"weekly",deadline:until,send_before:until,send_after:new Date(Date.now()-60000).toISOString(),schedule_contract:"relative-reminder-v1",lead_minutes:60,window_key:"a".repeat(32),minimum_stake:1,policy_revision:0,reopening_id:null,window_type:"pregame",...patch};};
   financialTables.leagues[0].nfl_season=2026;
   let genericContext={...financialRecipient,rank:2,participants:3};
   const genericTables={...financialTables,
@@ -877,6 +877,8 @@ try {
         {currentPatch:{window_key:"b".repeat(32)}},
         {boundPatch:{send_before:new Date(Date.now()-1000).toISOString()}},
         {unbound:true},
+        {currentPatch:{send_after:new Date(Date.now()+60000).toISOString()}},
+        {boundPatch:{schedule_contract:null}},
         {balance:null},
         {balance:2,currentPatch:{minimum_stake:5}},
         {changeAtDispatch:true},

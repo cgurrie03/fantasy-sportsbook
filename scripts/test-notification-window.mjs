@@ -80,6 +80,10 @@ try {
     B,
   ]);
   await db.exec("set session_replication_role=origin");
+  await q(
+    "update weekly_schedule set automation_enabled=true where league_id in($1,$2)",
+    [A, B],
+  );
   await act(owner);
   assert.equal((await window()).reason, "no_eligible_ticket");
   await db.exec("reset role");
@@ -140,7 +144,8 @@ try {
     kind: "reminder",
     notification_context: first,
   };
-  assert.equal(windowRejection(row, first), null);
+  assert.match(windowRejection(row, first), /not due/);
+  assert.equal(windowRejection(row, first, Date.parse(first.send_after)), null);
   assert.match(
     windowRejection(row, first, Date.parse(first.send_before)),
     /no longer useful/,
@@ -356,7 +361,256 @@ try {
       .reason,
     "season_changed",
   );
-  await db.exec("reset role;set role anon");
+  // Exercise the real replacement planner and outbox RPC, rather than merely
+  // checking a subtraction helper or a source string.
+  await db.exec("reset role");
+  await q(
+    "update weekly_schedule set automation_enabled=true where league_id=$1",
+    [A],
+  );
+  const legacyJob = randomUUID(),
+    legacyMail = randomUUID();
+  await q(
+    "insert into automation_jobs(id,league_id,event_key,operation,market_week)values($1,$2,'legacy-fixed-clock','reminder',5)",
+    [legacyJob, A],
+  );
+  await q(
+    "insert into outbound_emails(id,league_id,event_key,kind,recipient,team_id,market_week)values($1,$2,'2026:5:reminder:legacy','reminder',$3,$4,5)",
+    [legacyMail, A, email, team],
+  );
+  await db.exec("set request.jwt.claim.role='service_role'");
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  assert.equal(
+    (await q("select status from automation_jobs where id=$1", [legacyJob]))[0]
+      .status,
+    "done",
+  );
+  assert.equal(
+    (await q("select status from outbound_emails where id=$1", [legacyMail]))[0]
+      .status,
+    "skipped",
+  );
+  assert.equal(
+    (
+      await q(
+        "select count(*)::int n from automation_jobs where league_id=$1 and operation='reminder' and status='pending'",
+        [A],
+      )
+    )[0].n,
+    0,
+    "early planner never queues a reminder",
+  );
+  await q(
+    "update sportsbook_boards set closes_at=now()+interval '30 minutes' where id=$1",
+    [board],
+  );
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  const due = (await window()).send_after;
+  const planned = await q(
+    "select * from automation_jobs where league_id=$1 and operation='reminder' and status='pending'",
+    [A],
+  );
+  assert.equal(planned.length, 1);
+  assert.equal(new Date(planned[0].scheduled_for).getTime(), Date.parse(due));
+  const queued = async (recipient = email) =>
+    (
+      await q("select queue_relative_reminder($1,5,$2,$3,$4) ok", [
+        A,
+        team,
+        recipient,
+        (await window()).window_key,
+      ])
+    )[0].ok;
+  assert.equal(await queued(), true);
+  assert.equal(await queued(), false, "same reminder retry is idempotent");
+  const beforePlan = await window();
+  await act(outsider);
+  await assert.rejects(
+    q("select reminder_schedule_preview($1,60)", [A]),
+    /operator/,
+  );
+  await assert.rejects(
+    q(
+      "select configure_weekly_schedule_v3($1,false,true,true,true,'08:00','19:00','08:15',$2,120)",
+      [
+        A,
+        JSON.stringify({
+          settlement: "00:30",
+          recheck: "07:00",
+          replenishment: "08:00",
+          generation: "08:30",
+          refresh: "07:30",
+          cutoff: "20:00",
+        }),
+      ],
+    ),
+    /platform owner/,
+  );
+  await act(owner);
+  const schedule = (
+    await q("select * from weekly_schedule where league_id=$1", [A])
+  )[0];
+  const preview = (
+    await q("select reminder_schedule_preview($1,120) p", [A])
+  )[0].p;
+  assert.equal(preview.saved_lead_minutes, 60);
+  assert.equal(preview.proposed_lead_minutes, 120);
+  assert.notEqual(preview.saved.window_key, preview.proposed.window_key);
+  assert.equal(
+    (
+      await q(
+        "select reminder_lead_minutes from weekly_schedule where league_id=$1",
+        [A],
+      )
+    )[0].reminder_lead_minutes,
+    60,
+    "preview changes nothing",
+  );
+  const configure = async (lead) =>
+    q(
+      "select configure_weekly_schedule_v3($1,false,true,true,true,'08:00','19:00','08:15',$2,$3)",
+      [A, JSON.stringify(schedule.job_times), lead],
+    );
+  await assert.rejects(configure(4), /5 to 1440/);
+  await configure(120);
+  assert.match(
+    windowRejection(
+      {
+        league_id: A,
+        market_week: 5,
+        kind: "reminder",
+        notification_context: beforePlan,
+      },
+      await window(),
+    ),
+    /changed/,
+  );
+  await db.exec("reset role;set request.jwt.claim.role='service_role'");
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  assert.equal(
+    (
+      await q("select status from automation_jobs where id=$1", [planned[0].id])
+    )[0].status,
+    "done",
+  );
+  assert.equal(
+    (
+      await q(
+        "select status from outbound_emails where league_id=$1 and kind='reminder' and status='pending'",
+        [A],
+      )
+    ).length,
+    0,
+    "changed lead retires old unattempted message",
+  );
+  assert.equal(
+    await queued(),
+    true,
+    "replacement is allowed only before any attempt",
+  );
+  await q(
+    "update outbound_emails set status='captured',attempts=1,payload=jsonb_build_object('to',jsonb_build_array(recipient),'subject','Fixture','text','Fixture') where league_id=$1 and kind='reminder' and status='pending'",
+    [A],
+  );
+  await q(
+    "update outbound_emails set terminal_at=now()-interval '8 days' where league_id=$1 and kind='reminder' and status='captured'",
+    [A],
+  );
+  await q("select cleanup_routine_payloads(500)");
+  await act(owner);
+  await configure(180);
+  await db.exec("reset role;set request.jwt.claim.role='service_role'");
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  assert.equal(
+    await queued(),
+    false,
+    "durable period key suppresses resend even after context retirement",
+  );
+  await q("update auth.users set email='coowner@example.test' where id=$1", [
+    outsider,
+  ]);
+  await q(
+    "insert into sportsbook_private.user_finance_modes(league_id,enabled)values($1,true)",
+    [A],
+  );
+  await q(
+    "insert into user_wallets(league_id,team_id,user_id,display_name)values($1,$2,$3,'Independent co-owner')",
+    [A, team, outsider],
+  );
+  assert.equal(
+    await queued("coowner@example.test"),
+    true,
+    "co-owner recipient is independent",
+  );
+  await q(
+    "update outbound_emails set attempts=1,status='failed' where league_id=$1 and recipient='coowner@example.test'",
+    [A],
+  );
+  await act(owner);
+  await configure(240);
+  await db.exec("reset role;set request.jwt.claim.role='service_role'");
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  assert.equal(
+    (
+      await q(
+        "select status from outbound_emails where league_id=$1 and recipient='coowner@example.test'",
+        [A],
+      )
+    )[0].status,
+    "needs_review",
+  );
+  assert.equal(
+    await queued("coowner@example.test"),
+    false,
+    "ambiguous attempt cannot be resent under a new lead",
+  );
+  for (const [deadline, expected] of [
+    ["2026-11-01T07:30:00Z", "2026-11-01T05:30:00Z"],
+    ["2026-03-08T08:30:00Z", "2026-03-08T06:30:00Z"],
+  ]) {
+    const plan = (
+      await q(
+        "select sportsbook_private.relative_reminder_contract($1,120) p",
+        [
+          JSON.stringify({
+            eligible: true,
+            opens_at: "2026-01-01T00:00:00Z",
+            deadline,
+            window_key: "fixture",
+          }),
+        ],
+      )
+    )[0].p;
+    assert.equal(
+      Date.parse(plan.send_after),
+      Date.parse(expected),
+      "lead is elapsed time across Eastern DST transitions",
+    );
+  }
+  await q(
+    "update sportsbook_boards set closes_at=now()-interval '1 second' where id=$1",
+    [board],
+  );
+  await q("select sportsbook_private.enqueue_weekly_jobs(now())");
+  assert.equal(
+    await queued("coowner@example.test"),
+    false,
+    "closed window cannot queue after outage",
+  );
+  assert.equal(
+    (
+      await q(
+        "select count(*)::int n from automation_jobs where league_id=$1 and operation='reminder' and status='pending'",
+        [A],
+      )
+    )[0].n,
+    0,
+    "closed-window jobs are retired",
+  );
+  console.log(
+    "Relative reminder scheduler: not early, actual due/expiry, preview read-only, owner/tenant scope, rescheduling, durable duplicate suppression, co-owner independence, prior-attempt review and spring/fall DST.",
+  );
+  await db.exec("reset role;set request.jwt.claim.role='anon';set role anon");
   await assert.rejects(window(), /permission denied/);
   console.log(
     "Notification window: operator/tenant scope, pause/disabled/closed/stale/live guards, real compatible ticket and event deadlines, unchanged price refresh key, frozen/changed-window rejection; no future-only or opposite-outcome urgency.",

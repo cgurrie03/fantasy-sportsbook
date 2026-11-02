@@ -27,6 +27,7 @@ interface Settings {
   recap_email: boolean;
   opening_time: string;
   reminder_time: string;
+  reminder_lead_minutes: number;
   recap_time: string;
   automation_enabled: boolean;
   activation_requested?: boolean;
@@ -39,6 +40,7 @@ const defaults: Settings = {
   recap_email: true,
   opening_time: "08:00",
   reminder_time: "19:00",
+  reminder_lead_minutes: 60,
   recap_time: "08:15",
   automation_enabled: false,
   job_times: {
@@ -80,6 +82,25 @@ interface Preview {
   }[];
   note: string;
 }
+interface ReminderTiming {
+  league_id: string;
+  market_week: number;
+  automation_enabled: boolean;
+  saved_lead_minutes: number;
+  proposed_lead_minutes: number;
+  saved: {
+    eligible: boolean;
+    reason?: string;
+    send_after?: string;
+    deadline?: string;
+  };
+  proposed: {
+    eligible: boolean;
+    reason?: string;
+    send_after?: string;
+    deadline?: string;
+  };
+}
 export function WeeklySchedule({
   league,
   leagueId,
@@ -117,7 +138,17 @@ export function WeeklySchedule({
   const [loadError, setLoadError] = useState("");
   const [logErrors, setLogErrors] = useState<string[]>([]);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
+  const [reminderTiming, setReminderTiming] = useState<ReminderTiming | null>(
+    null,
+  );
+  const [reminderError, setReminderError] = useState("");
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const reminderRequest = useRef(0);
   const loadedLeague = useRef(leagueId);
+  const validReminderLead =
+    Number.isInteger(settings.reminder_lead_minutes) &&
+    settings.reminder_lead_minutes >= 5 &&
+    settings.reminder_lead_minutes <= 1440;
   const time = (value?: string | null) =>
     value
       ? new Date(value).toLocaleString("en-US", {
@@ -166,6 +197,10 @@ export function WeeklySchedule({
       loadedLeague.current = leagueId;
       setReady(false);
       setSettings(defaults);
+      reminderRequest.current++;
+      setReminderTiming(null);
+      setReminderError("");
+      setReminderLoading(false);
       setRuns([]);
       setJobLogs([]);
       setDeliveryLogs([]);
@@ -262,14 +297,15 @@ export function WeeklySchedule({
     }, 30000);
     return () => {
       active = false;
+      reminderRequest.current++;
       clearInterval(timer);
     };
   }, [leagueId, reviewMode, loadVersion]);
   async function save() {
-    if (!canConfigure) return;
+    if (!canConfigure || !validReminderLead) return;
     setBusy(true);
     try {
-      const r = await supabase!.rpc("configure_weekly_schedule_v2", {
+      const r = await supabase!.rpc("configure_weekly_schedule_v3", {
         p_league: leagueId,
         p_paused: settings.publication_paused,
         p_opening: settings.opening_email,
@@ -279,15 +315,52 @@ export function WeeklySchedule({
         p_reminder_time: settings.reminder_time,
         p_recap_time: settings.recap_time,
         p_job_times: settings.job_times,
+        p_reminder_lead_minutes: settings.reminder_lead_minutes,
       });
       if (r.error) throw r.error;
+      if (loadedLeague.current !== leagueId) return;
       setNotice(
-        "Schedule preferences saved. Automatic execution follows these times when enabled.",
+        "Schedule preferences saved. Reminders follow the available betting deadline when automation is enabled.",
       );
+      reminderRequest.current++;
+      setReminderTiming(null);
     } catch (e) {
-      setNotice(errorMessage(e));
+      if (loadedLeague.current === leagueId) setNotice(errorMessage(e));
     } finally {
-      setBusy(false);
+      if (loadedLeague.current === leagueId) setBusy(false);
+    }
+  }
+  async function previewReminder() {
+    const request = ++reminderRequest.current;
+    setReminderLoading(true);
+    setReminderError("");
+    setReminderTiming(null);
+    try {
+      const r = await supabase!.rpc("reminder_schedule_preview", {
+        p_league: leagueId,
+        p_lead: settings.reminder_lead_minutes,
+      });
+      if (r.error) throw r.error;
+      if (
+        request !== reminderRequest.current ||
+        loadedLeague.current !== leagueId
+      )
+        return;
+      if (r.data?.league_id !== leagueId)
+        throw Error("Reminder timing is unavailable.");
+      setReminderTiming(r.data as ReminderTiming);
+    } catch (e) {
+      if (
+        request === reminderRequest.current &&
+        loadedLeague.current === leagueId
+      )
+        setReminderError(errorMessage(e));
+    } finally {
+      if (
+        request === reminderRequest.current &&
+        loadedLeague.current === leagueId
+      )
+        setReminderLoading(false);
     }
   }
   async function review(apply = false) {
@@ -435,12 +508,12 @@ export function WeeklySchedule({
     },
     {
       key: "reminder",
-      day: "Thursday",
-      time: "reminder_time",
-      description: "Remind eligible users before betting closes",
+      day: "Before the available betting deadline",
+      description:
+        "Remind eligible users while weekly picks are still available",
       email: "reminder",
       toggle: "reminder_email",
-      who: "Members with an available balance above $0",
+      who: "Approved participants whose available balance meets the minimum wager",
     },
     {
       key: "cutoff",
@@ -679,7 +752,7 @@ export function WeeklySchedule({
             </label>
             <button
               className="primary"
-              disabled={!canConfigure || !ready || busy}
+              disabled={!canConfigure || !ready || busy || !validReminderLead}
               onClick={() => void save()}
             >
               Save Schedule
@@ -712,7 +785,33 @@ export function WeeklySchedule({
                   <tr key={row.key}>
                     <td>
                       {row.day}
-                      {row.time ? (
+                      {row.key === "reminder" ? (
+                        <label>
+                          Minutes before deadline
+                          <input
+                            type="number"
+                            min={5}
+                            max={1440}
+                            step={1}
+                            aria-label="Reminder lead minutes"
+                            disabled={!canConfigure || busy}
+                            value={settings.reminder_lead_minutes}
+                            onChange={(e) => {
+                              reminderRequest.current++;
+                              setReminderTiming(null);
+                              setReminderLoading(false);
+                              setReminderError("");
+                              setSettings({
+                                ...settings,
+                                reminder_lead_minutes: Number(e.target.value),
+                              });
+                            }}
+                          />
+                          <small>
+                            5–1,440 minutes. Rechecked before sending.
+                          </small>
+                        </label>
+                      ) : row.time ? (
                         <input
                           aria-label={row.description + " time"}
                           type="time"
@@ -760,6 +859,58 @@ export function WeeklySchedule({
               </tbody>
             </table>
           </div>
+          <section aria-label="Reminder timing preview">
+            <h3>Reminder timing</h3>
+            <p>
+              Preview the saved and proposed lead time against this week’s
+              available picks. Changes do not alter when betting is accepted. A
+              delayed reminder is skipped once its opportunity closes.
+            </p>
+            <button
+              disabled={
+                busy || reminderLoading || reviewMode || !validReminderLead
+              }
+              onClick={() => void previewReminder()}
+            >
+              {reminderLoading ? "Checking timing…" : "Preview reminder timing"}
+            </button>
+            {reminderError && <p role="alert">{reminderError}</p>}
+            {reminderTiming && (
+              <div role="status">
+                <p>
+                  Week {reminderTiming.market_week}.{" "}
+                  {reminderTiming.automation_enabled
+                    ? "Automation enabled."
+                    : "Automation is off; this preview sends nothing."}
+                </p>
+                {reminderTiming.proposed.eligible ? (
+                  <>
+                    <p>
+                      Saved ({reminderTiming.saved_lead_minutes} minutes):{" "}
+                      {time(reminderTiming.saved.send_after)}.
+                    </p>
+                    <p>
+                      Proposed ({reminderTiming.proposed_lead_minutes} minutes):{" "}
+                      {time(reminderTiming.proposed.send_after)}. Available
+                      opportunity until {time(reminderTiming.proposed.deadline)}
+                      .
+                    </p>
+                    <p>
+                      Times may change as picks lock or a window changes. A
+                      reminder already sent or awaiting delivery review is not
+                      sent again for this week.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    No actionable weekly window is available for reminders. It
+                    may be paused, disabled, unpublished, stale or closed. No
+                    reminder will be queued from this preview.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
       {preview && !reviewMode && (
@@ -784,7 +935,11 @@ export function WeeklySchedule({
                 {preview.balances?.map((b) => (
                   <tr key={b.wallet_id ?? b.team_id}>
                     <td>{b.name}</td>
-                    <td>{b.current === null ? "Funding pending" : "$" + b.current.toFixed(2)}</td>
+                    <td>
+                      {b.current === null
+                        ? "Funding pending"
+                        : "$" + b.current.toFixed(2)}
+                    </td>
                     <td>
                       {b.target === null ? "—" : "$" + b.target.toFixed(2)}
                     </td>
