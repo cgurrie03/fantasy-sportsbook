@@ -86,3 +86,22 @@ No hosted client, real bet or mail send is involved. Decrypted records stay in m
 The original financial drill checked all 23 relations and 82 FKs; complete platform
 recovery still needs separate coverage and owner-controlled credential/configuration
 recovery. Never describe this package as a managed Supabase project backup.
+
+
+## Phone access check confirmed — November 1, 2026 ET
+
+The owner confirmed **both accessible**: the private Drive backup files and the
+password-manager recovery item containing the encrypted key attachment/password.
+This is independent custody/access attestation from a phone, not a decryption or
+restore result. No secret or private key was sent through chat or opened by the agent.
+
+The owner agreed to defer the full computer-based restore drill for this fake-money
+hobby project. Do not keep requesting a second computer, another Windows profile,
+key import or the completed phone check. Recovery protects pretend balances/bets/
+league history; it is not preparation for real-money betting. Existing encrypted
+backups stay in scope. Full-platform backup coverage remains separate unfinished
+work; neither phone access nor synthetic restore tests establish that coverage.
+
+The original independent-restore instructions above remain available for a later
+owner-requested drill; they are not a current required owner action. The ignored
+`work/recovery-phone-access-receipt.json` records only this non-secret attestation.

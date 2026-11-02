@@ -1,3 +1,4 @@
+import { testPolicyPlacement } from "./lib/test-policy-placement.mjs";
 import fs from "node:fs/promises";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -56,7 +57,12 @@ try {
   );
   for (const f of (await fs.readdir("supabase/migrations"))
     .sort()
-    .filter((f) => f >= "202610280055"))
+    .filter(
+      (f) =>
+        f >= "202610280055" &&
+        (!process.argv.includes("--baseline-placement") ||
+          f < "20261102022611"),
+    ))
     await db.exec(await fs.readFile("supabase/migrations/" + f, "utf8"));
   for (const id of [owner, member])
     await q("insert into auth.users values($1,$2,now())", [
@@ -160,6 +166,14 @@ try {
   await db.exec("set session_replication_role=replica");
   await q("update leagues set operations_enabled=true where id=$1", [A]);
   await db.exec("set session_replication_role=origin");
+  const placement = await testPolicyPlacement(db, {
+    owner,
+    member,
+    A,
+    B,
+    team,
+    other,
+  });
   const insert = (stake = 5) =>
     q(
       "insert into tickets(id,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout)values(gen_random_uuid(),$1,$2,1,2026,5,5,now(),100,$3::numeric,2*$3::numeric,'OPEN',0)returning id,policy_snapshot",
@@ -214,6 +228,7 @@ try {
   await act(owner);
   await assert.rejects(save(0, values, 6, B), /Pause operations/);
   await db.exec("reset role");
+  await placement.checkAfterPolicyChange();
   await assert.rejects(
     q("delete from sportsbook_private.league_policy_versions"),
     /immutable/,

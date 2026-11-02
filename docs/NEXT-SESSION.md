@@ -321,3 +321,22 @@ The release runner has a lint/build barrier and maximum two concurrent suites;
 `RELEASE_JOBS=1` is available on constrained hosts. Initial failed/interrupted runs
 are not qualification. Preserve the final 44f1136 evidence; a documentation-only
 checkpoint does not claim its newer HEAD was tested or deployed.
+
+
+## Owner recovery scope clarification — November 1 ET
+
+Owner confirmed **both accessible** on their phone: private Drive backup files and
+password-manager encrypted key/password. Record access attestation only, not actual
+decryption/restore. Full computer-based restore drill is **deferred by owner** for
+this pretend-money project; this supersedes earlier handoff statements requiring
+an independent-device drill as an immediate owner step. Never request the key import,
+phone check or another computer again unless the owner reopens that drill. Basic
+encrypted backups remain appropriate for preserving pretend balances/bets/history;
+no real-money betting plan is implied. Full platform/Auth/storage/config coverage
+is still unfinished, so milestone 20 is not automatically complete.
+
+Continue independent milestones. A newly reproduced placement-period policy bug
+is being fixed in additive migration 20261102022611: future tickets are inserted as
+parlay before their type changes, and a season board may retain market_week 1.
+Effective wager policy must use server-recorded placement_week. Preserve accepted
+snapshots; no historical rewrite. Existing hosted tables had zero tickets/overrides.

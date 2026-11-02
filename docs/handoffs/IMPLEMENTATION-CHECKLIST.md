@@ -29,7 +29,7 @@ Current counter: **16 complete / 8 remaining**. Milestone 16 is in progress: ind
 | 17 | Separate per-user, per-league wallets | Complete | Handoff 30; 39/39 for efb98df, protected DEV deployment, hosted ACL/rollback checks; owner verified both league cutovers; funding pending and operations disabled |
 | 18 | Notification lifecycle and season storylines | Remaining | Actual windows, preferences, receipts and bounded communication volume |
 | 19 | Routine log, email-body and unused media retention budgets | Complete | Handoff 26; prospective admission caps, terminal body/detail TTLs, referenced-art protection, isolated bounded worker cleanup and selected-league status; legacy/prod conversion and measured physical plateau remain separate |
-| 20 | Full platform/off-site recovery and owner key custody | Remaining | Financial-only local drill is insufficient |
+| 20 | Full platform/off-site recovery and owner key custody | Remaining | Financial-only coverage remains incomplete; password-manager import and phone access confirmed, full restore drill deferred by owner |
 | 21 | Enforced exact-release owner approval workflow | In progress | Handoff 27 adds exact clean SHA/tree/migration evidence and unapproved review preparation; live publication containment and protected owner approval remain |
 | 22 | Remaining product/audit and multi-league operation verification | Remaining | Track A01–A25 residuals, supported settings, tenant negatives, peaks/outages/season changes; no incidental experimental launch |
 | 23 | Measured shared-quota capacity and two-week plateau | Remaining | Physical vs JSON size, wire bytes, one-/two-league load and season forecast |

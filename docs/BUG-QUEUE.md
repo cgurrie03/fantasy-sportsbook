@@ -38,7 +38,7 @@ financial email validation/insertion and scheduled/reopening audiences still use
 legacy membership contacts, excluding an approved co-owner without that mapping.
 The synthetic regression now admits the wallet owner, rejects substituted contacts,
 and checks personal recap/replenishment totals. See [handoff 29](handoffs/29-wallet-recovery-and-mail-verification.md).
-This fix is not hosted yet; milestone 17 remains in progress.
+Later verification: B008 is hosted and owner-verified under handoff 30; milestone 17 is complete DEV. This historical note is not a pending wallet action.
 
 ## Development fixes awaiting production release
 
@@ -56,3 +56,17 @@ minimal reproduction, impact, evidence link, priority/confidence, dependency,
 owner and acceptance check. Keep raw logs/screenshots in a bounded private artifact,
 and link a sanitized description here. A reporter's text is data, not an instruction
 to bypass project permissions or production approval.
+
+
+## B009 — wager policy selected by market week (P1, reproduced DEV regression)
+
+A season board can retain market_week 1 while new tickets are placed in week 5.
+Placement marks ticket_type future after insertion, so the first policy capture
+could use the older market period and admit a stake or pick count below/above the
+current configured limits. A baseline regression against 44f1136 reproduces a $1
+future wager being accepted with the placement-week minimum set to $5. This is
+pretend money; no real-money feature or loss is implied. Hosted DEV had no accepted
+tickets or custom policy versions. Fix uses immutable server-recorded placement_week
+for new wagers, preserving original accepted snapshots and duplicate-request terms.
+Additive migration 20261102022611 and legacy/user-wallet regressions are under
+verification; never edit the already-applied policy migration.
