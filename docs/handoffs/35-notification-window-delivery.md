@@ -1,7 +1,7 @@
 # Notification window delivery — milestone 18, stage 1
 
-November 2, 2026 ET. This stage is implemented locally; qualification and protected
-DEV rollout receipts are recorded below after verification. Counter remains
+November 2, 2026 ET. This stage is verified and deployed to protected DEV; evidence
+is recorded below. Counter remains
 **16 complete / 8 remaining**. Milestone 18 stays in progress.
 
 ## Behavior
@@ -59,3 +59,35 @@ deadlines and preview rescheduling/expiry. Add per-user/per-league preferences,
 routine caps, factual evolving story selection, scoped staff alerts and full
 consecutive-week/DST/race tests. This stage does not claim those features or a
 completed milestone 18.
+
+## Qualified DEV checkpoint
+
+- Source **`bb3f29fdb50f23650281813cb176ff98890cdbd2`**, clean before/after,
+  **43/43** release suites in **275.112 seconds**. Exact-source review prepared
+  as **unapproved**. Later documentation-only commits are not that qualified SHA.
+- Local migration `20261102031919` -> hosted **`20261102140501`**. It is now
+  immutable. Hosted rollback probes verify the real paused RPC and ACL, quote
+  cutoff helper, outbox immutability and restricted-role seven-day cleanup.
+  The existing live-activation gate rejected a positive-window fixture; it was
+  preserved. Positive actionable/compatible-window tests passed locally. No
+  fabricated launch approval or disabled trigger was used for hosted testing.
+- Persistent before/after state: two leagues, two pending user wallets, zero
+  tickets/entries/emails, operations off. Financial digest for this receipt's
+  five-table definition: **`5bae6ca0b50de30a40ee058fa53d9173`**, unchanged.
+  This definition includes legacy wallets/ledger plus user wallets/entries/tickets;
+  do not compare it with earlier differently defined digests.
+- Advisor review: **59** authenticated-definer WARN (one added operator/service
+  window RPC with tested authorization), **2** anonymous-definer WARN, **1** Auth
+  WARN and **15** RLS/no-policy INFO. Existing finding metadata unchanged. The new
+  definer is required for authorized access to private policy; no anonymous grant.
+- Protected Preview **`dpl_CMVWprDiuoYJzWKSRgUohpv4KWKZ`**, READY, source bb3f29f,
+  [DEV](https://dev.sportsbook.coopergurrie.com). Hosted build guard confirmed
+  independent owner, closed signup, capture mail and manual automation. Three DEV
+  aliases resolve to this build; all aliases plus generated URL redirect signed-out
+  requests to Vercel sign-in. SSO remains enabled for all deployments.
+- Production canonical deployment remains READY
+  **`dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`**. No production change, real mail, funds
+  or GitHub push. Temporary localhost fixture server was stopped.
+- Ignored evidence: `work/notification-window-completion-receipt.json`,
+  `work/notification-window-hosted-probe.sql`, `work/notification-release.log`,
+  `work/release-checks/provenance.json` and exact-source review directory.

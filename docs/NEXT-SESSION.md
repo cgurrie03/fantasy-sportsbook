@@ -2,14 +2,22 @@
 
 ## Current continuation — November 2, 2026 ET
 
-Notification milestone 18 stage 1 is implemented: queue-bound actual weekly window,
+Notification milestone 18 stage 1 is verified and deployed: queue-bound actual weekly window,
 fresh and frozen delivery rechecks, real compatible selections/deadlines and factual
 deadline copy. See handoff 35 for qualification/rollout status and remaining stages.
 Relative scheduling, preferences/caps, evolving stories and staff alerts remain.
 Counter **16 complete / 8 remaining**. Preserve owner phone-access attestation and
 deferred full restore drill; no repeated owner recovery action is needed.
-Older checkpoint sections below are historical; use the newest qualification and
-deployment receipt in handoff 35 when available.
+Qualified clean source **bb3f29f**, **43/43** in 275.112 seconds; hosted migration
+**20261102140501**, protected READY DEV **dpl_CMVWprDiuoYJzWKSRgUohpv4KWKZ**.
+All four signed-out DEV URLs redirect to Vercel SSO; production canonical still
+dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ. No real messages or persistent financial changes.
+Handoff 35 records the bounded context, hosted/local probe distinction, new scoped
+definer advisory and exact evidence. Next ready work: actual-deadline reminder lead
+time, preview/reschedule/expiry, retaining current Wed–Thu acceptance rules. Do not
+add preferences/caps/stories until this scheduling stage is coherently verified.
+Older checkpoint sections below are historical; use this newest qualification and
+deployment receipt. Later documentation-only HEAD is not the tested/deployed SHA.
 
 Updated November 1, 2026 ET. The October 30 checkpoint was prepared at the owner's request before the usage limit.
 Resume implementation from this file and the canonical queues. Do not restart the
