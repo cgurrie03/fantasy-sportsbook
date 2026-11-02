@@ -176,7 +176,7 @@ try {
   )[0].definition;
   const planner = (
     await rows(
-      "select pg_get_functiondef('sportsbook_private.enqueue_weekly_jobs(timestamptz)'::regprocedure) as definition",
+      "select pg_get_functiondef('sportsbook_private.enqueue_calendar_jobs(timestamptz)'::regprocedure) as definition",
     )
   )[0].definition;
   assert.match(planner, /\('monday_watch','17:00'::time,6\)/);
