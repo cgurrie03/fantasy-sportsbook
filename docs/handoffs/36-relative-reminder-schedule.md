@@ -1,7 +1,7 @@
 # Relative reminder scheduling — milestone 18, stage 2
 
-November 2, 2026 ET. Implemented locally; final qualification and protected DEV
-rollout receipts are appended after verification. **16 complete / 8 remaining**.
+November 2, 2026 ET. Final qualification and protected DEV rollout evidence is
+recorded below. **16 complete / 8 remaining**.
 
 Reminders use a configurable **5–1,440 elapsed minutes** before the actual last
 compatible weekly opportunity, default **60**. The earliest due time is the board
@@ -63,3 +63,40 @@ release, real mail, funding, GitHub push or new scheduled continuation is author
 Next notification work: per-user/per-league preferences, routine caps/collision
 handling, factual evolving story selection, scoped staff alerts and the remaining
 full lifecycle/journey matrix. Milestone 18 is still in progress.
+
+## Qualified checkpoint
+
+- Exact clean source **`5094bcf4075368fcacaae06bd80108480d49d5fb`** passed **43/43**
+  suites in **298.574 seconds**, including expanded SQL/API/phone/desktop cases.
+  An earlier run exposed an obsolete source-inspection assertion, corrected to
+  inspect the delegated calendar function. That failed run is not qualification.
+  The exact-source release review is **unapproved**. Later documentation commits
+  do not claim their newer HEAD was tested or deployed.
+- Hosted migration map: local **20261102141500 -> 20261102142937**, local
+  **20261102143414 -> 20261102143651**. Both are now immutable. The second is an
+  additive reentry fix; the first hosted migration was preserved.
+- Hosted rollback probes passed owner-only save, operator preview/outsider denial,
+  invalid lead rejection, preserved inactive flags and saved clock/cutoff settings,
+  both DST transitions and no queued work from the paused DEV planner/queue. SQL
+  metadata verifies unattempted/unfrozen reentry conditions. Positive actionable
+  planner/recipient/reentry behavior was tested in isolated local PostgreSQL;
+  no hosted activation guard was bypassed to manufacture a positive window.
+- DEV before/after remains two leagues, two pending user wallets, zero entries,
+  tickets or emails, operations/automation both off. The same five-table financial
+  digest as handoff 35 remains **`5bae6ca0b50de30a40ee058fa53d9173`**.
+- Advisor metadata: 61 authenticated-definer WARN (two new scoped preview/config
+  functions with tested operator/owner checks), two anonymous-definer WARN, one Auth
+  WARN and 15 RLS/no-policy INFO. All prior findings are unchanged; no anonymous
+  grants were added. Reentry migration adds no new advisory finding.
+- Ignored evidence: `work/relative-reminder-completion-receipt.json`,
+  `work/relative-reminder-hosted-probe.sql`, `work/relative-release.log`,
+  `work/release-checks/provenance.json`, exact-source review directory and
+  `work/ux-evidence/reminder-timing-{390,1280}.png`.
+- READY protected Preview **`dpl_2d4xNabScbz8PM8nzGnDgnHs1awb`** serves
+  [Development](https://dev.sportsbook.coopergurrie.com) from source 5094bcf.
+  Hosted build guard confirmed independent owner, closed signup, capture-only mail
+  and manual automation. All three DEV aliases plus the generated deployment URL
+  redirect signed-out requests to Vercel sign-in; protection remains enabled for
+  all deployments. Production canonical stays READY
+  **`dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`**. No real messages, funding, activation,
+  production change or GitHub push. Temporary localhost fixture server stopped.

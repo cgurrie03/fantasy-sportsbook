@@ -2,11 +2,26 @@
 
 ## Current continuation — November 2, 2026 ET
 
-Stage 2 relative reminder scheduling is locally implemented; handoff 36 records
-its qualification/DEV rollout checkpoint as verification finishes. Default 60-minute
-lead, actual deadlines, versioned job keys, duplicate suppression and a read-only
-saved/proposed schedule preview. Do not repeat owner recovery checks or activate
-automation. Counter remains **16 complete / 8 remaining**.
+Stage 2 relative reminder scheduling is verified and deployed; handoff 36 records
+its checkpoint. Default 60-minute lead (5–1,440 configurable), actual deadlines,
+versioned job keys, safe unattempted schedule reentry, durable recipient duplicate
+suppression and a read-only saved/proposed timing preview. **43/43** in 298.574 sec
+on exact clean **5094bcf4075368fcacaae06bd80108480d49d5fb**. Hosted mappings:
+20261102141500 -> **20261102142937**, 20261102143414 -> **20261102143651**;
+both immutable. Protected READY Preview **dpl_2d4xNabScbz8PM8nzGnDgnHs1awb** is on
+all three DEV aliases. Four signed-out URLs redirect to Vercel SSO; all-deployment
+protection remains enabled. Production canonical remains dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ.
+DEV has two pending wallets, zero tickets/entries/emails and operations/automation
+off; unchanged five-table financial digest 5bae6ca0b50de30a40ee058fa53d9173.
+No real mail, activation, production write or GitHub push. Local fixture server stopped.
+Counter remains **16 complete / 8 remaining**. Next ready stage: per-user/per-league
+editorial preferences and routine cap/collision handling, then factual evolving
+stories, scoped staff alerts and remaining lifecycle matrix. Preserve disabled flags
+and essential receipts/security delivery. Do not repeat owner recovery checks or
+activate automation. Full restore drill remains deferred by owner. Later docs-only
+HEAD is not the qualified/deployed source. Prior failed regression run is not evidence.
+
+### Earlier stage 1 checkpoint
 
 Notification milestone 18 stage 1 is verified and deployed: queue-bound actual weekly window,
 fresh and frozen delivery rechecks, real compatible selections/deadlines and factual
