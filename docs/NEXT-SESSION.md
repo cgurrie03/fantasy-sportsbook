@@ -2,6 +2,14 @@
 
 Updated November 2, 2026 ET. **17 complete / 7 remaining**.
 
+## Active milestone 16 change
+
+Owner-only provider-rule comparison is implemented locally; handoff 39 records
+behavior and focused tests. Full qualification and protected DEV rollout are next.
+It compares the retained imported baseline, does not approve capabilities, and
+keeps import quarantine unchanged. No migration or persistent observation archive.
+Counter remains 17 complete / 7 remaining; 16 is still in progress.
+
 ## Latest completed milestone
 
 Milestone 18 (notifications and storylines) is complete in isolated DEV.

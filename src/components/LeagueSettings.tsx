@@ -18,6 +18,11 @@ const WalletPolicyEditor = lazy(() =>
     default: m.WalletPolicyEditor,
   })),
 );
+const ProviderContractReview = lazy(() =>
+  import("./ProviderContractReview").then((m) => ({
+    default: m.ProviderContractReview,
+  })),
+);
 export function LeagueSettings({
   data,
   leagueId,
@@ -213,6 +218,10 @@ export function LeagueSettings({
       </Suspense>
       {canConfigure && (
         <Suspense fallback={<p role="status">Loading policy settings…</p>}>
+          <ProviderContractReview
+            key={"provider-" + leagueId}
+            leagueId={leagueId}
+          />
           <WalletPolicyEditor
             key={leagueId}
             leagueId={leagueId}

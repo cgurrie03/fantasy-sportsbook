@@ -117,15 +117,105 @@ const { setup, A, B } = require("./test-ux.cjs");
           },
         });
       });
+      let reviews = 0,
+        comparisonState = "rules_changed";
+      await p.route("**/api/provider-review?*", (r) => {
+        reviews++;
+        assert.equal(
+          new URL(r.request().url()).searchParams.get("league_id"),
+          A,
+        );
+        assert.equal(r.request().method(), "POST");
+        assert.equal(r.request().postData(), null);
+        return comparisonState === "error"
+          ? r.fulfill({
+              status: 409,
+              json: {
+                error:
+                  "This league has no retained imported provider contract to compare.",
+              },
+            })
+          : r.fulfill({
+              json: {
+                contract: "provider-drift-review-v1",
+                league_id: A,
+                state: comparisonState,
+                baseline_season: 2026,
+                observed_season:
+                  comparisonState === "renewal_required" ? 2027 : 2026,
+                checked_at: "2026-11-02T21:00:00Z",
+                approval: "still_required",
+                changes: [{ section: "scoring", count: 1, keys: ["rec"] }],
+                note: "Read-only comparison. No settings changed.",
+              },
+            });
+      });
       await p.goto("http://127.0.0.1:5185/#/admin/settings");
       await p.reload();
       assert.equal(
         await p.getByLabel("Sleeper league ID", { exact: true }).count(),
         0,
       );
+      assert.equal(
+        await p
+          .getByRole("button", {
+            name: "Compare current provider rules",
+            exact: true,
+          })
+          .count(),
+        0,
+      );
       owner = true;
       await p.reload();
       await p.getByLabel("Sleeper league ID", { exact: true }).waitFor();
+      const compare = p.getByRole("button", {
+        name: "Compare current provider rules",
+        exact: true,
+      });
+      await compare.waitFor();
+      assert.equal(reviews, 0);
+      await compare.click();
+      await p
+        .getByRole("heading", {
+          name: "Provider changes require review",
+          exact: true,
+        })
+        .waitFor();
+      assert(
+        await p
+          .getByText(
+            "Approval is still required, including when no changes are found.",
+            { exact: true },
+          )
+          .isVisible(),
+      );
+      comparisonState = "renewal_required";
+      await compare.click();
+      await p
+        .getByRole("heading", {
+          name: "Season renewal review required",
+          exact: true,
+        })
+        .waitFor();
+      comparisonState = "unchanged";
+      await compare.click();
+      await p
+        .getByRole("heading", {
+          name: "No compared rule changes found",
+          exact: true,
+        })
+        .waitFor();
+      comparisonState = "error";
+      await compare.click();
+      await p
+        .getByText(
+          "This league has no retained imported provider contract to compare.",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(reviews, 4);
+      assert.equal(imports, 0);
+
       await p
         .getByLabel("Sleeper league ID", { exact: true })
         .fill("1234567890123456789");

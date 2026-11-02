@@ -21,16 +21,19 @@ const root = await mkdtemp(path.resolve("node_modules/.api-runtime-"));
 try {
   // Match the API compiler as well as exercising transpiled runtime behavior.
   // Frontend project references do not type-check these server entry points.
-  const apiTypes = ts.createProgram(["api/_lib/mail.ts"], {
-    noEmit: true,
-    target: ts.ScriptTarget.ES2023,
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    allowImportingTsExtensions: true,
-    skipLibCheck: true,
-    strict: false,
-    types: ["node"],
-  });
+  const apiTypes = ts.createProgram(
+    ["api/_lib/mail.ts", "api/provider-review.ts"],
+    {
+      noEmit: true,
+      target: ts.ScriptTarget.ES2023,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      allowImportingTsExtensions: true,
+      skipLibCheck: true,
+      strict: false,
+      types: ["node"],
+    },
+  );
   const typeErrors = ts
     .getPreEmitDiagnostics(apiTypes)
     .filter((d) => d.category === ts.DiagnosticCategory.Error);
@@ -50,6 +53,7 @@ try {
     "_lib/opening-editorial",
     "_lib/wallet-policy",
     "league-intake",
+    "provider-review",
     "_lib/routine-retention",
     "_lib/environment-policy",
     "_lib/server-client",
@@ -1145,6 +1149,96 @@ try {
       409,
     );
     assert.equal(providerCalls, 3);
+    const { POST: providerReview } = await import(
+      pathToFileURL(path.join(root, "provider-review.js")).href
+    );
+    const localLeague = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const retained = {
+      version: 1,
+      source: { ...saved.source },
+      capabilities: saved.capabilities,
+      review_status: "pending",
+    };
+    delete retained.source.teams;
+    const baseline = {
+      id: localLeague,
+      sleeper_league_id: sourceId,
+      nfl_season: 2026,
+      provider_contract: retained,
+    };
+    const baselineTeams = rawRosters.map((t) => ({
+      roster_id: t.roster_id,
+      sleeper_owner_id: null,
+      co_owner_ids: [],
+    }));
+    const intakeMock = globalThis.fetch;
+    let leagueReads = 0,
+      driftBaseline = false,
+      revokeDuringRead = false,
+      providerReviewReads = 0;
+    globalThis.fetch = async (input, options = {}) => {
+      const u = String(input);
+      if (u.includes("/rest/v1/leagues")) {
+        leagueReads++;
+        return Response.json([
+          {
+            ...baseline,
+            ...(driftBaseline && leagueReads > 1 ? { nfl_season: 2027 } : {}),
+          },
+        ]);
+      }
+      if (u.includes("/rest/v1/teams")) return Response.json(baselineTeams);
+      if (u.startsWith("https://api.sleeper.app/")) {
+        providerReviewReads++;
+        if (revokeDuringRead && u.endsWith("/users")) owner = false;
+      }
+      return intakeMock(input, options);
+    };
+    const reviewReq = (id = localLeague, auth = true, body) =>
+      new Request(
+        "https://example.invalid/api/provider-review?league_id=" + id,
+        {
+          method: "POST",
+          headers: auth ? { authorization: "Bearer synthetic-owner" } : {},
+          ...(body ? { body } : {}),
+        },
+      );
+    assert.equal(
+      (await providerReview(reviewReq(localLeague, false))).status,
+      401,
+    );
+    owner = false;
+    assert.equal((await providerReview(reviewReq())).status, 403);
+    assert.equal(providerReviewReads, 0);
+    owner = true;
+    assert.equal(
+      (await providerReview(reviewReq("https://bad.invalid"))).status,
+      400,
+    );
+    assert.equal(
+      (await providerReview(reviewReq(localLeague, true, "{}"))).status,
+      400,
+    );
+    assert.equal(providerReviewReads, 0);
+    let compared = await providerReview(reviewReq());
+    assert.equal(compared.status, 200);
+    let comparison = await compared.json();
+    assert.equal(comparison.state, "unchanged");
+    assert.equal(comparison.approval, "still_required");
+    assert.equal(providerReviewReads, 3);
+    rawLeague.scoring_settings.rec = 0.5;
+    leagueReads = 0;
+    comparison = await (await providerReview(reviewReq())).json();
+    assert.equal(comparison.state, "rules_changed");
+    assert(comparison.changes.some((c) => c.section === "scoring"));
+    assert(!("source" in comparison));
+    leagueReads = 0;
+    driftBaseline = true;
+    assert.equal((await providerReview(reviewReq())).status, 409);
+    driftBaseline = false;
+    leagueReads = 0;
+    revokeDuringRead = true;
+    assert.equal((await providerReview(reviewReq())).status, 403);
   } finally {
     globalThis.fetch = intakeFetch;
     for (const [k, v] of Object.entries(intakeEnv)) {

@@ -6,6 +6,7 @@ import {
   normalizeSleeperIntake,
   reviewIntake,
   fetchSleeperIntake,
+  compareProviderContract,
 } from "../api/_lib/league-intake.ts";
 const fixture = (size = 8, id = "1234567890123456789") => ({
   league: {
@@ -45,6 +46,91 @@ assert.equal(source.teams[7].owner_id, null);
 assert.deepEqual(source.teams[0].co_owner_ids, ["30000"]);
 assert(!JSON.stringify(source).includes("unneeded"));
 assert.equal(report.admission, "review_required");
+const retained = {
+  version: 1,
+  source: { ...source },
+  capabilities: report,
+  review_status: "pending",
+};
+delete retained.source.teams;
+const stored = source.teams.map((t) => ({
+  roster_id: t.roster_id,
+  sleeper_owner_id: t.owner_id,
+  co_owner_ids: t.co_owner_ids,
+}));
+assert.equal(
+  compareProviderContract(retained, stored, source).state,
+  "unchanged",
+);
+const reordered = structuredClone(source);
+reordered.positions.reverse();
+reordered.teams.reverse();
+assert.equal(
+  compareProviderContract(retained, [...stored].reverse(), reordered).state,
+  "unchanged",
+  "ordering is not drift",
+);
+const cosmetic = structuredClone(source);
+cosmetic.name = "Renamed";
+cosmetic.teams[0].wins++;
+assert.equal(
+  compareProviderContract(retained, stored, cosmetic).state,
+  "unchanged",
+  "names and weekly wins are not rule changes",
+);
+for (const [section, change] of [
+  ["scoring", (s) => (s.scoring.rec = 0.5)],
+  ["provider_settings", (s) => (s.settings.playoff_teams = 6)],
+  ["lineup_slots", (s) => s.positions.push("SUPER_FLEX")],
+  ["roster_field", (s) => (s.teams[0].roster_id = 99)],
+  ["public_roster_ownership", (s) => s.teams[0].co_owner_ids.push("40000")],
+]) {
+  const changed = structuredClone(source);
+  change(changed);
+  const r = compareProviderContract(retained, stored, changed);
+  assert.equal(r.state, "rules_changed");
+  assert(r.changes.some((c) => c.section === section));
+  assert.equal(r.approval, "still_required");
+  assert(
+    !JSON.stringify(r).includes("40000"),
+    "public owner identifiers are not returned",
+  );
+}
+const completed = structuredClone(source);
+completed.status = "complete";
+assert(
+  compareProviderContract(retained, stored, completed).changes.some(
+    (c) => c.section === "provider_status",
+  ),
+);
+const renewed = structuredClone(source);
+renewed.season++;
+assert.equal(
+  compareProviderContract(retained, stored, renewed).state,
+  "renewal_required",
+);
+assert.throws(
+  () =>
+    compareProviderContract(
+      { ...retained, source: { ...retained.source, league_id: "999" } },
+      stored,
+      source,
+    ),
+  /matching/,
+);
+assert.throws(
+  () => compareProviderContract(retained, stored.slice(1), source),
+  /coverage/,
+);
+const many = structuredClone(source);
+many.settings = Object.fromEntries(
+  Array.from({ length: 100 }, (_, i) => ["rule_" + i, i]),
+);
+const bounded = compareProviderContract(retained, stored, many);
+assert(bounded.changes[0].count > 32);
+assert.equal(bounded.changes[0].keys.length, 32);
+assert(new TextEncoder().encode(JSON.stringify(bounded)).length < 16384);
+
 for (const size of [8, 10, 12, 14, 16]) {
   const v = fixture(size);
   assert.equal(

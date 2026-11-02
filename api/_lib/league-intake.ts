@@ -368,3 +368,118 @@ export function validateCapabilityReport(value: unknown): CapabilityReport {
   }
   return r as CapabilityReport;
 }
+
+export type ProviderDriftReview = {
+  contract: "provider-drift-review-v1";
+  state: "unchanged" | "rules_changed" | "renewal_required";
+  baseline_season: number;
+  observed_season: number;
+  changes: { section: string; count: number; keys: string[] }[];
+  capabilities: CapabilityReport;
+  approval: "still_required";
+};
+// Review only: names, standings and provider user identities never grant access.
+// Compare bounded rule fields, retaining no new provider snapshot or archive.
+export function compareProviderContract(
+  value: unknown,
+  storedTeams: unknown,
+  current: IntakeSource,
+): ProviderDriftReview {
+  const contract = object(value),
+    prior = object(contract.source);
+  if (
+    contract.version !== 1 ||
+    prior.contract !== INTAKE_CONTRACT ||
+    prior.provider !== "sleeper" ||
+    prior.league_id !== current.league_id ||
+    new TextEncoder().encode(JSON.stringify(value)).length > 32768
+  )
+    throw Error("A matching retained imported provider contract is required.");
+  const season = integer(prior.season, 2000, 2099),
+    count = integer(prior.total_rosters, 2, 32);
+  const priorScoring = numbers(prior.scoring, 1000),
+    priorSettings = numbers(prior.settings, 1e9);
+  if (
+    !Array.isArray(prior.positions) ||
+    prior.positions.length < 1 ||
+    prior.positions.length > 48
+  )
+    throw Error("Retained lineup slots are incomplete.");
+  const positions = prior.positions.map((p: unknown) => text(p, 24)).sort();
+  if (!Array.isArray(storedTeams) || storedTeams.length !== count)
+    throw Error("Retained provider roster coverage is incomplete.");
+  const identities = (teams: unknown[], saved: boolean) =>
+    teams
+      .map((v) => {
+        const t = object(v),
+          co = t.co_owner_ids;
+        if (!Array.isArray(co) || co.length > 16)
+          throw Error("Provider co-owner coverage is incomplete.");
+        const ids = co.map(sleeperLeagueId).sort();
+        if (new Set(ids).size !== ids.length)
+          throw Error("Duplicate provider co-owner.");
+        return {
+          id: integer(t.roster_id, 1, 1000),
+          owner: publicId(saved ? t.sleeper_owner_id : t.owner_id),
+          co: ids,
+        };
+      })
+      .sort((a, b) => a.id - b.id);
+  const before = identities(storedTeams, true),
+    after = identities(current.teams, false);
+  if (new Set(before.map((t) => t.id)).size !== before.length)
+    throw Error("Duplicate retained provider roster.");
+  const changes: ProviderDriftReview["changes"] = [];
+  const add = (section: string, keys: string[]) => {
+    if (keys.length)
+      changes.push({ section, count: keys.length, keys: keys.slice(0, 32) });
+  };
+  const changedKeys = (
+    a: Record<string, unknown>,
+    b: Record<string, unknown>,
+  ) =>
+    [...new Set([...Object.keys(a), ...Object.keys(b)])]
+      .sort()
+      .filter((k) => a[k] !== b[k]);
+  add("scoring", changedKeys(priorScoring, current.scoring));
+  add("provider_settings", changedKeys(priorSettings, current.settings));
+  add(
+    "lineup_slots",
+    JSON.stringify(positions) !== JSON.stringify([...current.positions].sort())
+      ? ["starting_and_reserve_slots"]
+      : [],
+  );
+  add(
+    "roster_field",
+    JSON.stringify(before.map((t) => t.id)) !==
+      JSON.stringify(after.map((t) => t.id)) || count !== current.total_rosters
+      ? ["roster_ids_or_count"]
+      : [],
+  );
+  add(
+    "public_roster_ownership",
+    before.length !== after.length ||
+      before.some((t, i) => JSON.stringify(t) !== JSON.stringify(after[i]))
+      ? ["owner_or_co_owner_mapping"]
+      : [],
+  );
+  add("nfl_season", season !== current.season ? ["season"] : []);
+  add(
+    "provider_status",
+    text(prior.status, 24) !== current.status ? ["status"] : [],
+  );
+  return {
+    contract: "provider-drift-review-v1",
+    state:
+      season !== current.season
+        ? "renewal_required"
+        : changes.length
+          ? "rules_changed"
+          : "unchanged",
+    baseline_season: season,
+    observed_season: current.season,
+    changes,
+    capabilities: reviewIntake(current),
+    approval: "still_required",
+  };
+}
