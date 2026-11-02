@@ -107,3 +107,48 @@ per-suite logs/output/timeouts stay bounded and exact clean-source provenance is
 unchanged. Runner tests check barriers, the concurrency ceiling, failure/timeout
 propagation and log bounds. Isolated futures/extra-market module loaders now include
 the real shared policy dependency. Earlier failed runs do not qualify a release.
+
+
+## Verified DEV checkpoint — November 1 ET
+
+- Clean source `44f113677324d71302c507b287b95d5891f33feb` passed **42/42**
+  suites with valid provenance in 322.267 seconds using the bounded two-job runner.
+  Its exact-source release review remains explicitly unapproved for production.
+- READY deployment `dpl_VyWiGNuK9qVR4NhSW766i8JWzDEN` serves the canonical DEV
+  hostname and both existing DEV aliases. Generated hostname:
+  `fantasy-sportsbook-2djvlw0rj-cooper-gurrie-projects.vercel.app`.
+  All four URLs returned signed-out 302 to Vercel SSO; protection remains all.
+- Hosted build verified the independent DEV project/server key/owner, closed
+  signup, captured mail and manual automation. No owner browser was operated.
+- Local `20261102011224` maps to hosted `20261102015001`; local `20261102012217`
+  maps to hosted `20261102015018`. Both migrations are now immutable.
+- Hosted rollback-only shared invitation, verified claim/approval, unfunded wallet,
+  revocation, scoped policy/preview/manifest and outsider/ACL probes passed.
+  No fixture league, invitation, claim, override, staff membership or cash persisted.
+- Postflight: two existing leagues, two pending wallets, zero user entries/tickets/
+  legacy ledger; operations and automation disabled; original two wallet modes active.
+  The same canonical before/after financial digest is
+  `277b6de5223808d846be3136c7f9c3c6` (this query differs from older handoff digests).
+- Advisor baseline/delta: 58 authenticated-definer warnings (was 49), two anonymous
+  definer warnings unchanged, one password-protection warning unchanged, and 15
+  RLS/no-policy INFO (was 12). Nine new RPCs enforce owner/verified-token/member
+  scope; the existing finance wrapper delegates its original operator gate. Three
+  private tables intentionally deny direct API access. No anonymous endpoint added.
+- DEV physical database 17,299,123 bytes; app relations 3,301,376 bytes. Compared
+  with the prior intake observation, increases are 360,448 / 212,992 bytes, including
+  schema/index/catalog and rolled-back fixture allocations. These are empty-feature
+  observations, not populated production capacity. Default policy JSON is 228 bytes;
+  new lazy chunks are 8.70 KB claims and 4.06 KB editor before compression.
+- Production remains on `dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`, with its domains intact.
+  No GitHub push, production schema/data/configuration change, real mail, bet, funding,
+  new Auth account or scheduled continuation occurred.
+- Ignored evidence: `work/claims-policy-completion-receipt.json`,
+  `work/claims-policy-hosted-receipt.json`, `work/claims-policy-release-qualified.log`,
+  release-check provenance/results and the unapproved exact-source review.
+
+Rollback is additive: retain the new tables/columns and financial snapshots. The
+previous wallet-aware DEV deployment is source `6c070a8` / `dpl_8qSiLyunfdXCXMTQN7rihYyDXr4A`.
+Review UI compatibility before using it after custom policy versions or claims exist;
+never switch to a pre-wallet frontend or erase accepted policy/financial records.
+Original off-site v1 files/key custody stay intact. No new real v3 snapshot was
+exported; full platform backup/independent-device recovery remains milestone 20.

@@ -299,3 +299,25 @@ Do not close 16 for the financial policy slice alone: broader supported settings
 provider approval/drift/renewal still remain. Production actions require exact owner
 review; full independent recovery, external publication controls and two-week
 measured capacity cannot be replaced with synthetic/local passing checks.
+
+
+## Verified claims/policy checkpoint
+
+Handoff 32 is deployed and verified: source `44f1136`, **42/42**, READY
+`dpl_VyWiGNuK9qVR4NhSW766i8JWzDEN`, canonical DEV plus two aliases, four signed-out
+SSO redirects, production unchanged. New hosted migrations `20261102015001` and
+`20261102015018` are immutable. Rollback fixtures left zero invitations/claims/
+policy overrides, two pending wallets, no financial entries and operations off.
+The exact completion receipt and unapproved review are ignored under `work/`.
+
+F007 is complete in its declared DEV scope. F005's wallet/ticket policy slice is
+complete; broader supported settings and capability approval/drift/renewal still
+remain. Counter stays **16 complete / 8 remaining**; do not close 16 for one policy
+slice. Current recovery source supports v3 policy preservation; no new real snapshot
+or independent-device/full-platform restore has been completed. Prior owner key
+import and wallet confirmations remain complete and must not be repeated.
+
+The release runner has a lint/build barrier and maximum two concurrent suites;
+`RELEASE_JOBS=1` is available on constrained hosts. Initial failed/interrupted runs
+are not qualification. Preserve the final 44f1136 evidence; a documentation-only
+checkpoint does not claim its newer HEAD was tested or deployed.
