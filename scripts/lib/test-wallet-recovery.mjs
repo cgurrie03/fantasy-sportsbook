@@ -42,5 +42,20 @@ export async function testWalletRecovery(db, { outsider }) {
   await tamper(`update tampered_recovery set data=jsonb_set(data,'{tables,public.wallet_ledger}',
     (select coalesce(jsonb_agg(e),'[]') from jsonb_array_elements(data->'tables'->'public.wallet_ledger') e where e->>'kind'<>'account_transfer_out'))`, /transfer pair/);
   await tamper(`update tampered_recovery set data=jsonb_set(data,'{tables,auth.users}','[]')`, /Recovery broke/);
+  // New configurations require v3, without changing the historical v1/v2 reader.
+  await db.query(`insert into sportsbook_private.league_policy_versions(league_id,revision,nfl_season,market_week,overrides,actor,reason)
+    select l.id,1,2026,18,'{"weekly_target":150,"minimum_stake":5}',o.user_id,'Synthetic future policy recovery evidence'
+    from public.leagues l cross join sportsbook_private.platform_owners o order by l.id,o.user_id limit 1`);
+  const queryV3=snapshotQuery('-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic query fixture',{format:'boff-financial-recovery-v3',projectRef})
+    .replace('SCHEMA_HASH_PLACEHOLDER',createHash('sha256').update(schema).digest('hex'));
+  const resultsV3=await db.exec(queryV3.slice(0,queryV3.indexOf('select encode('))+'select data from document;commit;');
+  const v3=resultsV3.find(r=>r.rows?.[0]?.data)?.rows[0].data;
+  const restoredV3=await restoreFinancialSnapshot(v3,schema,{projectRef});
+  assert.equal(restoredV3.policy_versions_checked,1);
+  assert.equal(restoredV3.counts['sportsbook_private.league_policy_versions'],1);
+  await db.query('truncate tampered_recovery');await db.query('insert into tampered_recovery values($1::jsonb)',[v3]);
+  await db.exec(`update tampered_recovery set data=jsonb_set(data,'{tables,sportsbook_private.league_policy_versions,0,overrides}','{"maximum_picks":99}')`);
+  const invalidPolicy=(await db.query(`select jsonb_set(data,'{checksums}',(select jsonb_object_agg(key,md5(value::text)) from jsonb_each(data->'tables')))::text data from tampered_recovery`)).rows[0].data;
+  await assert.rejects(restoreFinancialSnapshot(invalidPolicy,schema,{projectRef}),/Policy values/);
   return restored;
 }

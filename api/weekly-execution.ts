@@ -1,3 +1,8 @@
+import {
+  parseWalletPolicy,
+  defaultWalletPolicy,
+  weeklyCashTarget,
+} from "./_lib/wallet-policy.js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { createServerClient } from "./_lib/server-client.js";
 import { settleLeg } from "./_lib/settlement.js";
@@ -77,20 +82,18 @@ export async function POST(request: Request) {
       week: number;
       nfl_season: number;
     };
-    const [teamsResponse, ticketsResponse] = await Promise.all(
-      [
-        client
-          .from("teams")
-          .select("id,roster_id,team_name")
-          .eq("league_id", input.league_id),
-        client
-          .from("tickets")
-          .select("id,team_id,market_week,nfl_season,ticket_type,stake")
-          .eq("league_id", input.league_id)
-          .eq("status", "OPEN")
-          .eq("nfl_season", season),
-      ],
-    );
+    const [teamsResponse, ticketsResponse] = await Promise.all([
+      client
+        .from("teams")
+        .select("id,roster_id,team_name")
+        .eq("league_id", input.league_id),
+      client
+        .from("tickets")
+        .select("id,team_id,market_week,nfl_season,ticket_type,stake")
+        .eq("league_id", input.league_id)
+        .eq("status", "OPEN")
+        .eq("nfl_season", season),
+    ]);
     for (const r of [teamsResponse, ticketsResponse])
       if (r.error) throw new Error(r.error.message);
     const teams = teamsResponse.data ?? [],
@@ -496,22 +499,45 @@ export async function POST(request: Request) {
       replenishment = saved.data;
     }
     const [financeSnapshot, currentTickets] = await Promise.all([
-      client.rpc("weekly_finance_wallets", { p_league: input.league_id, p_season: season, p_week: week }),
+      client.rpc("weekly_finance_wallets", {
+        p_league: input.league_id,
+        p_season: season,
+        p_week: week,
+      }),
       client
         .from("tickets")
-        .select("team_id,user_wallet_id,market_week,status,ticket_type,nfl_season,stake")
+        .select(
+          "team_id,user_wallet_id,market_week,status,ticket_type,nfl_season,stake",
+        )
         .eq("league_id", input.league_id),
     ]);
     for (const r of [financeSnapshot, currentTickets])
       if (r.error) throw new Error(r.error.message);
-    if (!Array.isArray(financeSnapshot.data?.wallets) || financeSnapshot.data.wallets.length > 128)
+    if (
+      !Array.isArray(financeSnapshot.data?.wallets) ||
+      financeSnapshot.data.wallets.length > 128
+    )
       throw new Error("Financial preview is incomplete.");
-    const balances = (financeSnapshot.data.wallets as {wallet_id?:string|null;team_id:string;balance:number|string|null;display_name?:string;legacy_primary:boolean;processed:boolean}[])
+    const cashPolicy = financeSnapshot.data.policy
+      ? parseWalletPolicy(financeSnapshot.data.policy)
+      : defaultWalletPolicy;
+    const balances = (
+      financeSnapshot.data.wallets as {
+        wallet_id?: string | null;
+        team_id: string;
+        balance: number | string | null;
+        display_name?: string;
+        legacy_primary: boolean;
+        processed: boolean;
+      }[]
+    )
       .filter((w) => teams.some((t) => t.id === w.team_id))
       .map((w) => {
-        const userTickets = (currentTickets.data ?? []).filter(
-          (t) => w.wallet_id ? t.user_wallet_id === w.wallet_id ||
-            (w.legacy_primary && !t.user_wallet_id && t.team_id === w.team_id) : t.team_id === w.team_id,
+        const userTickets = (currentTickets.data ?? []).filter((t) =>
+          w.wallet_id
+            ? t.user_wallet_id === w.wallet_id ||
+              (w.legacy_primary && !t.user_wallet_id && t.team_id === w.team_id)
+            : t.team_id === w.team_id,
         );
         const processed = w.processed;
         const reason = processed
@@ -540,7 +566,9 @@ export async function POST(request: Request) {
         return {
           team_id: w.team_id,
           wallet_id: w.wallet_id ?? null,
-          name: (w.wallet_id ? `${w.display_name} · ` : "") + (teams.find((t) => t.id === w.team_id)?.team_name ?? "Team"),
+          name:
+            (w.wallet_id ? `${w.display_name} · ` : "") +
+            (teams.find((t) => t.id === w.team_id)?.team_name ?? "Team"),
           current: w.balance === null ? null : Number(w.balance),
           eligible: reason === "Eligible",
           reason,
@@ -548,15 +576,14 @@ export async function POST(request: Request) {
             w.balance === null
               ? null
               : reason === "Eligible"
-                ? Math.max(
-                    25,
-                    100 -
-                      userTickets
-                        .filter(
-                          (t) =>
-                            t.ticket_type === "future" && t.status === "OPEN",
-                        )
-                        .reduce((sum, t) => sum + Number(t.stake), 0),
+                ? weeklyCashTarget(
+                    cashPolicy.values,
+                    userTickets
+                      .filter(
+                        (t) =>
+                          t.ticket_type === "future" && t.status === "OPEN",
+                      )
+                      .reduce((sum, t) => sum + Number(t.stake), 0),
                     Number(w.balance),
                   )
                 : Number(w.balance),

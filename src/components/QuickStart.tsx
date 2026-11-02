@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  walletPolicyDefaults,
+  weeklyCashTarget,
+} from "../../api/_lib/wallet-policy";
+import type { WalletPolicyValues } from "../../api/_lib/wallet-policy";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "./QuickStart.css";
 
-const tour = [
+const cash = (n: number) =>
+  "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+const makeTour = (policy: WalletPolicyValues) => [
   {
     title: "Your Sleeper league. A new way to compete.",
     illustrationLabel:
@@ -55,8 +62,7 @@ const tour = [
   },
   {
     title: "Tuesday refills keep you in the game.",
-    illustrationLabel:
-      "Replenishment examples: a 32 dollar balance becomes 100 dollars; a 145 dollar balance stays 145 dollars; 40 dollars in open futures leaves a 60 dollar cash floor.",
+    illustrationLabel: `Replenishment examples: a 32 dollar balance becomes ${weeklyCashTarget(policy, 0, 32)} dollars; a 145 dollar balance becomes ${weeklyCashTarget(policy, 0, 145)} dollars; 40 dollars in open futures leaves a ${weeklyCashTarget(policy, 40)} dollar cash floor.`,
     art: (
       <div className="tour-refill">
         <div>
@@ -65,15 +71,15 @@ const tour = [
         </div>
         <div>
           <span>Balance $32</span>
-          <b>→ $100</b>
+          <b>→ {cash(weeklyCashTarget(policy, 0, 32))}</b>
         </div>
         <div>
           <span>Balance $145</span>
-          <b>→ $145</b>
+          <b>→ {cash(weeklyCashTarget(policy, 0, 145))}</b>
         </div>
         <div>
           <span>$40 in open futures</span>
-          <b>$60 cash floor</b>
+          <b>{cash(weeklyCashTarget(policy, 40))} cash floor</b>
         </div>
       </div>
     ),
@@ -85,12 +91,17 @@ const tour = [
         </p>
         <ul>
           <li>
-            Normally, the floor is <strong>$100</strong>. This is a top-up, not
-            an extra $100 each week.
+            Normally, the floor is <strong>{cash(policy.weekly_target)}</strong>
+            . This is a top-up, not an extra weekly payment.
           </li>
           <li>
-            Open futures stakes count toward that $100. Your cash floor is{" "}
-            <strong>$100 minus those stakes, with at least $25 in cash</strong>.
+            Open futures stakes count toward that {cash(policy.weekly_target)}.
+            Your cash floor is{" "}
+            <strong>
+              {cash(policy.weekly_target)} minus those stakes, with at least{" "}
+              {cash(policy.futures_cash_floor)} in cash
+            </strong>
+            .
           </li>
           <li>
             Unresolved weekly tickets can hold your refill until their results
@@ -263,11 +274,14 @@ export function QuickStart({
   userId,
   eligible,
   seen,
+  policy = walletPolicyDefaults,
 }: {
+  policy?: WalletPolicyValues;
   userId?: string;
   eligible: boolean;
   seen: boolean;
 }) {
+  const tour = useMemo(() => makeTour(policy), [policy]);
   const [slide, setSlide] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);

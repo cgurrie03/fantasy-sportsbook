@@ -47,7 +47,9 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(state.fail)return json({message:'Fixture connection unavailable. Try again.'},503);
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
-   if(endpoint==='account_access')return json(memberships.map(m=>({league_id:m.league_id,view:true,admin:!!state.platformOwner||m.role==='admin',configure:!!state.platformOwner,platform_owner:!!state.platformOwner,bet:true,team_id:m.team_id})));
+   if(endpoint==='team_claim_directory')return json({claims:[],invitations:[]});
+   if(endpoint==='wallet_policy_review')return json({season:2026,week:5,latest_revision:0,current:{contract:'wallet-ticket-policy-v1',defaults_version:1,revision:0,effective_season:null,effective_week:null,values:{minimum_stake:1,maximum_picks:10,weekly_target:100,futures_cash_floor:25}},versions:[]});
+   if(endpoint==='account_access')return json(memberships.map(m=>({league_id:m.league_id,view:true,admin:!!state.platformOwner||m.role==='admin',configure:!!state.platformOwner,platform_owner:!!state.platformOwner,bet:true,team_id:m.team_id,...(state.walletPolicies?.[m.league_id]?{policy:state.walletPolicies[m.league_id]}:{})})));
    if(endpoint==='account_history_seasons')return json([...new Set([2026,...state.tickets.filter(t=>t.league_id===body.p_league).map(t=>t.nfl_season)])].filter(Number.isInteger).sort((a,b)=>b-a));
    if(endpoint==='account_wallet_report'){
     (state.financialReportCalls??=[]).push({endpoint,...body});
@@ -116,7 +118,7 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    if(endpoint==='sportsbook_board_manifest'){
     const weekly=boards.find(b=>b.league_id===body.p_league),future=futureBoards.find(b=>b.league_id===body.p_league);
     const status=b=>({...b,content_version:state.movement??0,...(state.specials&&!state.pregame?{phase:'live'}:{}),...(state.suspended?{suspension_reason:'Fixture source outage; markets wait for fresh data.'}:{}),...(state.liveDevelopment&&b.board_type==='weekly'?{suspension_reason:'Live pricing unavailable: observed starter points and a validated remaining-points model are required.'}:{})});
-    return json({week:state.week??5,weekly:state.empty?null:status(weekly),future:state.empty||!state.futures?null:status(future)});
+    return json({...(state.walletPolicies?.[body.p_league]?{policy:state.walletPolicies[body.p_league]}:{}),week:state.week??5,weekly:state.empty?null:status(weekly),future:state.empty||!state.futures?null:status(future)});
    }
    if(endpoint==='sportsbook_quote_snapshot'||endpoint==='sportsbook_current_snapshot'||endpoint==='sportsbook_category_snapshot'){
     if(endpoint==='sportsbook_category_snapshot')(state.categoryCalls??=[]).push(body);

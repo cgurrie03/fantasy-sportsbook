@@ -1,9 +1,15 @@
+import {
+  parseWalletPolicy,
+  defaultWalletPolicy,
+} from "../../api/_lib/wallet-policy";
+import type { WalletPolicy } from "../../api/_lib/wallet-policy";
 import { exactEventTime } from "../../api/_lib/event-time";
 import { supabase } from "./supabase";
 import { createCategoryBoardCache } from "./category-board-cache";
 import type { MarketCategory } from "./market-categories";
 
 export interface Board {
+  policy?: WalletPolicy;
   id: string;
   league_id: string;
   market_week: number;
@@ -359,7 +365,7 @@ export function specialConflict(a: Market, b: Market) {
   }
   return false;
 }
-export function pickConflict(picks: Market[], next: Market) {
+export function pickConflict(picks: Market[], next: Market, maximumPicks = 10) {
   if (picks.some((p) => p.id === next.id)) return "";
   if (
     picks.length &&
@@ -370,7 +376,8 @@ export function pickConflict(picks: Market[], next: Market) {
     )
   )
     return "League Winner and #1 Pick are standalone bets. Playoff picks and win-total picks each combine only within their own category.";
-  if (picks.length >= 10) return "A ticket can contain up to 10 picks.";
+  if (picks.length >= maximumPicks)
+    return `A ticket can contain up to ${maximumPicks} picks.`;
   if (picks.some((p) => p.market_key === next.market_key))
     return "Choose only one outcome from this market.";
   if (picks.some((p) => specialConflict(p, next)))
@@ -452,7 +459,15 @@ const memberBoards = createCategoryBoardCache<Board, Market>(
       .rpc("sportsbook_board_manifest", { p_league: leagueId })
       .abortSignal(AbortSignal.timeout(15000));
     if (result.error) throw result.error;
-    return result.data;
+    const manifest = result.data;
+    if (manifest) {
+      const policy = manifest.policy
+        ? parseWalletPolicy(manifest.policy)
+        : defaultWalletPolicy;
+      for (const key of ["weekly", "future"] as const)
+        if (manifest[key]) manifest[key] = { ...manifest[key], policy };
+    }
+    return manifest;
   },
   async (leagueId, category, board) => {
     const result = await supabase!

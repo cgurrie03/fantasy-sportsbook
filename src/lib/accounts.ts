@@ -1,3 +1,5 @@
+import { parseWalletPolicy } from "../../api/_lib/wallet-policy";
+import type { WalletPolicy } from "../../api/_lib/wallet-policy";
 import { supabase } from "./supabase";
 export interface League {
   sportsbook_url?: string | null;
@@ -59,6 +61,7 @@ export interface Ledger {
   kind: string;
 }
 export interface LeagueAccess {
+  policy?: WalletPolicy;
   wallet_model?: "legacy" | "user";
   participant?: FinancialParticipant | null;
   league_id: string;
@@ -205,7 +208,7 @@ export async function loadAccounts(
     supabase.rpc("account_access").abortSignal(signal),
   ]);
   for (const result of core) if (result.error) throw result.error;
-  if (core.slice(0,4).some((r) => !Array.isArray(r.data)))
+  if (core.slice(0, 4).some((r) => !Array.isArray(r.data)))
     throw new Error("Account directory response is incomplete.");
   signal.throwIfAborted();
   if (
@@ -239,24 +242,59 @@ export async function loadAccounts(
   )
     throw new Error("League access could not be verified.");
   const access = core[4].data as LeagueAccess[];
-  const participants = access.flatMap((a) => a.participant ? [a.participant] : []);
-  if (participants.some((p) => typeof p !== "object" || p.source !== "financial" ||
-      typeof p.id !== "string" || p.wallet_id !== p.id || typeof p.user_id !== "string" ||
-      p.role !== "member" || typeof p.display_name !== "string" || !p.display_name.trim() || p.display_name.length > 80 ||
-      (p.balance !== null && !Number.isFinite(Number(p.balance))) ||
-      !access.some((a) => a.wallet_model === "user" && a.league_id === p.league_id && a.team_id === p.team_id) ||
-      !(core[1].data as Team[]).some((t) => t.id === p.team_id && t.league_id === p.league_id)))
+  for (const a of access) if (a.policy) parseWalletPolicy(a.policy);
+  const participants = access.flatMap((a) =>
+    a.participant ? [a.participant] : [],
+  );
+  if (
+    participants.some(
+      (p) =>
+        typeof p !== "object" ||
+        p.source !== "financial" ||
+        typeof p.id !== "string" ||
+        p.wallet_id !== p.id ||
+        typeof p.user_id !== "string" ||
+        p.role !== "member" ||
+        typeof p.display_name !== "string" ||
+        !p.display_name.trim() ||
+        p.display_name.length > 80 ||
+        (p.balance !== null && !Number.isFinite(Number(p.balance))) ||
+        !access.some(
+          (a) =>
+            a.wallet_model === "user" &&
+            a.league_id === p.league_id &&
+            a.team_id === p.team_id,
+        ) ||
+        !(core[1].data as Team[]).some(
+          (t) => t.id === p.team_id && t.league_id === p.league_id,
+        ),
+    )
+  )
     throw new Error("Financial participant scope could not be verified.");
-  const financialLeagues = new Set(access.filter((a) => a.wallet_model === "user").map((a) => a.league_id));
-  const financialTeams = new Set((core[1].data as Team[]).filter((t) => financialLeagues.has(t.league_id)).map((t) => t.id));
+  const financialLeagues = new Set(
+    access.filter((a) => a.wallet_model === "user").map((a) => a.league_id),
+  );
+  const financialTeams = new Set(
+    (core[1].data as Team[])
+      .filter((t) => financialLeagues.has(t.league_id))
+      .map((t) => t.id),
+  );
   const snapshot: AccountData = {
     access,
     viewer_participants: participants,
     leagues: core[0].data as League[],
     teams: core[1].data as Team[],
     memberships: core[2].data as Membership[],
-    wallets: [ ...(core[3].data as Wallet[]).filter((w) => !financialTeams.has(w.team_id)),
-      ...participants.map((p) => ({team_id:p.team_id,wallet_id:p.wallet_id,balance:p.balance})) ],
+    wallets: [
+      ...(core[3].data as Wallet[]).filter(
+        (w) => !financialTeams.has(w.team_id),
+      ),
+      ...participants.map((p) => ({
+        team_id: p.team_id,
+        wallet_id: p.wallet_id,
+        balance: p.balance,
+      })),
+    ],
     events: [],
     ledger: [],
     tickets: [],
@@ -289,11 +327,16 @@ export async function loadAccounts(
     history_loading: true,
   });
   const totals = await supabase
-    .rpc(access.find((a) => a.league_id === leagueId)?.wallet_model === "user" ? "account_personal_totals" : "account_betting_totals", {
-      p_league: leagueId,
-      p_season: null,
-      p_week: null,
-    })
+    .rpc(
+      access.find((a) => a.league_id === leagueId)?.wallet_model === "user"
+        ? "account_personal_totals"
+        : "account_betting_totals",
+      {
+        p_league: leagueId,
+        p_season: null,
+        p_week: null,
+      },
+    )
     .abortSignal(signal);
   signal.throwIfAborted();
   const valid =

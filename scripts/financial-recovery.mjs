@@ -26,9 +26,12 @@ export const recoveryTablesV2 = [...recoveryTables,
   "sportsbook_private.user_finance_modes", "sportsbook_private.platform_owners",
   "sportsbook_private.platform_owner", "sportsbook_private.league_launch_approvals",
 ];
+// v3 preserves the new effective financial policy; v1/v2 remain readable.
+export const recoveryTablesV3=[...recoveryTablesV2,"sportsbook_private.league_policy_versions"];
 export function tablesForFormat(format) {
   if (format === "boff-financial-recovery-v1") return recoveryTables;
   if (format === "boff-financial-recovery-v2") return recoveryTablesV2;
+  if (format === "boff-financial-recovery-v3") return recoveryTablesV3;
   throw new Error("Unsupported financial recovery format.");
 }
 const authStub = `create role anon;create role authenticated;create role service_role bypassrls;
@@ -55,7 +58,7 @@ export function snapshotQuery(publicKey, { format = "boff-financial-recovery-v1"
   if (!publicKey.startsWith("-----BEGIN PGP PUBLIC KEY BLOCK-----") || publicKey.includes("$recovery$"))
     throw new Error("A public recovery key is required.");
   const entries = tableNames.map((name, i) => {
-    const source = name === "auth.users" ? `(select id,email,email_confirmed_at from auth.users${format.endsWith("v2") ? " where false" : ""})` : relation(name);
+    const source = name === "auth.users" ? `(select id,email,email_confirmed_at from auth.users${(format !== "boff-financial-recovery-v1") ? " where false" : ""})` : relation(name);
     const where = name === "public.sportsbook_markets"
       ? "where r.id in (select market_quote_id from public.ticket_legs where market_quote_id is not null)" : "";
     return `t${i} as materialized (select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) as rows from ${source} r ${where})`;
@@ -63,7 +66,7 @@ export function snapshotQuery(publicKey, { format = "boff-financial-recovery-v1"
   const pairs = tableNames.map((name, i) => `'${name}',(select rows from t${i})`).join(",");
   // v2 exports only identities referenced by financial/access records. The FK
   // catalogue discovers actor/subject/owner columns without exporting Auth secrets.
-  const scopedData = format.endsWith("v2") ? `, scoped_tables as materialized (
+  const scopedData = (format !== "boff-financial-recovery-v1") ? `, scoped_tables as materialized (
     select jsonb_set(data,'{auth.users}',coalesce((select jsonb_agg(to_jsonb(a) order by to_jsonb(a)::text)
       from (select id,email,email_confirmed_at from auth.users) a where a.id::text in (
         select r.value->>att.attname from pg_constraint k
@@ -95,7 +98,7 @@ export async function restoreFinancialSnapshot(plaintext, schema, { projectRef =
   const db = new PGlite();
   try {
     await db.exec(authStub);
-    if (snapshot.format.endsWith("v2")) await db.exec("create role boff_evaluation_retention nologin noinherit;create role boff_routine_retention nologin noinherit;");
+    if ((snapshot.format !== "boff-financial-recovery-v1")) await db.exec("create role boff_evaluation_retention nologin noinherit;create role boff_routine_retention nologin noinherit;");
     await db.exec(schema);
     await db.exec("set timezone='UTC';set search_path=public;create temp table recovery_input(data jsonb);");
     // Keep the original JSON text: JS number conversion could change stored
@@ -140,7 +143,7 @@ export async function restoreFinancialSnapshot(plaintext, schema, { projectRef =
         where ${present} and not exists(select 1 from ${relation(fk.parent_schema + "." + fk.parent)} p where ${match})`);
       assert.equal(result.rows[0].n, 0, `Recovery broke ${fk.conname}`);
     }
-    const userChecks = snapshot.format.endsWith("v2") ? await verifyUserFinancialRecovery(db) : null;
+    const userChecks = (snapshot.format !== "boff-financial-recovery-v1") ? await verifyUserFinancialRecovery(db) : null;
     let refundChecked = false;
     const open = (await db.query(`select t.id,t.team_id,t.stake,m.user_id,w.balance
       from public.tickets t join public.wallets w on w.team_id=t.team_id
@@ -163,7 +166,14 @@ export async function restoreFinancialSnapshot(plaintext, schema, { projectRef =
       assert.equal((await db.query(`select count(*)::int n from public.${table}`)).rows[0].n, 0, `Outsider sees ${table}`);
     await db.exec("reset role;set role anon;");
     await assert.rejects(db.query("select * from public.wallets"));
-    return { format: snapshot.format, counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
+    await db.exec("reset role");
+    let policyCount=null;
+    if(snapshot.format==="boff-financial-recovery-v3") {
+      const policies=(await db.query("select overrides from sportsbook_private.league_policy_versions")).rows;
+      for(const row of policies)await db.query("select sportsbook_private.validate_wallet_policy($1)",[JSON.stringify(row.overrides)]);
+      policyCount=policies.length;
+    }
+    return { policy_versions_checked:policyCount,format: snapshot.format, counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
       user_wallet_checks: userChecks,
       outsider_denied: true, anonymous_denied: true };
   } finally { await db.close(); }
@@ -173,8 +183,8 @@ async function main() {
   if (process.env.VERCEL) throw new Error("Recovery tooling must never run on hosting.");
   const [mode, target = "work/financial-recovery", schemaFile] = process.argv.slice(2);
   const folder = path.resolve(target);
-  if (mode === "prepare" || mode === "prepare-v2") {
-    if (mode === "prepare-v2" && !schemaFile) throw new Error("v2 requires an explicit reviewed schema-only recovery artifact.");
+  if (["prepare","prepare-v2","prepare-v3"].includes(mode)) {
+    if (mode !== "prepare" && !schemaFile) throw new Error("Versioned recovery requires an explicit reviewed schema-only recovery artifact.");
     const schema = await fs.readFile(schemaFile ?? "supabase/development/baseline-schema.sql", "utf8");
     await fs.mkdir(folder, { recursive: true });
     // Exclusive creation prevents replacing a key needed for an existing export.
@@ -190,7 +200,7 @@ async function main() {
     await fs.writeFile(path.join(folder, "passphrase.dpapi"), wrappedPassphrase, { mode: 0o600 });
     await fs.writeFile(path.join(folder, "schema.sql"), schema);
     await fs.writeFile(path.join(folder, "export.sql"), snapshotQuery(keys.publicKey, {
-      format: mode === "prepare-v2" ? "boff-financial-recovery-v2" : "boff-financial-recovery-v1",
+      format: mode === "prepare-v3" ? "boff-financial-recovery-v3" : mode === "prepare-v2" ? "boff-financial-recovery-v2" : "boff-financial-recovery-v1",
     })
       .replace("SCHEMA_HASH_PLACEHOLDER", createHash("sha256").update(schema).digest("hex")));
     console.log("Prepared public-key encrypted financial export. Private key and DPAPI-wrapped passphrase remain local; no secrets logged.");
@@ -210,7 +220,7 @@ async function main() {
       scope: "Financial records and FK dependencies; auth identities only, not Auth credentials or a full platform backup.",
     }, null, 2));
     console.log(JSON.stringify(result));
-  } else throw new Error("Use prepare, prepare-v2 (with a reviewed schema file), or verify with a local recovery directory.");
+  } else throw new Error("Use prepare, prepare-v2/prepare-v3 (with a reviewed schema file), or verify with a local recovery directory.");
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try { await main(); }

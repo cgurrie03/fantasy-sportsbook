@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, developmentUserAllowed } from "./lib/supabase";
 import { loadAccounts, money, errorMessage } from "./lib/accounts";
+import { captureTeamInvitation } from "./lib/team-invitation";
 import { AccountRequest } from "./lib/account-request";
 import { useBalancePage } from "./lib/account-history";
 import type { AccountData, Team, Membership } from "./lib/accounts";
@@ -21,7 +22,16 @@ import { buildBalanceHistory } from "./lib/balanceHistory";
 const loadSportsbook = () =>
   import("./components/Sportsbook").then((m) => ({ default: m.Sportsbook }));
 const Sportsbook = lazy(loadSportsbook);
-const UserWalletAdmin = lazy(() => import("./components/UserWalletAdmin").then(m=>({default:m.UserWalletAdmin})));
+const UserWalletAdmin = lazy(() =>
+  import("./components/UserWalletAdmin").then((m) => ({
+    default: m.UserWalletAdmin,
+  })),
+);
+const TeamClaimPortal = lazy(() =>
+  import("./components/TeamClaims").then((m) => ({
+    default: m.TeamClaimPortal,
+  })),
+);
 function Avatar({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -95,6 +105,12 @@ function SignIn({
           administrator must map your verified email to your team; requesting a
           link does not grant league access.
         </p>
+        {window.location.hash.startsWith("#/join") && (
+          <p>
+            After signing in, continue with your commissioner’s invitation to
+            request team access.
+          </p>
+        )}
         <a href="#/demo">Explore the read-only demo</a>
         <PortfolioLink />
       </section>
@@ -286,7 +302,8 @@ export function Account({
             <p>{team.team_name}</p>
             <span>
               {team.wins}–{team.losses}
-              {team.ties ? `–${team.ties}` : ""} · {member.wallet_id ? "Team Data Connected" : "Sleeper Connected"}{" "}
+              {team.ties ? `–${team.ties}` : ""} ·{" "}
+              {member.wallet_id ? "Team Data Connected" : "Sleeper Connected"}{" "}
               <span className="connected-check" aria-label="Connected">
                 <svg
                   viewBox="0 0 24 24"
@@ -314,14 +331,25 @@ export function Account({
             <dd>{member.invited_email}</dd>
           </div>
           <div>
-            <dt>{member.wallet_id ? "Sportsbook Account" : "Sleeper Account"}</dt>
-            <dd>{member.wallet_id ? member.display_name : team.sportsbook_owner_name}</dd>
+            <dt>
+              {member.wallet_id ? "Sportsbook Account" : "Sleeper Account"}
+            </dt>
+            <dd>
+              {member.wallet_id
+                ? member.display_name
+                : team.sportsbook_owner_name}
+            </dd>
           </div>
           <div>
             <dt>Access</dt>
             <dd>
-              {data.access?.find(a=>a.league_id===team.league_id)?.platform_owner ? "Platform Owner" :
-                data.access?.find(a=>a.league_id===team.league_id)?.admin || member.role === "admin" ? "League Admin" : "League Member"}
+              {data.access?.find((a) => a.league_id === team.league_id)
+                ?.platform_owner
+                ? "Platform Owner"
+                : data.access?.find((a) => a.league_id === team.league_id)
+                      ?.admin || member.role === "admin"
+                  ? "League Admin"
+                  : "League Member"}
             </dd>
           </div>
         </dl>
@@ -519,17 +547,37 @@ function UsersAdmin({
 }) {
   const teams = data.teams.filter((t) => t.league_id === leagueId),
     [selected, setSelected] = useState(teams[0]?.id);
-  const [walletReview,setWalletReview]=useState(false);
-  const owner=data.access?.find(a=>a.league_id===leagueId)?.configure===true;
+  const [walletReview, setWalletReview] = useState(false);
+  const owner =
+    data.access?.find((a) => a.league_id === leagueId)?.configure === true;
   const team = teams.find((t) => t.id === selected) ?? teams[0];
-  if(data.access?.find(a=>a.league_id===leagueId)?.wallet_model==='user'||(walletReview&&owner))
-    return <Suspense fallback={<p role="status">Loading financial controls…</p>}><UserWalletAdmin key={leagueId} data={data} leagueId={leagueId} refresh={refresh} preparing={walletReview&&owner} onBack={walletReview?()=>setWalletReview(false):undefined}/></Suspense>;
+  if (
+    data.access?.find((a) => a.league_id === leagueId)?.wallet_model ===
+      "user" ||
+    (walletReview && owner)
+  )
+    return (
+      <Suspense fallback={<p role="status">Loading financial controls…</p>}>
+        <UserWalletAdmin
+          key={leagueId}
+          data={data}
+          leagueId={leagueId}
+          refresh={refresh}
+          preparing={walletReview && owner}
+          onBack={walletReview ? () => setWalletReview(false) : undefined}
+        />
+      </Suspense>
+    );
   return (
     <section className="admin-layout">
       <div className="page-heading">
         <h1>Users</h1>
         <p>Manage names, account mappings, and balances for your league.</p>
-        {owner&&import.meta.env.VITE_BOFF_ENVIRONMENT==='development'&&<button className="secondary" onClick={()=>setWalletReview(true)}>Review independent wallets</button>}
+        {owner && import.meta.env.VITE_BOFF_ENVIRONMENT === "development" && (
+          <button className="secondary" onClick={() => setWalletReview(true)}>
+            Review independent wallets
+          </button>
+        )}
       </div>
       <div className="admin-columns">
         <aside aria-label="League Teams" className="team-list">
@@ -588,6 +636,9 @@ export function Admin({
   );
 }
 export default function App() {
+  const [pendingInvitation, setPendingInvitation] = useState(
+    captureTeamInvitation,
+  );
   const route = useRoute();
   const page = route.startsWith("/admin")
     ? "admin"
@@ -668,6 +719,9 @@ export default function App() {
     };
   }, []);
   const userId = session?.user.id;
+  useEffect(() => {
+    if (userId && pendingInvitation) navigate("/join");
+  }, [userId, pendingInvitation]);
   const currentUser = useRef(userId);
   currentUser.current = userId;
   const currentLeague = useRef(leagueId);
@@ -777,11 +831,14 @@ export default function App() {
   const financialParticipant = data?.viewer_participants?.find(
     (p) => p.user_id === userId && p.league_id === leagueId,
   );
-  const member: Membership | undefined = financialParticipant ? {
-      ...financialParticipant, invited_email: session?.user.email ?? "",
-    } : data?.memberships.find(
-      (m) => m.user_id === userId && m.league_id === leagueId,
-    ),
+  const member: Membership | undefined = financialParticipant
+      ? {
+          ...financialParticipant,
+          invited_email: session?.user.email ?? "",
+        }
+      : data?.memberships.find(
+          (m) => m.user_id === userId && m.league_id === leagueId,
+        ),
     team = data?.teams.find((t) => t.id === member?.team_id),
     league = data?.leagues.find((l) => l.id === leagueId),
     access = data?.access?.find((a) => a.league_id === leagueId),
@@ -838,6 +895,7 @@ export default function App() {
         </div>
         <div className="account-tools">
           <QuickStart
+            policy={access?.policy?.values}
             key={userId ?? "guest"}
             userId={userId}
             eligible={Boolean(ready && !loading && !error && member && team)}
@@ -1001,7 +1059,15 @@ export default function App() {
                 )}
               </nav>
             )}
-            {error ? (
+            {route.startsWith("/join") ? (
+              <Suspense fallback={<p role="status">Loading team requests…</p>}>
+                <TeamClaimPortal
+                  key={userId}
+                  initialToken={pendingInvitation}
+                  onClaimed={() => setPendingInvitation("")}
+                />
+              </Suspense>
+            ) : error ? (
               <main className="empty">
                 <h1>Could Not Load Your Account</h1>
                 <p role="alert">{error}</p>
@@ -1100,6 +1166,7 @@ export default function App() {
             ) : (
               <main className="empty">
                 <h1>Membership Pending</h1>
+                <a href="#/join">Request team access with an invitation</a>
                 <p>{session.user.email}</p>
                 <p>
                   Ask your league administrator to approve this email for your

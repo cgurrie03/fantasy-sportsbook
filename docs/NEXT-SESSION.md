@@ -282,3 +282,20 @@ quarantine guard. Wallet milestone 17 is complete; stable counter is 16 / 8.
   Preserve historical exact-source evidence rather than rerunning the whole suite
   for a status-only documentation commit. The active model/service tier cannot be
   changed by this agent; do not claim a different model or service priority.
+
+
+## Current continuation — verified claims and financial policy
+
+Handoff 32 documents the current batch. Invitations/claims and wallet/ticket policy
+v1 are implemented with focused database, phone/desktop and financial-recovery
+checks. Full clean-source and hosted receipts are added at the deployment checkpoint.
+Recovery v3 includes financial policy versions; original v1/v2 remain readable.
+No actual invitations, participant claims, policy overrides or funds were created
+in hosted persistent data by the implementation fixtures. Closed owner-only DEV,
+captured mail and paused automation remain required.
+
+Counter remains **16 complete / 8 remaining**. Remaining IDs: 13,16,18,20,21,22,23,24.
+Do not close 16 for the financial policy slice alone: broader supported settings,
+provider approval/drift/renewal still remain. Production actions require exact owner
+review; full independent recovery, external publication controls and two-week
+measured capacity cannot be replaced with synthetic/local passing checks.

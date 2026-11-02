@@ -2,7 +2,17 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
 import { supabase } from "../lib/supabase";
-const LeagueIntake=lazy(()=>import("./LeagueIntake").then(m=>({default:m.LeagueIntake})));
+const LeagueIntake = lazy(() =>
+  import("./LeagueIntake").then((m) => ({ default: m.LeagueIntake })),
+);
+const TeamClaimAdmin = lazy(() =>
+  import("./TeamClaims").then((m) => ({ default: m.TeamClaimAdmin })),
+);
+const WalletPolicyEditor = lazy(() =>
+  import("./WalletPolicyEditor").then((m) => ({
+    default: m.WalletPolicyEditor,
+  })),
+);
 export function LeagueSettings({
   data,
   leagueId,
@@ -76,12 +86,7 @@ export function LeagueSettings({
       `${league.league_season} · NFL ${league.nfl_season}`,
       "Records, roster membership, scoring, playoff structure, and pick ownership are sourced from Sleeper when markets are generated. They are not overridden here.",
     ],
-    [
-      "Wallet rules",
-      "Weekly cash floor",
-      "max($25, $100 − open futures stakes)",
-      "Higher balances are retained. Unresolved weekly tickets hold replenishment for admin review. User balances can be adjusted under Users with a reason.",
-    ],
+
     [
       "Betting & ticket rules",
       "Standard bets",
@@ -191,6 +196,15 @@ export function LeagueSettings({
           account.
         </small>
       </article>
+      {canConfigure && (
+        <Suspense fallback={<p role="status">Loading policy settings…</p>}>
+          <WalletPolicyEditor
+            key={leagueId}
+            leagueId={leagueId}
+            onChanged={onChanged}
+          />
+        </Suspense>
+      )}
       <div className="report-grid">
         {groups.map(([title, label, value, help]) => (
           <article className="admin-panel" key={title}>
@@ -216,7 +230,20 @@ export function LeagueSettings({
           <p>No settings changes recorded.</p>
         )}
       </article>
-    {canConfigure&&<Suspense fallback={<p role="status">Loading league intake…</p>}><LeagueIntake key={leagueId} onImported={onChanged}/></Suspense>}
+      {canConfigure && (
+        <Suspense fallback={<p role="status">Loading invitation reviews…</p>}>
+          <TeamClaimAdmin
+            key={leagueId}
+            leagueId={leagueId}
+            teams={data.teams}
+          />
+        </Suspense>
+      )}
+      {canConfigure && (
+        <Suspense fallback={<p role="status">Loading league intake…</p>}>
+          <LeagueIntake key={leagueId} onImported={onChanged} />
+        </Suspense>
+      )}
     </section>
   );
 }

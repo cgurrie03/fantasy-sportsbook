@@ -1,3 +1,7 @@
+import {
+  defaultWalletPolicy,
+  weeklyCashTarget,
+} from "../../api/_lib/wallet-policy";
 import { openSleeperMatchup } from "../lib/sleeper-link";
 import { useTicketPage } from "../lib/account-history";
 import { marketCategories, requiredCategories } from "../lib/market-categories";
@@ -295,6 +299,8 @@ export function Sportsbook({
   const dialog = useRef<HTMLDialogElement>(null),
     banner = useRef<HTMLButtonElement>(null),
     request = useRef({ key: "", id: "" });
+  const policy = (board?.policy ?? futureBoard?.policy ?? defaultWalletPolicy)
+    .values;
   const balance = Number(
       data.wallets.find((w) => w.team_id === member.team_id)?.balance ?? 0,
     ),
@@ -306,7 +312,8 @@ export function Sportsbook({
     valid =
       !weekAccountPending &&
       canPlacePicks(picks) &&
-      wager >= 1 &&
+      wager >= policy.minimum_stake &&
+      picks.length <= policy.maximum_picks &&
       wager <= balance &&
       Math.abs(Math.round(wager * 100) - wager * 100) < 1e-7 &&
       (!appliedBoost || wager <= Number(appliedBoost.terms.max_stake)) &&
@@ -517,7 +524,10 @@ export function Sportsbook({
     let active = true;
     setStandingsLoading(true);
     void Promise.resolve(
-      supabase?.rpc(member.wallet_id ? "user_leaderboard" : "league_leaderboard", { p_league: member.league_id }),
+      supabase?.rpc(
+        member.wallet_id ? "user_leaderboard" : "league_leaderboard",
+        { p_league: member.league_id },
+      ),
     )
       .then((s) => {
         if (!active) return;
@@ -540,7 +550,14 @@ export function Sportsbook({
     return () => {
       active = false;
     };
-  }, [member.league_id, member.wallet_id, review, data.history_revision, reloadQuotes, tab]);
+  }, [
+    member.league_id,
+    member.wallet_id,
+    review,
+    data.history_revision,
+    reloadQuotes,
+    tab,
+  ]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -611,7 +628,7 @@ export function Sportsbook({
       setPicks(picks.filter((p) => p.id !== m.id));
       return;
     }
-    const conflict = pickConflict(picks, m);
+    const conflict = pickConflict(picks, m, policy.maximum_picks);
     if (conflict) {
       setNotice(conflict);
       return;
@@ -1551,7 +1568,11 @@ export function Sportsbook({
         <>
           <h1>League Leaderboard</h1>
           <p className="muted">
-            <em>{member.wallet_id ? "Ranked by Net Profit, then Bets Placed" : "Ranked by Net Profit, Balance, then Bets Placed"}</em>
+            <em>
+              {member.wallet_id
+                ? "Ranked by Net Profit, then Bets Placed"
+                : "Ranked by Net Profit, Balance, then Bets Placed"}
+            </em>
           </p>
           {standingsLoading && !standings.length && (
             <p role="status">Loading standings...</p>
@@ -1881,7 +1902,7 @@ export function Sportsbook({
             ? picks.some(isFuture)
               ? "Choose at least 2 Make/Miss Playoffs picks."
               : "Choose at least 2 picks, or a Weekly Special single."
-            : `Enter a wager from $1 to ${money(Math.min(balance, appliedBoost ? Number(appliedBoost.terms.max_stake) : balance))}.`}
+            : `Enter a wager from ${money(policy.minimum_stake)} to ${money(Math.min(balance, appliedBoost ? Number(appliedBoost.terms.max_stake) : balance))}.`}
         </p>
         {picks.some(isFuture) && (
           <p className="wager-help">
@@ -1889,7 +1910,7 @@ export function Sportsbook({
             minimum:{" "}
             {futureStakes === undefined || data.betting_error
               ? "Unavailable until account totals refresh"
-              : money(Math.max(25, 100 - futureStakes - wager))}
+              : money(weeklyCashTarget(policy, futureStakes + wager))}
             .
           </p>
         )}

@@ -18,6 +18,7 @@ try {
   await mkdir(path.join(root, "_lib"));
   for (const file of [
     "_lib/league-intake",
+    "_lib/wallet-policy",
     "league-intake",
     "_lib/routine-retention",
     "_lib/environment-policy",
