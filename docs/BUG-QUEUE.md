@@ -1,17 +1,17 @@
 # Bug and validation queue
 
-Updated November 1, 2026. Canonical local project queue, maintained through chat.
+Updated November 2, 2026. Canonical local project queue, maintained through chat.
 Keep private reports/financial evidence out of this public-repository-ready file.
 An observation from the October 28 audit is dated evidence, not a new live probe.
 Original A01–A25 definitions remain in [the audit](handoffs/10-expanded-audit-implementation.md).
-The milestone counter remains [16 complete / 8 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
+The milestone counter remains [17 complete / 7 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
 Closing a development fix does not mean it has shipped to production.
 
 ## Priority order
 
 | Order | ID | Priority / kind | Work and evidence | Status / dependency | Done when |
 |---|---|---|---|---|---|
-| 1 | B001 | P1 / confirmed historical production problem | A01/A06/A12: bulk archives/storage and broad review work; October 28 audit recorded quota overage/review failures; fresh Oct 29 read-only measurement is 1.289 GB physical, with about 94% in the same three bulk tables | Dev preventive formats/readers/retention delivered; production conversion/cleanup blocked by recovery and exact approval; milestones 13/20/21/23/24 | Fresh measurements, useful summaries/dependency inventory, verified recovery, approved bounded cleanup and measured physical/wire impact |
+| 1 | B001 | P1 / confirmed historical production problem | A01/A06/A12: bulk archives/storage and broad review work; October 28 audit recorded quota overage/review failures; fresh November 2 read-only measurement is 1.298 GB physical; the earlier Oct 29 analysis attributed about 94% to three bulk tables | Dev preventive formats/readers/retention delivered; production conversion/cleanup blocked by recovery and exact approval; milestones 13/20/21/23/24 | Fresh measurements, useful summaries/dependency inventory, verified recovery, approved bounded cleanup and measured physical/wire impact |
 | 2 | B002 | P1 / validation gate | A04/A13: even 8/10/12/14/16 scorer partition is fixed/tested in dev; whole supported rules/generation/acceptance/settlement contract is not fully proved; odd fields reject explicitly | Milestones 16/22; no universal compatibility claim | Contrasting full journeys pass for declared supported settings; unsupported settings stay visible and cannot silently activate |
 | 3 | B003 | P1 / validation gate | A15/A18: local release checks pass, but exact owner-approved production SHA/migration enforcement and deployment configuration still need the release gate | Milestone 21; production untouched | A push/build cannot silently publish an unapproved release; reviewed rollback/restore constraints and exact approvals are enforced |
 | 4 | B004 | P1 / validation gate | A01/A11/A20: synthetic request/JSON savings are proved; physical storage, real wire bytes, queue fairness, combined quotas and two-week plateau remain | Milestone 23; baseline can run early, final gate follows the final lifecycle/settings changes | Measured one-/two-league load and growth fit the agreed reserve; no second real league enabled on estimates |

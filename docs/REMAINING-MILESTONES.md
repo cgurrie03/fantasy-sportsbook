@@ -1,22 +1,29 @@
 # Remaining handoff milestones
 
-Updated November 2, 2026 ET. **16 complete / 8 remaining**.
-The newest qualified source is `f7750bd`, **43/43**, for preferences/budget stage 3.
-Handoff 37 records protected DEV rollout and hosted verification. Documentation
-commits after that source are not claimed to be tested/deployed.
+Updated November 2, 2026 ET. **17 complete / 7 remaining**.
+The newest qualified source is `40f19c1`, **43/43** in 241.511 seconds.
+Milestone 18 is complete DEV; handoff 38 records protected rollout and verification.
+Documentation commits after that source are not claimed to be tested/deployed.
 
 | ID | Remaining implementation / evidence | Owner or elapsed-time gate |
 |---|---|---|
 | 13 | Dependency/useful-summary inventory, resumable historical conversion/cleanup and physical-space measurements | Full recovery readiness, exact production plan and owner approval before any production deletion |
 | 16 | Broader typed shared pricing/boost/market/featured/schedule/notification/branding policy; provider capability approval, drift and renewal; consistent generation/acceptance/settlement/report/help consumers | Owner reviews actual new-league house rules/capability report; imported leagues remain quarantined. Claims and wallet/ticket policy v1 are complete DEV |
-| 18 | Stages 1–3 actual-window delivery, relative scheduling and scoped preferences/three-message routine budget/collision handling qualified; factual evolving stories, scoped staff alerts and complete lifecycle/phase-aware matrix remain | Preserve actual Wed–Thu acceptance and approved reopenings. A handoff's Monday example does not authorize changing betting windows. No real/bulk mail launch |
 | 20 | Supported full platform/Auth/storage/config backup and off-site recovery; full restore drill deferred | Phone access to Drive and password-manager key/password confirmed; key import complete. Full restore drill deferred by owner for this fake-money project. v3 code is tested; full-platform backup coverage remains unfinished |
 | 21 | Actual external exact-release owner approval boundary and remaining deployment-hook/credential routes | Production Git disconnect is complete; local evidence and an unapproved manifest do not enforce an external owner boundary. Connector metadata cannot prove omitted hooks disabled |
-| 22 | Residual A01–A25 matrix, supported configuration journeys, tenant/device cases, simultaneous peaks, outages and season renewal | Final coverage depends on 16/18; individual independent audit fixtures can progress sooner |
+| 22 | Residual A01–A25 matrix, supported configuration journeys, tenant/device cases, simultaneous peaks, outages and season renewal | Notification milestone 18 is complete; final coverage still depends on 16; individual independent audit fixtures can progress sooner |
 | 23 | Actual physical/wire/shared-quota measurements, one-/two-league load, growth forecast and two-week retained-data plateau | Real elapsed observations required after the applicable lifecycle changes. No new monitor/automation is authorized; the earlier scheduled continuation stays canceled |
 | 24 | Exact qualified production source/migration review, restore/rollback constraints, owner-approved deployment and postflight | Explicit owner approval of the concrete release, required recovery/capacity/product evidence; a second real league needs its own capacity approval |
 
 ## Completed in this continuation
+
+- Milestone 18: factual shared opening editions, verified teamless staff alerts,
+  exact recap credits, final-week closeout, actual phase/window availability and
+  frozen/current delivery identity checks. All 43 release suites pass on 40f19c1;
+  three DEV migrations and rollback probes passed, READY protected deployment
+  dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i serves DEV. No actual mail/activation.
+- Milestone 23 progress: November 2 physical metadata baseline, DEV 17.52 MB before
+  this batch and production 1.298 GB (read-only). Wire/quota/load/plateau remain.
 
 - Scoped seven-day commissioner signup links with optional team/email restrictions,
   fresh verified requests, owner CAS approval/rejection/revocation and separate

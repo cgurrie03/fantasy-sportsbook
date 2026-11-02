@@ -1,6 +1,6 @@
 # Prioritized implementation list
 
-Updated November 1, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
+Updated November 2, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
 do not add to or replace the stable 24-milestone count. Default owner: Cooper for
 policy/production decisions; Codex for the authorized development implementation.
 Ready items may proceed while earlier items wait for required evidence/approval.
@@ -18,7 +18,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 | 9 | F009 | P1 | Physical/wire shared-quota baseline, growth forecast and two-week plateau | 23 | Baseline can proceed early; final sign-off follows retained-data/feature changes; blocks another real league |
 | 10 | F010 | P1 | Recovery-approved historical conversion/cleanup | 13 | Blocked on useful summaries/dependency plan, F001/F002 and exact owner approval; measure physical recovery separately from JSON deletion |
 | 11 | F012 | P1 release gate | Owner-reviewed production rollout and postflight | 24 | Blocked on exact tested source/migrations, required recovery/capacity/product gates; not an automatic final push |
-| 12 | F011 | P2 | Window-aware notifications/preferences, receipt lifecycle and season storylines | 18 | Stages 1–3 qualified 43/43: actual-window guards, relative scheduling and personal/league preferences with a durable three-message routine budget and Monday collision handling; handoffs 35–37 track DEV checkpoints. Factual evolving stories, scoped staff alerts and full lifecycle/preview matrix remain; preserve Wed–Thu acceptance plus approved reopenings |
+| 12 | F011 | P2 | Window-aware notifications/preferences, receipt lifecycle and season storylines | 18 | Done DEV; handoffs 35-38, 43/43 on 40f19c1, verified hosted migrations/rollback probes and protected Preview. Real shared wire/capacity measurements and approved production mail remain 23/24 |
 | 13 | F013 | Optional | Owner-only in-app bug/feature board | Outside stable counter | Not selected; owner confirmed Markdown + chat; no in-app queue work is authorized by that choice |
 | 14 | F014 | Deferred | Public support button/automatic error reporting described in handoff 11 | Deferred / excluded | No deployment authorization inferred from an internal queue request |
 
@@ -29,7 +29,7 @@ after its policy dependencies. Historical production cleanup stays approval-gate
 
 ## Current development completion summary
 
-Milestones 01–12, 14, 15, 17 and 19 are complete in their stated isolated-development
+Milestones 01–12, 14, 15, 17, 18 and 19 are complete in their stated isolated-development
 scope: independent dev/Auth/hosting; revision cache; refresh fencing/cleanup;
 futures edits; financial local recovery; bounded model/publication/live evidence;
 compact summaries/expiry/prospective evaluation; paged financial histories/

@@ -59,3 +59,43 @@ measurements and the real two-week plateau; no production/bulk mail is authorize
 Local migrations: 20261102202956, 20261102210218, 20261102212622. No hosted mapping
 or deployment is claimed at this implementation checkpoint. DEV remains stopped,
 capture-only and protected. Production, public Git and owner key custody unchanged.
+
+## Qualified and deployed closeout
+
+**Milestone 18 complete DEV; 17 complete / 7 remaining.** Clean source
+40f19c14473957f9ab0fde8f3323035ba42c7d65 passed **43/43** suites in 241.511 seconds.
+The initial 8b58806 regression run failed three fixture/dependency checks and is
+not release evidence. Corrected retention, isolation and Monday module fixtures
+are part of the qualified source. No new lint warning was retained.
+
+Hosted immutable DEV mappings: 20261102202956 -> **20261102214048**;
+20261102210218 -> **20261102214053**; 20261102212622 -> **20261102214057**.
+Actual stopped-DEV rollback probes passed for staff binding/dedup, scoped previews,
+pending funding facts, retention and private/service-only ACLs. Two pending wallets,
+zero entries/tickets/emails/new editorial or staff budget rows after rollback;
+operations/automation off. Same explicitly defined five-table financial digest
+before/after: **a934b2e187fa6f5ae0e8cd77b0507451**. The JSON-key definition differs
+from older digest receipts; compare like definitions only.
+
+Advisor review: 66 authenticated-definer WARN (+1 operator-gated read-only preview),
+2 anon-definer WARN unchanged, 1 Auth WARN unchanged, 20 no-policy INFO (+2 private
+RLS tables with no direct client/service grants). Prior metadata unchanged.
+
+READY protected Preview **dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i** is on all three DEV
+aliases. Hosted guard/API checks passed and full build logs contain no TS errors.
+All four signed-out DEV URLs redirect 302 to Vercel SSO; all-deployment protection
+remains enabled. Production canonical remains **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ**.
+No production write, GitHub push, real mail or automation activation.
+
+M23 progress only: read-only physical baseline at 21:37 UTC, DEV database
+17,520,307 bytes / production 1,297,790,643 bytes. DEV after migrations and rollback
+probes 17,708,723 bytes at 21:41 UTC. Sizes include internal/allocated/index/TOAST
+pages; no free-capacity/wire/plateau conclusion. Real quotas, combined load/growth
+and elapsed plateau remain separate release gates.
+
+Ignored evidence: work/notification-batch-completion-receipt.json,
+work/notification-batch-hosted-probe.sql, work/notification-batch-release.log,
+work/notification-batch-capacity-baseline.json, release provenance/unapproved review
+and phone/desktop editorial sample screenshots. Later documentation-only HEAD is
+not the qualified/deployed app source. Current NEXT-SESSION consolidates prior
+checkpoints without changing production authorization or deferred recovery custody.

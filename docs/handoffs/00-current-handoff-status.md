@@ -1,3 +1,9 @@
+Current entry point: [consolidated handoff](../NEXT-SESSION.md), updated November 2.
+**17 complete / 7 remaining**. Milestone 18 is complete DEV: [handoff 38](38-FACTUAL-EDITORIAL-STAFF-AND-LIFECYCLE.md).
+Qualified 40f19c1 passed 43/43 and is deployed to protected DEV; production remains
+unchanged. Canonical queues/counter are linked from NEXT-SESSION. Notes below are
+historical checkpoints and do not supersede this current state.
+
 Next-session entry point: [consolidated handoff](../NEXT-SESSION.md), prepared October 30 ET at the owner’s usage-budget request. Counter **15 complete / 9 remaining**. Wallet work is local and unactivated; recovery-format coverage and final hosted validation remain. Production Git unlink is verified and its running deployment is unchanged. No scheduled continuation.
 
 Wallet continuation: [handoff 28](28-independent-wallets-in-progress.md). Local independent-account engine/read/mail tests pass; UI/report/recovery and hosted validation remain. No wallet migration/activation is hosted yet. Production Git disconnection is owner-confirmed and verified; the running production deployment is unchanged. Counter **15 complete / 9 remaining**. Continue implementation; no new scope confirmation needed.

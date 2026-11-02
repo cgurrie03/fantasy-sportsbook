@@ -6,7 +6,7 @@ units. It is not a count of individual code changes or the 25 audit findings.
 production rollout and broader related work remain separate milestones. Partially
 implemented milestones remain in the remaining count. Deferred support is excluded.
 
-Current counter: **16 complete / 8 remaining**. Milestone 16 is in progress: independent staff access and inactive draft intake/import are verified; handoff 32 adds verified invitations/claims and wallet/ticket policy v1; broader supported settings and provider approval/drift remain. Production historical cleanup (13) remains approval-gated.
+Current counter: **17 complete / 7 remaining**. Milestone 16 is in progress: independent staff access and inactive draft intake/import are verified; handoff 32 adds verified invitations/claims and wallet/ticket policy v1; broader supported settings and provider approval/drift remain. Production historical cleanup (13) remains approval-gated.
 
 | ID | Milestone | Status | Evidence / scope |
 |---|---|---|---|
@@ -27,7 +27,7 @@ Current counter: **16 complete / 8 remaining**. Milestone 16 is in progress: ind
 | 15 | Lazy board categories and shared provider request coalescing | Complete | Handoff 23; category/slip-aware reads and RLS index, hidden pause/resume, shared bounded starter/provider cache with fresh authorization and original source TTLs; synthetic JSON/request evidence, actual wire/physical capacity remains 23 |
 | 16 | Staff roles, versioned settings, imports and approved team claims | In progress | Handoff 24 completes independent staff/owner capabilities, API/UI and grant audit; handoff 31 adds versioned intake/capability reports and resumable inactive import; handoff 32 adds verified claims and effective financial policy; broader shared supported settings and provider approval/drift remain; wallet dependency 17 is complete DEV |
 | 17 | Separate per-user, per-league wallets | Complete | Handoff 30; 39/39 for efb98df, protected DEV deployment, hosted ACL/rollback checks; owner verified both league cutovers; funding pending and operations disabled |
-| 18 | Notification lifecycle and season storylines | In progress | Handoffs 34–37; actual-window guards, relative scheduling and scoped preferences/three-message budget/Monday collision handling qualified 43/43 on f7750bd; protected DEV receipt in 37. Factual stories, staff alerts and complete lifecycle/preview matrix remain |
+| 18 | Notification lifecycle and season storylines | Complete | Handoffs 34-38; factual bounded shared editions, verified staff alerts/caps, exact recap credit/final week closeout and phase-aware availability. 43/43 on 40f19c1; hosted rollback/ACL checks and protected READY DEV. Actual wire/shared-capacity evidence and production mail remain 23/24 |
 | 19 | Routine log, email-body and unused media retention budgets | Complete | Handoff 26; prospective admission caps, terminal body/detail TTLs, referenced-art protection, isolated bounded worker cleanup and selected-league status; legacy/prod conversion and measured physical plateau remain separate |
 | 20 | Full platform/off-site recovery and owner key custody | Remaining | Financial-only coverage remains incomplete; password-manager import and phone access confirmed, full restore drill deferred by owner |
 | 21 | Enforced exact-release owner approval workflow | In progress | Handoff 27 adds exact clean SHA/tree/migration evidence and unapproved review preparation; live publication containment and protected owner approval remain |
