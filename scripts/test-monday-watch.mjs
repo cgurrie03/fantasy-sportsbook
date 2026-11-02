@@ -9,6 +9,7 @@ try {
   for (const file of [
     "monday-watch",
     "email-templates",
+    "editorial-stories",
     "game-status",
     "line-model",
     "ticket-progress",

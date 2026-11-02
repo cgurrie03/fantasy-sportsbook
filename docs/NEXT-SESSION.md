@@ -1,5 +1,16 @@
 # BOFF — consolidated next-session handoff
 
+## Active notification batch - November 2, 2026
+
+Stages 4-6 are implemented locally; handoff 38 records behavior, bounds and tests.
+Full clean-source qualification and one protected DEV rollout are next. Do not
+claim this batch deployed or close milestone 18 until receipts are recorded.
+Current deployed source is still f7750bd; counter 16 complete / 8 remaining.
+No owner action, production write, real mail or automation activation is pending.
+The initial batch regression run exposed three fixture/dependency mismatches;
+retention, isolation and Monday-watch focused checks now pass after correction.
+This initial run is not release evidence. Use the subsequent clean qualification.
+
 ## Current continuation — November 2, 2026 ET
 
 Task group 3 of notification milestone 18 is verified/deployed: personal/league

@@ -108,5 +108,5 @@ const mock=({member=true,ticket=true}={})=>({from(table){const q={select(){retur
 await validateDeliveryScope(mock(),{league_id:'B',team_id:'same-roster',ticket_id:'B-ticket',recipient:'b@b.test',payload:{to:['b@b.test']}});
 await assert.rejects(validateDeliveryScope(mock({member:false}),{recipient:'b@b.test'}),/membership/);
 await assert.rejects(validateDeliveryScope(mock({ticket:false}),{ticket_id:'A-ticket',recipient:'b@b.test'}),/mismatch/);
-await assert.rejects(validateDeliveryScope(mock(),{kind:'attention',recipient:'b@b.test'}),/membership/);
+await assert.rejects(validateDeliveryScope(mock(),{kind:'attention',recipient:'b@b.test'}),/staff alert binding/);
 console.log('Passed: two disconnected leagues with shared identity/roster numbers; scoped roles, wallets, quotes, idempotent debit/refund, reports, recipients, cached payloads, jobs and default-off rollout. In-memory only; no emails sent.');

@@ -7,7 +7,7 @@ import {
 } from "../lib/execution-health";
 import type { ExecutionRun, ExecutionJob } from "../lib/execution-health";
 import type { League } from "../lib/accounts";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage } from "../lib/accounts";
 import {
@@ -176,12 +176,13 @@ export function WeeklySchedule({
   const [availabilityError, setAvailabilityError] = useState("");
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const availabilityRequest = useRef(0);
-  useEffect(() => {
+  const invalidateAvailability = useCallback(() => {
     availabilityRequest.current++;
-    return () => {
-      availabilityRequest.current++;
-    };
-  }, [leagueId, emailKind]);
+  }, []);
+  useEffect(() => {
+    invalidateAvailability();
+    return invalidateAvailability;
+  }, [leagueId, emailKind, invalidateAvailability]);
   function chooseEmailKind(kind: EmailKind | "") {
     availabilityRequest.current++;
     setAvailability(null);

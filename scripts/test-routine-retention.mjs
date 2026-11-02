@@ -4,7 +4,8 @@ import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
 import {retireRoutinePayloads} from '../api/_lib/routine-retention.ts';
 const db=new PGlite(),q=async(s,a=[])=>(await db.query(s,a)).rows;
-const A=randomUUID(),B=randomUUID(), teams=new Map();
+const A=randomUUID(),B=randomUUID(),admin=randomUUID(),alertJob=randomUUID(), teams=new Map();
+let hardened=false;
 try {
  assert.deepEqual(await retireRoutinePayloads({rpc:()=>{throw new Error('offline');}}),{failed:true});
  assert.deepEqual(await retireRoutinePayloads({rpc:(name,args)=>{assert.equal(name,'cleanup_routine_payloads');assert.equal(args.p_limit,10);return {abortSignal:async signal=>{assert(signal instanceof AbortSignal);return {data:{retired_email_bodies:1},error:null};}};}}),{retired_email_bodies:1});
@@ -19,11 +20,18 @@ try {
  for(const id of [A,B])await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor)
  values($1,'Routine fixture',($1::uuid)::text,2026,1,5,now())`,[id]);
  for(const league of [A,B]){const team=randomUUID();teams.set(league,team);await q("insert into teams(id,league_id,roster_id,team_name,sleeper_owner_id,owner_name,sportsbook_owner_id,sportsbook_owner_name) values($1,$2,1,'Fixture','x','X','x','X')",[team,league]);await q("insert into league_memberships(league_id,team_id,invited_email,display_name,sleeper_user_id,role) values($1,$2,'fixture@example.test','Fixture','x','admin')",[league,team]);}
- const email=async(status='sent',extra={})=>(await q(`insert into outbound_emails(league_id,event_key,kind,recipient,market_week,payload,status,sent_at,lease_until,provider_id,team_id)
+ await q("insert into auth.users values($1,'fixture@example.test',now())",[admin]);
+ await q('update league_memberships set user_id=$1',[admin]);
+ await q("insert into automation_jobs(id,league_id,event_key,operation,market_week,status)values($1,$2,($1::uuid)::text,'recheck',5,'done')",[alertJob,A]);
+ const email=async(status='sent',extra={})=>hardened?(await q(`insert into outbound_emails(league_id,event_key,kind,recipient,market_week,payload,status,sent_at,lease_until,provider_id,staff_user_id,staff_context)
+ values($1,$2,'attention','fixture@example.test',5,$3,$4,now()-interval '8 days',$5,'provider-immutable',$6,$7)returning id`,
+ [extra.league??A,extra.key??randomUUID(),JSON.stringify({to:['fixture@example.test'],html:'original body',text:'original text'}),status,extra.lease??null,admin,
+ JSON.stringify({contract:'staff-attention-v1',league_id:extra.league??A,user_id:admin,job_id:alertJob,category:'automation',operation:'recheck',nfl_season:2026,market_week:5,queued_at:new Date().toISOString()})]))[0].id:(await q(`insert into outbound_emails(league_id,event_key,kind,recipient,market_week,payload,status,sent_at,lease_until,provider_id,team_id)
  values($1,$2,'attention','fixture@example.test',5,$3,$4,now()-interval '8 days',$5,'provider-immutable',$6) returning id`,
  [extra.league??A,extra.key??randomUUID(),JSON.stringify({to:['fixture@example.test'],html:'original body',text:'original text'}),status,extra.lease??null,teams.get(extra.league??A)]))[0].id;
  const legacy=await email();
  for(const f of files.filter(f=>f>='20261030002655'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ hardened=true;
  const body=await email(),pending=await email('pending'),failed=await email('failed'),review=await email('needs_review'),sending=await email('sending');
  const leased=await email('sent',{lease:new Date(Date.now()+3600000).toISOString()}),foreign=await email('sent',{league:B});
  const revoked=await email('sent',{league:B});
@@ -66,7 +74,7 @@ try {
  for(let i=0;i<127;i++)await image();
  await assert.rejects(image(),/capacity reached/);
  assert.deepEqual((await q("select has_table_privilege('boff_routine_retention','wallets','select') financial_select,has_table_privilege('boff_routine_retention','outbound_emails','delete') outbox_delete,has_column_privilege('boff_routine_retention','automation_jobs','status','update') job_status_update"))[0],{financial_select:false,outbox_delete:false,job_status_update:false});
- const admin=randomUUID();await q("insert into auth.users values($1,'fixture@example.test',now())",[admin]);await q('update league_memberships set user_id=$1 where league_id=$2',[admin,A]);
+
  await db.exec(`set row_security=on;set request.jwt.claim.role='authenticated';set request.jwt.claim.sub='${admin}';set role authenticated`);
  const health=(await q('select routine_retention_status($1) r',[A]))[0].r;assert(health.logical_bytes_only);assert(health.email.unresolved>30);assert.equal(health.images.count,128);
  await db.exec('reset role;set request.jwt.claim.sub=\'\';set role boff_routine_retention');

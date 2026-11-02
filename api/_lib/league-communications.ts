@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { staffAlertContext } from "./staff-alerts.js";
 
 export async function participantMailAudience(
   db: SupabaseClient,
@@ -144,4 +143,36 @@ export function validateCommunicationPayload(payload: any, league: any) {
     )
       throw Error("Email action URL no longer matches the configured league.");
   }
+}
+
+export async function staffAlertContext(db: SupabaseClient, row: any) {
+  if (
+    !row.id ||
+    !row.staff_user_id ||
+    row.team_id != null ||
+    row.ticket_id != null
+  )
+    throw Error("Current verified staff alert binding is unavailable.");
+  const r = await db
+    .rpc("staff_alert_context", { p_email: row.id })
+    .abortSignal(AbortSignal.timeout(15000));
+  const c = r.data;
+  if (
+    r.error ||
+    !c ||
+    c.contract !== "staff-attention-v1" ||
+    c.league_id !== row.league_id ||
+    c.user_id !== row.staff_user_id ||
+    !c.user_id ||
+    c.recipient !== row.recipient ||
+    row.team_id != null ||
+    row.ticket_id != null ||
+    c.market_week !== row.market_week ||
+    !["results", "futures", "lineup", "automation"].includes(c.category) ||
+    !/^[a-z_]{1,40}$/.test(c.operation) ||
+    !Number.isInteger(c.nfl_season) ||
+    !Number.isFinite(Date.parse(c.queued_at))
+  )
+    throw Error("Current verified staff alert scope is unavailable.");
+  return c;
 }
