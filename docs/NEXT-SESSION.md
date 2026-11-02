@@ -340,3 +340,23 @@ is being fixed in additive migration 20261102022611: future tickets are inserted
 parlay before their type changes, and a season board may retain market_week 1.
 Effective wager policy must use server-recorded placement_week. Preserve accepted
 snapshots; no historical rewrite. Existing hosted tables had zero tickets/overrides.
+
+
+## Verified placement-policy fix and notification inventory
+
+B009 is fixed DEV (handoff 33). Qualified source `2366821`, 42/42; local migration
+20261102022611 -> hosted **20261102023426**, now immutable. Actual user/legacy RPC
+regressions enforce current placement-week min/pick limits on a week-one season
+board; retries and refunds retain accepted terms. Hosted temporary-row probes and
+advisor findings passed; existing leagues/wallets/digest unchanged. No real tickets
+or funds created. App bytes unchanged, so app source/deployment remain 44f1136 /
+dpl_VyWiGNuK9qVR4NhSW766i8JWzDEN; no redundant frontend deploy was needed.
+
+Handoff 34 inventories notification paths and confirmed gaps. Next implementation:
+compact authoritative send-time window contract and relative reminder scheduling,
+then preferences/routine volume, factual evolving stories and staff-only alerts.
+No notification runtime/schedule/template/mail changed in this inventory step.
+Counter **16 complete / 8 remaining**; milestone 18 is inventory/in-progress only.
+Owner phone access is confirmed and full restore drill is deferred; no owner action
+is currently requested. Preserve the exact source evidence and document-only HEAD
+qualification distinction.

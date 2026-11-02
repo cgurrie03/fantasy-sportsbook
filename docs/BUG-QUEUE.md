@@ -68,5 +68,4 @@ future wager being accepted with the placement-week minimum set to $5. This is
 pretend money; no real-money feature or loss is implied. Hosted DEV had no accepted
 tickets or custom policy versions. Fix uses immutable server-recorded placement_week
 for new wagers, preserving original accepted snapshots and duplicate-request terms.
-Additive migration 20261102022611 and legacy/user-wallet regressions are under
-verification; never edit the already-applied policy migration.
+Fixed DEV: migration 20261102022611 maps to hosted 20261102023426; legacy/user-wallet regressions, hosted rollback probes and 42/42 for source 2366821 passed. See handoff 33. Never edit the already-applied policy migrations.
