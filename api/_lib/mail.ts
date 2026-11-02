@@ -656,7 +656,7 @@ export async function deliverEmails(
       const routine = isRoutine(row.kind)
         ? await routinePermission(db, row, false)
         : null;
-      if (routine && !routine.allowed) {
+      if (routine?.allowed === false) {
         const saved = await db
           .from("outbound_emails")
           .update({
@@ -811,7 +811,7 @@ export async function deliverEmails(
       }
       if (routine) {
         const latest = await routinePermission(db, row, true);
-        if (!latest.allowed) {
+        if (latest.allowed === false) {
           const saved = await db
             .from("outbound_emails")
             .update({

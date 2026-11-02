@@ -15,6 +15,15 @@ process.env.NODE_ENV = "test";
 // Match deployment: TypeScript sources become JavaScript, without preserving .ts files.
 const root = await mkdtemp(path.resolve("node_modules/.api-runtime-"));
 try {
+  // Match the API compiler as well as exercising transpiled runtime behavior.
+  // Frontend project references do not type-check these server entry points.
+  const apiTypes = ts.createProgram(["api/_lib/mail.ts"], {
+    noEmit: true, target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext, allowImportingTsExtensions: true,
+    skipLibCheck: true, strict: false, types: ["node"],
+  });
+  const typeErrors = ts.getPreEmitDiagnostics(apiTypes).filter(d => d.category === ts.DiagnosticCategory.Error);
+  assert.deepEqual(typeErrors.map(d => `${d.file?.fileName ?? "API"}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`), []);
   await mkdir(path.join(root, "_lib"));
   for (const file of [
     "_lib/league-intake",
