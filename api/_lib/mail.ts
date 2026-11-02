@@ -1,3 +1,9 @@
+import {
+  isPromotional,
+  currentNotificationWindow,
+  windowRejection,
+} from "./notification-window.js";
+import type { NotificationWindow } from "./notification-window.js";
 import { reopeningEmail } from "./reopening-email.js";
 import { environmentIdentity } from "./environment-policy.js";
 import {
@@ -48,32 +54,81 @@ export async function queueEmail(
 export async function buildEmail(
   db: SupabaseClient,
   row: any,
+  verifiedWindow?: NotificationWindow,
 ): Promise<EmailContent> {
-  const acceptedTicket = row.kind === "confirmation" ? (await read(db.from("tickets")
-    .select("*").eq("id", row.ticket_id).eq("league_id", row.league_id).eq("team_id", row.team_id)))[0] : null;
+  const acceptedTicket =
+    row.kind === "confirmation"
+      ? (
+          await read(
+            db
+              .from("tickets")
+              .select("*")
+              .eq("id", row.ticket_id)
+              .eq("league_id", row.league_id)
+              .eq("team_id", row.team_id),
+          )
+        )[0]
+      : null;
   let financialRecipient: any = null;
   if (acceptedTicket?.user_wallet_id) {
-    const result = await db.rpc("financial_email_recipient", { p_ticket: row.ticket_id });
+    const result = await db.rpc("financial_email_recipient", {
+      p_ticket: row.ticket_id,
+    });
     financialRecipient = result.data;
-    if (result.error || !financialRecipient || financialRecipient.wallet_id !== acceptedTicket.user_wallet_id ||
-        financialRecipient.league_id !== row.league_id || financialRecipient.team_id !== row.team_id || financialRecipient.recipient !== row.recipient)
+    if (
+      result.error ||
+      !financialRecipient ||
+      financialRecipient.wallet_id !== acceptedTicket.user_wallet_id ||
+      financialRecipient.league_id !== row.league_id ||
+      financialRecipient.team_id !== row.team_id ||
+      financialRecipient.recipient !== row.recipient
+    )
       throw new Error("Accepted financial recipient unavailable.");
   }
-  if (!financialRecipient && row.wallet_model === "user" && row.kind !== "attention" && row.kind !== "confirmation") {
-    const result = await db.rpc("financial_email_context", {p_league:row.league_id,p_team:row.team_id,p_recipient:row.recipient});
+  if (
+    !financialRecipient &&
+    row.wallet_model === "user" &&
+    row.kind !== "attention" &&
+    row.kind !== "confirmation"
+  ) {
+    const result = await db.rpc("financial_email_context", {
+      p_league: row.league_id,
+      p_team: row.team_id,
+      p_recipient: row.recipient,
+    });
     financialRecipient = result.data;
-    if (result.error || !financialRecipient || financialRecipient.league_id !== row.league_id ||
-        financialRecipient.team_id !== row.team_id || financialRecipient.recipient !== row.recipient)
+    if (
+      result.error ||
+      !financialRecipient ||
+      financialRecipient.league_id !== row.league_id ||
+      financialRecipient.team_id !== row.team_id ||
+      financialRecipient.recipient !== row.recipient
+    )
       throw new Error("Financial recipient approval is unavailable.");
   }
   const [members, teams, wallets, leagues] = await Promise.all([
-    financialRecipient ? Promise.resolve([{team_id: row.team_id, display_name: financialRecipient.display_name}]) : read(
-      db.from("league_memberships").select("*").eq("league_id", row.league_id),
-    ),
+    financialRecipient
+      ? Promise.resolve([
+          {
+            team_id: row.team_id,
+            display_name: financialRecipient.display_name,
+          },
+        ])
+      : read(
+          db
+            .from("league_memberships")
+            .select("*")
+            .eq("league_id", row.league_id),
+        ),
     read(db.from("teams").select("*").eq("league_id", row.league_id)),
-    financialRecipient ? Promise.resolve([{balance: financialRecipient.balance}]) : read(
-      db.from("wallets").select("team_id,balance").eq("team_id", row.team_id),
-    ),
+    financialRecipient
+      ? Promise.resolve([{ balance: financialRecipient.balance }])
+      : read(
+          db
+            .from("wallets")
+            .select("team_id,balance")
+            .eq("team_id", row.team_id),
+        ),
     read(db.from("leagues").select("*").eq("id", row.league_id)),
   ]);
   const member = members.find((m) => m.team_id === row.team_id),
@@ -82,7 +137,8 @@ export async function buildEmail(
     throw new Error("League email membership unavailable.");
   const identity = communicationIdentity(league);
   const balance = wallets[0]?.balance;
-  const availableBalance = financialRecipient && balance === null ? "Funding pending" : money(balance);
+  const availableBalance =
+    financialRecipient && balance === null ? "Funding pending" : money(balance);
   const base = {
     greeting: `Hi ${member.display_name},`,
     url: identity.url,
@@ -91,6 +147,12 @@ export async function buildEmail(
     details: [],
     button: "Open Your Sportsbook",
   };
+  const promotion = isPromotional(row.kind)
+    ? (verifiedWindow ??
+      (await currentNotificationWindow(db, row, league.nfl_season)))
+    : null;
+  if (promotion && !promotion.eligible)
+    throw Error("No actionable weekly betting window: " + promotion.reason);
   if (row.kind === "reopening") {
     const window = (
       await read(
@@ -126,11 +188,17 @@ export async function buildEmail(
       ...base,
       brand: identity.brand,
       week: row.market_week,
-      closes_at: window.closes_at,
+      closes_at: promotion!.deadline!,
     });
   }
   if (row.kind === "monday_watch")
-    return mondayEmail(db, {...row,financial_wallet_id:financialRecipient?.wallet_id}, league, teams, base);
+    return mondayEmail(
+      db,
+      { ...row, financial_wallet_id: financialRecipient?.wallet_id },
+      league,
+      teams,
+      base,
+    );
   if (row.kind === "confirmation") {
     const ticket = acceptedTicket;
     if (!ticket) throw new Error("Accepted ticket unavailable.");
@@ -141,15 +209,17 @@ export async function buildEmail(
         .eq("ticket_id", row.ticket_id)
         .order("leg_number"),
     );
-    const ledger = financialRecipient ? { balance_after: financialRecipient.accepted_balance } : (
-      await read(
-        db
-          .from("wallet_ledger")
-          .select("balance_after")
-          .eq("ticket_id", row.ticket_id)
-          .eq("kind", "wager"),
-      )
-    )[0];
+    const ledger = financialRecipient
+      ? { balance_after: financialRecipient.accepted_balance }
+      : (
+          await read(
+            db
+              .from("wallet_ledger")
+              .select("balance_after")
+              .eq("ticket_id", row.ticket_id)
+              .eq("kind", "wager"),
+          )
+        )[0];
     return {
       ...base,
       subject: `Bet Confirmed · ${ticket.ticket_type === "future" ? "Season Futures" : `Week ${ticket.market_week}`} · ${ticket.id.slice(0, 8)}`,
@@ -197,16 +267,18 @@ export async function buildEmail(
       throw new Error(
         "Published board unavailable; email waits for final publication.",
       );
+    if (promotion?.board_id !== board.id)
+      throw Error("The promotional board changed while composing the message.");
     if (row.kind === "reminder")
       return {
         ...base,
-        subject: `Betting Closes Tonight · Week ${row.market_week}`,
-        heading: "Last Call For This Week’s Picks",
+        subject: `Weekly Betting Window · Week ${row.market_week}`,
+        heading: "Your Available Weekly Picks",
         paragraphs: [
-          "Finish your parlay before betting closes. Fake money, real bragging rights.",
+          "Eligible weekly selections are available now. Individual markets may lock earlier; check the sportsbook for current prices and availability.",
         ],
         details: [
-          ["Betting closes", date(board.closes_at)],
+          ["Available weekly opportunity until", date(promotion!.deadline!)],
           ["Your available balance", availableBalance],
         ],
         button: "Finish Your Picks",
@@ -276,7 +348,7 @@ export async function buildEmail(
       ],
       details: [
         ["Betting opens", date(board.opens_at)],
-        ["Betting closes", date(board.closes_at)],
+        ["Available weekly opportunity until", date(promotion!.deadline!)],
         ["Your balance", availableBalance],
       ],
       stories: openingWeekStories(
@@ -348,9 +420,16 @@ export async function buildEmail(
   const settled = tickets.filter((t) =>
       ["WON", "LOST", "PUSH"].includes(t.status),
     ),
-    mine = settled.filter((t) => financialRecipient ? t.user_wallet_id === financialRecipient.wallet_id : t.team_id === row.team_id),
+    mine = settled.filter((t) =>
+      financialRecipient
+        ? t.user_wallet_id === financialRecipient.wallet_id
+        : t.team_id === row.team_id,
+    ),
     open = tickets.filter(
-      (t) => (financialRecipient ? t.user_wallet_id === financialRecipient.wallet_id : t.team_id === row.team_id) && t.status === "OPEN",
+      (t) =>
+        (financialRecipient
+          ? t.user_wallet_id === financialRecipient.wallet_id
+          : t.team_id === row.team_id) && t.status === "OPEN",
     ).length;
   const legs = tickets.length
     ? await read(
@@ -446,29 +525,41 @@ export async function buildEmail(
         )} led with ${money(best)} in net betting profit. Fake money. Very real receipts.`,
     });
   const ledger = await read(
-    (financialRecipient ? db.from("user_wallet_entries").select("amount,created_at").eq("wallet_id",financialRecipient.wallet_id) :
-      db.from("wallet_ledger").select("amount,created_at").eq("team_id", row.team_id))
+    (financialRecipient
+      ? db
+          .from("user_wallet_entries")
+          .select("amount,created_at")
+          .eq("wallet_id", financialRecipient.wallet_id)
+      : db
+          .from("wallet_ledger")
+          .select("amount,created_at")
+          .eq("team_id", row.team_id)
+    )
       .eq("kind", "weekly_replenishment")
       .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
   );
   const replenished = ledger.reduce((n, l) => n + Number(l.amount), 0);
-  const seasonTickets = financialRecipient ? [] : await read(
-    db
-      .from("tickets")
-      .select("team_id,status,stake,actual_payout")
-      .eq("league_id", row.league_id)
-      .eq("nfl_season", league.nfl_season)
-      .neq("status", "VOIDED"),
-  );
-  const leagueWallets = financialRecipient ? [] : await read(
-    db
-      .from("wallets")
-      .select("team_id,balance")
-      .in(
-        "team_id",
-        teams.map((t) => t.id),
-      ),
-  );
+  const seasonTickets = financialRecipient
+    ? []
+    : await read(
+        db
+          .from("tickets")
+          .select("team_id,status,stake,actual_payout")
+          .eq("league_id", row.league_id)
+          .eq("nfl_season", league.nfl_season)
+          .neq("status", "VOIDED"),
+      );
+  const leagueWallets = financialRecipient
+    ? []
+    : await read(
+        db
+          .from("wallets")
+          .select("team_id,balance")
+          .in(
+            "team_id",
+            teams.map((t) => t.id),
+          ),
+      );
   const standings = teams
     .map((t) => {
       const bets = seasonTickets.filter((b) => b.team_id === t.id);
@@ -518,7 +609,14 @@ export async function buildEmail(
       ["Net betting profit", money(paid - wagered)],
       ["Weekly replenishment", money(replenished)],
       ["Current balance", availableBalance],
-      [financialRecipient ? "Account standing (all seasons)" : "League standing", financialRecipient ? `${financialRecipient.rank} of ${financialRecipient.participants}` : `${standing} of ${teams.length}`],
+      [
+        financialRecipient
+          ? "Account standing (all seasons)"
+          : "League standing",
+        financialRecipient
+          ? `${financialRecipient.rank} of ${financialRecipient.participants}`
+          : `${standing} of ${teams.length}`,
+      ],
     ],
     button: "View Results & Leaderboard",
   };
@@ -527,8 +625,11 @@ export async function deliverEmails(
   db: SupabaseClient,
   ticketId: string | null = null,
 ) {
-  const synthetic = process.env.BOFF_ENVIRONMENT === "test" &&
-    process.env.NODE_ENV === "test" && !process.env.VERCEL && !process.env.VERCEL_ENV;
+  const synthetic =
+    process.env.BOFF_ENVIRONMENT === "test" &&
+    process.env.NODE_ENV === "test" &&
+    !process.env.VERCEL &&
+    !process.env.VERCEL_ENV;
   const identity = synthetic ? null : environmentIdentity(process.env);
   const capture = identity?.environment === "development";
   if (!capture && !synthetic && process.env.BOFF_MAIL_MODE !== "delivery")
@@ -539,56 +640,83 @@ export async function deliverEmails(
     p_ticket: ticketId,
   });
   if (claim.error) throw new Error(claim.error.message);
-  let sent = 0, captured = 0;
+  let sent = 0,
+    captured = 0;
   for (const row of claim.data ?? []) {
     try {
       await validateDeliveryScope(db, row);
-      if (row.kind === "reopening") {
-        const window = (
-          await read(
-            db
-              .from("sportsbook_reopening_reviews")
-              .select("status,closes_at")
-              .eq("id", row.reopening_id)
-              .eq("league_id", row.league_id),
-          )
-        )[0];
-        if (
-          !window ||
-          window.status !== "approved" ||
-          Date.parse(window.closes_at) <= Date.now()
-        ) {
-          await db
+      let promotion: NotificationWindow | undefined;
+      if (isPromotional(row.kind)) {
+        const bound = row.notification_context as
+          NotificationWindow | undefined;
+        if (!bound) {
+          const save = await db
             .from("outbound_emails")
             .update({
-              status: "skipped",
-              last_error: "The reopening window is no longer open.",
+              status: row.attempts > 1 ? "needs_review" : "skipped",
+              last_error:
+                "Queued promotion has no verified window; prepare a fresh notification.",
             })
             .eq("id", row.id);
+          if (save.error)
+            throw Error("Promotion retirement could not be recorded.");
+          continue;
+        }
+        promotion = await currentNotificationWindow(db, row, bound.nfl_season);
+        const reason = windowRejection(row, promotion);
+        if (reason) {
+          const saved = await db
+            .from("outbound_emails")
+            .update({
+              status: row.attempts > 1 ? "needs_review" : "skipped",
+              last_error: reason,
+            })
+            .eq("id", row.id);
+          if (saved.error)
+            throw Error("Promotion retirement could not be recorded.");
           continue;
         }
       }
       if (row.kind === "reminder") {
         let w;
-        if(row.wallet_model==='user'){
-          const scoped=await db.rpc('financial_email_context',{p_league:row.league_id,p_team:row.team_id,p_recipient:row.recipient});
-          if(scoped.error||!scoped.data||scoped.data.recipient!==row.recipient)throw new Error('Financial reminder recipient unavailable.');
-          w=[{balance:scoped.data.balance}];
-        }else w = await read(db.from("wallets").select("balance").eq("team_id", row.team_id));
-        if (!(Number(w[0]?.balance) > 0)) {
-          await db
+        if (row.wallet_model === "user") {
+          const scoped = await db.rpc("financial_email_context", {
+            p_league: row.league_id,
+            p_team: row.team_id,
+            p_recipient: row.recipient,
+          });
+          if (
+            scoped.error ||
+            !scoped.data ||
+            scoped.data.recipient !== row.recipient
+          )
+            throw new Error("Financial reminder recipient unavailable.");
+          w = [{ balance: scoped.data.balance }];
+        } else
+          w = await read(
+            db.from("wallets").select("balance").eq("team_id", row.team_id),
+          );
+        if (
+          w[0]?.balance === null ||
+          !Number.isFinite(Number(w[0]?.balance)) ||
+          Number(w[0]?.balance) < promotion!.minimum_stake!
+        ) {
+          const saved = await db
             .from("outbound_emails")
             .update({
-              status: "skipped",
-              last_error: "No available balance at send time.",
+              status: row.attempts > 1 ? "needs_review" : "skipped",
+              last_error:
+                "Available balance is below the effective minimum wager.",
             })
             .eq("id", row.id);
+          if (saved.error)
+            throw Error("Promotion retirement could not be recorded.");
           continue;
         }
       }
       let payload = row.payload;
       if (!payload) {
-        const c = await buildEmail(db, row);
+        const c = await buildEmail(db, row, promotion);
         const text = [
           c.heading,
           c.greeting,
@@ -630,9 +758,30 @@ export async function deliverEmails(
         if (save.error) throw new Error(save.error.message);
       }
       validatePayloadRecipient(payload, row.recipient);
+      if (promotion) {
+        const latest = await currentNotificationWindow(
+            db,
+            row,
+            promotion.nfl_season,
+          ),
+          reason = windowRejection(row, latest);
+        if (reason) {
+          const saved = await db
+            .from("outbound_emails")
+            .update({
+              status: row.attempts > 1 ? "needs_review" : "skipped",
+              last_error: reason,
+            })
+            .eq("id", row.id);
+          if (saved.error)
+            throw Error("Promotion retirement could not be recorded.");
+          continue;
+        }
+      }
       if (capture) {
         const saved = await db.rpc("capture_development_email", {
-          p_email: row.id, p_payload: payload,
+          p_email: row.id,
+          p_payload: payload,
         });
         if (saved.error) throw new Error("Development email capture failed.");
         captured++;

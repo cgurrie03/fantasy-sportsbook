@@ -1,4 +1,11 @@
-import { communicationIdentity, participantMailAudience } from "./_lib/league-communications.js";
+import {
+  isPromotional,
+  currentNotificationWindow,
+} from "./_lib/notification-window.js";
+import {
+  communicationIdentity,
+  participantMailAudience,
+} from "./_lib/league-communications.js";
 import { retireRoutinePayloads } from "./_lib/routine-retention.js";
 import { createServerClient } from "./_lib/server-client.js";
 import { isWorker } from "./_lib/worker-auth.js";
@@ -158,7 +165,9 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/json",
         "x-worker-secret": process.env.WEEKLY_WORKER_SECRET!,
-        ...(process.env.BOFF_ENVIRONMENT === "development" ? { "x-boff-manual-run": "true" } : {}),
+        ...(process.env.BOFF_ENVIRONMENT === "development"
+          ? { "x-boff-manual-run": "true" }
+          : {}),
       },
       body: JSON.stringify(body),
     });
@@ -179,10 +188,18 @@ export async function POST(request: Request) {
       });
     }
     // Maintenance failure must not starve settlement or replenishment.
-    const cleanup = await db.rpc("cleanup_terminal_refresh_payloads", { p_limit: 5 });
-    if (cleanup.error) console.error("Refresh cleanup failed", { code: cleanup.error.code });
-    const evaluationCleanup=await db.rpc("cleanup_evaluated_samples",{p_limit:2});
-    if(evaluationCleanup.error)console.error("Evaluation cleanup failed",{code:evaluationCleanup.error.code});
+    const cleanup = await db.rpc("cleanup_terminal_refresh_payloads", {
+      p_limit: 5,
+    });
+    if (cleanup.error)
+      console.error("Refresh cleanup failed", { code: cleanup.error.code });
+    const evaluationCleanup = await db.rpc("cleanup_evaluated_samples", {
+      p_limit: 2,
+    });
+    if (evaluationCleanup.error)
+      console.error("Evaluation cleanup failed", {
+        code: evaluationCleanup.error.code,
+      });
     // Cadence detection never waits for the next two-hour pricing interval.
     // A source outage suspends refresh/acceptance, but must not starve settlement.
     let statusError: string | null = null;
@@ -240,7 +257,16 @@ export async function POST(request: Request) {
           .eq("league_id", job.league_id),
       );
       const enqueue = async (kind: string, week: number, onlyAdmin = false) => {
-        const audience = onlyAdmin ? recipients.filter((m: any) => m.role === "admin")
+        const window = isPromotional(kind)
+          ? await currentNotificationWindow(
+              db,
+              { league_id: job.league_id, market_week: week, kind },
+              league.nfl_season,
+            )
+          : null;
+        if (window && !window.eligible) return;
+        const audience = onlyAdmin
+          ? recipients.filter((m: any) => m.role === "admin")
           : await participantMailAudience(db, job.league_id, recipients);
         for (const m of audience)
           await queueEmail(db, {
@@ -250,6 +276,7 @@ export async function POST(request: Request) {
             recipient: m.invited_email,
             team_id: m.team_id,
             market_week: week,
+            ...(window ? { notification_context: window } : {}),
           });
       };
       let summary: unknown = {};
@@ -925,9 +952,10 @@ export async function POST(request: Request) {
         }
       }
     }
-    const delivery = job && /^(generate|refresh)_/.test(job.operation)
-      ? { delivery_deferred: true }
-      : await deliverEmails(db);
+    const delivery =
+      job && /^(generate|refresh)_/.test(job.operation)
+        ? { delivery_deferred: true }
+        : await deliverEmails(db);
     const routineRetention = await retireRoutinePayloads(db);
     return json({
       job: job?.operation ?? null,

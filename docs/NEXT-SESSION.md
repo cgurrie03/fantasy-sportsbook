@@ -1,5 +1,16 @@
 # BOFF — consolidated next-session handoff
 
+## Current continuation — November 2, 2026 ET
+
+Notification milestone 18 stage 1 is implemented: queue-bound actual weekly window,
+fresh and frozen delivery rechecks, real compatible selections/deadlines and factual
+deadline copy. See handoff 35 for qualification/rollout status and remaining stages.
+Relative scheduling, preferences/caps, evolving stories and staff alerts remain.
+Counter **16 complete / 8 remaining**. Preserve owner phone-access attestation and
+deferred full restore drill; no repeated owner recovery action is needed.
+Older checkpoint sections below are historical; use the newest qualification and
+deployment receipt in handoff 35 when available.
+
 Updated November 1, 2026 ET. The October 30 checkpoint was prepared at the owner's request before the usage limit.
 Resume implementation from this file and the canonical queues. Do not restart the
 original audit, repeat completed owner steps, or treat this document as permission

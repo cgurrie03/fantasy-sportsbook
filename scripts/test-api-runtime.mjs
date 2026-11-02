@@ -18,6 +18,7 @@ try {
   await mkdir(path.join(root, "_lib"));
   for (const file of [
     "_lib/league-intake",
+    "_lib/notification-window",
     "_lib/wallet-policy",
     "league-intake",
     "_lib/routine-retention",
@@ -536,15 +537,18 @@ try {
   const financialConfirmation=await mail.buildEmail(financialMailDb,financialMailRow);
   assert(financialConfirmation.details.some(([label,value])=>label==="Balance after placement"&&value==="$93.00"));
   await assert.rejects(mail.buildEmail(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial recipient unavailable/);
+  const windowFixture=(args,patch={})=>{const until=new Date(Date.now()+3600000).toISOString();return {contract:"weekly-notification-window-v1",league_id:args.p_league,nfl_season:args.p_season,market_week:args.p_week,kind:args.p_kind,eligible:true,reason:null,board_id:"weekly",deadline:until,send_before:until,window_key:"a".repeat(32),minimum_stake:1,policy_revision:0,reopening_id:null,window_type:"pregame",...patch};};
+  financialTables.leagues[0].nfl_season=2026;
   let genericContext={...financialRecipient,rank:2,participants:3};
   const genericTables={...financialTables,
-    sportsbook_boards:[{status:"published",closes_at:"2026-11-05T23:00:00Z"}],
+    sportsbook_boards:[{id:"generic-board",status:"published",closes_at:"2026-11-05T23:00:00Z"}],
     tickets:[
       {id:"own-won",user_wallet_id:"wallet-2",team_id:"shared-team",status:"WON",stake:7,actual_payout:14},
       {id:"peer-won",user_wallet_id:"wallet-1",team_id:"shared-team",status:"WON",stake:500,actual_payout:1500},
       {id:"peer-open",user_wallet_id:"wallet-1",team_id:"shared-team",status:"OPEN",stake:100},
     ],user_wallet_entries:[{wallet_id:"wallet-2",amount:25},{wallet_id:"wallet-1",amount:900}],ticket_legs:[]};
-  const genericDb={rpc:async(name,args)=>{
+  const genericDb={rpc:(name,args)=>{
+    if(name==="notification_window")return {abortSignal:()=>Promise.resolve({data:windowFixture(args,{board_id:"generic-board"}),error:null})};
     assert.equal(name,"financial_email_context");assert.equal(args.p_team,"shared-team");
     return args.p_recipient===genericContext.recipient?{data:genericContext,error:null}:{data:null,error:{message:"pending approval"}};
   },from:table=>{
@@ -557,6 +561,10 @@ try {
   await validateDeliveryScope(genericDb,genericRow);
   const reminder=await mail.buildEmail(genericDb,genericRow);
   assert(reminder.details.some(([k,v])=>k==="Your available balance"&&v==="$100.00"));
+  const monday=windowFixture({p_league:"league",p_season:2026,p_week:5,p_kind:"reminder"},{board_id:"generic-board",deadline:"2026-11-10T02:00:00Z",send_before:"2026-11-10T02:00:00Z"});
+  const mondayReminder=await mail.buildEmail(genericDb,genericRow,monday);
+  assert(mondayReminder.details.some(([k,v])=>k==="Available weekly opportunity until"&&v.includes("Mon")));
+  assert(!/tonight|last call/i.test(mondayReminder.subject+" "+mondayReminder.heading));
   genericContext={...genericContext,balance:null};
   const pendingReminder=await mail.buildEmail(genericDb,genericRow);
   assert(pendingReminder.details.some(([,v])=>v==="Funding pending"));
@@ -648,6 +656,7 @@ try {
   ];
   let openingStatus = "published";
   const openingDb = {
+    rpc:(name,args)=>{assert.equal(name,"notification_window");return {abortSignal:()=>Promise.resolve({data:windowFixture(args),error:null})};},
     from(table) {
       const filters = {};
       const query = {
@@ -723,7 +732,8 @@ try {
   );
   assert.equal(finalOpening.featured[0].teams[0].boostedOdds, "+188");
   assert.equal(finalOpening.featured[0].total, "287.5");
-  assert.match(finalOpening.stories[0].title, /FUTURE BETS ARE LIVE/);
+  assert.match(finalOpening.stories[0].title, /Championship Outlook/);
+  assert.match(finalOpening.stories[0].text,/current availability/);
   assert.match(finalOpening.stories[0].text, /Final Owner 3.*\+450/);
   openingQuotes[4].line = 299.5;
   assert.equal(
@@ -836,6 +846,46 @@ try {
       } });
       assert.deepEqual(result, { sent: 0, captured: 1 });
       assert.equal(capturedCalls, 1);
+      // Frozen editorial payloads must pass current scope/window/minimum checks.
+      // Receipts above deliberately have no window dependency or editorial cap.
+      const promotionScope={p_league:"test",p_season:2026,p_week:5,p_kind:"reminder"};
+      const frozenPromotion={...acceptedPayload,subject:"Weekly betting window",text:"Original frozen body"};
+      async function promotionCase({kind="reminder",boundPatch={},currentPatch={},attempts=1,balance=100,unbound=false,changeAtDispatch=false,rpcFailure=false,fresh=false}={}){
+        const scope={...promotionScope,p_kind:kind},bound=windowFixture(scope,{...boundPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{})});
+        const row={id:"promotion",league_id:"test",team_id:"team0",recipient:"test@example.invalid",event_key:"promotion:test",kind,market_week:5,attempts,payload:fresh?null:frozenPromotion,notification_context:unbound?null:bound,...(kind==="reopening"?{reopening_id:"review"}:{})};
+        let windowReads=0,captures=0;const updates=[],capturedPayloads=[];
+        const fixture={rpc(name,args){
+          if(name==="claim_scoped_outbound_emails")return Promise.resolve({data:[row],error:null});
+          if(name==="notification_window")return {abortSignal:()=>{windowReads++;return Promise.resolve({data:windowFixture(scope,{...currentPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{}),...(changeAtDispatch&&windowReads>1?{eligible:false,reason:"closed"}:{})}),error:rpcFailure?{message:"Synthetic window outage"}:null});}};
+          assert.equal(name,"capture_development_email");if(!fresh)assert.deepEqual(args.p_payload,frozenPromotion);capturedPayloads.push(args.p_payload);captures++;return Promise.resolve({data:null,error:null});
+        },from(table){
+          return {
+            select(){const data=table==="leagues"?[{id:"test",name:"Fixture league",nfl_season:2026,sportsbook_url:"https://example.invalid",email_sender:"fixture@example.invalid"}]:table==="teams"?[{id:"team0",team_name:"Fixture team"}]:table==="league_memberships"?[{id:"member",team_id:"team0",display_name:"Member",role:"member"}]:table==="sportsbook_boards"?[{id:"weekly",status:"published",closes_at:bound.deadline}]:[{balance}];const query={eq:()=>query,maybeSingle:async()=>({data:{id:"member",role:"member"},error:null}),then:(resolve,reject)=>Promise.resolve({data,error:null}).then(resolve,reject)};return query;},
+            update(patch){return {eq:async()=>{updates.push(patch);return {error:null};}};}
+          };
+        }};
+
+        const result=await mail.deliverEmails(fixture);return {result,updates,captures,windowReads,capturedPayloads};
+      }
+      const rendered=await promotionCase({fresh:true});assert.equal(rendered.captures,1);assert(rendered.updates.some(u=>u.payload));assert(!/tonight|last call/i.test(rendered.capturedPayloads[0].subject));
+      const closedDuringBuild=await promotionCase({fresh:true,changeAtDispatch:true});assert.equal(closedDuringBuild.captures,0);assert(closedDuringBuild.updates.some(u=>u.payload));assert(closedDuringBuild.updates.some(u=>u.status==="skipped"));
+      const valid=await promotionCase();assert.equal(valid.captures,1);assert.equal(valid.windowReads,2);assert.deepEqual(valid.result,{sent:0,captured:1});
+      for(const options of [
+        {currentPatch:{eligible:false,reason:"closed"}},
+        {currentPatch:{eligible:false,reason:"paused"}},
+        {currentPatch:{eligible:false,reason:"stale_or_suspended"}},
+        {currentPatch:{window_key:"b".repeat(32)}},
+        {boundPatch:{send_before:new Date(Date.now()-1000).toISOString()}},
+        {unbound:true},
+        {balance:null},
+        {balance:2,currentPatch:{minimum_stake:5}},
+        {changeAtDispatch:true},
+        {kind:"opening",currentPatch:{window_key:"b".repeat(32)}},
+        {kind:"reopening",currentPatch:{eligible:false,reason:"reopening_unavailable"}},
+      ]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==="skipped"));assert(x.updates.every(u=>!("payload" in u)),"frozen content must never be rewritten");}
+      for(const options of [{attempts:2,unbound:true},{attempts:2,balance:0},{attempts:2,currentPatch:{eligible:false,reason:"closed"}}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==="needs_review"),"ambiguous prior attempts retain review status");}
+      const outage=await promotionCase({rpcFailure:true});assert.equal(outage.captures,0);assert(outage.updates.some(u=>u.status==="failed"));
+      console.log("Promotional delivery revalidates frozen/new window scope, expiry, pause/staleness, minimum wager and dispatch-time closure; legacy/ambiguous attempts are preserved for review and receipts stay independent.");
       process.env.RESEND_API_KEY = "forbidden-development-provider-key";
       await assert.rejects(mail.deliverEmails(emailDb), /captured mail/);
       console.log("Development central mail boundary captures without provider access and refuses a live key.");

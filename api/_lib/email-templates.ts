@@ -168,9 +168,9 @@ export function openingWeekStories(
     ...(championshipFavorites.length
       ? [
           {
-            title: "🏆 FUTURE BETS ARE LIVE",
+            title: "🏆 Championship Outlook",
             text:
-              "The championship favorites. Who’s bringing home the trophy?\n\n" +
+              "Saved championship prices. Check the sportsbook for current availability.\n\n" +
               championshipFavorites
                 .slice(0, 4)
                 .map(
