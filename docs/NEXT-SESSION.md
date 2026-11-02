@@ -2,10 +2,17 @@
 
 ## Current continuation — November 2, 2026 ET
 
-Task group 3 of notification milestone 18 is locally implemented: personal/league
+Task group 3 of notification milestone 18 is verified/deployed: personal/league
 preferences, three-routine weekly budget, initial/final delivery gates and merged
-personal Monday watch. Handoff 37 records qualification and DEV rollout as they
-finish. Remaining within 18: factual storylines, staff alert scope/cooldowns and
+personal Monday watch. Qualified clean **f7750bd**, **43/43** in 233.963 seconds,
+including a new API type-check gate. Hosted migration **20261102153321** maps local
+20261102150512 and is immutable. Protected READY DEV
+**dpl_CTk19be3RsNWaBL2dZEiCgYNHC4f** serves all three DEV aliases; four signed-out
+URLs redirect to SSO and the final hosted build has no TypeScript errors. Handoff
+37 records rollback/ACL/advisor evidence. Financial digest remains
+5bae6ca0b50de30a40ee058fa53d9173, zero emails/entries/tickets; operations/automation
+off and production canonical dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ unchanged.
+Remaining within 18: factual storylines, staff alert scope/cooldowns and
 the complete lifecycle/phase-aware matrix. Overall **16 complete / 8 remaining**
 does not count these task groups as whole milestones. No repeated owner recovery
 action or automation activation is needed/authorized.

@@ -1,7 +1,7 @@
 # Notification preferences and routine budget — milestone 18, task group 3
 
-November 2, 2026 ET. Implemented locally; final qualification/DEV rollout evidence
-is appended after verification. **16 complete / 8 remaining milestones**.
+November 2, 2026 ET. Verified and deployed to protected DEV; final evidence below.
+**16 complete / 8 remaining milestones**.
 
 ## Completed implementation in this task
 
@@ -78,3 +78,34 @@ Milestone 18 still requires **factual evolving season storylines**, **verified
 staff-only alert scope/cooldowns**, and the **complete notification lifecycle,
 phase-aware preview and consecutive-week/race matrix**. This task does not close
 the whole milestone. Other remaining milestone IDs: 13, 16, 20, 21, 22, 23, 24.
+
+## Verified DEV checkpoint
+
+- Exact clean source **`f7750bd569c34b8df1a71cd34a8b7e7964e24bde`**, **43/43** in
+  **233.963 seconds**. The build now explicitly type-checks the mail dependency
+  graph as well as executing transpiled fixtures. An earlier unaliased candidate
+  exposed two API narrowing errors in hosted logs despite READY; corrected before
+  any alias move. The final build has zero API TypeScript errors. The exact-source
+  release review remains **unapproved**; later docs-only HEAD is not qualification.
+- Local migration **20261102150512 -> hosted 20261102153321**, immutable. Hosted
+  rollback probes passed personal opt-out, league isolation, owner defaults, CAS,
+  essential-type rejection, outsider/ACL denial, no-user-claim paused worker and
+  actual restricted-role composition retirement. Active cap/collision/admission
+  and co-owner behavior were exercised locally without bypassing hosted rollout.
+- Existing two leagues/two pending wallets, zero tickets/entries/emails and
+  operations/automation off remain unchanged. New preference/default/dispatch
+  tables contain zero rows after rollback. Five-table financial digest unchanged:
+  **`5bae6ca0b50de30a40ee058fa53d9173`**.
+- Advisor review: **65** authenticated-definer WARN (four scoped personal/owner
+  RPCs added), **2** anonymous-definer WARN, **1** Auth WARN, **18** no-policy INFO
+  (three private tables intentionally have no direct grants or policies). All prior
+  finding metadata unchanged. Authorization, private-table denial and service-only
+  admission were tested; no anonymous entry point was added.
+- Protected Preview **`dpl_CTk19be3RsNWaBL2dZEiCgYNHC4f`**, READY, on all three DEV
+  aliases. [Development](https://dev.sportsbook.coopergurrie.com) and generated URL
+  redirect signed-out requests to Vercel sign-in; all-deployment protection remains.
+  Hosted guard confirms independent owner, closed signup, captured mail and manual
+  automation. Production canonical stays READY **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ**.
+- Ignored evidence: `work/preferences-completion-receipt.json`,
+  `work/preferences-hosted-probe.sql`, `work/preferences-release.log`, release
+  provenance/exact review and phone/desktop `notification-preferences-*.png`.

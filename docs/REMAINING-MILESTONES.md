@@ -1,15 +1,15 @@
 # Remaining handoff milestones
 
 Updated November 2, 2026 ET. **16 complete / 8 remaining**.
-The newest qualified source is `5094bcf`, **43/43**, for relative reminder stage 2.
-Handoff 36 records protected DEV rollout and hosted verification. Documentation
+The newest qualified source is `f7750bd`, **43/43**, for preferences/budget stage 3.
+Handoff 37 records protected DEV rollout and hosted verification. Documentation
 commits after that source are not claimed to be tested/deployed.
 
 | ID | Remaining implementation / evidence | Owner or elapsed-time gate |
 |---|---|---|
 | 13 | Dependency/useful-summary inventory, resumable historical conversion/cleanup and physical-space measurements | Full recovery readiness, exact production plan and owner approval before any production deletion |
 | 16 | Broader typed shared pricing/boost/market/featured/schedule/notification/branding policy; provider capability approval, drift and renewal; consistent generation/acceptance/settlement/report/help consumers | Owner reviews actual new-league house rules/capability report; imported leagues remain quarantined. Claims and wallet/ticket policy v1 are complete DEV |
-| 18 | Stages 1–2 actual-window delivery and relative reminder scheduling/preview/reschedule/expiry qualified; preferences, routine volume/collision budget, factual evolving stories and complete matrix/previews remain | Preserve actual Wed–Thu acceptance and approved reopenings. A handoff's Monday example does not authorize changing betting windows. No real/bulk mail launch |
+| 18 | Stages 1–3 actual-window delivery, relative scheduling and scoped preferences/three-message routine budget/collision handling qualified; factual evolving stories, scoped staff alerts and complete lifecycle/phase-aware matrix remain | Preserve actual Wed–Thu acceptance and approved reopenings. A handoff's Monday example does not authorize changing betting windows. No real/bulk mail launch |
 | 20 | Supported full platform/Auth/storage/config backup and off-site recovery; full restore drill deferred | Phone access to Drive and password-manager key/password confirmed; key import complete. Full restore drill deferred by owner for this fake-money project. v3 code is tested; full-platform backup coverage remains unfinished |
 | 21 | Actual external exact-release owner approval boundary and remaining deployment-hook/credential routes | Production Git disconnect is complete; local evidence and an unapproved manifest do not enforce an external owner boundary. Connector metadata cannot prove omitted hooks disabled |
 | 22 | Residual A01–A25 matrix, supported configuration journeys, tenant/device cases, simultaneous peaks, outages and season renewal | Final coverage depends on 16/18; individual independent audit fixtures can progress sooner |
