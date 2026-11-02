@@ -164,6 +164,60 @@ export function WeeklySchedule({
     Record<string, { status: string; actual_value: string; evidence: string }>
   >({});
   const [emailKind, setEmailKind] = useState<EmailKind | "">("");
+  const [availability, setAvailability] = useState<{
+    eligible: boolean;
+    phase: string;
+    calendar_week: number;
+    market_week: number;
+    reason: string;
+    note: string;
+    window?: { send_after?: string; deadline?: string };
+  } | null>(null);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const availabilityRequest = useRef(0);
+  useEffect(() => {
+    availabilityRequest.current++;
+    return () => {
+      availabilityRequest.current++;
+    };
+  }, [leagueId, emailKind]);
+  function chooseEmailKind(kind: EmailKind | "") {
+    availabilityRequest.current++;
+    setAvailability(null);
+    setAvailabilityError("");
+    setAvailabilityLoading(false);
+    setEmailKind(kind);
+  }
+  async function checkAvailability() {
+    if (!emailKind || reviewMode || !supabase) return;
+    const request = ++availabilityRequest.current;
+    setAvailabilityLoading(true);
+    setAvailability(null);
+    setAvailabilityError("");
+    try {
+      const r = await supabase.rpc("notification_preview", {
+        p_league: leagueId,
+        p_kind: emailKind,
+      });
+      if (r.error) throw r.error;
+      if (
+        r.data?.contract !== "notification-preview-v1" ||
+        r.data.league_id !== leagueId ||
+        r.data.kind !== emailKind
+      )
+        throw Error(
+          "Notification availability scope changed. Refresh and try again.",
+        );
+      if (request === availabilityRequest.current) setAvailability(r.data);
+    } catch (e) {
+      if (request === availabilityRequest.current)
+        setAvailabilityError(errorMessage(e));
+    } finally {
+      if (request === availabilityRequest.current)
+        setAvailabilityLoading(false);
+    }
+  }
   const email = {
     ...sampleEmail(emailKind || "opening"),
     brand: league
@@ -176,7 +230,7 @@ export function WeeklySchedule({
       <button
         className="email-preview-button"
         onClick={() => {
-          setEmailKind(kind);
+          chooseEmailKind(kind);
           document
             .getElementById("email-template-preview")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -204,6 +258,9 @@ export function WeeklySchedule({
       setRuns([]);
       setJobLogs([]);
       setDeliveryLogs([]);
+      setAvailability(null);
+      setAvailabilityError("");
+      setAvailabilityLoading(false);
       setLastChecked(null);
     }
     const load = async (reloadSettings = true) => {
@@ -1101,7 +1158,9 @@ export function WeeklySchedule({
               <select
                 aria-label="Email template"
                 value={emailKind}
-                onChange={(e) => setEmailKind(e.target.value as EmailKind | "")}
+                onChange={(e) =>
+                  chooseEmailKind(e.target.value as EmailKind | "")
+                }
               >
                 <option value="">Choose A Template…</option>
                 {emailTemplateGroups.map((group) => (
@@ -1130,15 +1189,52 @@ export function WeeklySchedule({
                   <span>
                     <strong>To:</strong>{" "}
                     {emailKind === "attention"
-                      ? "League admin"
+                      ? "Verified current sportsbook operators and platform owner"
                       : emailKind === "reminder"
-                        ? "League members with an available balance above $0"
+                        ? "Approved participants meeting the effective minimum wager"
                         : "The approved league member"}
                   </span>
                   <span>
                     <strong>Subject:</strong> {email.subject}
                   </span>
                 </div>
+                {!reviewMode && (
+                  <section aria-label="Current notification availability">
+                    <button
+                      disabled={availabilityLoading}
+                      onClick={() => void checkAvailability()}
+                    >
+                      {availabilityLoading
+                        ? "Checking availability…"
+                        : "Check notification availability"}
+                    </button>
+                    {availabilityError && (
+                      <p role="alert">{availabilityError}</p>
+                    )}
+                    {availability && (
+                      <div role="status">
+                        <p>
+                          <strong>
+                            {availability.eligible
+                              ? "Shared conditions available"
+                              : "Currently unavailable"}
+                          </strong>{" "}
+                          · {availability.phase} phase · calendar week{" "}
+                          {availability.calendar_week} · content week{" "}
+                          {availability.market_week}
+                        </p>
+                        <p>{availability.reason}</p>
+                        {availability.window?.send_after && (
+                          <p>Due: {time(availability.window.send_after)}</p>
+                        )}
+                        {availability.window?.deadline && (
+                          <p>Deadline: {time(availability.window.deadline)}</p>
+                        )}
+                        <p>{availability.note}</p>
+                      </div>
+                    )}
+                  </section>
+                )}
                 <iframe
                   title={`${emailLabels[emailKind]} sample`}
                   sandbox=""
@@ -1146,7 +1242,7 @@ export function WeeklySchedule({
                 />
                 <button
                   className="text-button"
-                  onClick={() => setEmailKind("")}
+                  onClick={() => chooseEmailKind("")}
                 >
                   Hide Preview
                 </button>

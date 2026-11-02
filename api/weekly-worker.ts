@@ -2,17 +2,14 @@ import {
   isPromotional,
   currentNotificationWindow,
 } from "./_lib/notification-window.js";
-import {
-  communicationIdentity,
-  participantMailAudience,
-} from "./_lib/league-communications.js";
+import { participantMailAudience } from "./_lib/league-communications.js";
 import { retireRoutinePayloads } from "./_lib/routine-retention.js";
 import { createServerClient } from "./_lib/server-client.js";
 import { isWorker } from "./_lib/worker-auth.js";
 import { POST as generate } from "./generate-markets.js";
 import { POST as execution } from "./weekly-execution.js";
 import { deliverEmails, queueEmail } from "./_lib/mail.js";
-import { renderEmail } from "./_lib/email-templates.js";
+import { queueStaffAttention } from "./_lib/staff-alerts.js";
 import { randomUUID } from "node:crypto";
 import { fetchGameStatus } from "./_lib/game-status.js";
 import { collectLiveShadow, reviewLiveWeek } from "./_lib/live-pipeline.js";
@@ -249,14 +246,13 @@ export async function POST(request: Request) {
         throw new Error(
           "League operations are disabled pending verified rollout.",
         );
-      const identity = communicationIdentity(league);
       const recipients = await read(
         db
           .from("league_memberships")
           .select("*")
           .eq("league_id", job.league_id),
       );
-      const enqueue = async (kind: string, week: number, onlyAdmin = false) => {
+      const enqueue = async (kind: string, week: number) => {
         const window = isPromotional(kind)
           ? await currentNotificationWindow(
               db,
@@ -274,9 +270,11 @@ export async function POST(request: Request) {
           )
             return;
         }
-        const audience = onlyAdmin
-          ? recipients.filter((m: any) => m.role === "admin")
-          : await participantMailAudience(db, job.league_id, recipients);
+        const audience = await participantMailAudience(
+          db,
+          job.league_id,
+          recipients,
+        );
         for (const m of audience) {
           if (kind === "reminder" && window) {
             const queued = await db.rpc("queue_relative_reminder", {
@@ -450,69 +448,23 @@ export async function POST(request: Request) {
             ...(await deliverEmails(db)),
           });
         }
-        if (job.operation === "recheck")
-          for (const week of new Set<number>(
-            result.tickets
-              .filter(
-                (t: any) =>
-                  t.pending &&
-                  t.ticket_type !== "future" &&
-                  t.market_week <= job.market_week,
-              )
-              .map((t: any) => t.market_week),
-          ))
-            await enqueue("attention", week, true);
-        const unresolvedFutures = result.tickets.filter(
-          (t: any) => t.ticket_type === "future" && t.pending && t.final,
-        );
-        if (job.operation === "recheck" && unresolvedFutures.length) {
-          const content = {
-            subject: "Season Futures Need Review",
-            heading: "A Final Season Result Needs Your Attention",
-            greeting: "Hi league administrator,",
-            paragraphs: [
-              "These season tickets have a final-result ambiguity. Their stakes remain committed; the normal futures cash-floor rule still applies.",
-            ],
-            details: unresolvedFutures.map(
-              (t: any) =>
-                [
-                  "Ticket " + t.ticket_id.slice(0, 8),
-                  t.legs
-                    .filter((l: any) => l.status === "OPEN")
-                    .map((l: any) => l.evidence)
-                    .join(" "),
-                ] as [string, string],
-            ),
-            button: "Review Weekly Execution",
-            url: identity.url,
-            brand: identity.brand,
-          };
-          for (const m of recipients.filter((m: any) => m.role === "admin"))
-            await queueEmail(db, {
-              league_id: job.league_id,
-              event_key: `${league.nfl_season}:${job.market_week}:future-attention:${m.id}`,
-              kind: "attention",
-              recipient: m.invited_email,
-              team_id: m.team_id,
-              market_week: job.market_week,
-              payload: {
-                from: identity.from,
-                to: [m.invited_email],
-                subject: content.subject,
-                html: renderEmail(content),
-                text:
-                  content.subject +
-                  "\n" +
-                  content.paragraphs.join("\n") +
-                  "\n" +
-                  content.details
-                    .map((d: [string, string]) => d.join(": "))
-                    .join("\n") +
-                  "\n" +
-                  content.url,
-              },
-            });
-        }
+        if (
+          job.operation === "recheck" &&
+          result.tickets.some(
+            (t: any) =>
+              t.pending &&
+              t.ticket_type !== "future" &&
+              t.market_week <= job.market_week,
+          )
+        )
+          await queueStaffAttention(db, job.id, "results");
+        if (
+          job.operation === "recheck" &&
+          result.tickets.some(
+            (t: any) => t.ticket_type === "future" && t.pending && t.final,
+          )
+        )
+          await queueStaffAttention(db, job.id, "futures");
       } else if (
         job.operation === "generate_futures" ||
         job.operation === "refresh_futures"
@@ -734,48 +686,7 @@ export async function POST(request: Request) {
                 .map((q: any) => String(q.metadata.lock_reason)),
             ),
           ];
-          if (reasons.length) {
-            for (const admin of recipients.filter(
-              (m: any) => m.role === "admin",
-            )) {
-              const content = {
-                subject: `Incomplete Projected Lineups · Week ${job.market_week}`,
-                heading: "The Morning Refresh Needs Your Review",
-                greeting: `Hi ${admin.display_name ?? "league administrator"},`,
-                paragraphs: [
-                  "The scheduled morning recalculation finished, but some teams still lack a complete eligible lineup with positive projections.",
-                  ...reasons,
-                  "Affected selections remain locked. Review the roster or projection coverage and decide how to proceed. Other markets can open normally. Existing tickets have not changed.",
-                ],
-                details: [["Week", String(job.market_week)]] as [
-                  string,
-                  string,
-                ][],
-                button: "Review Lines & Markets",
-                url: identity.url,
-                brand: identity.brand,
-              };
-              await queueEmail(db, {
-                league_id: job.league_id,
-                event_key: `${job.event_key}:lineup-attention:${admin.id}`,
-                kind: "attention",
-                recipient: admin.invited_email,
-                team_id: admin.team_id,
-                market_week: job.market_week,
-                payload: {
-                  from: identity.from,
-                  to: [admin.invited_email],
-                  subject: content.subject,
-                  html: renderEmail(content),
-                  text: [
-                    content.subject,
-                    ...content.paragraphs,
-                    content.url,
-                  ].join("\n\n"),
-                },
-              });
-            }
-          }
+          if (reasons.length) await queueStaffAttention(db, job.id, "lineup");
         }
       } else if (job.operation === "publish") {
         if (schedule.publication_paused) {
@@ -919,6 +830,14 @@ export async function POST(request: Request) {
           message: "Personal Monday ticket watch queued for league members.",
           week: job.market_week,
         };
+      } else if (job.operation === "final_recap" && schedule.recap_email) {
+        const check = await db.rpc("final_recap_ready", {
+          p_league: job.league_id,
+          p_season: league.nfl_season,
+        });
+        if (check.error || check.data !== true)
+          throw Error("Final recap waits for the current final-week closeout.");
+        await enqueue("recap", 18);
       } else if (
         job.operation === "recap" &&
         schedule.recap_email &&
@@ -1004,55 +923,7 @@ export async function POST(request: Request) {
         !job.operation.startsWith("interval_") &&
         job.operation !== "model_review"
       ) {
-        const admins = await read(
-          db
-            .from("league_memberships")
-            .select("id,team_id,invited_email")
-            .eq("league_id", job.league_id)
-            .eq("role", "admin"),
-        );
-        const identity = communicationIdentity(
-          (
-            await read(db.from("leagues").select("*").eq("id", job.league_id))
-          )[0],
-        );
-        for (const m of admins) {
-          const content = {
-            subject: "Weekly Automation Needs Attention",
-            heading: "An Automated Step Needs Review",
-            greeting: "Hi league administrator,",
-            paragraphs: [error],
-            details: [
-              ["Operation", job.operation],
-              ["Week", String(job.market_week)],
-            ] as [string, string][],
-            button: "Review Weekly Execution",
-            url: identity.url,
-            brand: identity.brand,
-          };
-          await queueEmail(db, {
-            league_id: job.league_id,
-            event_key: job.event_key + ":failure:" + m.id,
-            kind: "attention",
-            recipient: m.invited_email,
-            team_id: m.team_id,
-            market_week: job.market_week,
-            payload: {
-              from: identity.from,
-              to: [m.invited_email],
-              subject: content.subject,
-              html: renderEmail(content),
-              text:
-                content.subject +
-                "\n" +
-                job.operation +
-                ": " +
-                error +
-                "\n" +
-                content.url,
-            },
-          });
-        }
+        await queueStaffAttention(db, job.id, "automation");
       }
     } catch {
       /* Return the original error if logging is unavailable. */

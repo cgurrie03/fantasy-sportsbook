@@ -62,6 +62,25 @@ const { setup, A } = require("./test-ux.cjs");
         if (hold) await hold;
         await r.fulfill({ json: response });
       });
+      let availabilityCalls = 0;
+      await p.route("**/rest/v1/rpc/notification_preview", (r) => {
+        const b = r.request().postDataJSON();
+        assert.equal(b.p_league, A);
+        availabilityCalls++;
+        return r.fulfill({
+          json: {
+            contract: "notification-preview-v1",
+            league_id: A,
+            kind: b.p_kind,
+            eligible: false,
+            phase: "weekly",
+            calendar_week: 5,
+            market_week: 5,
+            reason: "Operations or automation are disabled.",
+            note: "Shared availability only. No messages or budget credits are created.",
+          },
+        });
+      });
       await p.route("**/rest/v1/rpc/configure_weekly_schedule_v3", (r) => {
         const b = r.request().postDataJSON();
         assert.equal(b.p_league, A);
@@ -148,6 +167,54 @@ const { setup, A } = require("./test-ux.cjs");
           .isDisabled(),
       );
       assert.equal(previewCalls, 3);
+      await p
+        .getByLabel("Email template", { exact: true })
+        .selectOption("opening");
+      const opening = p.frameLocator('iframe[title="Opening Email sample"]');
+      await opening.getByText(/Sample preview — figures/).waitFor();
+      const storyText = await opening.locator("body").innerText();
+      assert.match(storyText, /Saved championship prices/);
+      assert(!/Top 3 Projected|Bottom 3 Projected/.test(storyText));
+      assert.equal(
+        availabilityCalls,
+        0,
+        "availability is requested explicitly",
+      );
+      await p
+        .getByRole("button", {
+          name: "Check notification availability",
+          exact: true,
+        })
+        .click();
+      await p
+        .getByText("Operations or automation are disabled.", { exact: true })
+        .waitFor();
+      assert.equal(availabilityCalls, 1);
+      await p
+        .getByLabel("Email template", { exact: true })
+        .selectOption("attention");
+      assert.equal(
+        await p
+          .getByText("Operations or automation are disabled.", { exact: true })
+          .count(),
+        0,
+        "different template clears old result",
+      );
+      await p
+        .getByRole("button", {
+          name: "Check notification availability",
+          exact: true,
+        })
+        .click();
+      await p
+        .getByText("Operations or automation are disabled.", { exact: true })
+        .waitFor();
+      await p
+        .getByLabel("Email template", { exact: true })
+        .selectOption("opening");
+      await p
+        .locator('iframe[title="Opening Email sample"]')
+        .screenshot({ path: `work/ux-evidence/editorial-sample-${width}.png` });
       assert.equal(f.state.betCalls, 0);
       assert.deepEqual(f.errors, []);
       await f.context.close();

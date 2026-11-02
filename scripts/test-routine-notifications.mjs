@@ -213,6 +213,10 @@ try {
     A,
   ]);
 
+  await q(
+    "insert into user_wallet_entries(wallet_id,league_id,team_id,event_key,kind,amount,balance_before,balance_after,reason,created_at) select id,league_id,team_id,'weekly:replenish:2026:5:'||id,'weekly_replenishment',25,75,100,'Synthetic exact weekly credit',now()-interval '48 hours' from user_wallets where league_id=$1 and user_id=$2",
+    [A, owner],
+  );
   const ids = [];
   for (const kind of ["opening", "recap", "reopening"]) {
     const id = await mail(kind);
@@ -346,7 +350,12 @@ try {
     "a completed reminder job without a recipient message cannot promise a future merged delivery",
   );
   const reminder = await mail("reminder", A, coowner);
-  const merged = await freeze(reminder);
+  await q("update outbound_emails set notification_context=$2 where id=$1", [
+    reminder,
+    reminderWindow,
+  ]);
+  const reminderAt = new Date(Date.parse(at) + 60 * 60000).toISOString();
+  const merged = await freeze(reminder, reminderAt);
   assert.equal(merged.merge_watch, true);
   assert.equal(merged.open_ticket_count, 1);
   await assert.rejects(
@@ -355,7 +364,7 @@ try {
     ]),
     /immutable/,
   );
-  assert.equal((await permission(reminder, true)).allowed, true);
+  assert.equal((await permission(reminder, true, reminderAt)).allowed, true);
   assert.match(
     (await permission(watch)).reason,
     /included in the closing reminder/,
@@ -378,7 +387,7 @@ try {
   ]);
   await server();
   assert.match(
-    (await permission(reminder)).reason,
+    (await permission(reminder, false, reminderAt)).reason,
     /disabled after composition/,
     "frozen merged content respects a later watch opt-out",
   );
@@ -386,7 +395,10 @@ try {
     "update user_wallets set status='revoked' where league_id=$1 and user_id=$2",
     [A, coowner],
   );
-  assert.match((await permission(reminder)).reason, /recipient unavailable/);
+  assert.match(
+    (await permission(reminder, false, reminderAt)).reason,
+    /recipient unavailable/,
+  );
   await act(coowner);
   await assert.rejects(
     q("select my_notification_preferences($1)", [A]),

@@ -7,7 +7,11 @@ import ts from "typescript";
 // This subprocess tests synthetic, intercepted clients even during a hosted
 // build. Never inherit deployment credentials or hosted runtime flags.
 for (const key of Object.keys(process.env)) {
-  if (/^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET$|VERCEL(?:_|$))/.test(key))
+  if (
+    /^(BOFF_|VITE_|SUPABASE_|RESEND_|WEEKLY_WORKER_SECRET$|VERCEL(?:_|$))/.test(
+      key,
+    )
+  )
     delete process.env[key];
 }
 process.env.BOFF_ENVIRONMENT = "test";
@@ -18,17 +22,32 @@ try {
   // Match the API compiler as well as exercising transpiled runtime behavior.
   // Frontend project references do not type-check these server entry points.
   const apiTypes = ts.createProgram(["api/_lib/mail.ts"], {
-    noEmit: true, target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext, allowImportingTsExtensions: true,
-    skipLibCheck: true, strict: false, types: ["node"],
+    noEmit: true,
+    target: ts.ScriptTarget.ES2023,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    allowImportingTsExtensions: true,
+    skipLibCheck: true,
+    strict: false,
+    types: ["node"],
   });
-  const typeErrors = ts.getPreEmitDiagnostics(apiTypes).filter(d => d.category === ts.DiagnosticCategory.Error);
-  assert.deepEqual(typeErrors.map(d => `${d.file?.fileName ?? "API"}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`), []);
+  const typeErrors = ts
+    .getPreEmitDiagnostics(apiTypes)
+    .filter((d) => d.category === ts.DiagnosticCategory.Error);
+  assert.deepEqual(
+    typeErrors.map(
+      (d) =>
+        `${d.file?.fileName ?? "API"}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`,
+    ),
+    [],
+  );
   await mkdir(path.join(root, "_lib"));
   for (const file of [
     "_lib/league-intake",
     "_lib/notification-window",
     "_lib/routine-notifications",
+    "_lib/editorial-stories",
+    "_lib/opening-editorial",
     "_lib/wallet-policy",
     "league-intake",
     "_lib/routine-retention",
@@ -65,6 +84,7 @@ try {
     "_lib/mail",
     "_lib/monday-watch",
     "_lib/league-communications",
+    "_lib/staff-alerts",
     "weekly-worker",
     "reopening-review",
     "place-bet",
@@ -522,107 +542,623 @@ try {
   const mail = await import(
     pathToFileURL(path.join(root, "_lib/mail.js")).href
   );
-  const financialRecipient = {wallet_id:"wallet-2",league_id:"league",team_id:"shared-team",recipient:"coowner@example.invalid",display_name:"Participant",balance:100,accepted_balance:93};
+  const financialRecipient = {
+    wallet_id: "wallet-2",
+    league_id: "league",
+    team_id: "shared-team",
+    recipient: "coowner@example.invalid",
+    display_name: "Participant",
+    balance: 100,
+    accepted_balance: 93,
+  };
   const financialTables = {
-    tickets:[{id:"wallet-ticket",user_wallet_id:"wallet-2",league_id:"league",team_id:"shared-team",ticket_type:"parlay",market_week:5,league_season:1,placed_at:"2026-10-29T12:00:00Z",stake:7,accepted_combined_odds:100,accepted_potential_payout:14}],
-    teams:[{id:"shared-team",team_name:"Shared team"}],
-    leagues:[{id:"league",name:"Wallet fixture",sportsbook_url:"https://example.invalid",email_sender:"fixture@example.invalid"}],
-    ticket_legs:[{selection:"Accepted pick",market_type:"Weekly Special"}],
+    tickets: [
+      {
+        id: "wallet-ticket",
+        user_wallet_id: "wallet-2",
+        league_id: "league",
+        team_id: "shared-team",
+        ticket_type: "parlay",
+        market_week: 5,
+        league_season: 1,
+        placed_at: "2026-10-29T12:00:00Z",
+        stake: 7,
+        accepted_combined_odds: 100,
+        accepted_potential_payout: 14,
+      },
+    ],
+    teams: [{ id: "shared-team", team_name: "Shared team" }],
+    leagues: [
+      {
+        id: "league",
+        name: "Wallet fixture",
+        sportsbook_url: "https://example.invalid",
+        email_sender: "fixture@example.invalid",
+      },
+    ],
+    ticket_legs: [
+      { selection: "Accepted pick", market_type: "Weekly Special" },
+    ],
   };
   const financialMailDb = {
-    rpc:async(name)=>{assert.equal(name,"financial_email_recipient");return {data:financialRecipient,error:null};},
-    from:table=>{
-      assert(!["wallets","wallet_ledger","league_memberships"].includes(table),"user confirmation must not read legacy team finances/contact");
-      const query={select:()=>query,eq:()=>query,order:()=>query,
-        maybeSingle:async()=>({data:financialTables[table]?.[0],error:null}),
-        then:(resolve,reject)=>Promise.resolve({data:financialTables[table]??[],error:null}).then(resolve,reject)};
+    rpc: async (name) => {
+      assert.equal(name, "financial_email_recipient");
+      return { data: financialRecipient, error: null };
+    },
+    from: (table) => {
+      assert(
+        !["wallets", "wallet_ledger", "league_memberships"].includes(table),
+        "user confirmation must not read legacy team finances/contact",
+      );
+      const query = {
+        select: () => query,
+        eq: () => query,
+        order: () => query,
+        maybeSingle: async () => ({
+          data: financialTables[table]?.[0],
+          error: null,
+        }),
+        then: (resolve, reject) =>
+          Promise.resolve({
+            data: financialTables[table] ?? [],
+            error: null,
+          }).then(resolve, reject),
+      };
       return query;
     },
   };
-  const financialMailRow={kind:"confirmation",ticket_id:"wallet-ticket",team_id:"shared-team",league_id:"league",recipient:"coowner@example.invalid"};
-  const {validateDeliveryScope,participantMailAudience}=await import(pathToFileURL(path.join(root,"_lib/league-communications.js")).href);
-  await validateDeliveryScope(financialMailDb,financialMailRow);
-  await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial account/);
-  await assert.rejects(validateDeliveryScope(financialMailDb,{...financialMailRow,payload:{to:["primary@example.invalid"]}}),/payload recipient mismatch/);
-  const financialConfirmation=await mail.buildEmail(financialMailDb,financialMailRow);
-  assert(financialConfirmation.details.some(([label,value])=>label==="Balance after placement"&&value==="$93.00"));
-  await assert.rejects(mail.buildEmail(financialMailDb,{...financialMailRow,recipient:"primary@example.invalid"}),/financial recipient unavailable/);
-  const windowFixture=(args,patch={})=>{const until=new Date(Date.now()+3600000).toISOString();return {contract:"weekly-notification-window-v1",league_id:args.p_league,nfl_season:args.p_season,market_week:args.p_week,kind:args.p_kind,eligible:true,reason:null,board_id:"weekly",deadline:until,send_before:until,send_after:new Date(Date.now()-60000).toISOString(),schedule_contract:"relative-reminder-v1",lead_minutes:60,window_key:"a".repeat(32),minimum_stake:1,policy_revision:0,reopening_id:null,window_type:"pregame",...patch};};
-  financialTables.leagues[0].nfl_season=2026;
-  let genericContext={...financialRecipient,rank:2,participants:3};
-  const genericTables={...financialTables,
-    sportsbook_boards:[{id:"generic-board",status:"published",closes_at:"2026-11-05T23:00:00Z"}],
-    tickets:[
-      {id:"own-won",user_wallet_id:"wallet-2",team_id:"shared-team",status:"WON",stake:7,actual_payout:14},
-      {id:"peer-won",user_wallet_id:"wallet-1",team_id:"shared-team",status:"WON",stake:500,actual_payout:1500},
-      {id:"peer-open",user_wallet_id:"wallet-1",team_id:"shared-team",status:"OPEN",stake:100},
-    ],user_wallet_entries:[{wallet_id:"wallet-2",amount:25},{wallet_id:"wallet-1",amount:900}],ticket_legs:[]};
-  const genericDb={rpc:(name,args)=>{
-    if(name==="notification_window")return {abortSignal:()=>Promise.resolve({data:windowFixture(args,{board_id:"generic-board"}),error:null})};
-    assert.equal(name,"financial_email_context");assert.equal(args.p_team,"shared-team");
-    return args.p_recipient===genericContext.recipient?{data:genericContext,error:null}:{data:null,error:{message:"pending approval"}};
-  },from:table=>{
-    assert(!["wallets","wallet_ledger","league_memberships"].includes(table),"user generic mail must not fall back to primary finances/contact");
-    const filters=[];const query={select:()=>query,eq:(k,v)=>{filters.push([k,v]);return query;},neq:()=>query,gte:()=>query,in:()=>query,
-      then:(resolve,reject)=>Promise.resolve({data:(genericTables[table]??[]).filter(r=>filters.every(([k,v])=>!(k in r)||r[k]===v)),error:null}).then(resolve,reject)};
-    return query;
-  }};
-  const genericRow={wallet_model:"user",kind:"reminder",league_id:"league",team_id:"shared-team",recipient:genericContext.recipient,market_week:5};
-  await validateDeliveryScope(genericDb,genericRow);
-  const reminder=await mail.buildEmail(genericDb,genericRow);
-  assert(reminder.details.some(([k,v])=>k==="Your available balance"&&v==="$100.00"));
-  const monday=windowFixture({p_league:"league",p_season:2026,p_week:5,p_kind:"reminder"},{board_id:"generic-board",deadline:"2026-11-10T02:00:00Z",send_before:"2026-11-10T02:00:00Z"});
-  const mondayReminder=await mail.buildEmail(genericDb,genericRow,monday);
-  assert(mondayReminder.details.some(([k,v])=>k==="Available weekly opportunity until"&&v.includes("Mon")));
-  assert(!/tonight|last call/i.test(mondayReminder.subject+" "+mondayReminder.heading));
-  genericContext={...genericContext,balance:null};
-  const pendingReminder=await mail.buildEmail(genericDb,genericRow);
-  assert(pendingReminder.details.some(([,v])=>v==="Funding pending"));
-  genericContext={...genericContext,balance:100};
-  const roundup=await mail.buildEmail(genericDb,{...genericRow,kind:"recap"});
-  assert(roundup.details.some(([k,v])=>k==="Net betting profit"&&v==="$7.00"));
-  assert(roundup.details.some(([k,v])=>k==="Weekly replenishment"&&v==="$25.00"));
-  assert(roundup.details.some(([k,v])=>k==="Account standing (all seasons)"&&v==="2 of 3"));
-  assert(!roundup.paragraphs.some(p=>p.includes("under review")),"peer open ticket is not personal pending result");
-  await assert.rejects(validateDeliveryScope(genericDb,{...genericRow,recipient:"primary@example.invalid"}),/financial account/);
-  await assert.rejects(mail.buildEmail(genericDb,{...genericRow,recipient:"primary@example.invalid"}),/approval/);
-  const audience=[{id:"wallet-1",league_id:"league",team_id:"shared-team",invited_email:"primary@example.invalid"},
-    {id:"wallet-2",league_id:"league",team_id:"shared-team",invited_email:"coowner@example.invalid"}];
-  const audienceDb={rpc:async(name,args)=>{assert.equal(name,"financial_email_audience");assert.equal(args.p_league,"league");return {data:audience,error:null};}};
-  assert.deepEqual(await participantMailAudience(audienceDb,"league",[]),audience);
-  assert.deepEqual(await participantMailAudience({rpc:async()=>({data:null,error:null})},"league",["legacy"]),["legacy"]);
-  await assert.rejects(participantMailAudience(audienceDb,"other-league",[]),/strictly equal/);
-  await assert.rejects(participantMailAudience({rpc:async()=>({data:[{...audience[0],league_id:"other"}],error:null})},"league",[]),/scope/);
-  await assert.rejects(participantMailAudience({rpc:async()=>({data:null,error:{message:"unavailable"}})},"league",[]),/unavailable/);
-  const {POST:intakePost}=await import(pathToFileURL(path.join(root,'league-intake.js')).href);
-  const intakeFetch=globalThis.fetch,intakeEnv=Object.fromEntries(['SUPABASE_URL','SUPABASE_ANON_KEY','BOFF_ENVIRONMENT','NODE_ENV'].map(k=>[k,process.env[k]]));
-  try{
-    Object.assign(process.env,{SUPABASE_URL:'https://intake.invalid',SUPABASE_ANON_KEY:'synthetic-key',BOFF_ENVIRONMENT:'test',NODE_ENV:'test'});
-    let owner=false,providerCalls=0,saved=null;
-    const sourceId='1234567890123456789',requestKey='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-    const rawLeague={league_id:sourceId,name:'API intake fixture',sport:'nfl',season_type:'regular',season:'2026',status:'in_season',total_rosters:8,scoring_settings:{rec:1},roster_positions:['QB','BN'],settings:{playoff_week_start:15,playoff_teams:4}};
-    const rawRosters=Array.from({length:8},(_,i)=>({roster_id:i+1,league_id:sourceId,owner_id:null,settings:{wins:0,losses:0,ties:0}}));
-    globalThis.fetch=async(input,options={})=>{const url=String(input);if(url.includes('/auth/v1/user'))return Response.json({id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email_confirmed_at:'2026-11-01T00:00:00Z'});
-      if(url.includes('/rpc/league_intake_owner'))return Response.json(owner);
-      if(url.includes('/rpc/save_league_intake_draft')){const body=JSON.parse(options.body);assert.equal(body.p_capabilities.admission,'review_required');saved={id:'draft-api',revision:1,state:'draft',source:body.p_source,capabilities:body.p_capabilities,source_league_id:sourceId,expires_at:'2099-01-01T00:00:00Z'};return Response.json({id:'draft-api',revision:1,state:'draft'});}
-      if(url.includes('/rest/v1/league_intake_drafts'))return Response.json(saved?[saved]:[]);
-      assert(url.startsWith('https://api.sleeper.app/v1/league/'));providerCalls++;return Response.json(url.endsWith('/rosters')?rawRosters:url.endsWith('/users')?[]:rawLeague);
+  const financialMailRow = {
+    kind: "confirmation",
+    ticket_id: "wallet-ticket",
+    team_id: "shared-team",
+    league_id: "league",
+    recipient: "coowner@example.invalid",
+  };
+  const {
+    validateDeliveryScope,
+    participantMailAudience,
+    validateCommunicationPayload,
+  } = await import(
+    pathToFileURL(path.join(root, "_lib/league-communications.js")).href
+  );
+  const staffRow = {
+    id: "staff-mail",
+    league_id: "league",
+    kind: "attention",
+    staff_user_id: "operator",
+    recipient: "operator@example.invalid",
+    team_id: null,
+    market_week: 5,
+  };
+  let staffCurrent = true;
+  const staffDb = {
+    rpc: (name, args) => {
+      assert.equal(name, "staff_alert_context");
+      assert.equal(args.p_email, staffRow.id);
+      return {
+        abortSignal: () =>
+          Promise.resolve({
+            error: staffCurrent ? null : { message: "revoked" },
+            data: {
+              contract: "staff-attention-v1",
+              league_id: "league",
+              user_id: "operator",
+              recipient: staffRow.recipient,
+              market_week: 5,
+              nfl_season: 2026,
+              category: "automation",
+              operation: "recheck",
+              queued_at: new Date().toISOString(),
+            },
+          }),
+      };
+    },
+    from: (table) => {
+      assert.equal(
+        table,
+        "leagues",
+        "staff alerts cannot inspect participant finances or tickets",
+      );
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => ({
+          data: {
+            name: "Fixture",
+            sportsbook_url: "https://example.invalid",
+            email_sender: "fixture@example.invalid",
+            nfl_season: 2026,
+          },
+          error: null,
+        }),
+      };
+      return query;
+    },
+  };
+  await validateDeliveryScope(staffDb, staffRow);
+  const staffBody = await mail.buildEmail(staffDb, staffRow);
+  assert.equal(staffBody.url, "https://example.invalid/#/admin/schedule");
+  assert(
+    !/balance|Ticket [a-f0-9]|password|secret/i.test(JSON.stringify(staffBody)),
+  );
+  staffCurrent = false;
+  await assert.rejects(
+    validateDeliveryScope(staffDb, staffRow),
+    /staff alert scope/,
+  );
+  const identityLeague = {
+    name: "Fixture",
+    sportsbook_url: "https://example.invalid",
+    email_sender: "fixture@example.invalid",
+  };
+  const safePayload = {
+    from: "Fixture \u00b7 Fantasy Sportsbook <fixture@example.invalid>",
+    html: '<a href="https://example.invalid/#/bets">Open</a>',
+    text: "Open",
+  };
+  validateCommunicationPayload(safePayload, identityLeague);
+  assert.throws(
+    () =>
+      validateCommunicationPayload(safePayload, {
+        ...identityLeague,
+        email_sender: "changed@example.invalid",
+      }),
+    /sender/,
+  );
+  for (const href of [
+    "https://other.invalid/",
+    "https://user:pass@example.invalid/",
+    "http://example.invalid/",
+  ])
+    assert.throws(
+      () =>
+        validateCommunicationPayload(
+          { ...safePayload, html: `<a href="${href}">Open</a>` },
+          identityLeague,
+        ),
+      /action URL/,
+    );
+  await validateDeliveryScope(financialMailDb, financialMailRow);
+  await assert.rejects(
+    validateDeliveryScope(financialMailDb, {
+      ...financialMailRow,
+      recipient: "primary@example.invalid",
+    }),
+    /financial account/,
+  );
+  await assert.rejects(
+    validateDeliveryScope(financialMailDb, {
+      ...financialMailRow,
+      payload: { to: ["primary@example.invalid"] },
+    }),
+    /payload recipient mismatch/,
+  );
+  const financialConfirmation = await mail.buildEmail(
+    financialMailDb,
+    financialMailRow,
+  );
+  assert(
+    financialConfirmation.details.some(
+      ([label, value]) =>
+        label === "Balance after placement" && value === "$93.00",
+    ),
+  );
+  await assert.rejects(
+    mail.buildEmail(financialMailDb, {
+      ...financialMailRow,
+      recipient: "primary@example.invalid",
+    }),
+    /financial recipient unavailable/,
+  );
+  const windowFixture = (args, patch = {}) => {
+    const until = new Date(Date.now() + 3600000).toISOString();
+    return {
+      contract: "weekly-notification-window-v1",
+      league_id: args.p_league,
+      nfl_season: args.p_season,
+      market_week: args.p_week,
+      kind: args.p_kind,
+      eligible: true,
+      reason: null,
+      board_id: "weekly",
+      deadline: until,
+      send_before: until,
+      send_after: new Date(Date.now() - 60000).toISOString(),
+      schedule_contract: "relative-reminder-v1",
+      lead_minutes: 60,
+      window_key: "a".repeat(32),
+      minimum_stake: 1,
+      policy_revision: 0,
+      reopening_id: null,
+      window_type: "pregame",
+      ...patch,
     };
-    const req=(body,auth=true)=>new Request('https://example.invalid/api/league-intake',{method:'POST',headers:auth?{authorization:'Bearer synthetic-owner','Content-Type':'application/json'}:{},body:typeof body==='string'?body:JSON.stringify(body)});
-    assert.equal((await intakePost(req({},false))).status,401);
-    assert.equal((await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}))).status,403);assert.equal(providerCalls,0);
-    owner=true;assert.equal((await intakePost(req({sleeper_league_id:'https://bad.invalid',request_key:requestKey}))).status,400);
-    assert.equal((await intakePost(req('x'.repeat(3000)))).status,413);assert.equal(providerCalls,0);
-    const accepted=await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}));assert.equal(accepted.status,200);assert.equal(providerCalls,3);assert.equal((await accepted.json()).source.total_rosters,8);
-    assert.equal((await intakePost(req({sleeper_league_id:sourceId,request_key:requestKey}))).status,200);assert.equal(providerCalls,3,'retries reuse the saved normalized draft before any provider read');
-    assert.equal((await intakePost(req({sleeper_league_id:'999',request_key:requestKey}))).status,409);assert.equal(providerCalls,3);
-  }finally{globalThis.fetch=intakeFetch;for(const[k,v]of Object.entries(intakeEnv)){if(v===undefined)delete process.env[k];else process.env[k]=v;}}
+  };
+  financialTables.leagues[0].nfl_season = 2026;
+  let genericContext = { ...financialRecipient, rank: 2, participants: 3 };
+  const genericTables = {
+    ...financialTables,
+    sportsbook_boards: [
+      {
+        id: "generic-board",
+        status: "published",
+        closes_at: "2026-11-05T23:00:00Z",
+      },
+    ],
+    tickets: [
+      {
+        id: "own-won",
+        user_wallet_id: "wallet-2",
+        team_id: "shared-team",
+        status: "WON",
+        stake: 7,
+        actual_payout: 14,
+      },
+      {
+        id: "peer-won",
+        user_wallet_id: "wallet-1",
+        team_id: "shared-team",
+        status: "WON",
+        stake: 500,
+        actual_payout: 1500,
+      },
+      {
+        id: "peer-open",
+        user_wallet_id: "wallet-1",
+        team_id: "shared-team",
+        status: "OPEN",
+        stake: 100,
+      },
+    ],
+    user_wallet_entries: [
+      { wallet_id: "wallet-2", amount: 25 },
+      { wallet_id: "wallet-1", amount: 900 },
+    ],
+    ticket_legs: [],
+  };
+  const genericDb = {
+    rpc: (name, args) => {
+      if (name === "recap_financial_context")
+        return {
+          abortSignal: () =>
+            Promise.resolve({
+              data: {
+                league_id: args.p_league,
+                team_id: args.p_team,
+                recipient: args.p_recipient,
+                nfl_season: args.p_season,
+                replenishment_week: args.p_week,
+                ready: true,
+                state: "credited",
+                credited: 25,
+              },
+              error: null,
+            }),
+        };
+      if (name === "notification_window")
+        return {
+          abortSignal: () =>
+            Promise.resolve({
+              data: windowFixture(args, { board_id: "generic-board" }),
+              error: null,
+            }),
+        };
+      assert.equal(name, "financial_email_context");
+      assert.equal(args.p_team, "shared-team");
+      return args.p_recipient === genericContext.recipient
+        ? { data: genericContext, error: null }
+        : { data: null, error: { message: "pending approval" } };
+    },
+    from: (table) => {
+      assert(
+        !["wallets", "wallet_ledger", "league_memberships"].includes(table),
+        "user generic mail must not fall back to primary finances/contact",
+      );
+      const filters = [];
+      const query = {
+        select: () => query,
+        eq: (k, v) => {
+          filters.push([k, v]);
+          return query;
+        },
+        neq: () => query,
+        gte: () => query,
+        in: () => query,
+        then: (resolve, reject) =>
+          Promise.resolve({
+            data: (genericTables[table] ?? []).filter((r) =>
+              filters.every(([k, v]) => !(k in r) || r[k] === v),
+            ),
+            error: null,
+          }).then(resolve, reject),
+      };
+      return query;
+    },
+  };
+  const genericRow = {
+    wallet_model: "user",
+    kind: "reminder",
+    league_id: "league",
+    team_id: "shared-team",
+    recipient: genericContext.recipient,
+    market_week: 5,
+  };
+  await validateDeliveryScope(genericDb, genericRow);
+  const reminder = await mail.buildEmail(genericDb, genericRow);
+  assert(
+    reminder.details.some(
+      ([k, v]) => k === "Your balance at preparation" && v === "$100.00",
+    ),
+  );
+  const monday = windowFixture(
+    { p_league: "league", p_season: 2026, p_week: 5, p_kind: "reminder" },
+    {
+      board_id: "generic-board",
+      deadline: "2026-11-10T02:00:00Z",
+      send_before: "2026-11-10T02:00:00Z",
+    },
+  );
+  const mondayReminder = await mail.buildEmail(genericDb, genericRow, monday);
+  assert(
+    mondayReminder.details.some(
+      ([k, v]) =>
+        k === "Available weekly opportunity until" && v.includes("Mon"),
+    ),
+  );
+  assert(
+    !/tonight|last call/i.test(
+      mondayReminder.subject + " " + mondayReminder.heading,
+    ),
+  );
+  genericContext = { ...genericContext, balance: null };
+  const pendingReminder = await mail.buildEmail(genericDb, genericRow);
+  assert(pendingReminder.details.some(([, v]) => v === "Funding pending"));
+  genericContext = { ...genericContext, balance: 100 };
+  const roundup = await mail.buildEmail(genericDb, {
+    ...genericRow,
+    kind: "recap",
+  });
+  assert(
+    roundup.details.some(
+      ([k, v]) => k === "Net betting profit" && v === "$7.00",
+    ),
+  );
+  assert(
+    roundup.details.some(
+      ([k, v]) => k === "Weekly replenishment" && v === "$25.00",
+    ),
+  );
+  assert(
+    roundup.details.some(
+      ([k, v]) => k === "Account standing (all seasons)" && v === "2 of 3",
+    ),
+  );
+  assert(
+    !roundup.paragraphs.some((p) => p.includes("under review")),
+    "peer open ticket is not personal pending result",
+  );
+  await assert.rejects(
+    validateDeliveryScope(genericDb, {
+      ...genericRow,
+      recipient: "primary@example.invalid",
+    }),
+    /financial account/,
+  );
+  await assert.rejects(
+    mail.buildEmail(genericDb, {
+      ...genericRow,
+      recipient: "primary@example.invalid",
+    }),
+    /approval/,
+  );
+  const audience = [
+    {
+      id: "wallet-1",
+      league_id: "league",
+      team_id: "shared-team",
+      invited_email: "primary@example.invalid",
+    },
+    {
+      id: "wallet-2",
+      league_id: "league",
+      team_id: "shared-team",
+      invited_email: "coowner@example.invalid",
+    },
+  ];
+  const audienceDb = {
+    rpc: async (name, args) => {
+      assert.equal(name, "financial_email_audience");
+      assert.equal(args.p_league, "league");
+      return { data: audience, error: null };
+    },
+  };
+  assert.deepEqual(
+    await participantMailAudience(audienceDb, "league", []),
+    audience,
+  );
+  assert.deepEqual(
+    await participantMailAudience(
+      { rpc: async () => ({ data: null, error: null }) },
+      "league",
+      ["legacy"],
+    ),
+    ["legacy"],
+  );
+  await assert.rejects(
+    participantMailAudience(audienceDb, "other-league", []),
+    /strictly equal/,
+  );
+  await assert.rejects(
+    participantMailAudience(
+      {
+        rpc: async () => ({
+          data: [{ ...audience[0], league_id: "other" }],
+          error: null,
+        }),
+      },
+      "league",
+      [],
+    ),
+    /scope/,
+  );
+  await assert.rejects(
+    participantMailAudience(
+      { rpc: async () => ({ data: null, error: { message: "unavailable" } }) },
+      "league",
+      [],
+    ),
+    /unavailable/,
+  );
+  const { POST: intakePost } = await import(
+    pathToFileURL(path.join(root, "league-intake.js")).href
+  );
+  const intakeFetch = globalThis.fetch,
+    intakeEnv = Object.fromEntries(
+      ["SUPABASE_URL", "SUPABASE_ANON_KEY", "BOFF_ENVIRONMENT", "NODE_ENV"].map(
+        (k) => [k, process.env[k]],
+      ),
+    );
+  try {
+    Object.assign(process.env, {
+      SUPABASE_URL: "https://intake.invalid",
+      SUPABASE_ANON_KEY: "synthetic-key",
+      BOFF_ENVIRONMENT: "test",
+      NODE_ENV: "test",
+    });
+    let owner = false,
+      providerCalls = 0,
+      saved = null;
+    const sourceId = "1234567890123456789",
+      requestKey = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const rawLeague = {
+      league_id: sourceId,
+      name: "API intake fixture",
+      sport: "nfl",
+      season_type: "regular",
+      season: "2026",
+      status: "in_season",
+      total_rosters: 8,
+      scoring_settings: { rec: 1 },
+      roster_positions: ["QB", "BN"],
+      settings: { playoff_week_start: 15, playoff_teams: 4 },
+    };
+    const rawRosters = Array.from({ length: 8 }, (_, i) => ({
+      roster_id: i + 1,
+      league_id: sourceId,
+      owner_id: null,
+      settings: { wins: 0, losses: 0, ties: 0 },
+    }));
+    globalThis.fetch = async (input, options = {}) => {
+      const url = String(input);
+      if (url.includes("/auth/v1/user"))
+        return Response.json({
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          email_confirmed_at: "2026-11-01T00:00:00Z",
+        });
+      if (url.includes("/rpc/league_intake_owner")) return Response.json(owner);
+      if (url.includes("/rpc/save_league_intake_draft")) {
+        const body = JSON.parse(options.body);
+        assert.equal(body.p_capabilities.admission, "review_required");
+        saved = {
+          id: "draft-api",
+          revision: 1,
+          state: "draft",
+          source: body.p_source,
+          capabilities: body.p_capabilities,
+          source_league_id: sourceId,
+          expires_at: "2099-01-01T00:00:00Z",
+        };
+        return Response.json({ id: "draft-api", revision: 1, state: "draft" });
+      }
+      if (url.includes("/rest/v1/league_intake_drafts"))
+        return Response.json(saved ? [saved] : []);
+      assert(url.startsWith("https://api.sleeper.app/v1/league/"));
+      providerCalls++;
+      return Response.json(
+        url.endsWith("/rosters")
+          ? rawRosters
+          : url.endsWith("/users")
+            ? []
+            : rawLeague,
+      );
+    };
+    const req = (body, auth = true) =>
+      new Request("https://example.invalid/api/league-intake", {
+        method: "POST",
+        headers: auth
+          ? {
+              authorization: "Bearer synthetic-owner",
+              "Content-Type": "application/json",
+            }
+          : {},
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      });
+    assert.equal((await intakePost(req({}, false))).status, 401);
+    assert.equal(
+      (
+        await intakePost(
+          req({ sleeper_league_id: sourceId, request_key: requestKey }),
+        )
+      ).status,
+      403,
+    );
+    assert.equal(providerCalls, 0);
+    owner = true;
+    assert.equal(
+      (
+        await intakePost(
+          req({
+            sleeper_league_id: "https://bad.invalid",
+            request_key: requestKey,
+          }),
+        )
+      ).status,
+      400,
+    );
+    assert.equal((await intakePost(req("x".repeat(3000)))).status, 413);
+    assert.equal(providerCalls, 0);
+    const accepted = await intakePost(
+      req({ sleeper_league_id: sourceId, request_key: requestKey }),
+    );
+    assert.equal(accepted.status, 200);
+    assert.equal(providerCalls, 3);
+    assert.equal((await accepted.json()).source.total_rosters, 8);
+    assert.equal(
+      (
+        await intakePost(
+          req({ sleeper_league_id: sourceId, request_key: requestKey }),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      providerCalls,
+      3,
+      "retries reuse the saved normalized draft before any provider read",
+    );
+    assert.equal(
+      (
+        await intakePost(
+          req({ sleeper_league_id: "999", request_key: requestKey }),
+        )
+      ).status,
+      409,
+    );
+    assert.equal(providerCalls, 3);
+  } finally {
+    globalThis.fetch = intakeFetch;
+    for (const [k, v] of Object.entries(intakeEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
   const oldMailFetch = globalThis.fetch,
     oldMailKey = process.env.RESEND_API_KEY;
   // Opening content must be built from the final published board, not preview fixtures.
   const openingTeams = Array.from({ length: 4 }, (_, i) => ({
     id: `team${i}`,
     team_name: `Final Team ${i}`,
+    sportsbook_owner_name: `Public Owner ${i}`,
     wins: 4 - i,
     losses: i,
     ties: 0,
@@ -665,8 +1201,32 @@ try {
     },
   ];
   let openingStatus = "published";
+  let openingEdition = null,
+    editorialPublishes = 0;
   const openingDb = {
-    rpc:(name,args)=>{assert.equal(name,"notification_window");return {abortSignal:()=>Promise.resolve({data:windowFixture(args),error:null})};},
+    rpc: (name, args) => {
+      if (name === "opening_editorial_context")
+        return {
+          abortSignal: () =>
+            Promise.resolve({
+              data: { current: openingEdition, previous: null },
+              error: null,
+            }),
+        };
+      if (name === "publish_opening_editorial") {
+        editorialPublishes++;
+        openingEdition = args.p_document;
+        return {
+          abortSignal: () =>
+            Promise.resolve({ data: openingEdition, error: null }),
+        };
+      }
+      assert.equal(name, "notification_window");
+      return {
+        abortSignal: () =>
+          Promise.resolve({ data: windowFixture(args), error: null }),
+      };
+    },
     from(table) {
       const filters = {};
       const query = {
@@ -742,13 +1302,40 @@ try {
   );
   assert.equal(finalOpening.featured[0].teams[0].boostedOdds, "+188");
   assert.equal(finalOpening.featured[0].total, "287.5");
-  assert.match(finalOpening.stories[0].title, /Championship Outlook/);
-  assert.match(finalOpening.stories[0].text,/current availability/);
-  assert.match(finalOpening.stories[0].text, /Final Owner 3.*\+450/);
+  const savedChampionship = finalOpening.stories.find(
+    (s) => s.key === "championship-prices",
+  );
+  assert(savedChampionship);
+  assert.match(savedChampionship.text, /current availability/);
+  assert.match(savedChampionship.text, /Public Owner 3.*\+450/);
+  assert(
+    !finalOpening.stories.some((s) => /Final Owner/.test(s.text)),
+    "shared stories exclude per-recipient account display names",
+  );
+  assert.equal(
+    new Set(finalOpening.stories.map((s) => s.group)).size,
+    finalOpening.stories.length,
+  );
+  const templates = await import(
+    pathToFileURL(path.join(root, "_lib/email-templates.js")).href
+  );
+  const escapedStory = templates.renderEmail({
+    ...finalOpening,
+    stories: [
+      { title: "<script>bad</script>", text: "<img src=x onerror=bad>" },
+    ],
+  });
+  assert(escapedStory.includes("&lt;script&gt;bad&lt;/script&gt;"));
+  assert(!escapedStory.includes("<img src=x onerror=bad>"));
   openingQuotes[4].line = 299.5;
   assert.equal(
     (await mail.buildEmail(openingDb, openingRow)).featured[0].total,
     "299.5",
+  );
+  assert.equal(
+    editorialPublishes,
+    1,
+    "one saved edition is reused for recipient builds",
   );
   openingStatus = "draft";
   await assert.rejects(
@@ -761,7 +1348,7 @@ try {
   const changes = [];
   let providerFails = false;
   const acceptedPayload = {
-    from: "Goldy Fantasy Sportsbook <sportsbook@coopergurrie.com>",
+    from: "Fixture league \u00b7 Fantasy Sportsbook <fixture@example.invalid>",
     to: ["test@example.invalid"],
     subject: "Accepted Ticket",
     html: "<p>Saved picks</p>",
@@ -788,7 +1375,14 @@ try {
         const query = {
           eq: () => query,
           maybeSingle: async () => ({
-            data: { id: "fixture", role: "member" },
+            data:
+              table === "leagues"
+                ? {
+                    name: "Fixture league",
+                    sportsbook_url: "https://example.invalid",
+                    email_sender: "fixture@example.invalid",
+                  }
+                : { id: "fixture", role: "member" },
             error: null,
           }),
         };
@@ -838,78 +1432,321 @@ try {
     const captureEnvironment = { ...process.env };
     try {
       Object.assign(process.env, {
-        BOFF_ENVIRONMENT: "development", BOFF_EXPECTED_PROJECT_REF: "whlcnlacueweaqpsupqs",
+        BOFF_ENVIRONMENT: "development",
+        BOFF_EXPECTED_PROJECT_REF: "whlcnlacueweaqpsupqs",
         SUPABASE_URL: "https://whlcnlacueweaqpsupqs.supabase.co",
         BOFF_APP_ORIGIN: "https://dev.sportsbook.coopergurrie.com",
-        BOFF_MAIL_MODE: "capture", BOFF_AUTOMATION_MODE: "manual",
+        BOFF_MAIL_MODE: "capture",
+        BOFF_AUTOMATION_MODE: "manual",
       });
       delete process.env.RESEND_API_KEY;
       let capturedCalls = 0;
-      globalThis.fetch = async () => { throw new Error("Capture must never call a mail provider"); };
-      const result = await mail.deliverEmails({ ...emailDb, rpc: async (name, args) => {
-        if (name === "claim_scoped_outbound_emails") return emailDb.rpc();
-        assert.equal(name, "capture_development_email");
-        assert.equal(args.p_email, "mail");
-        assert.deepEqual(args.p_payload, acceptedPayload);
-        capturedCalls++;
-        return { data: null, error: null };
-      } });
+      globalThis.fetch = async () => {
+        throw new Error("Capture must never call a mail provider");
+      };
+      const result = await mail.deliverEmails({
+        ...emailDb,
+        rpc: async (name, args) => {
+          if (name === "claim_scoped_outbound_emails") return emailDb.rpc();
+          assert.equal(name, "capture_development_email");
+          assert.equal(args.p_email, "mail");
+          assert.deepEqual(args.p_payload, acceptedPayload);
+          capturedCalls++;
+          return { data: null, error: null };
+        },
+      });
       assert.deepEqual(result, { sent: 0, captured: 1 });
       assert.equal(capturedCalls, 1);
       // Frozen editorial payloads must pass current scope/window/minimum checks.
       // Receipts above deliberately have no window dependency or editorial cap.
-      const promotionScope={p_league:"test",p_season:2026,p_week:5,p_kind:"reminder"};
-      const frozenPromotion={...acceptedPayload,subject:"Weekly betting window",text:"Original frozen body"};
-      async function promotionCase({kind="reminder",boundPatch={},currentPatch={},attempts=1,balance=100,unbound=false,changeAtDispatch=false,rpcFailure=false,fresh=false,routineDeny=false,routineFinalDeny=false,routineFailure=false,mergeWatch=false,wrongRoutineScope=false}={}){
-        const scope={...promotionScope,p_kind:kind},bound=windowFixture(scope,{...boundPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{})});
-        const row={id:"promotion",league_id:"test",team_id:"team0",recipient:"test@example.invalid",event_key:"promotion:test",kind,market_week:5,attempts,payload:fresh?null:frozenPromotion,notification_context:unbound?null:bound,...(kind==="reopening"?{reopening_id:"review"}:{})};
-        const routineContext={contract:"routine-composition-v1",league_id:wrongRoutineScope?"foreign":"test",user_id:"fixture-user",nfl_season:2026,period_start:"2026-10-27",kind,merge_watch:mergeWatch,open_ticket_count:mergeWatch?2:0,prepared_at:"2026-11-02T22:00:00Z"};
-        if(!fresh)row.routine_context=routineContext;
-        let windowReads=0,captures=0,routineReads=0;const updates=[],capturedPayloads=[];
-        const fixture={rpc(name,args){
-          if(name==="claim_scoped_outbound_emails")return Promise.resolve({data:[row],error:null});
-          if(name==="routine_delivery_permission")return {abortSignal:()=>{routineReads++;return Promise.resolve({data:routineDeny||(routineFinalDeny&&args.p_commit)?{allowed:false,reason:"Synthetic preference/cap rejection"}:{allowed:true,context:routineContext},error:routineFailure?{message:"Synthetic routine outage"}:null});}};
-          if(name==="notification_window")return {abortSignal:()=>{windowReads++;return Promise.resolve({data:windowFixture(scope,{...currentPatch,...(kind==="reopening"?{reopening_id:"review",window_type:"reopening"}:{}),...(changeAtDispatch&&windowReads>1?{eligible:false,reason:"closed"}:{})}),error:rpcFailure?{message:"Synthetic window outage"}:null});}};
-          assert.equal(name,"capture_development_email");if(!fresh)assert.deepEqual(args.p_payload,frozenPromotion);capturedPayloads.push(args.p_payload);captures++;return Promise.resolve({data:null,error:null});
-        },from(table){
-          return {
-            select(){const data=table==="leagues"?[{id:"test",name:"Fixture league",nfl_season:2026,sportsbook_url:"https://example.invalid",email_sender:"fixture@example.invalid"}]:table==="teams"?[{id:"team0",team_name:"Fixture team"}]:table==="league_memberships"?[{id:"member",team_id:"team0",display_name:"Member",role:"member"}]:table==="sportsbook_boards"?[{id:"weekly",status:"published",closes_at:bound.deadline}]:[{balance}];const query={eq:()=>query,maybeSingle:async()=>({data:{id:"member",role:"member"},error:null}),then:(resolve,reject)=>Promise.resolve({data,error:null}).then(resolve,reject)};return query;},
-            update(patch){return {eq:async()=>{updates.push(patch);return {error:null};}};}
-          };
-        }};
+      const promotionScope = {
+        p_league: "test",
+        p_season: 2026,
+        p_week: 5,
+        p_kind: "reminder",
+      };
+      const frozenPromotion = {
+        ...acceptedPayload,
+        subject: "Weekly betting window",
+        text: "Original frozen body",
+      };
+      async function promotionCase({
+        kind = "reminder",
+        boundPatch = {},
+        currentPatch = {},
+        attempts = 1,
+        balance = 100,
+        unbound = false,
+        changeAtDispatch = false,
+        rpcFailure = false,
+        fresh = false,
+        routineDeny = false,
+        routineFinalDeny = false,
+        routineFailure = false,
+        mergeWatch = false,
+        wrongRoutineScope = false,
+      } = {}) {
+        const scope = { ...promotionScope, p_kind: kind },
+          bound = windowFixture(scope, {
+            ...boundPatch,
+            ...(kind === "reopening"
+              ? { reopening_id: "review", window_type: "reopening" }
+              : {}),
+          });
+        const row = {
+          id: "promotion",
+          league_id: "test",
+          team_id: "team0",
+          recipient: "test@example.invalid",
+          event_key: "promotion:test",
+          kind,
+          market_week: 5,
+          attempts,
+          payload: fresh ? null : frozenPromotion,
+          notification_context: unbound ? null : bound,
+          ...(kind === "reopening" ? { reopening_id: "review" } : {}),
+        };
+        const routineContext = {
+          contract: "routine-composition-v1",
+          league_id: wrongRoutineScope ? "foreign" : "test",
+          user_id: "fixture-user",
+          nfl_season: 2026,
+          period_start: "2026-10-27",
+          kind,
+          merge_watch: mergeWatch,
+          open_ticket_count: mergeWatch ? 2 : 0,
+          prepared_at: "2026-11-02T22:00:00Z",
+        };
+        if (!fresh) row.routine_context = routineContext;
+        let windowReads = 0,
+          captures = 0,
+          routineReads = 0;
+        const updates = [],
+          capturedPayloads = [];
+        const fixture = {
+          rpc(name, args) {
+            if (name === "claim_scoped_outbound_emails")
+              return Promise.resolve({ data: [row], error: null });
+            if (name === "routine_delivery_permission")
+              return {
+                abortSignal: () => {
+                  routineReads++;
+                  return Promise.resolve({
+                    data:
+                      routineDeny || (routineFinalDeny && args.p_commit)
+                        ? {
+                            allowed: false,
+                            reason: "Synthetic preference/cap rejection",
+                          }
+                        : { allowed: true, context: routineContext },
+                    error: routineFailure
+                      ? { message: "Synthetic routine outage" }
+                      : null,
+                  });
+                },
+              };
+            if (name === "notification_window")
+              return {
+                abortSignal: () => {
+                  windowReads++;
+                  return Promise.resolve({
+                    data: windowFixture(scope, {
+                      ...currentPatch,
+                      ...(kind === "reopening"
+                        ? { reopening_id: "review", window_type: "reopening" }
+                        : {}),
+                      ...(changeAtDispatch && windowReads > 1
+                        ? { eligible: false, reason: "closed" }
+                        : {}),
+                    }),
+                    error: rpcFailure
+                      ? { message: "Synthetic window outage" }
+                      : null,
+                  });
+                },
+              };
+            assert.equal(name, "capture_development_email");
+            if (!fresh) assert.deepEqual(args.p_payload, frozenPromotion);
+            capturedPayloads.push(args.p_payload);
+            captures++;
+            return Promise.resolve({ data: null, error: null });
+          },
+          from(table) {
+            return {
+              select() {
+                const data =
+                  table === "leagues"
+                    ? [
+                        {
+                          id: "test",
+                          name: "Fixture league",
+                          nfl_season: 2026,
+                          sportsbook_url: "https://example.invalid",
+                          email_sender: "fixture@example.invalid",
+                        },
+                      ]
+                    : table === "teams"
+                      ? [{ id: "team0", team_name: "Fixture team" }]
+                      : table === "league_memberships"
+                        ? [
+                            {
+                              id: "member",
+                              team_id: "team0",
+                              display_name: "Member",
+                              role: "member",
+                            },
+                          ]
+                        : table === "sportsbook_boards"
+                          ? [
+                              {
+                                id: "weekly",
+                                status: "published",
+                                closes_at: bound.deadline,
+                              },
+                            ]
+                          : [{ balance }];
+                const query = {
+                  eq: () => query,
+                  maybeSingle: async () => ({
+                    data:
+                      table === "leagues"
+                        ? data[0]
+                        : { id: "member", role: "member" },
+                    error: null,
+                  }),
+                  then: (resolve, reject) =>
+                    Promise.resolve({ data, error: null }).then(
+                      resolve,
+                      reject,
+                    ),
+                };
+                return query;
+              },
+              update(patch) {
+                return {
+                  eq: async () => {
+                    updates.push(patch);
+                    return { error: null };
+                  },
+                };
+              },
+            };
+          },
+        };
 
-        const result=await mail.deliverEmails(fixture);return {result,updates,captures,windowReads,capturedPayloads,routineReads};
+        const result = await mail.deliverEmails(fixture);
+        return {
+          result,
+          updates,
+          captures,
+          windowReads,
+          capturedPayloads,
+          routineReads,
+        };
       }
-      const rendered=await promotionCase({fresh:true});assert.equal(rendered.captures,1);assert(rendered.updates.some(u=>u.payload));assert(!/tonight|last call/i.test(rendered.capturedPayloads[0].subject));
-      const closedDuringBuild=await promotionCase({fresh:true,changeAtDispatch:true});assert.equal(closedDuringBuild.captures,0);assert(closedDuringBuild.updates.some(u=>u.payload));assert(closedDuringBuild.updates.some(u=>u.status==="skipped"));
-      const valid=await promotionCase();assert.equal(valid.captures,1);assert.equal(valid.windowReads,2);assert.deepEqual(valid.result,{sent:0,captured:1});
-      assert.equal(valid.routineReads,2,'routine permissions rechecked immediately before capture/provider');
-      for(const options of [{routineDeny:true},{routineFinalDeny:true}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==='skipped'));}
-      for(const options of [{routineFailure:true},{wrongRoutineScope:true}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==='failed'));}
-      const combined=await promotionCase({fresh:true,mergeWatch:true});assert.equal(combined.captures,1);assert.match(combined.capturedPayloads[0].text,/2 open weekly tickets/);assert.match(combined.capturedPayloads[0].text,/example\.invalid\/#\/bets/);
-      for(const options of [
-        {currentPatch:{eligible:false,reason:"closed"}},
-        {currentPatch:{eligible:false,reason:"paused"}},
-        {currentPatch:{eligible:false,reason:"stale_or_suspended"}},
-        {currentPatch:{window_key:"b".repeat(32)}},
-        {boundPatch:{send_before:new Date(Date.now()-1000).toISOString()}},
-        {unbound:true},
-        {currentPatch:{send_after:new Date(Date.now()+60000).toISOString()}},
-        {boundPatch:{schedule_contract:null}},
-        {balance:null},
-        {balance:2,currentPatch:{minimum_stake:5}},
-        {changeAtDispatch:true},
-        {kind:"opening",currentPatch:{window_key:"b".repeat(32)}},
-        {kind:"reopening",currentPatch:{eligible:false,reason:"reopening_unavailable"}},
-      ]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==="skipped"));assert(x.updates.every(u=>!("payload" in u)),"frozen content must never be rewritten");}
-      for(const options of [{attempts:2,unbound:true},{attempts:2,balance:0},{attempts:2,currentPatch:{eligible:false,reason:"closed"}}]){const x=await promotionCase(options);assert.equal(x.captures,0);assert(x.updates.some(u=>u.status==="needs_review"),"ambiguous prior attempts retain review status");}
-      const outage=await promotionCase({rpcFailure:true});assert.equal(outage.captures,0);assert(outage.updates.some(u=>u.status==="failed"));
-      console.log("Promotional delivery revalidates frozen/new window scope, expiry, pause/staleness, minimum wager and dispatch-time closure; legacy/ambiguous attempts are preserved for review and receipts stay independent.");
+      const rendered = await promotionCase({ fresh: true });
+      assert.equal(rendered.captures, 1);
+      assert(rendered.updates.some((u) => u.payload));
+      assert(!/tonight|last call/i.test(rendered.capturedPayloads[0].subject));
+      const closedDuringBuild = await promotionCase({
+        fresh: true,
+        changeAtDispatch: true,
+      });
+      assert.equal(closedDuringBuild.captures, 0);
+      assert(closedDuringBuild.updates.some((u) => u.payload));
+      assert(closedDuringBuild.updates.some((u) => u.status === "skipped"));
+      const valid = await promotionCase();
+      assert.equal(valid.captures, 1);
+      assert.equal(valid.windowReads, 2);
+      assert.deepEqual(valid.result, { sent: 0, captured: 1 });
+      assert.equal(
+        valid.routineReads,
+        2,
+        "routine permissions rechecked immediately before capture/provider",
+      );
+      for (const options of [
+        { routineDeny: true },
+        { routineFinalDeny: true },
+      ]) {
+        const x = await promotionCase(options);
+        assert.equal(x.captures, 0);
+        assert(x.updates.some((u) => u.status === "skipped"));
+      }
+      for (const options of [
+        { routineFailure: true },
+        { wrongRoutineScope: true },
+      ]) {
+        const x = await promotionCase(options);
+        assert.equal(x.captures, 0);
+        assert(x.updates.some((u) => u.status === "failed"));
+      }
+      const combined = await promotionCase({ fresh: true, mergeWatch: true });
+      assert.equal(combined.captures, 1);
+      assert.match(combined.capturedPayloads[0].text, /2 open weekly tickets/);
+      assert.match(
+        combined.capturedPayloads[0].text,
+        /example\.invalid\/#\/bets/,
+      );
+      for (const options of [
+        { currentPatch: { eligible: false, reason: "closed" } },
+        { currentPatch: { eligible: false, reason: "paused" } },
+        { currentPatch: { eligible: false, reason: "stale_or_suspended" } },
+        { currentPatch: { window_key: "b".repeat(32) } },
+        {
+          boundPatch: {
+            send_before: new Date(Date.now() - 1000).toISOString(),
+          },
+        },
+        { unbound: true },
+        {
+          currentPatch: {
+            send_after: new Date(Date.now() + 60000).toISOString(),
+          },
+        },
+        { boundPatch: { schedule_contract: null } },
+        { balance: null },
+        { balance: 2, currentPatch: { minimum_stake: 5 } },
+        { changeAtDispatch: true },
+        { kind: "opening", currentPatch: { window_key: "b".repeat(32) } },
+        {
+          kind: "reopening",
+          currentPatch: { eligible: false, reason: "reopening_unavailable" },
+        },
+      ]) {
+        const x = await promotionCase(options);
+        assert.equal(x.captures, 0);
+        assert(x.updates.some((u) => u.status === "skipped"));
+        assert(
+          x.updates.every((u) => !("payload" in u)),
+          "frozen content must never be rewritten",
+        );
+      }
+      for (const options of [
+        { attempts: 2, unbound: true },
+        { attempts: 2, balance: 0 },
+        { attempts: 2, currentPatch: { eligible: false, reason: "closed" } },
+      ]) {
+        const x = await promotionCase(options);
+        assert.equal(x.captures, 0);
+        assert(
+          x.updates.some((u) => u.status === "needs_review"),
+          "ambiguous prior attempts retain review status",
+        );
+      }
+      const outage = await promotionCase({ rpcFailure: true });
+      assert.equal(outage.captures, 0);
+      assert(outage.updates.some((u) => u.status === "failed"));
+      console.log(
+        "Promotional delivery revalidates frozen/new window scope, expiry, pause/staleness, minimum wager and dispatch-time closure; legacy/ambiguous attempts are preserved for review and receipts stay independent.",
+      );
       process.env.RESEND_API_KEY = "forbidden-development-provider-key";
       await assert.rejects(mail.deliverEmails(emailDb), /captured mail/);
-      console.log("Development central mail boundary captures without provider access and refuses a live key.");
+      console.log(
+        "Development central mail boundary captures without provider access and refuses a live key.",
+      );
     } finally {
-      for (const key of Object.keys(process.env)) if (!(key in captureEnvironment)) delete process.env[key];
+      for (const key of Object.keys(process.env))
+        if (!(key in captureEnvironment)) delete process.env[key];
       Object.assign(process.env, captureEnvironment);
     }
   } finally {
@@ -943,7 +1780,17 @@ try {
     if (url.includes("/rpc/league_capabilities"))
       return lookupFails
         ? json({ message: "lookup unavailable" }, 400)
-        : json(membership?{admin:membership.role==="admin",view:true,configure:false,team_id:null,bet:false}:null);
+        : json(
+            membership
+              ? {
+                  admin: membership.role === "admin",
+                  view: true,
+                  configure: false,
+                  team_id: null,
+                  bet: false,
+                }
+              : null,
+          );
     if (url.includes("/teams")) return json([]);
     throw new Error(`Unexpected test request: ${url}`);
   };
@@ -1151,11 +1998,17 @@ try {
         !source.some((p) => p.id === "free-k3"),
         "Omit unused unrostered projections",
       );
-      assert.equal(archives[0].p_payload.retention_format,"compact-forecast-v1");
-      assert.deepEqual(Object.keys(archives[0].p_sources).sort(),["roster_positions","scoring_settings"]);
+      assert.equal(
+        archives[0].p_payload.retention_format,
+        "compact-forecast-v1",
+      );
+      assert.deepEqual(Object.keys(archives[0].p_sources).sort(), [
+        "roster_positions",
+        "scoring_settings",
+      ]);
       assert(!JSON.stringify(archives[0].p_payload).includes('"stats"'));
-      assert.deepEqual(archives[1].p_payload.pool,[]);
-      assert.deepEqual(archives[1].p_payload.models,[]);
+      assert.deepEqual(archives[1].p_payload.pool, []);
+      assert.deepEqual(archives[1].p_payload.models, []);
       console.log(
         "Replacement integration preserves prices/eligibility and retains numeric contributor predictions without provider bodies.",
       );

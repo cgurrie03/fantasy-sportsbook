@@ -1,5 +1,6 @@
 import { reopeningEmail } from "./reopening-email.js";
 import { SIGN_IN_LINK_MINUTES } from "./auth-policy.js";
+import { editorialLabel, selectEditorialStories } from "./editorial-stories.js";
 export type EmailKind =
   | "opening"
   | "reopening"
@@ -154,50 +155,40 @@ export function openingWeekStories(
   teams: { id: string; name: string; projected: number }[],
   championshipFavorites: { owner: string; team: string; odds: number }[] = [],
 ): NonNullable<EmailContent["stories"]> {
-  const ranked = teams
-    .filter((t) => Number.isFinite(t.projected))
-    .sort((a, b) => b.projected - a.projected || a.name.localeCompare(b.name));
-  const list = (rows: typeof ranked) =>
-    rows
-      .map(
-        (t, i) =>
-          `${i + 1}. ${t.name} — ${t.projected.toFixed(1)} projected points`,
-      )
-      .join("\n");
-  return [
-    ...(championshipFavorites.length
-      ? [
-          {
-            title: "🏆 Championship Outlook",
-            text:
-              "Saved championship prices. Check the sportsbook for current availability.\n\n" +
-              championshipFavorites
-                .slice(0, 4)
-                .map(
-                  (t, i) =>
-                    `${i + 1}. ${t.owner} · ${t.team} · ${t.odds > 0 ? "+" : ""}${t.odds}`,
-                )
-                .join("\n"),
-          },
-        ]
-      : []),
-    ...(ranked.length
-      ? [
-          {
-            title: "🔥 Top 3 Projected Scorers · Bring The Firepower",
-            text:
-              list(ranked.slice(0, 3)) +
-              "\n\nBig projections, bigger expectations. Let's see who actually delivers.",
-          },
-          {
-            title: "🧊 Bottom 3 Projected Scorers · Bulletin Board Material",
-            text:
-              list([...ranked].reverse().slice(0, 3)) +
-              "\n\nThe projections have spoken. A breakout week would make this email age beautifully.",
-          },
-        ]
-      : []),
-  ];
+  // Illustrative preview only. Production uses sharedOpeningEdition with real,
+  // scoped IDs and a database-verified published-board snapshot.
+  const clean = teams
+    .filter(
+      (t) =>
+        Number.isFinite(t.projected) && t.projected > 0 && t.projected <= 1000,
+    )
+    .slice(0, 128)
+    .map((t) => ({ ...t, name: editorialLabel(t.name) }));
+  return selectEditorialStories({
+    contract: "opening-editorial-facts-v1",
+    league_id: "sample",
+    nfl_season: 2026,
+    league_season: 3,
+    market_week: 5,
+    board_id: "sample",
+    board_revision: 1,
+    window_key: "sample",
+    prepared_at: "2026-10-07T12:00:00Z",
+    team_ids: teams
+      .slice(0, 128)
+      .map((t) => t.id)
+      .sort(),
+    teams: clean,
+    matchups: [],
+    championship: championshipFavorites
+      .slice(0, Math.min(16, teams.length))
+      .map((t, i) => ({
+        id: teams[i].id,
+        owner: editorialLabel(t.owner, 80),
+        team: editorialLabel(t.team),
+        odds: t.odds,
+      })),
+  }).stories;
 }
 export function sampleEmail(kind: EmailKind): EmailContent {
   const common = {

@@ -4,21 +4,27 @@ import {
   windowRejection,
 } from "./notification-window.js";
 import type { NotificationWindow } from "./notification-window.js";
-import { isRoutine, routinePermission } from "./routine-notifications.js";
+import {
+  isRoutine,
+  routinePermission,
+  recapSnapshot,
+} from "./routine-notifications.js";
 import type { RoutineContext } from "./routine-notifications.js";
+import { buildStaffAlert } from "./staff-alerts.js";
+import {
+  openingEditorialFacts,
+  sharedOpeningEdition,
+} from "./opening-editorial.js";
 import { reopeningEmail } from "./reopening-email.js";
 import { environmentIdentity } from "./environment-policy.js";
 import {
   communicationIdentity,
   validateDeliveryScope,
   validatePayloadRecipient,
+  validateCommunicationPayload,
 } from "./league-communications.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  renderEmail,
-  openingWeekStories,
-  teamWatchText,
-} from "./email-templates.js";
+import { renderEmail, teamWatchText } from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
 import { mondayEmail } from "./monday-watch.js";
 const money = (v: unknown) => "$" + Number(v ?? 0).toFixed(2);
@@ -59,6 +65,7 @@ export async function buildEmail(
   verifiedWindow?: NotificationWindow,
   routine?: RoutineContext,
 ): Promise<EmailContent> {
+  if (row.kind === "attention") return buildStaffAlert(db, row);
   const acceptedTicket =
     row.kind === "confirmation"
       ? (
@@ -287,7 +294,7 @@ export async function buildEmail(
         ],
         details: [
           ["Available weekly opportunity until", date(promotion!.deadline!)],
-          ["Your available balance", availableBalance],
+          ["Your balance at preparation", availableBalance],
         ],
         button: "Finish Your Picks",
       };
@@ -303,11 +310,6 @@ export async function buildEmail(
         markets.filter((m) => m.kind === "spread").map((m) => m.matchup_key),
       ),
     ].map((key) => markets.filter((m) => m.matchup_key === key));
-    const projected = new Map<string, number>();
-    for (const g of groups) {
-      projected.set(g[0].home_team_id, Number(g[0].home_projection));
-      projected.set(g[0].away_team_id, Number(g[0].away_projection));
-    }
     const futuresBoard = (
       await read(
         db
@@ -339,14 +341,21 @@ export async function buildEmail(
           )
           .slice(0, 4)
           .map((m) => ({
-            owner:
-              members.find((u) => u.team_id === m.team_id)?.display_name ??
-              teams.find((t) => t.id === m.team_id)?.sportsbook_owner_name ??
-              "League Member",
-            team: teams.find((t) => t.id === m.team_id)?.team_name ?? "Team",
+            id: m.team_id,
             odds: Number(m.odds),
           }))
       : [];
+    const edition = await sharedOpeningEdition(
+      db,
+      openingEditorialFacts(
+        league,
+        board,
+        promotion!,
+        teams,
+        groups,
+        favorites,
+      ),
+    );
     return {
       ...base,
       subject: `Week ${row.market_week} Is Open · ${identity.brand}`,
@@ -357,18 +366,10 @@ export async function buildEmail(
       details: [
         ["Betting opens", date(board.opens_at)],
         ["Available weekly opportunity until", date(promotion!.deadline!)],
-        ["Your balance", availableBalance],
+        ["Your balance at preparation", availableBalance],
+        ["Story snapshot prepared", date(edition.facts.prepared_at)],
       ],
-      stories: openingWeekStories(
-        teams
-          .filter((t) => projected.has(t.id))
-          .map((t) => ({
-            id: t.id,
-            name: t.team_name,
-            projected: projected.get(t.id)!,
-          })),
-        favorites,
-      ),
+      stories: edition.stories,
       featured: groups
         .filter((g) => g[0].featured)
         .map((g) => ({
@@ -409,22 +410,6 @@ export async function buildEmail(
       .eq("market_week", row.market_week)
       .neq("status", "VOIDED"),
   );
-  if (row.kind === "attention") {
-    const pending = tickets.filter((t) => t.status === "OPEN");
-    return {
-      ...base,
-      subject: `Admin Review Needed · Week ${row.market_week}`,
-      heading: "Weekly Results Need Your Attention",
-      paragraphs: [
-        "These tickets remain unresolved. Their owners’ replenishment will wait for confirmed results.",
-      ],
-      details: pending.map((t) => [
-        teams.find((x) => x.id === t.team_id)?.team_name ?? "Team",
-        `Ticket ${t.id.slice(0, 8)} · Open`,
-      ]),
-      button: "Review Weekly Execution",
-    };
-  }
   const settled = tickets.filter((t) =>
       ["WON", "LOST", "PUSH"].includes(t.status),
     ),
@@ -532,21 +517,20 @@ export async function buildEmail(
           " / ",
         )} led with ${money(best)} in net betting profit. Fake money. Very real receipts.`,
     });
-  const ledger = await read(
-    (financialRecipient
-      ? db
-          .from("user_wallet_entries")
-          .select("amount,created_at")
-          .eq("wallet_id", financialRecipient.wallet_id)
-      : db
-          .from("wallet_ledger")
-          .select("amount,created_at")
-          .eq("team_id", row.team_id)
-    )
-      .eq("kind", "weekly_replenishment")
-      .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
-  );
-  const replenished = ledger.reduce((n, l) => n + Number(l.amount), 0);
+  const recap =
+    routine?.recap ?? (await recapSnapshot(db, row, league.nfl_season));
+  const replenished =
+    recap.credited === null
+      ? (
+          {
+            funding_pending: "Opening funds pending",
+            results_pending: "Pending confirmed results",
+            review_pending: "Pending account review",
+            weekly_calendar_complete: "No further weekly top-up scheduled",
+          } as Record<string, string>
+        )[recap.state]
+      : money(recap.credited) +
+        (recap.state === "no_topup_needed" ? " · No top-up needed" : "");
   const seasonTickets = financialRecipient
     ? []
     : await read(
@@ -598,7 +582,15 @@ export async function buildEmail(
     subject: `Week ${row.market_week} League Roundup`,
     heading: `Week ${row.market_week}: The League Roundup`,
     paragraphs: [
-      "The scores are in. The receipts are ready. 🍿 Here’s how the league’s betting week played out.",
+      "Here are the confirmed betting outcomes recorded for this week. Unresolved tickets remain pending.",
+      ...(recap.state === "funding_pending"
+        ? ["Your independent account is still waiting for opening funds."]
+        : []),
+      ...(recap.state === "weekly_calendar_complete"
+        ? [
+            "The supported weekly calendar has finished. This recap does not schedule another weekly cash reset; accepted tickets and season outcomes keep their own review process.",
+          ]
+        : []),
       ...(open
         ? [
             `${open} of your tickets remain under review; their results and replenishment are pending.`,
@@ -615,8 +607,8 @@ export async function buildEmail(
       ["Total wagered (settled tickets)", money(wagered)],
       ["Total paid out", money(paid)],
       ["Net betting profit", money(paid - wagered)],
-      ["Weekly replenishment", money(replenished)],
-      ["Current balance", availableBalance],
+      ["Weekly replenishment", replenished],
+      ["Your balance at preparation", availableBalance],
       [
         financialRecipient
           ? "Account standing (all seasons)"
@@ -745,6 +737,11 @@ export async function deliverEmails(
           promotion,
           routine?.allowed ? routine.context : undefined,
         );
+        if (routine?.allowed)
+          c.details.push([
+            "Message prepared",
+            date(routine.context.prepared_at),
+          ]);
         const text = [
           c.heading,
           c.greeting,
@@ -789,6 +786,16 @@ export async function deliverEmails(
         if (save.error) throw new Error(save.error.message);
       }
       validatePayloadRecipient(payload, row.recipient);
+      // Authorization can change while the message is composed or frozen.
+      await validateDeliveryScope(db, { ...row, payload });
+      const configuredLeague = await db
+        .from("leagues")
+        .select("name,sportsbook_url,email_sender")
+        .eq("id", row.league_id)
+        .maybeSingle();
+      if (configuredLeague.error)
+        throw Error("Current league communication identity is unavailable.");
+      validateCommunicationPayload(payload, configuredLeague.data);
       if (promotion) {
         const latest = await currentNotificationWindow(
             db,

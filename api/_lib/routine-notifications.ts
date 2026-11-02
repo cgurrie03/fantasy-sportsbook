@@ -18,6 +18,66 @@ export interface RoutineContext {
   merge_watch: boolean;
   open_ticket_count: number;
   prepared_at: string;
+  recap?: RecapSnapshot;
+}
+const recapStates = [
+  "credited",
+  "no_topup_needed",
+  "funding_pending",
+  "results_pending",
+  "review_pending",
+  "weekly_calendar_complete",
+] as const;
+export interface RecapSnapshot {
+  state: (typeof recapStates)[number];
+  credited: number | null;
+}
+export function validRecapSnapshot(value: unknown): value is RecapSnapshot {
+  const c = value as RecapSnapshot;
+  return (
+    !!c &&
+    recapStates.includes(c.state) &&
+    (c.credited === null ||
+      (typeof c.credited === "number" &&
+        Number.isFinite(c.credited) &&
+        c.credited >= 0)) &&
+    ((c.state === "credited" && c.credited !== null && c.credited > 0) ||
+      (c.state === "no_topup_needed" && c.credited === 0) ||
+      (!["credited", "no_topup_needed"].includes(c.state) &&
+        c.credited === null))
+  );
+}
+export async function recapSnapshot(
+  db: SupabaseClient,
+  row: {
+    league_id: string;
+    team_id: string;
+    recipient: string;
+    market_week: number;
+  },
+  season: number,
+): Promise<RecapSnapshot> {
+  const r = await db
+    .rpc("recap_financial_context", {
+      p_league: row.league_id,
+      p_team: row.team_id,
+      p_recipient: row.recipient,
+      p_season: season,
+      p_week: row.market_week + 1,
+    })
+    .abortSignal(AbortSignal.timeout(15000));
+  if (
+    r.error ||
+    r.data?.league_id !== row.league_id ||
+    r.data?.team_id !== row.team_id ||
+    r.data?.recipient !== row.recipient ||
+    r.data?.nfl_season !== season ||
+    r.data?.replenishment_week !== row.market_week + 1 ||
+    r.data?.ready !== true ||
+    !validRecapSnapshot(r.data)
+  )
+    throw Error("Recorded recap credit or pending state is unavailable.");
+  return { state: r.data.state, credited: r.data.credited };
 }
 export type RoutinePermission =
   | { allowed: false; reason: string }
@@ -59,6 +119,7 @@ export async function routinePermission(
     c.open_ticket_count < 0 ||
     c.open_ticket_count > 10000 ||
     !Number.isFinite(Date.parse(c.prepared_at)) ||
+    (row.kind === "recap" && !validRecapSnapshot(c.recap)) ||
     new TextEncoder().encode(JSON.stringify(c)).length > 512
   )
     throw Error("Routine notification permission scope is invalid.");
