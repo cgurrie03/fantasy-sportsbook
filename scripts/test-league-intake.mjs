@@ -333,7 +333,7 @@ try {
     q("update leagues set operations_enabled=true where id=$1", [
       imported.league_id,
     ]),
-    /pending/,
+    /Provider capability review required/,
   );
   assert.deepEqual(
     (
