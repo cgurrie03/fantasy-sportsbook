@@ -69,6 +69,7 @@ export function PolicyTransfer<T extends object>({
       <label>
         {name} policy JSON
         <textarea
+          aria-label={name + " policy JSON"}
           value={text}
           maxLength={2048}
           onChange={(e) => setText(e.target.value)}
