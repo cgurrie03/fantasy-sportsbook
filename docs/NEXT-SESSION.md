@@ -1,163 +1,41 @@
-# BOFF consolidated continuation
+# BOFF continuation checkpoint
 
-Updated November 2, 2026 ET. **17 complete / 7 remaining**.
+Updated November 2, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
 
-## Latest development delivery - milestone 16 progress
+## Verified Development delivery
 
-Owner-only provider-rule comparison is verified/deployed. Qualified source
-**05381e8653f8b20808ca68e01c73b33da8edc896** passed **43/43** in **243.308 seconds**.
-READY protected Preview **dpl_A2EBtfqXntV2FxYQ6cgFXQpckjBc** serves all three DEV
-aliases; all four signed-out URLs redirect 302 to SSO, all-deployment protection
-remains enabled, hosted environment/API tests pass with zero TypeScript errors.
-Production canonical remains dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ.
+Qualified source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985**, clean tree/migration set, **43/43** in **316.690 seconds**. All source changes are committed locally; no GitHub push authorized/performed. Later documentation HEAD is not the qualified/deployed app source.
 
-[Handoff 39](handoffs/39-PROVIDER-RULE-DRIFT-REVIEW.md) records the comparison:
-scoring/settings/slots/rosters/public owner mappings/season/status; fresh owner and
-baseline revalidation; read-only report, no approval/activation or stored history.
-No migration, database write, actual provider fetch or automated job was added.
-The existing import quarantine remains. Counter **17 complete / 7 remaining**.
+READY protected Preview **dpl_DbHMid37bWgGwLMbfgVKexFgLQy2**, generated host `fantasy-sportsbook-a5zecrjti-cooper-gurrie-projects.vercel.app`, serves all three DEV aliases. All four signed-out URLs return 302 to Vercel SSO; all-deployment protection remains enabled. Hosted environment/API checks passed with no TypeScript/errors. Production canonical unchanged **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ**; owner previously disconnected production Git. No proof is inferred about omitted hooks/credentials.
 
-Next ready work within 16: typed shared pricing/featured-boost policy and consistent
-generation/editor/acceptance/display/help consumers. Generation and MarketAdmin
-currently encode featured boost rules separately. Preserve accepted quote facts;
-do not expose arbitrary settings before every consumer is updated. Durable
-capability approval, validity/drift enforcement and season renewal also remain.
-No owner question is pending for the delivered comparison.
+[Handoff 40](handoffs/40-SHARED-POLICY-AND-CAPABILITY-GATES.md) closes milestone16 within declared supported DEV scope: independent staff, effective wallet/pricing controls, inactive importer, verified claims, explicit capability decisions, sticky drift invalidation, linked next-season renewal and communication identity. Supported imported weekly profile only; futures/unknown/division/median/multiweek/IDP profiles remain explicitly blocked. Real activation is separate.
 
-Ignored evidence: work/provider-review-completion-receipt.json,
-work/provider-review-release.log, API/pure/UX logs, release provenance and unapproved
-review for 05381e8. Older notification provenance/results copied to
-work/notification-qualified-{provenance,results}-40f19c1.json. Fixture server stopped.
-Later docs-only HEAD is not the qualified/deployed app source.
+New local → hosted migrations:
+- 20261103033708 → 20261103044616 shared_sportsbook_policy
+- 20261103035635 → 20261103044620 reviewed_provider_capabilities
+- 20261103041439 → 20261103044623 reviewed_communication_identity
 
-## Completed notification milestone checkpoint (application superseded above)
+All migrations applied sequentially; rollback/ACL/tenant/owner/effective-policy probes passed. Financial five-table digest remains `a934b2e187fa6f5ae0e8cd77b0507451` (full keys wallets/user_wallets/tickets/wallet_ledger/user_wallet_entries, ordered team_id/id). DEV: two user wallets, zero balance/tickets/entries/emails/new policy/provider records; operations/automation off. Physical database 18,044,595 bytes vs17,708,723 before. Advisors:74 authenticated-definer WARN (+8 reviewed owner/member RPCs),2 unchanged anon-definer WARN,1 unchanged Auth WARN,23 no-policy INFO (+3 intentionally private RLS/no-direct-grant tables). Do not claim clean security audit.
 
-Milestone 18 (notifications and storylines) is complete in isolated DEV.
-Qualified source **40f19c14473957f9ab0fde8f3323035ba42c7d65**, **43/43** suites,
-241.511 seconds, clean-source provenance valid. The initial 8b58806 batch run
-failed three regression fixture/dependency checks; it is not release evidence.
-Those corrections are included in the qualified source.
+## Remaining gates and next ready actions
 
-READY protected Preview **dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i** served all three DEV
-aliases. All four generated/canonical/project URLs redirected signed-out requests
-to Vercel SSO. Hosted environment/API checks passed with zero TypeScript errors.
-Later documentation-only HEAD is not the qualified/deployed application source.
+[Remaining milestones](REMAINING-MILESTONES.md) and [A01–A25 map](AUDIT-RESIDUALS.md) distinguish actual acceptance from synthetic fixtures.
 
-Handoff [38](handoffs/38-FACTUAL-EDITORIAL-STAFF-AND-LIFECYCLE.md) records the final
-batch: bounded factual diverse opening editions shared by recipients; verified
-teamless staff alerts with cooldown/dedup/daily limits; exact recap credit facts;
-final-week notification closeout; explicit actual-policy/phase availability preview;
-current recipient/sender/action-URL revalidation. Stages 1-3 remain recorded in
-handoffs 35-37. No real mail, activation or production release occurred.
+1. **20 recovery:** pending async owner choice: prepare free client-only setup here, or use another computer with PostgreSQL tools. No pg_dump/Docker currently installed; no installation without response. Integrations cannot create complete database/Auth/config backups. Generic streaming encryption helper is tested with synthetic keys, not a full backup. See [owner steps](OWNER-RECOVERY-AND-RELEASE-STEPS.md). Owner already imported key/password and verified phone access; full computer restore drill is explicitly deferred. Never repeat custody requests or open the private key/DPAPI.
+2. **21 release control:** live public GitHub Production environment has no required reviewer and permits administrator bypass. Local review-only workflow rejects that state, requires sole-owner exact-source/CI/run/environment approval, and grants no deploy permission. Owner must configure protections and explicitly authorize source publication; no GitHub push currently authorized. Remaining hooks/credentials need owner attestation/inventory.
+3. **13 cleanup:** metadata-only production inventory shows model_forecast_runs547,119,104B,forecast_snapshots339,722,240B,line_refresh_stages323,215,360B. No incoming FKs for these three is not proof of no semantic dependency: observe_line_refresh/save_model_forecast/stage_line_refresh/private.capture_forecast still reference archives in production. Build actual useful-summary/candidate checksums only within approved access scope; full recovery and exact owner-approved maintenance plan precede writes. Production Storage point-in-time inventory0 buckets/objects.
+4. **22 audit:** final supported-profile whole journeys, actual physical-device/assistive/Auth template/security checks and measured simultaneous peak/outage/fairness acceptance remain. Existing43 suites are not a completed production audit or actual-device evidence.
+5. **23 capacity:** actual metered wire/shared allowances/reserve, load/growth/season forecast and15 daily observations over14 elapsed days. Starter correctly reports incomplete, no fabricated observations. Staged approved maintenance can precede final plateau; second real league remains blocked. No new automation authorized.
+6. **24 production:** exact qualified source/migration/maintenance/restore/rollback plan plus required gates and explicit owner approval; no automatic push/promotion.
 
-Hosted immutable migration mappings:
+## Authorization and environment
 
-| Local source | Hosted DEV version |
-|---|---|
-| 20261102202956 | 20261102214048 |
-| 20261102210218 | 20261102214053 |
-| 20261102212622 | 20261102214057 |
+Checkout `C:/Users/coope/Documents/Codex/2026-10-28/co/work/fantasy-sportsbook`, branch `codex/boff-handoff-implementation`. Reuse it. No AGENTS found. No subagents unless explicitly requested. No owner computer/browser operation; intercepted localhost fixtures allowed. No paid upgrades/projects, new scheduled continuation, real/bulk mail, support deployment, experimental live/teaser launch or second real league activation. Earlier2am continuation canceled. Queue is Markdown+chat. Each approved co-owner gets an independent per-league wallet. Preserve actual Wed–Thu acceptance/reviewed reopenings; the handoff Monday example was not adopted.
 
-Do not replay these migrations. Earlier immutable mappings remain in handoffs
-33-37; the preceding hosted checkpoint is 20261102153321. Verify migration history
-before every new change. Use the CLI to generate new local migration filenames.
+DEV Supabase `whlcnlacueweaqpsupqs`; PROD metadata-only `bmvjcdgxwxqalaohpsnw`. Owner `d320882c-8a06-443b-a2a9-2e29a0d29cdd`. SyntheticA8 `504bcaf3-0d46-90aa-6fa5-7c4ef1a88cd6`;B10 `8ced0f01-e845-697c-ea32-05ced48b210e`. DEV Vercel `prj_X7XPj0svAnCB9TWU7JQ1EvDjSlts`;PROD `prj_xQNaH7f1SPr8bgn2GV92a9MODQu8`;team `team_Rs5IbC6savmEQLFb1VacjiTc`. Production writes require exact owner approval. Never retrieve/log server secrets, passwords, private recovery keys or DPAPI wrappers.
 
-Hosted rollback-only probes passed for paused previews, verified owner alert
-scope/dedup, immutable teamless identity, context retirement, unfunded recap state,
-ACL/outsider denial and no invented final recap. After rollback: two pending
-wallets, zero entries/tickets/emails/editorial editions/staff budget rows;
-operations and automation off. New authenticated notification_preview is operator
-scoped; other new RPCs are service-only. Advisors: 66 authenticated-definer WARN,
-2 anon-definer WARN, 1 Auth WARN, 20 no-policy INFO. Only the intended operator RPC
-and two inaccessible private RLS tables were added; prior finding metadata unchanged.
+## Evidence and efficient continuation
 
-The five-table financial digest for this batch is a934b2e187fa6f5ae0e8cd77b0507451,
-identical before/after. Its JSON-key definition differs from the older 5bae6ca...
-digest: compare like definitions only. The exact query/results are in the ignored
-batch completion receipt. No financial row changed.
+Ignored: `work/remaining-batch-completion-receipt.json`, `remaining-qualified-{provenance,results}-e5ee1e2.json`, `remaining-qualified-release.log`, `remaining-batch-hosted-probe.sql`, `remaining-storage-inventory.json`, `historical-cleanup-plan.json`, `capacity-evidence-starter.json`, incomplete capacity receipt, and `work/release-reviews/e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985/manifest.json` (unapproved). Older qualified sources05381e8/provider,40f19c1/notifications remain historical. Interrupted failed runs are not qualification.
 
-## Counter and remaining work
-
-Complete DEV: **01-12, 14, 15, 17, 18, 19**. Remaining: **13, 16, 20-24**.
-Canonical [counter](handoffs/IMPLEMENTATION-CHECKLIST.md),
-[remaining requirements](REMAINING-MILESTONES.md), [bugs](BUG-QUEUE.md),
-[features](FEATURE-ROADMAP.md). Report completed tasks separately from milestones.
-
-| ID | Remaining work / gate |
-|---|---|
-| 13 | Useful-summary/dependency inventory, resumable historical conversion plan and measured physical recovery. No production deletion without full recovery readiness and exact owner approval |
-| 16 | Broader typed pricing/boost/market/featured/schedule/notification/branding policy, provider approval/drift/renewal and consistent consumers. Staff, draft import, verified claims and wallet/ticket policy v1 are done DEV |
-| 20 | Full platform/Auth/storage/config backup and off-site recovery coverage; full restore drill deferred by owner |
-| 21 | External exact-release owner approval enforcement and remaining deployment hook/credential routes; production Git disconnect is complete |
-| 22 | Residual A01-A25 matrix, declared supported settings, tenant/device, peak/outage and season-renewal journeys |
-| 23 | Actual wire/shared allowances, load/growth forecast and real two-week retained-data plateau. Fresh physical baseline captured below |
-| 24 | Exact approved source/migration plan, restore/rollback constraints, all gates, owner-approved production release and postflight |
-
-Next ready implementation: milestone 16's remaining shared settings/capability
-contract, with the observation/comparison task now delivered in handoff 39. Inspect existing typed wallet policy/intake reports and map supported
-consumers before choosing the next coherent change. Recovery coverage and residual
-fixture work can progress independently. Do not relabel synthetic tests as real
-wire/load/elapsed evidence or owner approval. Production cleanup/release stays gated.
-
-## Capacity evidence
-
-Read-only physical metadata measured November 2 at 21:37 UTC before this batch:
-DEV database 17,520,307 bytes; production 1,297,790,643 bytes. DEV after migrations
-and rollback probes: 17,708,723 bytes at 21:41 UTC. PostgreSQL database size includes
-internal/allocated pages; relation sizes include indexes and TOAST. These are
-physical measurements, not free capacity, quota, wire traffic or a plateau claim.
-Production data/schema were untouched. Baseline receipt is ignored work JSON.
-Editorial admission: at most two 64-KiB documents per league. Staff budget: at most
-128 mutable rows per league. Existing body TTLs and compact durable identities
-remain. No raw provider archive or per-day staff budget archive was introduced.
-
-## Workspace and authorization
-
-Checkout: C:/Users/coope/Documents/Codex/2026-10-28/co/work/fantasy-sportsbook
-Branch: codex/boff-handoff-implementation. Original 2026-10-05/i checkout untouched.
-Use the current checkout; no new worktree needed. No AGENTS file found.
-
-- Continue authorized DEV work autonomously with concise completion notices.
-  No subagents unless explicitly requested. Ask only genuine missing decisions.
-- No owner browser/UI operation. Intercepted localhost headless fixtures allowed.
-- Repository remains public; **no GitHub push authorized**.
-- Production changes require an exact owner-reviewed release. Metadata reads only.
-- No paid upgrades/projects, new automation/scheduled continuation, real/bulk mail,
-  support deployment, live/teaser launch or second real league activation authorized.
-- Earlier 2 a.m. continuation was canceled. Do not recreate it.
-- DEV stays independent, captured/manual, closed signup, unfunded and protected.
-- Each approved user has their own wallet per league, including team co-owners.
-- Preserve actual Wed-Thu acceptance plus reviewed reopenings. No Monday-close
-  betting policy was adopted from the handoff's conditional example.
-- Queue choice is project Markdown plus chat; no in-app board was selected.
-- Never retrieve/print server keys, passwords, private recovery files or DPAPI.
-
-Owner imported the portable recovery key into their password manager and confirmed
-Drive backup plus recovery material accessible on their phone. This is custody/
-access attestation, not a completed restore. Full computer restore drill is
-explicitly deferred for this pretend-money project. Do not repeat those owner steps.
-
-## Environment and evidence
-
-DEV Supabase whlcnlacueweaqpsupqs; PROD read-only bmvjcdgxwxqalaohpsnw.
-Owner d320882c-8a06-443b-a2a9-2e29a0d29cdd.
-Synthetic A8 504bcaf3-0d46-90aa-6fa5-7c4ef1a88cd6;
-B10 8ced0f01-e845-697c-ea32-05ced48b210e.
-DEV Vercel prj_X7XPj0svAnCB9TWU7JQ1EvDjSlts;
-PROD prj_xQNaH7f1SPr8bgn2GV92a9MODQu8;
-team team_Rs5IbC6savmEQLFb1VacjiTc.
-Production canonical still READY dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ; Git disconnected.
-
-Ignored evidence: work/notification-batch-completion-receipt.json,
-work/notification-batch-hosted-probe.sql,
-work/notification-batch-capacity-baseline.json,
-work/notification-batch-release.log, work/release-checks/provenance.json,
-work/release-reviews/40f19c14473957f9ab0fde8f3323035ba42c7d65/manifest.json
-(unapproved), work/ux-evidence/editorial-sample-{390,1280}.png.
-Initial failed-run receipt/log retained separately and not claimed as qualification.
-
-Use focused checks during edits; qualify the final clean source once corrections
-are complete. Full runner has a lint/build barrier and at most two independent
-suite jobs. Keep financial writes, migrations, source qualification and deployments
-sequential. Require clean hosted build logs as well as READY before moving DEV
-aliases. No fixture server should remain running after final closeout.
+Use focused checks while editing; qualify one coherent final clean source before migrations/deployment. Full runner has lint/build barrier and at most2 independent suites. Sequential migrations/writers/deployments; require READY plus clean hosted build/API/environment logs before DEV aliases. Local fixture server stopped at closeout. No new scheduled run exists from this continuation.

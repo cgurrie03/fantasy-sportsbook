@@ -38,4 +38,22 @@ Pricing history is at most 64 rows per league with overrides capped at 2 KiB eac
 
 ## Verification receipt
 
-Pending clean-source full qualification and protected Development rollout. Focused SQL/API/phone/desktop tests have passed; the final receipt will identify the qualified source and hosted migration versions. Production approval, owner backup and real capacity evidence remain outstanding.
+Qualified clean source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985** passed **43/43** suites in **316.690 seconds** (04:40:42–04:45:58 UTC November 3, still November 2 ET). Earlier interrupted runs are not qualification evidence. The new fixtures also cover explicit service-only observation/revoked owner, changed provider predecessor/next-season ID, policy transfer/default reset, communication identity, current-period futures prices and empty disabled-family refresh completion.
+
+Hosted migration mapping (local → DEV):
+
+| Local | Hosted |
+|---|---|
+| 20261103033708 shared_sportsbook_policy | 20261103044616 |
+| 20261103035635 reviewed_provider_capabilities | 20261103044620 |
+| 20261103041439 reviewed_communication_identity | 20261103044623 |
+
+All three applied sequentially. Hosted rollback probes passed owner/CAS/effective-period/duplicate and tenant checks, current policy, unsupported-origin denial, private-table/service-only ACLs and outsider rejection. The five-table financial digest remained **a934b2e187fa6f5ae0e8cd77b0507451**. Persistent DEV: two user wallets, zero total balance, no tickets/entries/outbound messages/pricing overrides/provider observations/decisions; operations and automation remain off. No actual provider approval was invented.
+
+Security advisors: 74 authenticated-definer warnings (eight new reviewed owner/member entry points), two unchanged anonymous-definer warnings, one unchanged Auth password-protection warning and 23 no-policy INFO (three new intentionally private RLS tables with direct grants revoked). These are reviewed deltas, not a clean-security-audit claim. References: [definer-function review](https://supabase.com/docs/guides/database/database-linter?lint=0028_authenticated_security_definer_function_executable), [private no-policy RLS tables](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy). Physical DEV size after schema/probes: **18,044,595 bytes** vs 17,708,723 before, a 335,872-byte allocated increase in this small fixture database. This does not forecast a full season.
+
+READY protected Preview **dpl_DbHMid37bWgGwLMbfgVKexFgLQy2**, generated hostname `fantasy-sportsbook-a5zecrjti-cooper-gurrie-projects.vercel.app`, serves all three DEV aliases. Hosted environment/API checks passed and build logs contain zero TypeScript/error diagnostics. All four signed-out URLs returned 302 to Vercel SSO; all-deployment protection remains enabled. Production canonical remains **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ**, unchanged. No GitHub push occurred. The local fixture server was stopped.
+
+Milestone **16 is complete in its declared Development scope**: staff/owner administration, effective supported settings, inactive importer, verified claims, independent wallets, explicit provider capability review/drift gates and supported renewal. Imported futures and arbitrary unsupported rule adapters remain visibly blocked; final operational/product acceptance is milestone 22. Counter: **18 complete / 6 remaining: 13, 20, 21, 22, 23, 24**. Recovery coverage, external release controls, final audit and measured capacity/production gates are not closed by these tests.
+
+Ignored evidence: `work/remaining-batch-completion-receipt.json`, clean-source provenance/results copies, release logs, hosted rollback probe, read-only storage inventory, non-executable cleanup plan, incomplete capacity starter and unapproved exact-source review manifest. Subsequent documentation-only commits do not replace the qualified/deployed application source.

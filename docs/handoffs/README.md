@@ -1,5 +1,14 @@
 # Development Handoffs — priority updated October 28, 2026
 
+## Latest verified checkpoint — November 2, 2026 ET
+
+**18 complete / 6 remaining.** Start with [handoff 40](40-SHARED-POLICY-AND-CAPABILITY-GATES.md), [consolidated continuation](../NEXT-SESSION.md) and [remaining gates](../REMAINING-MILESTONES.md). Qualified/deployed source e5ee1e2 passed43/43; protected READY Development dpl_DbHMid37bWgGwLMbfgVKexFgLQy2. Milestone16 is complete for the declared supported profile; production remains unchanged. Wallet17 and notification18 are complete DEV. Full platform recovery, historical production cleanup, external release controls, final audit/capacity and approved production release remain open. Owner key import/phone access are complete; full restore drill is owner-deferred. No GitHub push, production action, second real league or new scheduled continuation is authorized.
+
+The earlier preparation/status narrative below is historical and does not override this checkpoint or the user's later decisions. Original handoff documents specify work; they do not grant production or external-publication approval.
+
+## Historical context
+
+
 **First priority: [Supabase efficiency](08-supabase-efficiency.md).** The October 28 audit measured database storage at 217% and billing-cycle egress at 110% of the current allowance, with eight monthly active users. Complete the storage, fetching, bounded-query and recovery work before enabling another league or expanding features. Handoff 08 supersedes earlier instructions to retain repeated complete payloads indefinitely. Its dated measurements and implementation gates take precedence over the historical ordering below; this update deploys no runtime changes.
 
 This bundle began as specifications for separate development chats. Workstream handoffs now record both deployed work and remaining gates; read each current status instead of treating the entire bundle as planned. Promos & Boosts and its category-picker follow-up are deployed at `84d9ce6`, with migration 033 applied; handoff 03 records implementation, completed tests, production evidence and limitations. This latest documentation cleanup changes no runtime configuration or production data.

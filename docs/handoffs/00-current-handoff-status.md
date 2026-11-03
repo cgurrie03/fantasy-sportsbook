@@ -1,4 +1,13 @@
 Latest development delivery: [handoff 39](39-PROVIDER-RULE-DRIFT-REVIEW.md), owner-only
+
+## Latest verified checkpoint — November 2, 2026 ET
+
+**18 complete / 6 remaining.** Start with [handoff 40](40-SHARED-POLICY-AND-CAPABILITY-GATES.md), [consolidated continuation](../NEXT-SESSION.md) and [remaining gates](../REMAINING-MILESTONES.md). Qualified/deployed source e5ee1e2 passed43/43; protected READY Development dpl_DbHMid37bWgGwLMbfgVKexFgLQy2. Milestone16 is complete for the declared supported profile; production remains unchanged. Wallet17 and notification18 are complete DEV. Full platform recovery, historical production cleanup, external release controls, final audit/capacity and approved production release remain open. Owner key import/phone access are complete; full restore drill is owner-deferred. No GitHub push, production action, second real league or new scheduled continuation is authorized.
+
+The earlier preparation/status narrative below is historical and does not override this checkpoint or the user's later decisions. Original handoff documents specify work; they do not grant production or external-publication approval.
+
+## Historical context
+
 provider-rule comparison within milestone 16. Qualified 05381e8 passed 43/43 and
 is deployed to protected DEV. No migration/activation. **17 complete / 7 remaining**;
 16 remains in progress. Read [NEXT-SESSION](../NEXT-SESSION.md) for current state.

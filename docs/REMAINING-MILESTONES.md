@@ -1,53 +1,17 @@
 # Remaining handoff milestones
 
-Updated November 2, 2026 ET. **17 complete / 7 remaining**.
-The newest qualified source is `05381e8`, **43/43** in 243.308 seconds.
-Milestone 18 is complete DEV (handoff 38). Handoff 39 delivers the owner-only
-provider-rule comparison within 16; durable approval and shared policies remain.
-Documentation commits after that source are not claimed to be tested/deployed.
+Updated November 2, 2026 ET. **18 complete / 6 remaining**.
+Qualified/deployed source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985**, **43/43** suites in **316.690 seconds**. [Handoff 40](handoffs/40-SHARED-POLICY-AND-CAPABILITY-GATES.md) records hosted migrations, rollback/ACL checks, unchanged financial digest and protected READY DEV. Later documentation-only commits are not the qualified/deployed app source.
 
-| ID | Remaining implementation / evidence | Owner or elapsed-time gate |
+| ID | Work prepared/completed | What still prevents completion |
 |---|---|---|
-| 13 | Dependency/useful-summary inventory, resumable historical conversion/cleanup and physical-space measurements | Full recovery readiness, exact production plan and owner approval before any production deletion |
-| 16 | Broader typed shared pricing/boost/market/featured/schedule/notification/branding policy; provider capability approval, drift and renewal; consistent generation/acceptance/settlement/report/help consumers | Owner reviews actual new-league house rules/capability report; imported leagues remain quarantined. Claims and wallet/ticket policy v1 are complete DEV |
-| 20 | Supported full platform/Auth/storage/config backup and off-site recovery; full restore drill deferred | Phone access to Drive and password-manager key/password confirmed; key import complete. Full restore drill deferred by owner for this fake-money project. v3 code is tested; full-platform backup coverage remains unfinished |
-| 21 | Actual external exact-release owner approval boundary and remaining deployment-hook/credential routes | Production Git disconnect is complete; local evidence and an unapproved manifest do not enforce an external owner boundary. Connector metadata cannot prove omitted hooks disabled |
-| 22 | Residual A01–A25 matrix, supported configuration journeys, tenant/device cases, simultaneous peaks, outages and season renewal | Notification milestone 18 is complete; final coverage still depends on 16; individual independent audit fixtures can progress sooner |
-| 23 | Actual physical/wire/shared-quota measurements, one-/two-league load, growth forecast and two-week retained-data plateau | Real elapsed observations required after the applicable lifecycle changes. No new monitor/automation is authorized; the earlier scheduled continuation stays canceled |
-| 24 | Exact qualified production source/migration review, restore/rollback constraints, owner-approved deployment and postflight | Explicit owner approval of the concrete release, required recovery/capacity/product evidence; a second real league needs its own capacity approval |
+| 13 | Dated production archive/foreign-key/routine inventory; bounded non-executable cleanup plan | Full platform checkpoint; useful historical summaries/checksums and candidate exclusions; exact owner-approved maintenance source/schema/targets; resumable conversion and measured physical recovery. No production deletion authorized |
+| 20 | Existing financial off-site checkpoint/custody; financial recovery v4; tested streaming owner-export encryption | Actual current full database/Auth/config coverage and encrypted off-site verification. Computer restore drill remains owner-deferred. Pending choice: prepare free client-only tools here or use another computer with PostgreSQL tools; no installation before response |
+| 21 | Production Git disconnected; exact-source evidence/unapproved manifest; local review-only workflow verifies explicit owner review and safe environment metadata | Live GitHub Production environment currently has no required reviewer and permits admin bypass. Owner must configure protection and explicitly authorize publication; no push has occurred. Remaining hooks/credentials need owner review; review-only workflow grants no production permission |
+| 22 | [A01–A25 residual map](AUDIT-RESIDUALS.md); 43 maintained suites include contrasting rules, tenants, claims, policies, drift, renewal, outages and phone/desktop fixtures | Final declared-profile whole journeys, physical iOS/Android/assistive/keyboard/zoom checks, actual Auth template/security review and measured simultaneous queue/settlement/outage behavior. Synthetic fixtures are not actual devices or observed platform demand |
+| 23 | Physical metadata and archive sizes, strict capacity validator and incomplete evidence starter | Actual metered combined physical/wire allowances/reserve, one-/two-league load/season forecast, 15 daily observations spanning 14 real days under final lifecycle. No paid upgrade, second real league or new scheduled monitor authorized |
+| 24 | Exact clean source/migrations and unapproved release review prepared; production canonical unchanged | Required recovery/audit/capacity evidence, exact migration/maintenance/rollback plan, explicit owner approval, separately authorized production promotion and postflight |
 
-## Completed in this continuation
+Milestone 16 is now complete for the declared supported Development administration/settings/intake/claims workflow. It adds effective shared pricing/family flags, matching consumers/help, bounded policy transfer/defaults, communication identity, durable owner capability decisions and invalidation, and linked next-season renewal without funding/activation. Imported futures and unsupported rules remain explicitly blocked. Final operational compatibility acceptance stays 22; universal support is not claimed.
 
-- Milestone 16 progress: owner-only read-only provider-rule comparison, including
-  current/baseline fencing and season/status changes; 43/43 on 05381e8 and protected
-  DEV deployment dpl_A2EBtfqXntV2FxYQ6cgFXQpckjBc. No DB migration or activation.
-
-
-- Milestone 18: factual shared opening editions, verified teamless staff alerts,
-  exact recap credits, final-week closeout, actual phase/window availability and
-  frozen/current delivery identity checks. All 43 release suites pass on 40f19c1;
-  three DEV migrations and rollback probes passed, READY protected deployment
-  dpl_5E3QL1ZukVvEZgaAm13rYuCBoR8i serves DEV. No actual mail/activation.
-- Milestone 23 progress: November 2 physical metadata baseline, DEV 17.52 MB before
-  this batch and production 1.298 GB (read-only). Wire/quota/load/plateau remain.
-
-- Scoped seven-day commissioner signup links with optional team/email restrictions,
-  fresh verified requests, owner CAS approval/rejection/revocation and separate
-  unfunded co-owner wallets. No Auth users, legacy memberships or staff roles inferred.
-- Immutable effective financial policy versions and accepted-ticket snapshots;
-  consistent wager limits, both replenishment engines, API previews, UI and guide.
-- Financial recovery v3 preserves policy versions; original v1/v2 remain readable.
-  Existing off-site financial/source checkpoints and owner key custody were preserved.
-- Release fixture dependency repairs and a tested lint/build barrier with at most
-  two isolated suite jobs; full 42/42 clean-source qualification took 322.267 seconds.
-- Both new migrations, hosted rollback/ACL/security checks, protected DEV aliases
-  and unchanged production deployment were verified. Persistent DEV still has two
-  pending wallets, no entries/tickets/claims/invitations/overrides, and operations off.
-
-## Continuing efficiently
-
-Use focused checks while changing one coherent feature. Keep dependent migrations,
-financial writers and deployments sequential; use limited parallelism for independent
-checks. Qualify the final clean commit before moving DEV aliases. Preserve exact
-historical evidence for documentation-only checkpoints. Never substitute local or
-synthetic tests for owner custody, production approval or two weeks of real evidence.
+[Owner actions](OWNER-RECOVERY-AND-RELEASE-STEPS.md), [priority bug queue](BUG-QUEUE.md), [feature list](FEATURE-ROADMAP.md), and [next-session checkpoint](NEXT-SESSION.md) contain the concrete follow-up. The full restore drill remains deferred, and earlier key-import/phone-access steps must not be repeated. Staged production maintenance can be reviewed after full recovery and exact target approval; its measurements then inform the real plateau before final capacity sign-off. No circular assumption that cleanup already occurred is permitted.

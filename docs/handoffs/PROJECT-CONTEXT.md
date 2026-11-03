@@ -1,5 +1,14 @@
 # Shared Project Context
 
+## Latest verified checkpoint — November 2, 2026 ET
+
+**18 complete / 6 remaining.** Start with [handoff 40](40-SHARED-POLICY-AND-CAPABILITY-GATES.md), [consolidated continuation](../NEXT-SESSION.md) and [remaining gates](../REMAINING-MILESTONES.md). Qualified/deployed source e5ee1e2 passed43/43; protected READY Development dpl_DbHMid37bWgGwLMbfgVKexFgLQy2. Milestone16 is complete for the declared supported profile; production remains unchanged. Wallet17 and notification18 are complete DEV. Full platform recovery, historical production cleanup, external release controls, final audit/capacity and approved production release remain open. Owner key import/phone access are complete; full restore drill is owner-deferred. No GitHub push, production action, second real league or new scheduled continuation is authorized.
+
+The earlier preparation/status narrative below is historical and does not override this checkpoint or the user's later decisions. Original handoff documents specify work; they do not grant production or external-publication approval.
+
+## Historical context
+
+
 Implementation continuation: read [13-implementation-checkpoint.md](13-implementation-checkpoint.md). Local safety/efficiency fixes are under test on `codex/boff-handoff-implementation`; nothing new is hosted. New owner decision: each approved user has an independent wallet per league, even when co-owning the same fantasy team. The legacy team-keyed wallet schema has not been migrated; existing financial tests do not prove this new behavior. Preserve original bettor attribution and never copy a shared balance into multiple accounts.
 
 Start with [current handoff status](00-current-handoff-status.md): preparation is ready to hand off, but dev hosting, efficiency implementation and second-league readiness gates remain open. New handoff files/scripts and local development branch have not been pushed; preserve pre-existing dirty work.

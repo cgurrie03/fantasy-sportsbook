@@ -4,7 +4,7 @@ Updated November 2, 2026. Canonical local project queue, maintained through chat
 Keep private reports/financial evidence out of this public-repository-ready file.
 An observation from the October 28 audit is dated evidence, not a new live probe.
 Original A01–A25 definitions remain in [the audit](handoffs/10-expanded-audit-implementation.md).
-The milestone counter remains [17 complete / 7 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
+The milestone counter remains [18 complete / 6 remaining](handoffs/IMPLEMENTATION-CHECKLIST.md).
 Closing a development fix does not mean it has shipped to production.
 
 ## Priority order
@@ -12,10 +12,10 @@ Closing a development fix does not mean it has shipped to production.
 | Order | ID | Priority / kind | Work and evidence | Status / dependency | Done when |
 |---|---|---|---|---|---|
 | 1 | B001 | P1 / confirmed historical production problem | A01/A06/A12: bulk archives/storage and broad review work; October 28 audit recorded quota overage/review failures; fresh November 2 read-only measurement is 1.298 GB physical; the earlier Oct 29 analysis attributed about 94% to three bulk tables | Dev preventive formats/readers/retention delivered; production conversion/cleanup blocked by recovery and exact approval; milestones 13/20/21/23/24 | Fresh measurements, useful summaries/dependency inventory, verified recovery, approved bounded cleanup and measured physical/wire impact |
-| 2 | B002 | P1 / validation gate | A04/A13: even 8/10/12/14/16 scorer partition is fixed/tested in dev; whole supported rules/generation/acceptance/settlement contract is not fully proved; odd fields reject explicitly | Milestones 16/22; no universal compatibility claim | Contrasting full journeys pass for declared supported settings; unsupported settings stay visible and cannot silently activate |
+| 2 | B002 | P1 / validation gate | A04/A13: even 8/10/12/14/16 scorer partition is fixed/tested in dev; whole supported rules/generation/acceptance/settlement contract is not fully proved; odd fields reject explicitly | Milestone 16 administration/gates complete DEV under handoff 40; final profile journeys remain 22; no universal compatibility claim | Contrasting full journeys pass for declared supported settings; unsupported settings stay visible and cannot silently activate |
 | 3 | B003 | P1 / validation gate | A15/A18: local release checks pass, but exact owner-approved production SHA/migration enforcement and deployment configuration still need the release gate | Milestone 21; production untouched | A push/build cannot silently publish an unapproved release; reviewed rollback/restore constraints and exact approvals are enforced |
 | 4 | B004 | P1 / validation gate | A01/A11/A20: synthetic request/JSON savings are proved; physical storage, real wire bytes, queue fairness, combined quotas and two-week plateau remain | Milestone 23; baseline can run early, final gate follows the final lifecycle/settings changes | Measured one-/two-league load and growth fit the agreed reserve; no second real league enabled on estimates |
-| 5 | B005 | P2 / incomplete journey | A08/A09/A10: per-user authorized league preference now survives reload; invitation destination, verified claims, rejection/expiry/revocation and safe auth branding still need the complete onboarding flow | Milestone 16; co-owner approval also depends on 17 | Verified account joins the intended authorized league; unknown emails reveal no member directory; names do not prove ownership |
+| 5 | B005 | P2 / incomplete journey | A08/A09/A10: per-user authorized league preference now survives reload; verified invitation destination/claims/rejection/expiry/revocation are delivered in handoff 32; actual Auth template/branding and owner onboarding acceptance remain | Milestones 16/17 complete DEV; actual owner acceptance remains 22/24 | Verified account joins the intended authorized league; unknown emails reveal no member directory; names do not prove ownership |
 | 6 | B006 | P2 / validation gate | A17: synthetic mobile/desktop checks exist; physical-device/assistive journeys and all residual A01–A25 acceptance items remain | Milestone 22 | Evidence closes each scoped residual, without relabeling local viewport tests as real-device verification |
 
 P0 is reserved for an evidenced active financial-integrity, data-loss or exposure
@@ -69,3 +69,7 @@ pretend money; no real-money feature or loss is implied. Hosted DEV had no accep
 tickets or custom policy versions. Fix uses immutable server-recorded placement_week
 for new wagers, preserving original accepted snapshots and duplicate-request terms.
 Fixed DEV: migration 20261102022611 maps to hosted 20261102023426; legacy/user-wallet regressions, hosted rollback probes and 42/42 for source 2366821 passed. See handoff 33. Never edit the already-applied policy migrations.
+
+## Latest verified delivery
+
+Handoff 40 deploys shared effective pricing/family controls, consistent help/display/acceptance/generation, exact provider capability decisions/drift/linked renewal and communication identity. Qualified source e5ee1e2 passes43/43; protected Development is READY. A01/A07/A13/A16/A17/A18/A20/A21/A23 final evidence remains explicitly mapped in [A01–A25 residuals](AUDIT-RESIDUALS.md). The local review-only GitHub workflow rejects the currently unprotected Production environment; it has not been pushed. No production remediation or measured capacity is inferred. Counter18 complete/6 remaining.
