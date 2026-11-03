@@ -57,5 +57,13 @@ export async function testWalletRecovery(db, { outsider }) {
   await db.exec(`update tampered_recovery set data=jsonb_set(data,'{tables,sportsbook_private.league_policy_versions,0,overrides}','{"maximum_picks":99}')`);
   const invalidPolicy=(await db.query(`select jsonb_set(data,'{checksums}',(select jsonb_object_agg(key,md5(value::text)) from jsonb_each(data->'tables')))::text data from tampered_recovery`)).rows[0].data;
   await assert.rejects(restoreFinancialSnapshot(invalidPolicy,schema,{projectRef}),/Policy values/);
+  if((await db.query("select to_regclass('sportsbook_private.sportsbook_policy_versions') t")).rows[0].t){
+    await db.query(`insert into sportsbook_private.sportsbook_policy_versions(league_id,revision,nfl_season,market_week,overrides,actor,reason)
+      select l.id,1,2026,18,'{"featured_boost_pct":30}',o.user_id,'Synthetic pricing recovery evidence'from public.leagues l cross join sportsbook_private.platform_owners o order by l.id,o.user_id limit 1`);
+    const queryV4=snapshotQuery('-----BEGIN PGP PUBLIC KEY BLOCK-----\nsynthetic query fixture',{format:'boff-financial-recovery-v4',projectRef}).replace('SCHEMA_HASH_PLACEHOLDER',createHash('sha256').update(schema).digest('hex'));
+    const resultsV4=await db.exec(queryV4.slice(0,queryV4.indexOf('select encode('))+'select data from document;commit;');
+    const v4=resultsV4.find(r=>r.rows?.[0]?.data)?.rows[0].data;
+    const restoredV4=await restoreFinancialSnapshot(v4,schema,{projectRef});assert.equal(restoredV4.pricing_policy_versions_checked,1);
+  }
   return restored;
 }

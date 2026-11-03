@@ -1,3 +1,5 @@
+import { parseSportsbookPolicy } from "../../api/_lib/sportsbook-policy";
+import type { SportsbookPolicy } from "../../api/_lib/sportsbook-policy";
 import {
   parseWalletPolicy,
   defaultWalletPolicy,
@@ -9,6 +11,7 @@ import { createCategoryBoardCache } from "./category-board-cache";
 import type { MarketCategory } from "./market-categories";
 
 export interface Board {
+  pricing_policy?: SportsbookPolicy;
   policy?: WalletPolicy;
   id: string;
   league_id: string;
@@ -431,9 +434,18 @@ export async function loadEditableMarketBoard(leagueId: string) {
     throw new Error(
       "The full market board could not load. Retry before editing.",
     );
+  const p = await supabase!.rpc("sportsbook_policy", {
+    p_league: leagueId,
+    p_season: full.data.board.nfl_season,
+    p_week: full.data.board.market_week,
+  });
+  if (p.error) throw p.error;
   return {
     week: current.week,
-    board: full.data.board as Board,
+    board: {
+      ...full.data.board,
+      pricing_policy: parseSportsbookPolicy(p.data),
+    } as Board,
     markets: full.data.markets as Market[],
   };
 }
@@ -447,8 +459,16 @@ export async function loadFuturesBoard(leagueId: string) {
     })
     .abortSignal(AbortSignal.timeout(15000));
   if (snapshot.error) throw snapshot.error;
+  let board: Board | null = snapshot.data?.board ?? null;
+  if (board) {
+    const p = await supabase.rpc("current_sportsbook_policy", {
+      p_league: leagueId,
+    });
+    if (p.error) throw p.error;
+    board = { ...board, pricing_policy: parseSportsbookPolicy(p.data) };
+  }
   return {
-    board: (snapshot.data?.board ?? null) as Board | null,
+    board,
     markets: (snapshot.data?.markets ?? []) as Market[],
   };
 }

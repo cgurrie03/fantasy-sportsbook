@@ -14,6 +14,7 @@ export type IntakeSource = {
   contract: typeof INTAKE_CONTRACT;
   provider: "sleeper";
   league_id: string;
+  previous_league_id?: string;
   name: string;
   season: number;
   status: string;
@@ -156,6 +157,9 @@ export function normalizeSleeperIntake(
     contract: INTAKE_CONTRACT,
     provider: "sleeper",
     league_id: id,
+    ...(league.previous_league_id
+      ? { previous_league_id: sleeperLeagueId(league.previous_league_id) }
+      : {}),
     name: text(league.name),
     season: Number(league.season),
     status: text(league.status, 24),
@@ -391,7 +395,11 @@ export function compareProviderContract(
     contract.version !== 1 ||
     prior.contract !== INTAKE_CONTRACT ||
     prior.provider !== "sleeper" ||
-    prior.league_id !== current.league_id ||
+    (prior.league_id !== current.league_id &&
+      !(
+        current.previous_league_id === prior.league_id &&
+        current.season === Number(prior.season) + 1
+      )) ||
     new TextEncoder().encode(JSON.stringify(value)).length > 32768
   )
     throw Error("A matching retained imported provider contract is required.");

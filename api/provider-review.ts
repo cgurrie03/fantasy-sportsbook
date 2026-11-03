@@ -12,6 +12,7 @@ const json = (body: unknown, status = 200) =>
     },
   });
 export async function POST(request: Request) {
+  const startedAt = new Date().toISOString();
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer "))
     return json({ error: "Verified platform owner sign-in required." }, 401);
@@ -64,7 +65,15 @@ export async function POST(request: Request) {
       .limit(33);
     if (teams.error) throw Error("Retained roster identities are unavailable.");
     const before = JSON.stringify({ league: league.data, teams: teams.data });
-    const observed = await fetchSleeperIntake(league.data.sleeper_league_id);
+    const renewalId = new URL(request.url).searchParams.get("renewal_source");
+    if (renewalId !== null && !/^[0-9]{1,32}$/.test(renewalId))
+      return json(
+        { error: "A numeric next-season Sleeper league ID is required." },
+        400,
+      );
+    const observed = await fetchSleeperIntake(
+      renewalId ?? league.data.sleeper_league_id,
+    );
     const review = compareProviderContract(
       league.data.provider_contract,
       teams.data,
@@ -104,11 +113,37 @@ export async function POST(request: Request) {
         { error: "The retained league contract changed; run a fresh review." },
         409,
       );
+    let capabilityObservation: unknown = null;
+    if (new URL(request.url).searchParams.get("prepare") === "1") {
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
+        build = process.env.BOFF_BUILD_SHA;
+      if (!serviceKey || !build || !/^[a-f0-9]{40}$/.test(build))
+        return json(
+          { error: "Qualified server capability preparation is unavailable." },
+          503,
+        );
+      const server = await createServerClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const saved = await server.rpc("observe_provider_capability", {
+        p_league: leagueId,
+        p_source: observed.source,
+        p_report: observed.capabilities,
+        p_build: build,
+        p_started: startedAt,
+      });
+      if (saved.error)
+        throw Error("Capability observation could not be recorded.");
+      capabilityObservation = saved.data;
+    }
     return json({
       league_id: leagueId,
       checked_at: new Date().toISOString(),
       ...review,
-      note: "Read-only comparison with the imported baseline. No approval, settings, team mappings, funds or activation changed. Projection/result coverage and supported house rules still require review.",
+      capability_observation: capabilityObservation,
+      note: capabilityObservation
+        ? "Current server observation prepared for explicit owner review. No approval, team mappings, funds or activation changed."
+        : "Read-only comparison with the imported baseline. No approval, settings, team mappings, funds or activation changed. Projection/result coverage and supported house rules still require review.",
     });
   } catch (e) {
     return json(

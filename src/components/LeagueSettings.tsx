@@ -23,6 +23,16 @@ const ProviderContractReview = lazy(() =>
     default: m.ProviderContractReview,
   })),
 );
+const SportsbookPolicyEditor = lazy(() =>
+  import("./SportsbookPolicyEditor").then((m) => ({
+    default: m.SportsbookPolicyEditor,
+  })),
+);
+const CommunicationIdentityEditor = lazy(() =>
+  import("./CommunicationIdentityEditor").then((m) => ({
+    default: m.CommunicationIdentityEditor,
+  })),
+);
 export function LeagueSettings({
   data,
   leagueId,
@@ -220,6 +230,14 @@ export function LeagueSettings({
         <Suspense fallback={<p role="status">Loading policy settings…</p>}>
           <ProviderContractReview
             key={"provider-" + leagueId}
+            leagueId={leagueId}
+          />
+          <SportsbookPolicyEditor
+            key={"pricing-" + leagueId}
+            leagueId={leagueId}
+          />
+          <CommunicationIdentityEditor
+            key={"communication-" + leagueId}
             leagueId={leagueId}
           />
           <WalletPolicyEditor

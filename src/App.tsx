@@ -909,6 +909,7 @@ export default function App() {
         <div className="account-tools">
           <QuickStart
             policy={access?.policy?.values}
+            pricing={access?.pricing_policy?.values}
             key={userId ?? "guest"}
             userId={userId}
             eligible={Boolean(ready && !loading && !error && member && team)}

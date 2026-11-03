@@ -11,6 +11,17 @@ export function ProviderContractReview({ leagueId }: { leagueId: string }) {
   const [review, setReview] = useState<Review | null>(null),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
+  const [capability, setCapability] = useState<{
+    review_hash: string;
+    build_sha: string;
+    revision: number;
+    season: number;
+    current_season: number;
+    approval_current: boolean;
+  } | null>(null);
+  const [renewalId, setRenewalId] = useState("");
+  const [reason, setReason] = useState(""),
+    [ack, setAck] = useState(false);
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
@@ -18,16 +29,23 @@ export function ProviderContractReview({ leagueId }: { leagueId: string }) {
       active.current = false;
     };
   }, []);
-  async function check() {
+  async function check(prepare = false) {
     if (busy) return;
     setBusy(true);
     setNotice("");
     setReview(null);
+    setCapability(null);
+    setAck(false);
     try {
       const s = await supabase!.auth.getSession();
       if (!s.data.session) throw Error("Sign in as the platform owner.");
       const r = await fetch(
-        "/api/provider-review?league_id=" + encodeURIComponent(leagueId),
+        "/api/provider-review?league_id=" +
+          encodeURIComponent(leagueId) +
+          (prepare ? "&prepare=1" : "") +
+          (renewalId.trim()
+            ? "&renewal_source=" + encodeURIComponent(renewalId.trim())
+            : ""),
         {
           method: "POST",
           headers: { Authorization: "Bearer " + s.data.session.access_token },
@@ -58,7 +76,59 @@ export function ProviderContractReview({ leagueId }: { leagueId: string }) {
         !["unchanged", "rules_changed", "renewal_required"].includes(data.state)
       )
         throw Error("Provider review scope is invalid.");
+      if (prepare) {
+        const c = await supabase!.rpc("provider_capability_review", {
+          p_league: leagueId,
+        });
+        if (c.error) throw c.error;
+        if (
+          !/^[a-f0-9]{64}$/.test(c.data?.review_hash) ||
+          !/^[a-f0-9]{40}$/.test(c.data?.build_sha) ||
+          !Number.isInteger(c.data?.revision) ||
+          !Number.isInteger(c.data?.season) ||
+          !Number.isInteger(c.data?.current_season)
+        )
+          throw Error("Prepared capability review scope is invalid.");
+        if (active.current) setCapability(c.data);
+      }
       if (active.current) setReview(data);
+    } catch (e) {
+      if (active.current) setNotice(errorMessage(e));
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  }
+  async function decide(renew = false) {
+    if (!capability || !ack || busy || reason.trim().length < 8) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const r = renew
+        ? await supabase!.rpc("renew_provider_season", {
+            p_league: leagueId,
+            p_hash: capability.review_hash,
+            p_expected_season: capability.current_season,
+            p_reason: reason.trim(),
+          })
+        : await supabase!.rpc("approve_provider_capability", {
+            p_league: leagueId,
+            p_hash: capability.review_hash,
+            p_expected: capability.revision,
+            p_build: capability.build_sha,
+            p_reason: reason.trim(),
+            p_coverage_reviewed: ack,
+          });
+      if (r.error) throw r.error;
+      if (active.current) {
+        setCapability(null);
+        setAck(false);
+        setReason("");
+        setNotice(
+          renew
+            ? "Season renewed without funding or activation. Prepare a fresh capability review."
+            : "Owner capability decision saved. No activation or funding was performed.",
+        );
+      }
     } catch (e) {
       if (active.current) setNotice(errorMessage(e));
     } finally {
@@ -72,9 +142,75 @@ export function ProviderContractReview({ leagueId }: { leagueId: string }) {
         Compare fresh Sleeper rules with this league's retained import baseline.
         No settings, team mappings, approvals or activation are changed.
       </p>
+      <label>
+        Next-season Sleeper league ID (optional)
+        <input
+          inputMode="numeric"
+          maxLength={32}
+          value={renewalId}
+          disabled={busy}
+          onChange={(e) => {
+            setRenewalId(e.target.value);
+            setCapability(null);
+            setAck(false);
+          }}
+        />
+      </label>
+      <p>
+        For renewal, the provider must link the new league to this league
+        through its previous-season ID. The immediately following season and
+        unchanged roster field are required.
+      </p>
       <button disabled={busy} onClick={() => void check()}>
         {busy ? "Checking provider rules…" : "Compare current provider rules"}
       </button>
+      <button disabled={busy} onClick={() => void check(true)}>
+        Prepare capability review
+      </button>
+      {capability && (
+        <section aria-label="Prepared provider capability decision">
+          <p>
+            Build {capability.build_sha.slice(0, 7)} · decision revision{" "}
+            {capability.revision}. Observations expire for approval after 15
+            minutes. Only reviewed weekly profiles are supported for imported
+            leagues; season futures must be disabled.
+            Unknown/IDP/division/median/multiweek profiles remain blocked.
+          </p>
+          <label>
+            Capability review reason
+            <input
+              value={reason}
+              maxLength={400}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={ack}
+              onChange={(e) => setAck(e.target.checked)}
+            />
+            I verified projection/result coverage, supported house rules, and
+            the exact configuration. This is my review attestation, not
+            automatic compatibility proof.
+          </label>
+          <button
+            disabled={busy || !ack || reason.trim().length < 8}
+            onClick={() =>
+              void decide(capability.season !== capability.current_season)
+            }
+          >
+            {capability.season !== capability.current_season
+              ? "Renew next provider season"
+              : "Record owner capability review"}
+          </button>
+          <p>
+            Renewal requires paused operations, unchanged roster IDs, and no
+            open tickets. It closes old boards and requires fresh review.
+            Account approvals, wallets and funds are preserved.
+          </p>
+        </section>
+      )}
       {notice && <p role="alert">{notice}</p>}
       {review && (
         <div role="status">

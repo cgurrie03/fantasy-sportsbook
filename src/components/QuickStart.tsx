@@ -1,3 +1,5 @@
+import { sportsbookDefaults } from "../../api/_lib/sportsbook-policy";
+import type { SportsbookValues } from "../../api/_lib/sportsbook-policy";
 import {
   walletPolicyDefaults,
   weeklyCashTarget,
@@ -9,7 +11,7 @@ import "./QuickStart.css";
 
 const cash = (n: number) =>
   "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-const makeTour = (policy: WalletPolicyValues) => [
+const makeTour = (policy: WalletPolicyValues, pricing: SportsbookValues) => [
   {
     title: "Your Sleeper league. A new way to compete.",
     illustrationLabel:
@@ -114,15 +116,14 @@ const makeTour = (policy: WalletPolicyValues) => [
   },
   {
     title: "Spotlight games come with extra upside.",
-    illustrationLabel:
-      "Game of the Week boosts both moneylines by 25 percent. Tank Bowl boosts both moneylines and the match total Over by 25 percent.",
+    illustrationLabel: `Game of the Week boosts both moneylines by ${pricing.featured_boost_pct} percent. Tank Bowl boosts both moneylines and the match total Over by ${pricing.featured_boost_pct} percent.`,
     art: (
       <div className="tour-features">
         <div>
           <strong>★ Game of the Week</strong>
           <p>Contenders in the spotlight</p>
           <b>
-            Win <span>+25% profit</span>
+            Win <span>+{pricing.featured_boost_pct}% profit</span>
           </b>
         </div>
         <div>
@@ -140,7 +141,7 @@ const makeTour = (policy: WalletPolicyValues) => [
           </strong>
           <p>A rivalry at the other end</p>
           <b>
-            Win + Match Over <span>+25% profit</span>
+            Win + Match Over <span>+{pricing.featured_boost_pct}% profit</span>
           </b>
         </div>
       </div>
@@ -154,17 +155,18 @@ const makeTour = (policy: WalletPolicyValues) => [
           <li>
             <strong>Game of the Week:</strong> a marquee matchup, usually
             between contenders. Either team’s moneyline gets a{" "}
-            <strong>25% profit boost</strong>.
+            <strong>{pricing.featured_boost_pct}% profit boost</strong>.
           </li>
           <li>
             <strong>Tank Bowl:</strong> a matchup near the bottom of the
             standings. Both moneylines and the <strong>match total Over</strong>{" "}
-            get a <strong>25% profit boost</strong>.
+            get a <strong>{pricing.featured_boost_pct}% profit boost</strong>.
           </li>
           <li>
             The highlighted odds already include the bonus. A $20 winning profit
-            becomes $25; your returned wager stays the same. Featured games are
-            chosen for the board, so a Tank Bowl may not appear every week.
+            becomes {cash(20 * (1 + pricing.featured_boost_pct / 100))}; your
+            returned wager stays the same. Featured games are chosen for the
+            board, so a Tank Bowl may not appear every week.
           </li>
         </ul>
       </>
@@ -275,13 +277,15 @@ export function QuickStart({
   eligible,
   seen,
   policy = walletPolicyDefaults,
+  pricing = sportsbookDefaults,
 }: {
   policy?: WalletPolicyValues;
+  pricing?: SportsbookValues;
   userId?: string;
   eligible: boolean;
   seen: boolean;
 }) {
-  const tour = useMemo(() => makeTour(policy), [policy]);
+  const tour = useMemo(() => makeTour(policy, pricing), [policy, pricing]);
   const [slide, setSlide] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);

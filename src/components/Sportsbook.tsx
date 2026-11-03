@@ -1056,7 +1056,11 @@ export function Sportsbook({
                               )}{" "}
                               {first.featured}
                             </strong>
-                            <span>25% PROFIT BOOST</span>
+                            <span>
+                              {Math.max(...g.map((m) => m.boost_pct)) > 0
+                                ? `${Math.max(...g.map((m) => m.boost_pct))}% PROFIT BOOST`
+                                : "FEATURED MATCHUP"}
+                            </span>
                           </div>
                         ) : (
                           <div

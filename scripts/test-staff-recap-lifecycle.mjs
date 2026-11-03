@@ -91,13 +91,16 @@ try {
     "update league_staff_grants set active=true where league_id=$1 and user_id=$2",
     [league, operator],
   );
+  // Inject noon for daily-budget tests so real late-night runs do not cross ET midnight.
+  const budgetAt=(await q("select ((now() at time zone 'America/New_York')::date+'12:00'::time)at time zone 'America/New_York't"))[0].t;
+  await q("update sportsbook_private.staff_alert_budget set last_queued_at=$1,budget_day=($1::timestamptz at time zone 'America/New_York')::date",[budgetAt]);
   for (let i = 1; i <= 4; i++) {
     const id = uuid();
     await q(
       "insert into automation_jobs(id,league_id,event_key,operation,market_week)values($1,$2,($1::uuid)::text,'recheck',5)",
       [id, league],
     );
-    const r = await queue(new Date(+at + i * 31 * 60000), id);
+    const r = await queue(new Date(Date.parse(budgetAt) + i * 31 * 60000), id);
     assert.equal(r.queued, i <= 3 ? 2 : 0, "four alerts per user per ET day");
   }
   assert.equal(

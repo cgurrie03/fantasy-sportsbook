@@ -262,17 +262,21 @@ export function FuturesAdmin({
         );
         setGenerated(true);
       } else {
-        const r = board && !generated
-          ? await supabase!.rpc("patch_future_board", {
-              p_board: board.id, p_revision: board.revision,
-              p_updates: markets.map((m) => ({ id: m.id, odds: m.odds })),
-              p_status: status ?? "draft",
-            })
-          : await supabase!.rpc("save_future_board_revision", {
-              p_board: board?.id ?? crypto.randomUUID(), p_league: leagueId,
-              p_revision: board?.revision ?? null, p_quotes: markets,
-              p_status: status ?? "draft",
-            });
+        const r =
+          board && !generated
+            ? await supabase!.rpc("patch_future_board", {
+                p_board: board.id,
+                p_revision: board.revision,
+                p_updates: markets.map((m) => ({ id: m.id, odds: m.odds })),
+                p_status: status ?? "draft",
+              })
+            : await supabase!.rpc("save_future_board_revision", {
+                p_board: board?.id ?? crypto.randomUUID(),
+                p_league: leagueId,
+                p_revision: board?.revision ?? null,
+                p_quotes: markets,
+                p_status: status ?? "draft",
+              });
         if (r.error) throw r.error;
         await reload();
         setNotice(
@@ -339,9 +343,9 @@ export function FuturesAdmin({
             <span>{text}</span>
             <input
               type="number"
-              min="-10000"
-              max="10000"
-              step="50"
+              min={-(board?.pricing_policy?.values.futures_max_odds ?? 10000)}
+              max={board?.pricing_policy?.values.futures_max_odds ?? 10000}
+              step={board?.pricing_policy?.values.futures_odds_step ?? 50}
               aria-label={`${m.label} Odds`}
               value={m.odds}
               onBlur={() =>
@@ -353,10 +357,17 @@ export function FuturesAdmin({
                           odds:
                             Math.sign(q.odds || 1) *
                             Math.min(
-                              10000,
+                              board?.pricing_policy?.values.futures_max_odds ??
+                                10000,
                               Math.max(
                                 100,
-                                Math.round(Math.abs(q.odds) / 50) * 50,
+                                Math.round(
+                                  Math.abs(q.odds) /
+                                    (board?.pricing_policy?.values
+                                      .futures_odds_step ?? 50),
+                                ) *
+                                  (board?.pricing_policy?.values
+                                    .futures_odds_step ?? 50),
                               ),
                             ),
                         }

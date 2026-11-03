@@ -56,7 +56,7 @@
     "test:league-intake": "node scripts/test-league-intake.mjs && node scripts/test-league-intake-ux.cjs",
     "test:user-wallets": "node scripts/test-user-wallet-foundation.mjs && node scripts/test-user-wallets-ux.cjs && node scripts/test-user-wallet-admin-ux.cjs && node scripts/test-wallet-cutover-ux.cjs",
     "test:team-claims": "node scripts/test-team-claims.mjs && node scripts/test-team-claims-ux.cjs",
-    "test:wallet-policy": "node scripts/test-wallet-policy.mjs && node scripts/test-wallet-policy-ux.cjs",
+    "test:wallet-policy": "node scripts/test-sportsbook-policy.mjs && node scripts/test-provider-capabilities.mjs && node scripts/test-operational-readiness.mjs && node scripts/test-owner-source-review.mjs && node scripts/test-platform-backup.mjs && node scripts/test-wallet-policy.mjs && node scripts/test-wallet-policy-ux.cjs",
     "test:notifications": "node scripts/test-notification-window.mjs && node scripts/test-routine-notifications.mjs && node scripts/test-editorial-editions.mjs && node scripts/test-staff-recap-lifecycle.mjs && node scripts/test-reminder-schedule-ux.cjs && node scripts/test-notification-preferences-ux.cjs"
   },
   "dependencies": {

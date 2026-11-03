@@ -1,3 +1,9 @@
+import { normalizeSleeperIntake, reviewIntake } from "./_lib/league-intake.js";
+import {
+  parseSportsbookPolicy,
+  featuredBoost,
+  policyOdds,
+} from "./_lib/sportsbook-policy.js";
 import {
   canonicalProjections,
   conditionalReopening,
@@ -93,6 +99,7 @@ export async function generateMarkets(
   request: Request,
   sourceFetch: typeof fetch = fetch,
 ) {
+  const startedAt = new Date().toISOString();
   try {
     const url = process.env.SUPABASE_URL,
       publicKey =
@@ -196,7 +203,7 @@ export async function generateMarkets(
 
     const configuration = await userClient
       .from("leagues")
-      .select("sleeper_league_id,nfl_season")
+      .select("sleeper_league_id,nfl_season,provider_review_required")
       .eq("id", input.league_id)
       .single();
     if (
@@ -278,6 +285,29 @@ export async function generateMarkets(
     )
       return json(
         { error: "Season Futures generation is not available yet." },
+        409,
+      );
+    const policyResult = await userClient
+      .rpc("sportsbook_policy", {
+        p_league: input.league_id,
+        p_season: input.nfl_season,
+        p_week: input.week,
+      })
+      .abortSignal(AbortSignal.timeout(15000));
+    if (policyResult.error)
+      throw Error("Shared sportsbook policy is unavailable.");
+    const pricing = parseSportsbookPolicy(policyResult.data);
+    const familyKey = (
+      {
+        Matchups: "matchups_enabled",
+        "Player Points": "players_enabled",
+        "Weekly Specials": "specials_enabled",
+        "Season Futures": "futures_enabled",
+      } as const
+    )[category as "Matchups"];
+    if (!pricing.values[familyKey])
+      return json(
+        { error: "Market family disabled by effective league policy." },
         409,
       );
     const control = await userClient
@@ -424,6 +454,27 @@ export async function generateMarkets(
         Projection[],
         History[][],
       ];
+    if (configuration.data.provider_review_required) {
+      const observed = normalizeSleeperIntake(league, rosters, []);
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
+        build = process.env.BOFF_BUILD_SHA;
+      if (!serviceKey || !build)
+        throw Error(
+          "Qualified provider capability observation is unavailable.",
+        );
+      const server = await createServerClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const saved = await server.rpc("observe_provider_capability", {
+        p_league: input.league_id,
+        p_source: observed,
+        p_report: reviewIntake(observed),
+        p_build: build,
+        p_started: startedAt,
+      });
+      if (saved.error)
+        throw Error("Provider capability state could not be refreshed.");
+    }
     let eventGames =
       status.data?.market_week === input.week ? (status.data?.games ?? []) : [];
     if (reopening) {
@@ -927,7 +978,10 @@ export async function generateMarkets(
             subject: team.team_name,
             line:
               kind === "future_win_total" ? probabilities[i].win_line : null,
-            odds: Math.max(-10000, Math.min(10000, specialOdds(p, 50))),
+            odds: Math.max(
+              -10000,
+              Math.min(10000, specialOdds(p, pricing.values.futures_odds_step)),
+            ),
             team_id: team.id,
             home_team_id: null,
             away_team_id: null,
@@ -1079,7 +1133,7 @@ export async function generateMarkets(
             side,
             team.team_name,
             null,
-            specialOdds(p, 10),
+            specialOdds(p, pricing.values.matchup_odds_step),
             team.id,
             {
               metadata: {
@@ -1100,7 +1154,15 @@ export async function generateMarkets(
         }
         for (const side of ["over", "under"])
           add("match_total", side, "Match Total", total, -110, null);
-        quotes.push(...extraMatchups(context, home, away, historical));
+        quotes.push(
+          ...extraMatchups(
+            context,
+            home,
+            away,
+            historical,
+            pricing.values.matchup_odds_step,
+          ),
+        );
       } else if (category === "Player Points") {
         const top = [
           ...home.lineup.map((p) => ({ ...p, owner: home })),
@@ -1148,7 +1210,7 @@ export async function generateMarkets(
               "at_least",
               player.name,
               target,
-              oddsFor(probability),
+              oddsFor(probability, pricing.values.matchup_odds_step),
               player.owner.id,
               {
                 market_key: `${key}:player_milestone:${player.id}:${target}`,
@@ -1181,6 +1243,7 @@ export async function generateMarkets(
             pool,
             projections,
             historical,
+            pricing.values.matchup_odds_step,
           ),
         );
       }
@@ -1212,7 +1275,10 @@ export async function generateMarkets(
             label: team.team_name,
             subject: team.team_name,
             line: null,
-            odds: specialOdds(Math.min(0.499, p)),
+            odds: specialOdds(
+              Math.min(0.499, p),
+              pricing.values.weekly_odds_step,
+            ),
             team_id: team.id,
             home_team_id: null,
             away_team_id: null,
@@ -1269,7 +1335,7 @@ export async function generateMarkets(
                       ? "League Average Score"
                       : "Highest Weekly Score",
           line,
-          odds: specialOdds(p),
+          odds: specialOdds(p, pricing.values.weekly_odds_step),
           team_id: null,
           home_team_id: null,
           away_team_id: null,
@@ -1369,14 +1435,16 @@ export async function generateMarkets(
             : q.matchup_key === tank?.[0].matchup_key
               ? "Tank Bowl"
               : "";
-        q.boost_pct =
-          (q.featured === "Game of the Week" && q.kind === "moneyline") ||
-          (q.featured === "Tank Bowl" &&
-            (q.kind === "moneyline" ||
-              (q.kind === "match_total" && q.side === "over")))
-            ? 25
-            : 0;
+        q.boost_pct = featuredBoost(q, pricing.values);
       });
+    }
+    for (const q of quotes) {
+      q.odds = policyOdds(q.odds, q.kind, pricing.values);
+      q.boost_pct = featuredBoost(q, pricing.values);
+      q.metadata = {
+        ...q.metadata,
+        sportsbook_policy_revision: pricing.revision,
+      };
     }
     if (!quotes.length)
       throw new Error(

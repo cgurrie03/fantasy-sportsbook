@@ -35,6 +35,7 @@ const marketSource = fs
   .readFileSync("src/lib/markets.ts", "utf8")
   .replace('import { supabase } from "./supabase";', "const supabase = null;")
   .replace('"../../api/_lib/event-time"', JSON.stringify(eventUrl))
+  .replace('"../../api/_lib/sportsbook-policy"',JSON.stringify(pathToFileURL(fs.realpathSync("api/_lib/sportsbook-policy.ts")).href))
   .replace('"../../api/_lib/wallet-policy"',JSON.stringify(pathToFileURL(fs.realpathSync("api/_lib/wallet-policy.ts")).href))
   .replace('"./category-board-cache"', JSON.stringify(cacheUrl));
 const { canPlacePicks, pickConflict } = await import(

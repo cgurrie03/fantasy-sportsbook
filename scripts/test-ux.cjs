@@ -48,6 +48,11 @@ async function setup(browser, width, height, signedIn=true, firstVisit=false){
    let body={};try{body=req.postDataJSON()||{}}catch{}
    if(endpoint==='claim_memberships')return json(2);
    if(endpoint==='team_claim_directory')return json({claims:[],invitations:[]});
+   if(endpoint==='communication_identity_review')return json({league_id:body.p_league,revision_hash:'a'.repeat(64),sportsbook_url:'https://dev.sportsbook.coopergurrie.com/',email_sender:'fixture@example.invalid',required_origin:'https://dev.sportsbook.coopergurrie.com'});
+   if(endpoint==='sportsbook_policy'||endpoint==='current_sportsbook_policy'||endpoint==='sportsbook_policy_review'){
+    const current={contract:'sportsbook-policy-v1',revision:0,values:{featured_boost_pct:25,matchup_odds_step:10,weekly_odds_step:25,futures_odds_step:50,futures_max_odds:10000,matchups_enabled:true,players_enabled:true,specials_enabled:true,futures_enabled:true}};
+    return json(endpoint!=='sportsbook_policy_review'?current:{season:2026,week:5,latest_revision:0,current,versions:[]});
+   }
    if(endpoint==='wallet_policy_review')return json({season:2026,week:5,latest_revision:0,current:{contract:'wallet-ticket-policy-v1',defaults_version:1,revision:0,effective_season:null,effective_week:null,values:{minimum_stake:1,maximum_picks:10,weekly_target:100,futures_cash_floor:25}},versions:[]});
    if(endpoint==='account_access')return json(memberships.map(m=>({league_id:m.league_id,view:true,admin:!!state.platformOwner||m.role==='admin',configure:!!state.platformOwner,platform_owner:!!state.platformOwner,bet:true,team_id:m.team_id,...(state.walletPolicies?.[m.league_id]?{policy:state.walletPolicies[m.league_id]}:{})})));
    if(endpoint==='account_history_seasons')return json([...new Set([2026,...state.tickets.filter(t=>t.league_id===body.p_league).map(t=>t.nfl_season)])].filter(Number.isInteger).sort((a,b)=>b-a));

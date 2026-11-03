@@ -215,6 +215,71 @@ const { setup, A, B } = require("./test-ux.cjs");
         .waitFor();
       assert.equal(reviews, 4);
       assert.equal(imports, 0);
+      let decisions = 0,
+        renewals = 0;
+      await p.route("**/rpc/provider_capability_review", (r) =>
+        r.fulfill({
+          json: {
+            review_hash: "a".repeat(64),
+            build_sha: "b".repeat(40),
+            revision: 0,
+            season: comparisonState === "renewal_required" ? 2027 : 2026,
+            current_season: 2026,
+            approval_current: false,
+          },
+        }),
+      );
+      await p.route("**/rpc/approve_provider_capability", (r) => {
+        const b = r.request().postDataJSON();
+        assert.equal(b.p_league, A);
+        assert.equal(b.p_hash, "a".repeat(64));
+        assert.equal(b.p_expected, 0);
+        assert.equal(b.p_coverage_reviewed, true);
+        decisions++;
+        return r.fulfill({ json: { revision: 1 } });
+      });
+      await p.route("**/rpc/renew_provider_season", (r) => {
+        const b = r.request().postDataJSON();
+        assert.equal(b.p_league, A);
+        assert.equal(b.p_expected_season, 2026);
+        renewals++;
+        return r.fulfill({ json: { renewed: true } });
+      });
+      comparisonState = "unchanged";
+      for (const renewal of [false, true]) {
+        comparisonState = renewal ? "renewal_required" : "unchanged";
+        await p
+          .getByRole("button", {
+            name: "Prepare capability review",
+            exact: true,
+          })
+          .click();
+        const decision = p.getByRole("button", {
+          name: renewal
+            ? "Renew next provider season"
+            : "Record owner capability review",
+          exact: true,
+        });
+        await decision.waitFor();
+        assert(await decision.isDisabled());
+        await p
+          .getByLabel("Capability review reason", { exact: true })
+          .fill("Reviewed synthetic coverage and supported rules");
+        await p
+          .getByLabel("I verified projection/result coverage", { exact: false })
+          .check();
+        await decision.click();
+        await p
+          .getByText(
+            renewal
+              ? "Season renewed without funding or activation. Prepare a fresh capability review."
+              : "Owner capability decision saved. No activation or funding was performed.",
+            { exact: true },
+          )
+          .waitFor();
+      }
+      assert.equal(decisions, 1);
+      assert.equal(renewals, 1);
 
       await p
         .getByLabel("Sleeper league ID", { exact: true })

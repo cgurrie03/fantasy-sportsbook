@@ -28,10 +28,12 @@ export const recoveryTablesV2 = [...recoveryTables,
 ];
 // v3 preserves the new effective financial policy; v1/v2 remain readable.
 export const recoveryTablesV3=[...recoveryTablesV2,"sportsbook_private.league_policy_versions"];
+export const recoveryTablesV4=[...recoveryTablesV3,"sportsbook_private.sportsbook_policy_versions","sportsbook_private.provider_capability_state","sportsbook_private.provider_capability_decisions"];
 export function tablesForFormat(format) {
   if (format === "boff-financial-recovery-v1") return recoveryTables;
   if (format === "boff-financial-recovery-v2") return recoveryTablesV2;
   if (format === "boff-financial-recovery-v3") return recoveryTablesV3;
+  if (format === "boff-financial-recovery-v4") return recoveryTablesV4;
   throw new Error("Unsupported financial recovery format.");
 }
 const authStub = `create role anon;create role authenticated;create role service_role bypassrls;
@@ -168,12 +170,18 @@ export async function restoreFinancialSnapshot(plaintext, schema, { projectRef =
     await assert.rejects(db.query("select * from public.wallets"));
     await db.exec("reset role");
     let policyCount=null;
-    if(snapshot.format==="boff-financial-recovery-v3") {
+    if(["boff-financial-recovery-v3","boff-financial-recovery-v4"].includes(snapshot.format)) {
       const policies=(await db.query("select overrides from sportsbook_private.league_policy_versions")).rows;
       for(const row of policies)await db.query("select sportsbook_private.validate_wallet_policy($1)",[JSON.stringify(row.overrides)]);
       policyCount=policies.length;
     }
-    return { policy_versions_checked:policyCount,format: snapshot.format, counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
+    let pricingCount=null;
+    if(snapshot.format==='boff-financial-recovery-v4'){
+      const rows=(await db.query('select overrides from sportsbook_private.sportsbook_policy_versions')).rows;
+      for(const row of rows)await db.query('select sportsbook_private.validate_sportsbook_policy($1)',[JSON.stringify(row.overrides)]);
+      pricingCount=rows.length;
+    }
+    return { pricing_policy_versions_checked:pricingCount,policy_versions_checked:policyCount,format: snapshot.format, counts, foreign_keys_checked: keys.length, duplicate_refund_checked: refundChecked,
       user_wallet_checks: userChecks,
       outsider_denied: true, anonymous_denied: true };
   } finally { await db.close(); }
@@ -183,7 +191,7 @@ async function main() {
   if (process.env.VERCEL) throw new Error("Recovery tooling must never run on hosting.");
   const [mode, target = "work/financial-recovery", schemaFile] = process.argv.slice(2);
   const folder = path.resolve(target);
-  if (["prepare","prepare-v2","prepare-v3"].includes(mode)) {
+  if (["prepare","prepare-v2","prepare-v3","prepare-v4"].includes(mode)) {
     if (mode !== "prepare" && !schemaFile) throw new Error("Versioned recovery requires an explicit reviewed schema-only recovery artifact.");
     const schema = await fs.readFile(schemaFile ?? "supabase/development/baseline-schema.sql", "utf8");
     await fs.mkdir(folder, { recursive: true });
@@ -200,7 +208,7 @@ async function main() {
     await fs.writeFile(path.join(folder, "passphrase.dpapi"), wrappedPassphrase, { mode: 0o600 });
     await fs.writeFile(path.join(folder, "schema.sql"), schema);
     await fs.writeFile(path.join(folder, "export.sql"), snapshotQuery(keys.publicKey, {
-      format: mode === "prepare-v3" ? "boff-financial-recovery-v3" : mode === "prepare-v2" ? "boff-financial-recovery-v2" : "boff-financial-recovery-v1",
+      format: mode === "prepare-v4" ? "boff-financial-recovery-v4" : mode === "prepare-v3" ? "boff-financial-recovery-v3" : mode === "prepare-v2" ? "boff-financial-recovery-v2" : "boff-financial-recovery-v1",
     })
       .replace("SCHEMA_HASH_PLACEHOLDER", createHash("sha256").update(schema).digest("hex")));
     console.log("Prepared public-key encrypted financial export. Private key and DPAPI-wrapped passphrase remain local; no secrets logged.");
@@ -220,7 +228,7 @@ async function main() {
       scope: "Financial records and FK dependencies; auth identities only, not Auth credentials or a full platform backup.",
     }, null, 2));
     console.log(JSON.stringify(result));
-  } else throw new Error("Use prepare, prepare-v2/prepare-v3 (with a reviewed schema file), or verify with a local recovery directory.");
+  } else throw new Error("Use prepare, prepare-v2/prepare-v3/prepare-v4 (with a reviewed schema file), or verify with a local recovery directory.");
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try { await main(); }

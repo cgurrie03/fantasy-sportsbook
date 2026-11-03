@@ -1,0 +1,51 @@
+name: Owner Source Review
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact clean source SHA with passing Project Checks
+        required: true
+        type: string
+      evidence_run_id:
+        description: Successful same-repository Project Checks run ID
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  deployments: read
+jobs:
+  source-review:
+    if: github.repository == 'cgurrie03/fantasy-sportsbook' && github.actor == 'cgurrie03'
+    runs-on: ubuntu-24.04
+    environment: Production
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate source input
+        run: node -e "if(!/^[a-f0-9]{40}$/.test(process.env.SOURCE_SHA)||!/^\d+$/.test(process.env.EVIDENCE_RUN_ID))process.exit(1)"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Verify remote approval and exact successful CI before artifact download
+        run: node scripts/owner-source-review.mjs metadata
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0, official tag verified
+        with:
+          name: release-checks
+          path: work/release-checks
+          run-id: ${{ inputs.evidence_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify bound source, migration set and complete qualification
+        run: node scripts/owner-source-review.mjs attest
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: owner-source-review
+          path: work/owner-source-review
+          retention-days: 7
+# Review only. Deliberately contains no deploy credentials, schema writer or promotion.

@@ -23,6 +23,7 @@ globalThis.__accountFixture={rpc(name,args){
   }};return query;
 }};
 let source=fs.readFileSync('src/lib/accounts.ts','utf8').replace('import { supabase } from "./supabase";','const supabase=globalThis.__accountFixture;');
+source=source.replaceAll('"../../api/_lib/sportsbook-policy"',JSON.stringify(pathToFileURL(path.resolve("api/_lib/sportsbook-policy.ts")).href));
 source=source.replaceAll('"../../api/_lib/wallet-policy"',JSON.stringify(pathToFileURL(path.resolve("api/_lib/wallet-policy.ts")).href));
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {loadAccounts}=await import('data:text/javascript;base64,'+Buffer.from(compiled).toString('base64'));

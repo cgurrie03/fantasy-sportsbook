@@ -1,3 +1,4 @@
+import { PolicyTransfer } from "./PolicyTransfer";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { errorMessage, money } from "../lib/accounts";
@@ -226,6 +227,19 @@ export function WalletPolicyEditor({
           >
             Save effective policy version
           </button>
+          <PolicyTransfer
+            name="Wallet"
+            contract="wallet-ticket-policy-v1"
+            values={values}
+            defaults={walletPolicyDefaults}
+            validate={(v) =>
+              parseWalletPolicy({ ...review.current, values: v }).values
+            }
+            onApply={(v) => {
+              setValues(v);
+              setAck(false);
+            }}
+          />
           <h3>Version history</h3>
           {review.versions.map((v) => (
             <p key={v.revision}>

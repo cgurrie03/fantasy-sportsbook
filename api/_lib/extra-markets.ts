@@ -9,10 +9,12 @@ export const extraKinds = [
   "team_milestone",
   "winning_margin",
 ];
-export function oddsFor(p: number) {
+export function oddsFor(p: number, step = 10) {
   p = Math.max(0.01, Math.min(0.99, p));
   const odds = p >= 0.5 ? (-100 * p) / (1 - p) : (100 * (1 - p)) / p;
-  return Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / 10) * 10);
+  return (
+    Math.sign(odds) * Math.max(100, Math.round(Math.abs(odds) / step) * step)
+  );
 }
 export function milestones(mean: number, step: number) {
   const center = Math.max(step, Math.round(mean / step) * step);
@@ -38,6 +40,7 @@ export function extraMatchups(
   home: any,
   away: any,
   history: History[][],
+  oddsStep = 10,
 ): Market[] {
   const out: Market[] = [];
   const push = (
@@ -60,7 +63,7 @@ export function extraMatchups(
       label,
       subject: team.team_name,
       market_key: `${context.matchup_key}:${key}`,
-      odds: oddsFor(p),
+      odds: oddsFor(p, oddsStep),
       boost_pct: 0,
       featured: "",
       metadata: {
@@ -134,6 +137,7 @@ export function playerExtras(
   pool: (Candidate & { assessment_sd: number })[],
   projections: Projection[],
   history: History[][],
+  oddsStep = 10,
 ): Market[] {
   const out: Market[] = [];
   const identity = (id: string | undefined) => {
@@ -205,7 +209,7 @@ export function playerExtras(
           line: null,
           subject: player.name,
           label: `${player.name} to outscore ${side === "home" ? right.name : left.name} · ${label}`,
-          odds: oddsFor(probability),
+          odds: oddsFor(probability, oddsStep),
           boost_pct: 0,
           featured: "",
           metadata: {

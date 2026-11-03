@@ -1,3 +1,4 @@
+import { parseSportsbookPolicy } from "./_lib/sportsbook-policy.js";
 import {
   isPromotional,
   currentNotificationWindow,
@@ -246,6 +247,52 @@ export async function POST(request: Request) {
         throw new Error(
           "League operations are disabled pending verified rollout.",
         );
+      const family = job.operation.match(
+        /^(?:generate|refresh|interval)_(matchups|players|specials|futures)$/,
+      )?.[1];
+      if (family) {
+        const checked = await db.rpc("sportsbook_policy", {
+          p_league: job.league_id,
+          p_season: league.nfl_season,
+          p_week: job.market_week,
+        });
+        if (checked.error) throw Error("Effective market policy unavailable.");
+        const policy = parseSportsbookPolicy(checked.data);
+        if (
+          !policy.values[(family + "_enabled") as keyof typeof policy.values]
+        ) {
+          if (job.operation.startsWith("interval_")) {
+            const staged = await db.rpc("stage_line_refresh", {
+              p_job: job.id,
+              p_attempt: job.attempts,
+              p_quotes: [],
+            });
+            if (staged.error)
+              throw Error("Disabled family stage could not be fenced.");
+          }
+          const done = await db
+            .from("automation_jobs")
+            .update({
+              status: "done",
+              completed_at: new Date().toISOString(),
+              summary: {
+                skipped: true,
+                reason: "Market family disabled by effective policy",
+                policy_revision: policy.revision,
+              },
+            })
+            .eq("id", job.id)
+            .eq("attempts", job.attempts)
+            .eq("status", "running");
+          if (done.error)
+            throw Error("Disabled family job could not be completed.");
+          return json({
+            job: job.operation,
+            skipped: true,
+            policy_revision: policy.revision,
+          });
+        }
+      }
       const recipients = await read(
         db
           .from("league_memberships")

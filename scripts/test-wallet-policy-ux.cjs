@@ -82,6 +82,89 @@ const policy = {
       await p.keyboard.press("Escape");
       await p.goto("http://127.0.0.1:5185/#/admin/settings");
       await p.getByLabel("Minimum wager", { exact: true }).waitFor();
+      await p
+        .getByText("Pricing defaults and policy transfer", { exact: true })
+        .click();
+      await p
+        .getByRole("button", { name: "Export pricing values", exact: true })
+        .click();
+      const transfer = p.getByLabel("Pricing policy JSON", { exact: true });
+      const exported = JSON.parse(await transfer.inputValue());
+      assert.equal(exported.contract, "sportsbook-policy-v1");
+      assert(!("league_id" in exported));
+      await transfer.fill(JSON.stringify({ ...exported, league_id: B }));
+      await p
+        .getByRole("button", { name: "Apply pricing policy JSON", exact: true })
+        .click();
+      await p
+        .getByText(
+          "Only the matching policy contract and values may be imported.",
+          { exact: true },
+        )
+        .waitFor();
+      await p
+        .getByRole("button", {
+          name: "Load pricing shared defaults",
+          exact: true,
+        })
+        .click();
+      assert.equal(
+        await p
+          .getByLabel("Featured profit boost percent", { exact: true })
+          .inputValue(),
+        "25",
+      );
+      await transfer.fill(
+        JSON.stringify({
+          ...exported,
+          values: { ...exported.values, featured_boost_pct: 30 },
+        }),
+      );
+      await p
+        .getByRole("button", { name: "Apply pricing policy JSON", exact: true })
+        .click();
+      assert.equal(
+        await p
+          .getByLabel("Featured profit boost percent", { exact: true })
+          .inputValue(),
+        "30",
+      );
+      let pricingSaves = 0;
+      await p.route("**/rpc/save_sportsbook_policy", (r) => {
+        const b = r.request().postDataJSON();
+        assert.equal(b.p_league, A);
+        assert.equal(b.p_expected, 0);
+        assert.equal(b.p_week, 6);
+        assert.equal(b.p_overrides.featured_boost_pct, 30);
+        pricingSaves++;
+        return r.fulfill({ json: { revision: 1, duplicate: false } });
+      });
+      const pricingSave = p.getByRole("button", {
+        name: "Save sportsbook policy version",
+        exact: true,
+      });
+      assert(await pricingSave.isDisabled());
+      await p
+        .getByLabel("Featured profit boost percent", { exact: true })
+        .fill("30");
+      await p.getByLabel("Pricing effective week", { exact: true }).fill("6");
+      await p
+        .getByLabel("Pricing policy review reason", { exact: true })
+        .fill("Reviewed future featured pricing and disabled families");
+      await p
+        .getByLabel("I reviewed the effective period and enabled families.", {
+          exact: false,
+        })
+        .check();
+      await pricingSave.click();
+      await p
+        .getByText(
+          "Policy version saved. Existing accepted tickets and prices are unchanged.",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(pricingSaves, 1);
+
       assert.equal(
         await p.getByLabel("Minimum wager", { exact: true }).inputValue(),
         "5",
@@ -106,6 +189,46 @@ const policy = {
         )
         .waitFor();
       assert.equal(saves, 1);
+      let identities = 0;
+      await p.route("**/rpc/save_communication_identity", (r) => {
+        const b = r.request().postDataJSON();
+        assert.equal(b.p_league, A);
+        assert.equal(b.p_sender, "reviewed@example.invalid");
+        assert.equal(b.p_url, "https://dev.sportsbook.coopergurrie.com");
+        identities++;
+        return r.fulfill({
+          json: {
+            league_id: A,
+            revision_hash: "b".repeat(64),
+            sportsbook_url: b.p_url,
+            email_sender: b.p_sender,
+            required_origin: b.p_url,
+          },
+        });
+      });
+      await p
+        .getByLabel("Sportsbook communication URL", { exact: true })
+        .fill("https://dev.sportsbook.coopergurrie.com");
+      await p
+        .getByLabel("Verified league sender", { exact: true })
+        .fill("reviewed@example.invalid");
+      await p
+        .getByLabel("Communication identity review reason", { exact: true })
+        .fill("Reviewed synthetic mail identity without sending");
+      await p
+        .getByRole("button", {
+          name: "Save communication identity",
+          exact: true,
+        })
+        .click();
+      await p
+        .getByText(
+          "Communication identity saved. Provider capability review must match the new configuration before activation.",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(identities, 1);
+
       await p.getByLabel("League", { exact: true }).selectOption(B);
       await menu(p, "Home");
       await p.getByRole("heading", { name: /SEASON 9/ }).waitFor();

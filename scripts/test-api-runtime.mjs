@@ -52,6 +52,7 @@ try {
     "_lib/editorial-stories",
     "_lib/opening-editorial",
     "_lib/wallet-policy",
+    "_lib/sportsbook-policy",
     "league-intake",
     "provider-review",
     "_lib/routine-retention",
@@ -108,6 +109,9 @@ try {
     await writeFile(path.join(root, `${file}.js`), outputText);
   }
   await writeFile(path.join(root, "package.json"), '{"type":"module"}');
+  const { defaultSportsbookPolicy } = await import(
+    pathToFileURL(path.join(root, "_lib/sportsbook-policy.js")).href
+  );
   const { POST, sharedRefreshSource } = await import(
     pathToFileURL(path.join(root, "generate-markets.js")).href
   );
@@ -1018,9 +1022,14 @@ try {
   );
   const intakeFetch = globalThis.fetch,
     intakeEnv = Object.fromEntries(
-      ["SUPABASE_URL", "SUPABASE_ANON_KEY", "BOFF_ENVIRONMENT", "NODE_ENV"].map(
-        (k) => [k, process.env[k]],
-      ),
+      [
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "BOFF_BUILD_SHA",
+        "BOFF_ENVIRONMENT",
+        "NODE_ENV",
+      ].map((k) => [k, process.env[k]]),
     );
   try {
     Object.assign(process.env, {
@@ -1175,9 +1184,23 @@ try {
     let leagueReads = 0,
       driftBaseline = false,
       revokeDuringRead = false,
-      providerReviewReads = 0;
+      providerReviewReads = 0,
+      capabilityWrites = 0;
     globalThis.fetch = async (input, options = {}) => {
       const u = String(input);
+      if (u.includes("/rest/v1/rpc/observe_provider_capability")) {
+        assert.equal(
+          new Headers(options.headers).get("authorization"),
+          "Bearer synthetic-service-capability",
+        );
+        const args = JSON.parse(options.body);
+        assert.equal(args.p_league, localLeague);
+        assert.equal(args.p_build, "a".repeat(40));
+        assert(Number.isFinite(Date.parse(args.p_started)));
+        assert.equal(args.p_source.total_rosters, 8);
+        capabilityWrites++;
+        return Response.json({ prepared: true });
+      }
       if (u.includes("/rest/v1/leagues")) {
         leagueReads++;
         return Response.json([
@@ -1226,6 +1249,26 @@ try {
     assert.equal(comparison.state, "unchanged");
     assert.equal(comparison.approval, "still_required");
     assert.equal(providerReviewReads, 3);
+    assert.equal(capabilityWrites, 0);
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "synthetic-service-capability";
+    process.env.BOFF_BUILD_SHA = "a".repeat(40);
+    const preparedRequest = () =>
+      new Request(
+        "https://example.invalid/api/provider-review?league_id=" +
+          localLeague +
+          "&prepare=1",
+        {
+          method: "POST",
+          headers: { authorization: "Bearer synthetic-owner" },
+        },
+      );
+    const prepared = await providerReview(preparedRequest());
+    assert.equal(prepared.status, 200);
+    assert.deepEqual((await prepared.json()).capability_observation, {
+      prepared: true,
+    });
+    assert.equal(capabilityWrites, 1);
+    leagueReads = 0;
     rawLeague.scoring_settings.rec = 0.5;
     leagueReads = 0;
     comparison = await (await providerReview(reviewReq())).json();
@@ -1238,7 +1281,12 @@ try {
     driftBaseline = false;
     leagueReads = 0;
     revokeDuringRead = true;
-    assert.equal((await providerReview(reviewReq())).status, 403);
+    assert.equal((await providerReview(preparedRequest())).status, 403);
+    assert.equal(
+      capabilityWrites,
+      1,
+      "revoked owner cannot save a server observation",
+    );
   } finally {
     globalThis.fetch = intakeFetch;
     for (const [k, v] of Object.entries(intakeEnv)) {
@@ -1971,6 +2019,8 @@ try {
           headers: { "Content-Type": "application/json" },
         });
       if (url.startsWith("https://replacement.invalid")) {
+        if (endpoint === "sportsbook_policy")
+          return json(defaultSportsbookPolicy);
         if (endpoint === "teams")
           return json(
             [1, 2].map((roster_id) => ({

@@ -1,3 +1,5 @@
+import { parseSportsbookPolicy } from "../../api/_lib/sportsbook-policy";
+import type { SportsbookPolicy } from "../../api/_lib/sportsbook-policy";
 import { parseWalletPolicy } from "../../api/_lib/wallet-policy";
 import type { WalletPolicy } from "../../api/_lib/wallet-policy";
 import { supabase } from "./supabase";
@@ -61,6 +63,7 @@ export interface Ledger {
   kind: string;
 }
 export interface LeagueAccess {
+  pricing_policy?: SportsbookPolicy;
   policy?: WalletPolicy;
   wallet_model?: "legacy" | "user";
   participant?: FinancialParticipant | null;
@@ -242,7 +245,10 @@ export async function loadAccounts(
   )
     throw new Error("League access could not be verified.");
   const access = core[4].data as LeagueAccess[];
-  for (const a of access) if (a.policy) parseWalletPolicy(a.policy);
+  for (const a of access) {
+    if (a.policy) parseWalletPolicy(a.policy);
+    if (a.pricing_policy) parseSportsbookPolicy(a.pricing_policy);
+  }
   const participants = access.flatMap((a) =>
     a.participant ? [a.participant] : [],
   );

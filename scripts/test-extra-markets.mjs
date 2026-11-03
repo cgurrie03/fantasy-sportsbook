@@ -9,6 +9,7 @@ const dir = fs.mkdtempSync(path.resolve("node_modules/.extra-markets-"));
 for (const name of [
   "event-time",
   "wallet-policy",
+  "sportsbook-policy",
   "settlement",
   "extra-markets",
   "model-assessment",
@@ -33,6 +34,7 @@ fs.writeFileSync(
       .readFileSync("src/lib/markets.ts", "utf8")
       .replace('"./supabase"', '"./supabase.js"')
       .replace('"./category-board-cache"', JSON.stringify(pathToFileURL(path.resolve('src/lib/category-board-cache.ts')).href))
+      .replace('"../../api/_lib/sportsbook-policy"', '"./sportsbook-policy.js"')
       .replace('"../../api/_lib/wallet-policy"', '"./wallet-policy.js"')
       .replace('"../../api/_lib/event-time"', '"./event-time.js"'),
     {

@@ -1,3 +1,7 @@
+import {
+  featuredBoost,
+  sportsbookDefaults,
+} from "../../api/_lib/sportsbook-policy";
 import { useEffect, useState } from "react";
 import type { AccountData } from "../lib/accounts";
 import { errorMessage } from "../lib/accounts";
@@ -250,13 +254,14 @@ export function MarketAdmin({
         return {
           ...m,
           featured,
-          boost_pct:
-            (featured === "Game of the Week" && m.kind === "moneyline") ||
-            (featured === "Tank Bowl" &&
-              (m.kind === "moneyline" ||
-                (m.kind === "match_total" && m.side === "over")))
-              ? 25
-              : 0,
+          boost_pct: featuredBoost(
+            { ...m, featured },
+            board?.pricing_policy?.values ?? sportsbookDefaults,
+          ),
+          metadata: {
+            ...m.metadata,
+            sportsbook_policy_revision: board?.pricing_policy?.revision ?? 0,
+          },
         };
       }),
     );
@@ -328,7 +333,7 @@ export function MarketAdmin({
                 <strong>{m.label}</strong>
                 <small>
                   {marketType[m.kind]}
-                  {m.boost_pct ? " · 25% Profit Boost" : ""}
+                  {m.boost_pct ? ` · ${m.boost_pct}% Profit Boost` : ""}
                 </small>
               </span>
               {m.line != null && (
