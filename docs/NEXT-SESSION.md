@@ -1,6 +1,6 @@
 # BOFF continuation checkpoint
 
-Updated November 2, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
+Updated November 3, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
 
 ## Verified Development delivery
 
@@ -21,7 +21,7 @@ All migrations applied sequentially; rollback/ACL/tenant/owner/effective-policy 
 
 [Remaining milestones](REMAINING-MILESTONES.md) and [A01–A25 map](AUDIT-RESIDUALS.md) distinguish actual acceptance from synthetic fixtures.
 
-1. **20 recovery:** pending async owner choice: prepare free client-only setup here, or use another computer with PostgreSQL tools. No pg_dump/Docker currently installed; no installation without response. Integrations cannot create complete database/Auth/config backups. Generic streaming encryption helper is tested with synthetic keys, not a full backup. See [owner steps](OWNER-RECOVERY-AND-RELEASE-STEPS.md). Owner already imported key/password and verified phone access; full computer restore drill is explicitly deferred. Never repeat custody requests or open the private key/DPAPI.
+1. **20 recovery:** owner selected free client-only setup here November 3. PostgreSQL17.11 (matching DEV/PROD) client binaries/hash receipt and owner-run PowerShell launcher are ready; [Development export instructions](CLIENT-BACKUP-SETUP.md). 62,124,186B local clients; temporary381,531,864B ZIP removed after verification. No server/service/PATH/Docker/system-policy change. Synthetic streaming round-trip/failure/host/TLS/read-only tests pass; four real client versions/hash checks pass. No actual DB export or password/private-key read occurred. Owner must run launcher with local password and source CA certificate. Native raw custom archive is not a turnkey Supabase filtered restore; external Auth/config/storage-body/encryption-root coverage and independent verification remain. Full restore drill stays owner-deferred. Do not repeat key/phone custody requests.
 2. **21 release control:** live public GitHub Production environment has no required reviewer and permits administrator bypass. Local review-only workflow rejects that state, requires sole-owner exact-source/CI/run/environment approval, and grants no deploy permission. Owner must configure protections and explicitly authorize source publication; no GitHub push currently authorized. Remaining hooks/credentials need owner attestation/inventory.
 3. **13 cleanup:** metadata-only production inventory shows model_forecast_runs547,119,104B,forecast_snapshots339,722,240B,line_refresh_stages323,215,360B. No incoming FKs for these three is not proof of no semantic dependency: observe_line_refresh/save_model_forecast/stage_line_refresh/private.capture_forecast still reference archives in production. Build actual useful-summary/candidate checksums only within approved access scope; full recovery and exact owner-approved maintenance plan precede writes. Production Storage point-in-time inventory0 buckets/objects.
 4. **22 audit:** final supported-profile whole journeys, actual physical-device/assistive/Auth template/security checks and measured simultaneous peak/outage/fairness acceptance remain. Existing43 suites are not a completed production audit or actual-device evidence.

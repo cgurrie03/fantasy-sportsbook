@@ -1,13 +1,13 @@
 # Prioritized implementation list
 
-Updated November 2, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
+Updated November 3, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
 do not add to or replace the stable 24-milestone count. Default owner: Cooper for
 policy/production decisions; Codex for the authorized development implementation.
 Ready items may proceed while earlier items wait for required evidence/approval.
 
 | Order | ID | Priority | Feature / delivery | Milestone | Status / dependencies |
 |---|---|---|---|---|---|
-| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner confirmed password-manager import October 29 and phone access November 1; full restore drill deferred by owner; full-platform backup coverage remains |
+| 1 | F001 | P1 | Full platform/off-site recovery, restore drill and owner key custody | 20 | In progress; private Drive checkpoint/restore package verified, portable key helper tested; owner confirmed password-manager import October 29 and phone access November 1; full restore drill deferred by owner; full-platform backup coverage remains; November3 client-only setup and direct encrypted export launcher prepared, owner-run Development export pending |
 | 2 | F002 | P1 | Exact tested-release approval and safe CI/publication workflow | 21 | In progress; exact-source evidence and unapproved review generator implemented; local review-only workflow and exact owner/CI/environment metadata validator added in handoff 40; Production currently has no required reviewers and allows admin bypass; no GitHub push authorized |
 | 3 | F003 | P1 | Operational log/email-body/unused-media retention budgets | 19 | Done dev; handoff 26, 37/37 checks, protected deployment; unresolved mail/retries/financial audits and referenced art preserved |
 | 4 | F004 | P1 | Separate per-user, per-league financial accounts/wallets, including co-owners | 17 | Done DEV; handoff 30, source efb98df passed 39/39 and is deployed protected; hosted rollback/ACL/advisory checks plus owner-verified cutovers in both leagues; funding pending, operations disabled; production adoption remains 24 |

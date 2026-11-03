@@ -47,7 +47,7 @@
     "test:sleeper-links": "node scripts/test-sleeper-links.mjs",
     "test:board-cache": "node scripts/test-board-cache.mjs && node scripts/test-category-cache.mjs && node scripts/test-category-snapshots.mjs && node scripts/test-category-loading-ux.cjs",
     "schema:development": "node scripts/build-development-schema.mjs",
-    "test:financial-recovery": "node scripts/test-financial-recovery.mjs && node scripts/test-recovery-custody.mjs",
+    "test:financial-recovery": "node scripts/test-financial-recovery.mjs && node scripts/test-recovery-custody.mjs && node scripts/test-native-platform-backup.mjs",
     "recovery:prepare": "node scripts/financial-recovery.mjs prepare",
     "recovery:verify": "node scripts/financial-recovery.mjs verify",
     "test:routine-retention": "node scripts/test-routine-retention.mjs",
