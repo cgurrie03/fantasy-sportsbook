@@ -23,7 +23,7 @@
     "test:import": "node scripts/test-week3-import.mjs",
     "test:lines": "node scripts/test-line-model.mjs",
     "test:api": "node scripts/test-api-runtime.mjs",
-    "test:weekly": "node scripts/test-weekly-execution.mjs",
+    "test:weekly": "node scripts/test-weekly-execution.mjs && node scripts/test-dispatch-fairness.mjs",
     "test:transitions": "node scripts/test-week-transitions.mjs",
     "test:transitions:ux": "node scripts/test-transition-ux.cjs",
     "test:refresh": "node scripts/test-refresh.mjs",

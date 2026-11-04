@@ -4,6 +4,8 @@ These are the remaining owner-controlled steps, not a request to repeat complete
 
 ## Full-platform checkpoint (milestone 20)
 
+**Owner deferred the actual export November4 to continue independent development.** Keep the prepared setup for later; do not repeat credential/certificate prompts. Recovery remains a gate for historical production cleanup and material production database changes.
+
 The owner selected free client-only setup here on November 3. Portable PostgreSQL 17.11 clients are prepared and verified, with no server, service, Docker or global PATH change. Follow [the exact Development export steps](CLIENT-BACKUP-SETUP.md). The launcher uses a hidden local password prompt, verified TLS, read-only sessions and direct-to-encryption streaming. No actual database/Auth export has run yet; the owner must enter credentials locally. Never send them in chat.
 
 Before an export, confirm its project name and reference: development `whlcnlacueweaqpsupqs`; production `bmvjcdgxwxqalaohpsnw`. Use the supported Supabase logical backup procedure for that project. Cover schema, roles, data and Auth records explicitly, record tool versions and permissions, and keep all plaintext exports private. A generic public-schema `db dump` alone is not full coverage. Record Auth/site URL/redirect/signup/email configuration separately, plus Vercel settings/domains/schedules, private secret recovery locations and object-storage inventory. Never put credentials in Markdown/Git. Current production Storage has no objects, but recheck at backup time.
