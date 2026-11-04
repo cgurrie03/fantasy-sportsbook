@@ -2491,3 +2491,14 @@
 .matchup-card .match-team .match-current-score strong { white-space: normal; font-size: 12px; }
 @media(max-width:760px) { .matchup-card .match-team .match-current-score strong { font-size: 9px; } }
 @media(max-width:380px) { .matchup-card .match-team .match-current-score strong { font-size: 8px; } }
+
+/* Text enlargement must not clip accepted prices or promotion labels. */
+.matchup-card > .featured-strip { height: auto; }
+.matchup-card .match-grid { grid-template-rows: minmax(16px, auto) repeat(2, var(--matchup-team-row-height, 126px)); }
+.matchup-card .match-grid > .market-column-label { white-space: normal; overflow-wrap: anywhere; }
+.matchup-card .market-quote > strong { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.matchup-card .quote-price { max-width: 100%; flex-wrap: wrap; white-space: normal; }
+.matchup-card .quote-price > * { max-width: 100%; overflow-wrap: anywhere; }
+@media(max-width:760px) {
+ .matchup-card .match-grid { grid-template-rows: minmax(14px, auto) repeat(2, var(--matchup-team-row-height, 112px)); }
+}

@@ -177,6 +177,30 @@ const measurements = [];
           "enlarged matchup identities must not overlap the next team: " +
             JSON.stringify(rows),
         );
+        const clipped = await p
+          .locator(
+            ".matchup-card .market-quote, .matchup-card .market-column-label, .matchup-card .featured-strip",
+          )
+          .evaluateAll((els) =>
+            els
+              .filter(
+                (el) =>
+                  el.scrollWidth > el.clientWidth + 2 ||
+                  el.scrollHeight > el.clientHeight + 2,
+              )
+              .map((el) => ({
+                text: el.textContent,
+                width: el.clientWidth,
+                scroll: el.scrollWidth,
+                height: el.clientHeight,
+                scrollHeight: el.scrollHeight,
+              })),
+          );
+        assert.deepEqual(
+          clipped,
+          [],
+          "enlarged prices, labels and banners must remain fully visible",
+        );
         await measure("text-doubled");
         await p.screenshot({
           path: path.join(

@@ -83,4 +83,4 @@ Both fixes qualified43/43 on1e6d1b8 and hosted only in DEV migration202611041536
 
 ## November4 supported-profile audit fixes — qualification pending
 
-B011 (P1 incomplete scorer result coverage), B012 (P2 effective rounding metadata) and B013 (P1 legacy futures shared-policy bypass) are reproduced and corrected locally. The exact scope, regression evidence and remaining acceptance are in [handoff42](handoffs/42-SUPPORTED-JOURNEYS-AND-BROWSER-AUDIT.md). No production fix is claimed. Counter remains18/6.
+B011 (P1 incomplete scorer result coverage), B012 (P2 effective rounding metadata) and B013 (P1 legacy futures shared-policy bypass) and B014 (P2 enlarged-text price/banner clipping) are reproduced and corrected locally. The exact scope, regression evidence and remaining acceptance are in [handoff42](handoffs/42-SUPPORTED-JOURNEYS-AND-BROWSER-AUDIT.md). No production fix is claimed. Counter remains18/6.
