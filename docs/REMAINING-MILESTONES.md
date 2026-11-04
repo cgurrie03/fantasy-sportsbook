@@ -1,7 +1,9 @@
 # Remaining handoff milestones
 
 Updated November 4, 2026 ET. **18 complete / 6 remaining**.
-Qualified/deployed source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985**, **43/43** suites in **316.690 seconds**. [Handoff 40](handoffs/40-SHARED-POLICY-AND-CAPABILITY-GATES.md) records hosted migrations, rollback/ACL checks, unchanged financial digest and protected READY DEV. Later documentation-only commits are not the qualified/deployed app source.
+Latest database-only qualification: **1e6d1b8**, **43/43** in319.178seconds; DEV migration20261104153625, fair same-priority league turns and future-start fence, rollback/ACL/digest postflight passed. [Handoff41](handoffs/41-FAIR-AUTOMATION-DISPATCH.md) records the milestone22 progress. Actual load/device/capacity evidence still remains; no frontend or production deployment was needed.
+
+Qualified/deployed frontend source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985**, **43/43** suites in **316.690 seconds**. [Handoff 40](handoffs/40-SHARED-POLICY-AND-CAPABILITY-GATES.md) records hosted migrations, rollback/ACL checks, unchanged financial digest and protected READY DEV. Later documentation-only commits are not the qualified/deployed app source.
 
 | ID | Work prepared/completed | What still prevents completion |
 |---|---|---|

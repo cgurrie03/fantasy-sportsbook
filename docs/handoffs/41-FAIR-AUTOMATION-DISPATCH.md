@@ -22,4 +22,18 @@ Storage adds one small overwritten row per league plus one bigint sequence and a
 
 ## Delivery receipt
 
-Pending clean-source qualification and isolated Development migration/rollback postflight. No production action authorized or performed. No frontend/API runtime source changed; this is a compatible database scheduler update, so a new frontend deployment is unnecessary. Existing protected Development app remains on its documented source.
+Qualified clean source **1e6d1b85139af6a8820eb6539229bb7fa5374b6f** passed **43/43** suites in **319.178 seconds** on November4 (15:30:53–15:36:12 UTC). This qualification also includes the previously prepared native-backup tooling's synthetic tests; no actual export occurred.
+
+Local migration **20261104152355** maps to hosted DEV **20261104153625** (`fair_automation_dispatch`). Before replacement, the hosted claim body matched the reproduced pre-change local schema. Afterward, normalized source MD5 **83ffd3ebaaacc277c76cb792b1a0f908** exactly matched the committed new function. Hosted rollback probes passed: service-only execution/direct-private-table-and-sequence denial, explicit nonserver rejection, paused empty-queue claim0, no cursor rows/jobs/sequence consumption and no activation/mail.
+
+Five-table financial digest remained **a934b2e187fa6f5ae0e8cd77b0507451**. Persistent DEV has0 jobs/cursor rows/tickets/wallet entries/outbound messages,0 wallet balance,0 active operations and0 enabled automation. Physical DEV size18,093,747 bytes vs18,044,595 before (+49,152 allocated bytes, including catalogs/index/sequence for this empty fixture). This is not a loaded-season forecast or observed plateau.
+
+Security advisors: existing74 authenticated-definer,2 anonymous-definer and1 Auth warnings unchanged; no new warnings. No-policy INFO23→24 adds only the intentional private RLS/no-direct-grant dispatch table ([linter reference](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)). Performance INFO:60 unindexed foreign keys unchanged; unused-index observation25→24 after read probes, with no index deleted. Do not interpret unused-index counts on a paused tiny DEV database as grounds for removing indexes.
+
+No frontend/API runtime source changed relative to deployed e5ee1e2. This compatible database-only update keeps the existing READY protected Development app **dpl_DbHMid37bWgGwLMbfgVKexFgLQy2**; all-deployment SSO remains enabled. Production canonical **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ** remains unchanged. No GitHub push, paid resource, activation or production change occurred. The local fixture server was stopped.
+
+Rollback preparation retains the old claim definition at ignored `work/dispatch-hosted-before.sql`. A reviewed function-only rollback can leave the empty private cursor/sequence unused; no accepted term or balance needs conversion. Do not automatically drop records or reintroduce the known fairness/time bug. Production rollback/approval remains separate.
+
+Ignored evidence: `work/fair-dispatch-completion-receipt.json`, qualified provenance/results, full/focused logs, before/after synthetic queue receipts, pre-change function definitions, hosted rollback probe and unapproved exact-source review manifest. Later documentation-only commits are not the qualified source.
+
+Milestone22 progresses; **18 complete / 6 remaining**. Actual device/Auth/security/whole-profile and measured hosted peak/outage/capacity acceptance remain. The owner deferred actual backup on November4; keep the tools prepared without asking them to repeat certificate/password work.

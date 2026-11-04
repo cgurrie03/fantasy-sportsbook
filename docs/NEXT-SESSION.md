@@ -2,6 +2,14 @@
 
 Updated November 4, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
 
+## Latest database-only delivery — November4
+
+[Handoff41](handoffs/41-FAIR-AUTOMATION-DISPATCH.md): qualified source **1e6d1b85139af6a8820eb6539229bb7fa5374b6f**, **43/43** in **319.178 seconds**. Local20261104152355→hosted20261104153625 fair_automation_dispatch applied only to DEV. A64-job settlement backlog previously made peerB wait until65th claim; revised controlled fixture claims B2nd and alternates equal-priority peer bursts. Future queued jobs no longer run before scheduled_for. Critical priorities, leases/backoff, publication dependencies, paused controls and per-league writer exclusion preserved. One overwritten private cursor/league plus sequence; no history archive or new cron.
+
+Hosted ACL/paused-claim rollback probes passed. Function source MD583ffd3ebaaacc277c76cb792b1a0f908 matches committed body. Financial five-table digest remainsa934b2e187fa6f5ae0e8cd77b0507451. Persistent DEV:0 jobs/cursors/tickets/entries/messages/balance/operations/automation. Physical18,093,747B (+49,152 allocated bytes in empty fixture). Security warnings74/2/1 unchanged, private no-policy INFO24; performance unindexed-FK INFO60 unchanged. Actual capacity/load/device audit remains open. Evidence `work/fair-dispatch-completion-receipt.json`, qualified copies/full/focused logs and unapproved release review.
+
+**Backup explicitly deferred by owner November4.** Continue independent development; do not ask them to repeat credentials/certificate/key-custody steps. Production cleanup/material release retains recovery gates. No app/API runtime source changed, so no frontend redeployment was needed; the protected frontend source/deployment checkpoint below remains current. Later documentation-only HEAD is not the qualified scheduler source. Fixture server stopped; no GitHub push or production change.
+
 ## Verified Development delivery
 
 Qualified source **e5ee1e2b495f13fa6f511810dcbed3d4ba6bc985**, clean tree/migration set, **43/43** in **316.690 seconds**. All source changes are committed locally; no GitHub push authorized/performed. Later documentation HEAD is not the qualified/deployed app source.

@@ -1,5 +1,8 @@
 # Development Handoffs — priority updated October 28, 2026
 
+Latest November4 update: [41 Fair automation dispatch](41-FAIR-AUTOMATION-DISPATCH.md),43/43 on1e6d1b8, compatible DEV database-only migration; protected frontend/production deployments unchanged. Counter18 complete/6 remaining. Actual backup deferred by owner; continue independent development.
+
+
 ## Latest verified checkpoint — November 2, 2026 ET
 
 **18 complete / 6 remaining.** Start with [handoff 40](40-SHARED-POLICY-AND-CAPABILITY-GATES.md), [consolidated continuation](../NEXT-SESSION.md) and [remaining gates](../REMAINING-MILESTONES.md). Qualified/deployed source e5ee1e2 passed43/43; protected READY Development dpl_DbHMid37bWgGwLMbfgVKexFgLQy2. Milestone16 is complete for the declared supported profile; production remains unchanged. Wallet17 and notification18 are complete DEV. Full platform recovery, historical production cleanup, external release controls, final audit/capacity and approved production release remain open. Owner key import/phone access are complete; full restore drill is owner-deferred. No GitHub push, production action, second real league or new scheduled continuation is authorized.

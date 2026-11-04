@@ -1,6 +1,6 @@
 # A01–A25 remaining evidence map
 
-This map separates development fixes from final operational acceptance. It does not claim production remediation. Original acceptance text remains in handoff 10. Current batch qualification/hosting is recorded in handoff 40.
+This map separates development fixes from final operational acceptance. It does not claim production remediation. Original acceptance text remains in handoff 10. Settings delivery is recorded in handoff40; November4 scheduler qualification/hosted migration is in handoff41. Actual backup is owner-deferred.
 
 | Finding | Development work/evidence | Remaining acceptance |
 |---|---|---|
@@ -24,9 +24,9 @@ This map separates development fixes from final operational acceptance. It does 
 | A18 environments/releases | Protected isolated DEV; production Git disconnected by owner | Protected exact-source review configuration and owner-approved production plan (21/24) |
 | A19 support | Specification retained; Markdown/chat internal queue selected | Deferred/excluded; no support deployment authorized |
 | A20 projections/provider | Sleeper benchmark and compact prospective evaluation; request coalescing | Measured live provider/wire cost and fresh comparative performance, no accuracy gain claimed |
-| A21 operations | Lease/idempotency/refresh/publication gates and health controls | Measured two-league peak queue age, settlement delay/fairness and outage isolation (22/23) |
+| A21 operations | Lease/idempotency/refresh/publication gates, health controls and handoff41 verified same-priority league turns; B65th→2nd in controlled backlog fixture | Measured two-league peak queue age, settlement delay/fairness and outage isolation (22/23) |
 | A22 renewal/drift | Exact provider predecessor/next-season/roster checks, explicit renewal; approvals invalidate on drift; no automatic access transfer | Archived-season receipt/settlement and actual rollover acceptance under approved profile |
-| A23 abuse/resilience | Fixed hosts, bounded bodies, owner/server authorization, timeouts, retry fences and synthetic outage tests | Measured auth resend/admin rate limits and final peak/cold-start/outage evidence; support flood scope deferred |
+| A23 abuse/resilience | Fixed hosts, bounded bodies, authorization, timeouts, retry fences and synthetic outage tests; handoff41 future-start, failed/expired lease and peer-lane checks | Measured auth resend/admin rate limits and final peak/cold-start/outage evidence; support flood scope deferred |
 | A24 customizability | Bounded effective wallet/pricing overrides; policy-only transfer/defaults; schedule/notification/communication controls | Any newly requested unsupported setting needs an explicit contract/consumer review; full declared-profile journey remains 22 |
 | A25 notifications | Milestone 18 factual bounded editions/preferences/lifecycle, handoffs 34–38 | Actual preview owner review, wire/shared budgets and separately approved production mail |
 

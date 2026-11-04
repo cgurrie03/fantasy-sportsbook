@@ -73,3 +73,10 @@ Fixed DEV: migration 20261102022611 maps to hosted 20261102023426; legacy/user-w
 ## Latest verified delivery
 
 Handoff 40 deploys shared effective pricing/family controls, consistent help/display/acceptance/generation, exact provider capability decisions/drift/linked renewal and communication identity. Qualified source e5ee1e2 passes43/43; protected Development is READY. A01/A07/A13/A16/A17/A18/A20/A21/A23 final evidence remains explicitly mapped in [A01–A25 residuals](AUDIT-RESIDUALS.md). The local review-only GitHub workflow rejects the currently unprotected Production environment; it has not been pushed. No production remediation or measured capacity is inferred. Counter18 complete/6 remaining.
+
+## November4 scheduler fixes — verified Development
+
+- **B009, P1 before multi-league launch:** same-priority FIFO could let one league's older backlog consume all turns. Controlled baseline:A64 settlement jobs/B1, B65th; revised B2nd, with a64-claim alternating peer burst. Fixed DEV in handoff41; actual loaded worker delay/queue capacity remains22/23.
+- **B010, P2 latent schedule boundary:** queued scheduled jobs could run before scheduled_for. Baseline reproduces early claim; new guard and future/expired-window tests pass. Critical order, dependencies, leases/backoff and writer lanes remain covered.
+
+Both fixes qualified43/43 on1e6d1b8 and hosted only in DEV migration20261104153625. Financial digest unchanged; operations/automation remain off. Production unchanged. These close two scoped bugs in DEV, not milestone22 or production release.

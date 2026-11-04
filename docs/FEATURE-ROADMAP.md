@@ -1,6 +1,6 @@
 # Prioritized implementation list
 
-Updated November 3, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
+Updated November 4, 2026. Complements [the bug queue](BUG-QUEUE.md); these records
 do not add to or replace the stable 24-milestone count. Default owner: Cooper for
 policy/production decisions; Codex for the authorized development implementation.
 Ready items may proceed while earlier items wait for required evidence/approval.
@@ -14,7 +14,7 @@ Ready items may proceed while earlier items wait for required evidence/approval.
 | 5 | F005 | P1 | Versioned provider capability contract and typed shared sportsbook defaults/league overrides | 16 | Done DEV; handoff 40, 43/43 on e5ee1e2, hosted migrations/rollback checks and protected READY Preview. Shared pricing/family/boost/rounding/help/acceptance, policy-only transfer/defaults, communication identity, explicit exact-config provider decisions, sticky drift gates and linked next-season renewal. Imported weekly profile only; unsupported futures/rules blocked; final operational compatibility remains 22 |
 | 6 | F006 | P1 | Owner-only resumable draft league importer and reviewed capability report | 16 | Done DEV draft stage; source 6c070a8 passed 40/40, protected deployment and hosted rollback checks; real/unclaimed teams, no fabricated participant/user wallet, bounded expiry; handoff 31; actual imported profile review/activation remains separately owner-gated |
 | 7 | F007 | P1 | Scoped revocable signup links, verified account requests, owner-reviewed team/co-owner claims and pending/rejected/expired states | 16 | Done DEV; handoff 32, source 44f1136 passed 42/42 and deployed protected; scoped/revocable commissioner signup links, fresh verified claims, owner approval and independent pending wallets; no staff grant |
-| 8 | F008 | P1 | Remaining audit/rule/tenant/product journeys and scheduler peak/outage fairness | 22 | Remaining; declared supported configurations only; record each A01–A25 residual |
+| 8 | F008 | P1 | Remaining audit/rule/tenant/product journeys and scheduler peak/outage fairness | 22 | In progress; handoff41 fixes verified same-priority dispatch fairness/future timing in DEV (43/43), with synthetic lease/outage/peer-lane checks. Actual device, full-profile, peak/outage and A01–A25 acceptance remain |
 | 9 | F009 | P1 | Physical/wire shared-quota baseline, growth forecast and two-week plateau | 23 | Baseline can proceed early; final sign-off follows retained-data/feature changes; blocks another real league |
 | 10 | F010 | P1 | Recovery-approved historical conversion/cleanup | 13 | Blocked on useful summaries/dependency plan, F001/F002 and exact owner approval; measure physical recovery separately from JSON deletion |
 | 11 | F012 | P1 release gate | Owner-reviewed production rollout and postflight | 24 | Blocked on exact tested source/migrations, required recovery/capacity/product gates; not an automatic final push |
