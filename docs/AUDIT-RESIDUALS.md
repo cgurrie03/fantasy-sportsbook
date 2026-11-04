@@ -20,7 +20,7 @@ This map separates development fixes from final operational acceptance. It does 
 | A14 policy/help | Shared effective wallet/pricing policy; help/display/generator/acceptance/editor consumers; before/after; reviewed defaults/JSON transfer | Remaining actual onboarding/template and supported-setting end-to-end review |
 | A15 release tests | All 43 maintained suites, clean-source SHA/tree/migration evidence | Exact successful hosted/CI source and protected owner gate |
 | A16 owner security | DEV/prod separation and no key export in chat | Owner attestation of 2FA/recovery and least-privilege access across providers; no blind secret rotation |
-| A17 mobile/accessibility | Intercepted phone/desktop journeys, named controls and overflow checks | Physical iOS/Android, keyboard/zoom/assistive/landscape and remaining viewport matrix |
+| A17 mobile/accessibility | Intercepted phone/desktop journeys, named controls and overflow checks | Physical iPhone/Safari and actual OS keyboard/zoom/assistive/landscape acceptance; owner release target is iPhone plus desktop, Android explicitly unverified |
 | A18 environments/releases | Protected isolated DEV; production Git disconnected by owner | Protected exact-source review configuration and owner-approved production plan (21/24) |
 | A19 support | Specification retained; Markdown/chat internal queue selected | Deferred/excluded; no support deployment authorized |
 | A20 projections/provider | Sleeper benchmark and compact prospective evaluation; request coalescing | Measured live provider/wire cost and fresh comparative performance, no accuracy gain claimed |

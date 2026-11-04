@@ -81,6 +81,6 @@ Handoff 40 deploys shared effective pricing/family controls, consistent help/dis
 
 Both fixes qualified43/43 on1e6d1b8 and hosted only in DEV migration20261104153625. Financial digest unchanged; operations/automation remain off. Production unchanged. These close two scoped bugs in DEV, not milestone22 or production release.
 
-## November4 supported-profile audit fixes — qualification pending
+## November4 supported-profile audit fixes — verified Development
 
-B011 (P1 incomplete scorer result coverage), B012 (P2 effective rounding metadata) and B013 (P1 legacy futures shared-policy bypass) and B014 (P2 enlarged-text price/banner clipping) are reproduced and corrected locally. The exact scope, regression evidence and remaining acceptance are in [handoff42](handoffs/42-SUPPORTED-JOURNEYS-AND-BROWSER-AUDIT.md). No production fix is claimed. Counter remains18/6.
+B011 (P1 incomplete scorer result coverage), B012 (P2 effective rounding metadata) and B013 (P1 legacy futures shared-policy bypass) and B014 (P2 enlarged-text price/banner clipping) are reproduced, corrected, qualified43/43 on74dd9cc and hosted in protected READY Development. The exact scope, regression evidence and remaining acceptance are in [handoff42](handoffs/42-SUPPORTED-JOURNEYS-AND-BROWSER-AUDIT.md). No production fix is claimed. Counter remains18/6.
