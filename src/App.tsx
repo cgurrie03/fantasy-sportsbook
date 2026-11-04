@@ -1,5 +1,12 @@
 import { PortfolioLink } from "./components/PortfolioLink";
 import { authRecoveryMessage, SIGN_IN_LINK_MINUTES } from "./lib/auth-recovery";
+import {
+  AUTH_COOLDOWN_KEY,
+  authRequestFailure,
+  beginAuthCooldown,
+  cooldownSeconds,
+  readAuthCooldown,
+} from "./lib/auth-entry";
 import { useRoute, navigate } from "./lib/navigation";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -62,19 +69,50 @@ function SignIn({
   recoveryMessage?: string;
   onRecover?: () => void;
 }) {
+  const inFlight = useRef(false);
+  const [initialCooldown] = useState(readAuthCooldown);
+  const cooldownUntil = useRef(initialCooldown);
   const [email, setEmail] = useState(""),
     [sent, setSent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [seconds, setSeconds] = useState(0);
+    [seconds, setSeconds] = useState(() => cooldownSeconds(initialCooldown));
   useEffect(() => {
     if (seconds <= 0) return;
-    const timer = setTimeout(() => setSeconds(seconds - 1), 1000);
+    const timer = setTimeout(() => {
+      cooldownUntil.current = Math.max(
+        cooldownUntil.current,
+        readAuthCooldown(),
+      );
+      setSeconds(cooldownSeconds(cooldownUntil.current));
+    }, 1000);
     return () => clearTimeout(timer);
   }, [seconds]);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key !== AUTH_COOLDOWN_KEY) return;
+      cooldownUntil.current = Math.max(
+        cooldownUntil.current,
+        readAuthCooldown(),
+      );
+      setSeconds(cooldownSeconds(cooldownUntil.current));
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+  function waitBeforeResend() {
+    cooldownUntil.current = beginAuthCooldown();
+    setSeconds(cooldownSeconds(cooldownUntil.current));
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy || seconds > 0) return;
+    cooldownUntil.current = Math.max(cooldownUntil.current, readAuthCooldown());
+    const remaining = cooldownSeconds(cooldownUntil.current);
+    if (inFlight.current || busy || remaining > 0) {
+      if (remaining > 0) setSeconds(remaining);
+      return;
+    }
+    inFlight.current = true;
     setBusy(true);
     setError("");
     onRecover?.();
@@ -83,16 +121,21 @@ function SignIn({
       const result = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
-          shouldCreateUser: true,
+          shouldCreateUser:
+            import.meta.env.VITE_BOFF_ENVIRONMENT !== "development",
           emailRedirectTo: window.location.origin + "/",
         },
       });
       if (result.error) throw result.error;
       setSent(true);
-      setSeconds(60);
+      waitBeforeResend();
     } catch (error) {
-      setError(errorMessage(error));
+      const failure = authRequestFailure(error);
+      if (failure.neutral) setSent(true);
+      else setError(failure.message);
+      if (failure.limited || failure.neutral) waitBeforeResend();
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -127,8 +170,8 @@ function SignIn({
         <p>
           {sent ? (
             <>
-              Your sign-in link was requested for <strong>{email}</strong>. Open
-              it to access your account.
+              If <strong>{email}</strong> can sign in, a link will arrive in
+              your inbox. Open the newest email to continue.
             </>
           ) : (
             "Enter your approved league email to receive a sign-in link."

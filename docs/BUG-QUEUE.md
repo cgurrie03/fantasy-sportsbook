@@ -84,3 +84,7 @@ Both fixes qualified43/43 on1e6d1b8 and hosted only in DEV migration202611041536
 ## November4 supported-profile audit fixes — verified Development
 
 B011 (P1 incomplete scorer result coverage), B012 (P2 effective rounding metadata) and B013 (P1 legacy futures shared-policy bypass) and B014 (P2 enlarged-text price/banner clipping) are reproduced, corrected, qualified43/43 on74dd9cc and hosted in protected READY Development. The exact scope, regression evidence and remaining acceptance are in [handoff42](handoffs/42-SUPPORTED-JOURNEYS-AND-BROWSER-AUDIT.md). No production fix is claimed. Counter remains18/6.
+
+## B015 — sign-in retry and privacy consistency (P2, local correction)
+
+Reload erased the resend countdown; provider429 had no local retry delay, and raw SDK diagnostics were shown. Added synchronous duplicate fencing, bounded timestamp-only cross-tab/reload cooldown, neutral identity response handling and existing-user-only Development requests. See [handoff43](handoffs/43-AUTH-ENTRY-RESILIENCE.md). Focused pure/Chromium/WebKit checks pass; qualification/deployment pending. This does not replace provider-enforced rate limits or prove hosted Auth template acceptance.

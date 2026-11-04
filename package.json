@@ -37,7 +37,7 @@
     "test:promos": "node scripts/test-promotions.mjs",
     "test:promos:ux": "node scripts/test-promos-ux.cjs",
     "test:reopening": "node scripts/test-reopening.mjs",
-    "test:audit": "node scripts/test-audit-values.mjs && node scripts/test-audit-ux.cjs",
+    "test:audit": "node scripts/test-audit-values.mjs && node scripts/test-audit-ux.cjs && node scripts/test-auth-entry.mjs && node scripts/test-auth-entry-ux.cjs",
     "build:fixture": "node scripts/build-fixture.mjs",
     "test:environment": "node scripts/test-development-environment.mjs && node scripts/test-runtime-environment.mjs && node scripts/test-hosted-development.mjs",
     "test:monday": "node scripts/test-monday-watch.mjs",
