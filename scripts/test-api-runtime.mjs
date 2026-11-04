@@ -77,6 +77,7 @@ try {
     "_lib/futures-settlement",
     "_lib/settlement",
     "_lib/worker-auth",
+    "_lib/worker-maintenance",
     "_lib/game-status",
     "_lib/active-starters",
     "_lib/starter-cache",
