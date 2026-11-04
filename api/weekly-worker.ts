@@ -1,3 +1,4 @@
+import { runWorkerCleanup } from "./_lib/worker-maintenance.js";
 import { parseSportsbookPolicy } from "./_lib/sportsbook-policy.js";
 import {
   isPromotional,
@@ -186,14 +187,10 @@ export async function POST(request: Request) {
       });
     }
     // Maintenance failure must not starve settlement or replenishment.
-    const cleanup = await db.rpc("cleanup_terminal_refresh_payloads", {
-      p_limit: 5,
-    });
+    const cleanup = await runWorkerCleanup(db, "refresh");
     if (cleanup.error)
       console.error("Refresh cleanup failed", { code: cleanup.error.code });
-    const evaluationCleanup = await db.rpc("cleanup_evaluated_samples", {
-      p_limit: 2,
-    });
+    const evaluationCleanup = await runWorkerCleanup(db, "evaluation");
     if (evaluationCleanup.error)
       console.error("Evaluation cleanup failed", {
         code: evaluationCleanup.error.code,

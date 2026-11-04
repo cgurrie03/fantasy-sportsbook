@@ -92,3 +92,7 @@ Reload erased the resend countdown; provider429 had no local retry delay, and ra
 November4 actual capacity snapshot: DEV18,233,011B / production1,357,018,803B physical database bytes. Wire evidence incomplete (only19/132 sampled edge records have content_length); Vercel metrics query failed400. B001/B004 remain open; no zero-usage, quota pass, plateau or production cleanup is inferred.
 
 Handoff44 adds actual hosted synthetic dispatcher evidence for B004/A21:97 claims, peer Bturn2,32 alternating peers, verified fixture rollback and unchanged financial digest. Eight paused sessions did not overlap; actual concurrent worker/peak and measured wire/plateau gates remain. Logical rollback still consumed97 sequence values and allocated112KiB physically; both effects are recorded, not hidden as zero-impact. Owner Auth functional pass is recorded, styling remains F015.
+
+## B016 — optional worker maintenance can stall job claims (P2)
+
+Compiled-handler regression proves the preclaim cleanup requests lack abort deadlines. A fixed3-second budget and safe transport-failure result now let authoritative claiming continue. Two local overlapping handlers pass under intercepted cleanup/status-provider/status-persistence outages. See [handoff45](handoffs/45-BOUNDED-WORKER-MAINTENANCE.md). Qualification/deployment pending; no actual hosted throughput or database-cancellation claim.
