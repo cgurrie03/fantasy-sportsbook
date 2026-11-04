@@ -246,6 +246,27 @@ export function settleLeg(leg: LegInput, results: FinalResults): LegResult {
     case "weekly_low": {
       if (!team || !Object.keys(results.teams).length)
         return pending("League scores are missing.");
+      // New terms freeze required result coverage; legacy accepted legs retain
+      // their existing upstream-finalization contract when this field is absent.
+      if (
+        Object.prototype.hasOwnProperty.call(
+          c.metadata ?? {},
+          "expected_team_count",
+        )
+      ) {
+        const expected = c.metadata?.expected_team_count;
+        const scores = Object.values(results.teams);
+        if (
+          !Number.isInteger(expected) ||
+          expected! < 2 ||
+          expected! > 32 ||
+          scores.length !== expected ||
+          scores.some((t) => !Number.isFinite(t.points))
+        )
+          return pending(
+            "Complete league scores matching the accepted field are required.",
+          );
+      }
       const target = (c.kind === "weekly_high" ? Math.max : Math.min)(
         ...Object.values(results.teams).map((t) => t.points),
       );

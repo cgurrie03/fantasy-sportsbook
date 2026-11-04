@@ -31,3 +31,5 @@ This map separates development fixes from final operational acceptance. It does 
 | A25 notifications | Milestone 18 factual bounded editions/preferences/lifecycle, handoffs 34–38 | Actual preview owner review, wire/shared budgets and separately approved production mail |
 
 Ready independent work should proceed while owner/elapsed-time gates remain. No new task count is added for this inventory. Do not count a checklist or unit fixture as observed platform capacity, physical-device testing or owner approval.
+
+November4 handoff42 adds actual compiled-generation/SQL whole journeys for even8/10/12/14/16 profiles and seven-size Chromium/WebKit focus/reflow checks. A04/A13/A22 declared local contracts now have whole-journey evidence. Physical iPhone, Auth/template/security and measured hosted-load acceptance remain open. Owner release scope is iPhone/Safari plus desktop; Android is explicitly unverified. No actual screen-reader or OS zoom evidence is inferred.

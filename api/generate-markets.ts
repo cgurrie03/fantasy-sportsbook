@@ -662,6 +662,14 @@ export async function generateMarkets(
       if (input.reopening_id)
         for (const q of quotes)
           q.metadata.reopening_review_id = input.reopening_id;
+      for (const q of quotes) {
+        q.odds = policyOdds(q.odds, q.kind, pricing.values);
+        q.boost_pct = featuredBoost(q, pricing.values);
+        q.metadata = {
+          ...q.metadata,
+          sportsbook_policy_revision: pricing.revision,
+        };
+      }
       if (
         models.some((m) => ![m.mean, m.sd].every(Number.isFinite)) ||
         pool.some((p) => ![p.projection, p.expected].every(Number.isFinite))
@@ -713,11 +721,18 @@ export async function generateMarkets(
               : "Original model distribution assumptions; uncalibrated",
           price_policy:
             "Original displayed prices archived independently; fixed -110 includes a margin. Promotions do not change fair probability.",
-          price_rounding_step: q.kind.startsWith("future_")
-            ? 50
-            : q.kind.startsWith("weekly_")
-              ? 25
-              : 10,
+          price_rounding_step: [
+            "spread",
+            "match_total",
+            "team_total",
+            "player_points",
+          ].includes(q.kind)
+            ? null
+            : q.kind.startsWith("future_")
+              ? pricing.values.futures_odds_step
+              : q.kind.startsWith("weekly_")
+                ? pricing.values.weekly_odds_step
+                : pricing.values.matchup_odds_step,
         };
       }
       if (input.reopening_preview) return;
@@ -1284,7 +1299,12 @@ export async function generateMarkets(
             away_team_id: null,
             home_projection: null,
             away_projection: null,
-            metadata: { ...metadata, simulated_probability: p, trials: 6000 },
+            metadata: {
+              ...metadata,
+              expected_team_count: models.length,
+              simulated_probability: p,
+              trials: 6000,
+            },
           });
         }
       });
@@ -1437,14 +1457,6 @@ export async function generateMarkets(
               : "";
         q.boost_pct = featuredBoost(q, pricing.values);
       });
-    }
-    for (const q of quotes) {
-      q.odds = policyOdds(q.odds, q.kind, pricing.values);
-      q.boost_pct = featuredBoost(q, pricing.values);
-      q.metadata = {
-        ...q.metadata,
-        sportsbook_policy_revision: pricing.revision,
-      };
     }
     if (!quotes.length)
       throw new Error(

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test:quick-start": "node scripts/test-quick-start-ux.cjs",
+    "test:quick-start": "node scripts/test-quick-start-ux.cjs && node scripts/test-audit-accessibility.cjs && node scripts/test-audit-accessibility.cjs --webkit",
     "test:featured-cards": "node scripts/test-featured-cards-ux.cjs",
     "test:operations": "node scripts/test-operation-health.mjs && node scripts/test-matchup-operations-ux.cjs",
     "test:extra-markets": "node scripts/test-extra-markets.mjs",
@@ -23,7 +23,7 @@
     "test:import": "node scripts/test-week3-import.mjs",
     "test:lines": "node scripts/test-line-model.mjs",
     "test:api": "node scripts/test-api-runtime.mjs",
-    "test:weekly": "node scripts/test-weekly-execution.mjs && node scripts/test-dispatch-fairness.mjs",
+    "test:weekly": "node scripts/test-weekly-execution.mjs && node scripts/test-dispatch-fairness.mjs && node scripts/test-settlement-coverage.mjs && node scripts/test-supported-journeys.mjs",
     "test:transitions": "node scripts/test-week-transitions.mjs",
     "test:transitions:ux": "node scripts/test-transition-ux.cjs",
     "test:refresh": "node scripts/test-refresh.mjs",
