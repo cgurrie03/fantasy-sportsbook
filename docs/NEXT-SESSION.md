@@ -2,6 +2,18 @@
 
 Updated November 4, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
 
+## Latest qualified app/API delivery — bounded optional worker cleanup
+
+[Handoff45](handoffs/45-BOUNDED-WORKER-MAINTENANCE.md): clean qualified source **301a17701c7b53d38b70ef856bb0504dd62545ec**, **43/43** in **411.969 seconds**. Protected READY Preview **dpl_EqWHS4ncLyR8y5XF7hCmsME1ViTk**, generated host `fantasy-sportsbook-an23r9xet-cooper-gurrie-projects.vercel.app`, serves all three DEV aliases. Hosted environment/API guards pass without TS/error build events; four signed-out302→vercel.com checks and all-deployment SSO pass. Production canonical dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ unchanged. Later documentation-only HEAD is not qualified app source.
+
+**B016 fixed DEV:** optional preclaim refresh/evaluation cleanup RPCs previously lacked request deadlines. Each now has a3-second client wait and safe thrown-failure result, with original limits5/2 and serial order preserved. HTTP abort is not a guarantee of PostgreSQL statement cancellation. Actual compiled-worker fixture proves two locally overlapping handlers/four stalled cleanup aborts/both reach claims despite intercepted status-provider and persistence503s. All destinations intercepted; empty synthetic job/mail claims; no actual settlement or email. This is not hosted worker concurrency or capacity acceptance. First full attempt stopped at missing helper in API fixture manifest; corrected focused build and final clean43/43 supersede it.
+
+No migration, hosted worker invocation, actual financial transaction/mail/activation, backup export, paid service, GitHub push or schedule. No new hosted financial digest/storage sample claimed; last observations are44 below (sequence97, physical18,347,699B, digest a934b2e187fa6f5ae0e8cd77b0507451). VoiceOver remains owner-skipped/unverified; do not ask again. Physical iPhone functional and security attestations complete; Auth functional pass with plain styling/F015 open. Backups explicitly deferred. Counter18 complete/6 remaining.
+
+Ignored: work/worker-maintenance-completion-receipt.json, worker-qualified-{provenance,results}-301a177.json, worker-maintenance-release.log, worker-outage.json and unapproved exact-source review. Next independent work remains measured actual loaded-worker/cold-start/provider/rate-limit acceptance; do not relabel local overlap or the serialized connector test as hosted peak proof. Prior app6594298 deployment is superseded by301a177.
+
+### Previous hosted dispatcher evidence (still applicable)
+
 ## Latest evidence delivery — hosted dispatcher and owner Auth review
 
 [Handoff44](handoffs/44-HOSTED-DISPATCH-AND-OWNER-AUTH-REVIEW.md): actual hosted DEV97-claim synthetic queue probe with installed calendar planner; A64/B1 gives Bturn2,32 equal-peer claims alternate. Claim p50=4.210ms,p95=4.4632ms,max12.925ms;441.459ms claim/complete loop. Single DBA transaction, not worker/API/provider throughput or minute-dispatch latency. Raw source MD55b52abbc60e774609d50949d00b70a6b matches local/hosted. All synthetic fixture rows/flags roll back, financial digest independently unchangeda934b2e187fa6f5ae0e8cd77b0507451. Do not run on a nonempty/active DEV or delete data to fit the probe.

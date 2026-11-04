@@ -95,4 +95,4 @@ Handoff44 adds actual hosted synthetic dispatcher evidence for B004/A21:97 claim
 
 ## B016 — optional worker maintenance can stall job claims (P2)
 
-Compiled-handler regression proves the preclaim cleanup requests lack abort deadlines. A fixed3-second budget and safe transport-failure result now let authoritative claiming continue. Two local overlapping handlers pass under intercepted cleanup/status-provider/status-persistence outages. See [handoff45](handoffs/45-BOUNDED-WORKER-MAINTENANCE.md). Qualification/deployment pending; no actual hosted throughput or database-cancellation claim.
+Compiled-handler regression proves the preclaim cleanup requests lack abort deadlines. A fixed3-second budget and safe transport-failure result now let authoritative claiming continue. Two local overlapping handlers pass under intercepted cleanup/status-provider/status-persistence outages. See [handoff45](handoffs/45-BOUNDED-WORKER-MAINTENANCE.md). Qualified43/43 on301a177 and hosted protected READY Development under handoff45; no actual hosted throughput or database-cancellation claim.

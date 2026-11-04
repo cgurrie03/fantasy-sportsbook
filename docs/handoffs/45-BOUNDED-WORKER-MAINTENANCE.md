@@ -19,3 +19,15 @@ The fixture accelerates AbortSignal timers to40ms while asserting actual request
 The test joins the existing weekly suite; stable count43 remains. No table/archive/cron, provider call, dependency or paid resource added. Two AbortSignals and a fixed error object are transient per worker invocation; there is no new persistent storage. The core API change requires clean-source qualification and protected Development deployment. Production stays behind its exact owner gates.
 
 Ignored evidence: work/worker-outage-baseline.log, work/worker-outage-focused.log, work/worker-outage.json, plus the forthcoming clean-source qualification/deployment receipt. Actual hosted loaded-worker/cold-start/rate-limit and wire/capacity evidence remain open; do not promote a local mock pass into operational capacity acceptance.
+
+## Qualified Development delivery
+
+Clean source **301a17701c7b53d38b70ef856bb0504dd62545ec** passed **43/43** in **411.969 seconds**, November4 21:57:37–22:04:29 UTC. This qualification also includes the previously added dispatcher-probe regression from44. An initial build-gated attempt caught the new helper missing from the explicit compiled-API fixture list; the list was corrected, focused build passed, and the failed attempt is not qualification. No application/runtime edit occurred after the successful qualification.
+
+READY protected Preview **dpl_EqWHS4ncLyR8y5XF7hCmsME1ViTk**, generated host `fantasy-sportsbook-an23r9xet-cooper-gurrie-projects.vercel.app`, serves all three DEV aliases. Hosted target/independent owner/closed-signup/capture/manual guards and compiled API tests passed without TypeScript/error build events. Only DEV Preview BOFF_BUILD_SHA updated; alias assignment was sequential after READY. All three DEV aliases and generated host return signed-out302 to vercel.com; all-deployment SSO remains enabled.
+
+Production READY **dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ** is unchanged. No GitHub push, schema migration, active-league flag change, hosted worker invocation, real mail, financial transaction, backup or schedule occurred. No new financial digest or physical capacity measurement is claimed; last hosted dispatch/digest/sequence/physical observations remain44. A client abort does not prove server SQL cancellation.
+
+B016 is fixed, qualified and hosted in Development. **18 complete /6 remaining**;22 retains actual hosted loaded-worker/cold-start/outage/rate-limit and remaining product acceptance. VoiceOver is explicitly owner-skipped/unverified, not a pending action. Auth works functionally; visual/email styling remainsF015. Backups stay deferred.
+
+Ignored evidence: `work/worker-maintenance-completion-receipt.json`, `work/worker-qualified-{provenance,results}-301a177.json`, `work/worker-maintenance-release.log`, failed build-gated log, focused build/outage logs and `work/release-reviews/301a17701c7b53d38b70ef856bb0504dd62545ec/manifest.json` (unapproved; no production permission). Later documentation-only HEAD is not the qualified/deployed app source. AbortSignal semantics: [Supabase request cancellation](https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal).
