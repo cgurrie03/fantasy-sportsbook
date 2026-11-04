@@ -23,7 +23,7 @@
     "test:import": "node scripts/test-week3-import.mjs",
     "test:lines": "node scripts/test-line-model.mjs",
     "test:api": "node scripts/test-api-runtime.mjs",
-    "test:weekly": "node scripts/test-weekly-execution.mjs && node scripts/test-dispatch-fairness.mjs && node scripts/test-settlement-coverage.mjs && node scripts/test-supported-journeys.mjs",
+    "test:weekly": "node scripts/test-weekly-execution.mjs && node scripts/test-dispatch-fairness.mjs && node scripts/test-settlement-coverage.mjs && node scripts/test-supported-journeys.mjs && node scripts/test-dispatch-database-probe.mjs",
     "test:transitions": "node scripts/test-week-transitions.mjs",
     "test:transitions:ux": "node scripts/test-transition-ux.cjs",
     "test:refresh": "node scripts/test-refresh.mjs",

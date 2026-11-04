@@ -2,6 +2,18 @@
 
 Updated November 4, 2026 ET. **18 complete / 6 remaining: 13, 20, 21–24**.
 
+## Latest evidence delivery — hosted dispatcher and owner Auth review
+
+[Handoff44](handoffs/44-HOSTED-DISPATCH-AND-OWNER-AUTH-REVIEW.md): actual hosted DEV97-claim synthetic queue probe with installed calendar planner; A64/B1 gives Bturn2,32 equal-peer claims alternate. Claim p50=4.210ms,p95=4.4632ms,max12.925ms;441.459ms claim/complete loop. Single DBA transaction, not worker/API/provider throughput or minute-dispatch latency. Raw source MD55b52abbc60e774609d50949d00b70a6b matches local/hosted. All synthetic fixture rows/flags roll back, financial digest independently unchangeda934b2e187fa6f5ae0e8cd77b0507451. Do not run on a nonempty/active DEV or delete data to fit the probe.
+
+Eight paused transactions requested in4-way batches used distinct backends but timestamps show **no overlap**;0 claims. Do not claim concurrent peak acceptance or keep repeating/increasing holds. Actual loaded-worker/provider-outage/rate-limit evidence remains22/23. Role/ACL/paused rollback probe passes. Postflight2 real leagues, operations/automation/jobs/cursors/legacy-owner/launch approvals/tickets/emails all0. Dispatch sequence is now **used, last_value97**; gaps from rolled-back fixture are expected, do not reset it. Old ignored fair probe now checks relative sequence preservation. PhysicalDEV18,347,699B, +114,688B allocated versus previous snapshot; not reclaimed storage or a plateau.
+
+Owner answered Auth preview question: plain DEV email differs from production formatting and **works functionally**. Functional pass recorded; styling/branding parity open in F015, no templates changed. Do not repeat preview question as unanswered. Requested iPhone functional and account-security checks remain complete. **Pending new async question: targeted actual iPhone VoiceOver guide/league-selector review**, or guided steps if unfamiliar. No general device/security recheck requested. Android remains unverified by owner scope.
+
+App/API/database functions unchanged; qualified/deployed source remains659429828b94583467c7a0c6aaae83f03cc784f2 and protected READY dpl_H4ewLg922XmFBFTACVGap3dMXg1Y. New probe/local regression is in existing weekly suite; expanded weekly suite+lint passed, no new43/43 qualification or redeployment claimed. No production query/change, migration, financial operation, email, backup, paid service, GitHub push or schedule in this task. Counter18/6. Ignored receipt: work/dispatch-audit-completion-receipt.json and local/weekly/lint probe logs. Backups remain explicitly deferred.
+
+### Prior qualified app delivery
+
 ## Latest delivery — Auth entry and partial actual capacity snapshot
 
 [Handoff43](handoffs/43-AUTH-ENTRY-RESILIENCE.md): clean qualified source **659429828b94583467c7a0c6aaae83f03cc784f2**, **43/43** in **315.778 seconds**. READY protected Preview **dpl_H4ewLg922XmFBFTACVGap3dMXg1Y**, generated host `fantasy-sportsbook-ieec6tcnj-cooper-gurrie-projects.vercel.app`, serves all three DEV aliases. Four signed-out302→vercel.com checks, all-deployment SSO and hosted environment/API guards pass. Production canonical dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ unchanged; no GitHub push, migration, financial mutation, activation, real email, backup or schedule. Later documentation-only HEAD is not qualified app source.
@@ -10,7 +22,7 @@ B015 fixed DEV: sign-in synchronous duplicate guard; absolute60-second timestamp
 
 Read-only actual metadata snapshot November4 16:45:20 UTC: DEV18,233,011B, production1,357,018,803B physical database bytes. Combined1,375,251,814B, PostgreSQL17.11. Not billing allowance. DEV edge logs in explicit previous24h:132 requests, only19 with content_length; incomplete270B sum is not wire usage. No peak/outage/capacity pass. Vercel current-metric schema versus legacy query endpoint produced400; read-only fallback has no CLI installed. Do not repeat speculative queries, enable paid Observability or treat errors as zero usage. Wire/allowance/reserve/forecast and14 elapsed days remain23.
 
-Pending async owner question: review Development Supabase Magic Link/Confirm Signup previews and destination, without sending emails, sharing tokens/SMTP secrets or changing production. Device functional and security attestations are already complete; no repeat requested. Actual assistive evidence and measured hosted operations/peak/outage/rate limits remain22. Backups remain explicitly deferred. Counter18 complete/6 remaining.
+Owner has answered the preview question: plain Development email works functionally; styling remains open (handoff44). Device functional and security attestations are already complete; no repeat requested. Actual assistive evidence and measured hosted operations/peak/outage/rate limits remain22. Backups remain explicitly deferred. Counter18 complete/6 remaining.
 
 Ignored: work/auth-entry-completion-receipt.json, auth-qualified-{provenance,results}-6594298.json, auth-entry-release.log, capacity-partial-observation-20261104.json and exact-source unapproved review. Prior handoff42 source/deployment is superseded; its whole-profile/browser evidence is preserved below.
 
