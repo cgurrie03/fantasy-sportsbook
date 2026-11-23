@@ -1,0 +1,186 @@
+import {PGlite} from '@electric-sql/pglite';
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {testWalletRecovery} from './storage-wallet-recovery.mjs';
+import {testWalletOffers} from '../../scripts/lib/test-wallet-offers.mjs';
+import {testWalletCutover} from '../../scripts/lib/test-wallet-cutover.mjs';
+const db=new PGlite(),q=async(sql,args=[])=>(await db.query(sql,args)).rows;
+const owner=randomUUID(),primary=randomUUID(),coowner=randomUUID(),outsider=randomUUID(),unverified=randomUUID();
+const A=randomUUID(),B=randomUUID(),team=randomUUID(),foreignTeam=randomUUID(),request=randomUUID();
+const act=user=>db.exec(`reset role;set row_security=on;set request.jwt.claim.role='authenticated';set request.jwt.claim.sub='${user}';set role authenticated;`);
+try {
+ await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
+ create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+ create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
+ grant usage on schema public,auth to anon,authenticated;`);
+ await db.exec(await fs.readFile('supabase/development/baseline-schema.sql','utf8'));
+ // The November 18 visual-profile migrations have a different schema baseline.
+ for(const f of (await fs.readdir('supabase/migrations')).sort().filter(f=>f>='202610280055'&&f<'20261118'))await db.exec(await fs.readFile('supabase/migrations/'+f,'utf8'));
+ await db.exec(`create or replace function public.application_environment_identity() returns jsonb language sql stable as $$select '{"environment":"development","project_ref":"whlcnlacueweaqpsupqs"}'::jsonb$$`);
+ await db.exec(await fs.readFile('visual/server/storage-efficiencies.sql','utf8'));
+ await db.exec(`create or replace function public.application_environment_identity() returns jsonb language sql stable security definer set search_path='' as $$select jsonb_build_object('environment',environment,'project_ref',project_ref,'app_origin',app_origin) from sportsbook_private.application_environment where singleton$$`);
+
+
+ for(const id of [owner,primary,coowner,outsider,unverified])await q('insert into auth.users values($1,$2,$3)',[id,id+'@example.test',id===unverified?null:new Date().toISOString()]);
+ for(const id of [A,B])await q(`insert into leagues(id,name,sleeper_league_id,nfl_season,league_season,active_week,week_anchor) values($1,'Wallet fixture',($1::uuid)::text,2026,1,5,now())`,[id]);
+ for(const [id,league] of [[team,A],[foreignTeam,B]])await q(`insert into teams(id,league_id,roster_id,team_name,sleeper_owner_id,owner_name,sportsbook_owner_id,sportsbook_owner_name) values($1,$2,1,'Fixture team','owner','Owner','owner','Owner')`,[id,league]);
+ await q(`insert into league_memberships(league_id,team_id,user_id,invited_email,display_name,sleeper_user_id,role) values($1,$2,$3,$4,'Primary','fixture','member')`,[A,team,primary,primary+'@example.test']);
+ await q('insert into sportsbook_private.platform_owners(user_id) values($1)',[owner]);
+ await q('insert into wallets(team_id,balance) values($1,40) on conflict(team_id) do update set balance=40',[team]);
+ const approve=(league,user,t=team)=>q('select approve_user_wallet($1,$2,$3,$4) r',[league,user,t,'Owner reviewed participant financial identity']);
+ await act(primary);await assert.rejects(approve(A,coowner),/owner approval/);
+ await act(owner);await assert.rejects(approve(A,unverified),/Verified user/);await assert.rejects(approve(A,outsider,foreignTeam),/scoped team/);
+ const p=(await approve(A,primary))[0].r,c=(await approve(A,coowner))[0].r,b=(await approve(B,primary,foreignTeam))[0].r;
+ assert.notEqual(p.wallet_id,c.wallet_id);assert.notEqual(p.wallet_id,b.wallet_id);assert(p.funding_pending&&c.funding_pending);
+ assert.equal((await approve(A,primary))[0].r.duplicate,true);
+ await db.exec('reset role');await q('insert into sportsbook_private.user_finance_modes(league_id,enabled) values($1,true)',[A]);await act(owner);
+ await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',40,'Explicit funding decision',$3)",[A,coowner,randomUUID()]),/primary participant/);
+ await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',39,'Explicit funding decision',$3)",[A,primary,request]),/Legacy cash changed/);
+ await db.exec('reset role;begin;set local session_replication_role=replica');
+ await q(`insert into tickets(id,league_id,team_id,league_season,nfl_season,placement_week,market_week,placed_at,accepted_combined_odds,stake,accepted_potential_payout,status,actual_payout) values(gen_random_uuid(),$1,$2,1,2026,5,5,now(),100,1,2,'OPEN',0)`,[A,team]);
+ await db.exec('set local session_replication_role=origin');await act(owner);
+ await assert.rejects(q("select initialize_user_wallet($1,$2,'transfer_legacy',40,'Explicit funding decision',$3)",[A,primary,request]),/Open legacy liabilities/);
+ await db.exec('rollback');await act(owner);
+ await assert.rejects(q("select initialize_user_wallet($1,$2,'zero',null,'Explicit zero opening review',$3)",[A,primary,randomUUID()]),/Existing primary cash/);
+ const initialize=(user,mode,amount,id)=>q('select initialize_user_wallet($1,$2,$3,$4,$5,$6) r',[A,user,mode,amount,'Explicit reviewed opening decision',id]);
+ await initialize(coowner,'zero',null,randomUUID());
+ assert.equal((await initialize(primary,'transfer_legacy',40,request))[0].r.balance,40);
+ assert.equal((await initialize(primary,'transfer_legacy',40,request))[0].r.duplicate,true);
+ await assert.rejects(initialize(primary,'transfer_legacy',40,randomUUID()),/another request/);
+ await act(primary);assert.equal((await q('select count(*)::int n from user_wallets where league_id=$1',[A]))[0].n,1);
+ assert.equal((await q('select count(*)::int n from user_wallet_entries'))[0].n,1);
+ assert.equal((await q('select count(*)::int n from user_wallets where league_id=$1',[B]))[0].n,1);
+ await assert.rejects(q('update user_wallets set balance=100'),/permission denied/);
+ await act(coowner);assert.equal((await q('select balance from user_wallets'))[0].balance,'0.00');
+ await act(outsider);assert.equal((await q('select count(*)::int n from user_wallets'))[0].n,0);
+ await db.exec('reset role');
+ assert.equal((await q('select balance from wallets where team_id=$1',[team]))[0].balance,'0.00');
+ assert.equal((await q('select sum(balance)::numeric value from user_wallets where league_id=$1',[A]))[0].value,'40.00');
+ assert.equal((await q("select count(*)::int n from wallet_ledger where kind='account_transfer_out'"))[0].n,1);
+ assert.equal((await q('select count(*)::int n from league_memberships where league_id=$1',[A]))[0].n,1,'approval fabricates no team membership');
+ assert.equal((await q('select count(*)::int n from tickets'))[0].n,0,'no betting/settlement activation');
+ await assert.rejects(q('update user_wallets set user_id=$1 where id=$2',[outsider,p.wallet_id]),/identity is immutable/);
+ await assert.rejects(q('delete from user_wallet_entries'),/immutable/);
+
+ // Local-only mode fixture: no public activation API or hosted mode exists yet.
+
+ await act(owner);
+ await q('select set_user_wallet_balance($1,40,100,$2,$3)',[p.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
+ await q('select set_user_wallet_balance($1,0,100,$2,$3)',[c.wallet_id,'Synthetic reviewed starting balance',randomUUID()]);
+ const once=(await q('select replenish_weekly_balances($1,2026,5) r',[A]))[0].r;
+ assert.equal(once.already_processed,0);
+ assert.equal((await q('select replenish_weekly_balances($1,2026,5) r',[A]))[0].r.already_processed,2);
+ await db.exec('reset role');
+ const board=randomUUID(),quote=randomUUID();
+ // Intercepted local fixture only: activation/provider eligibility is a separate gate.
+ await db.exec('set session_replication_role=replica');
+ await q("update leagues set operations_enabled=true where id=$1",[A]);
+ await db.exec('set session_replication_role=origin');
+ await q(`insert into sportsbook_boards(id,league_id,market_week,nfl_season,league_season,opens_at,closes_at,status,board_type)
+  values($1,$2,5,2026,1,now()-interval '1 hour',now()+interval '1 hour','published','weekly')`,[board,A]);
+ await q(`insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,active)
+  values($1,$2,'fixture:high','weekly_high','Fixture high scorer','League','yes',100,true)`,[quote,board]);
+ await q('update sportsbook_markets set metadata=$1 where id=$2',[JSON.stringify(JSON.parse(await fs.readFile('visual/scripts/fixtures/storage-league-rules.json','utf8'))),quote]);
+ const revision=(await q('select revision from sportsbook_boards where id=$1',[board]))[0].revision;
+ const betRequest=randomUUID();await act(primary);
+ const bet=(await q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4) r',[board,revision,[quote],betRequest]))[0].r;
+ assert.equal(Number(bet.balance),90);
+ assert.equal((await q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4) r',[board,revision,[quote],betRequest]))[0].r.duplicate,true);
+ await act(coowner);
+ await assert.rejects(q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4)',[board,revision,[quote],betRequest]),/another financial account/);
+ const coBet=(await q('select place_sportsbook_ticket($1,$2,$3::uuid[],7,$4) r',[board,revision,[quote],randomUUID()]))[0].r;
+ assert.equal(Number(coBet.balance),93);
+ await db.exec('reset role');
+ assert((await q('select context_bundle_id from ticket_legs where ticket_id=$1',[bet.ticket_id]))[0].context_bundle_id,'native acceptance compacts new heavy receipt');
+ assert.equal((await q('select user_wallet_id from tickets where id=$1',[bet.ticket_id]))[0].user_wallet_id,p.wallet_id);
+ assert.equal((await q('select user_wallet_id from tickets where id=$1',[coBet.ticket_id]))[0].user_wallet_id,c.wallet_id);
+ const recipient=(await q('select recipient from outbound_emails where ticket_id=$1',[coBet.ticket_id]))[0].recipient;
+ assert.equal(recipient,coowner+'@example.test');
+ await assert.rejects(q('update outbound_emails set recipient=$2 where ticket_id=$1',[coBet.ticket_id,primary+'@example.test']),/financial account owner/);
+ await act(owner);
+ await q('select void_sportsbook_ticket($1,$2)',[coBet.ticket_id,'Synthetic refund account test']);
+ assert.equal((await q('select void_sportsbook_ticket($1,$2) r',[coBet.ticket_id,'Synthetic refund account test']))[0].r.duplicate,true);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),90);
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100);
+ assert.equal((await q("select count(*)::int n from user_wallet_entries where wallet_id=$1 and kind='void_refund'",[c.wallet_id]))[0].n,1);
+
+ const leg=(await q('select id from ticket_legs where ticket_id=$1',[bet.ticket_id]))[0].id;
+ const results=JSON.stringify([{id:leg,status:'WON',actual_value:150,evidence:'Synthetic final result'}]);await act(owner);
+ assert.equal(Number((await q('select settle_weekly_ticket($1,$2) r',[bet.ticket_id,results]))[0].r.payout),20);
+ assert.equal((await q('select settle_weekly_ticket($1,$2) r',[bet.ticket_id,results]))[0].r.duplicate,true);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),110);
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100);
+ assert.equal((await q("select count(*)::int n from user_wallet_entries where wallet_id=$1 and kind='settlement'",[p.wallet_id]))[0].n,1);
+ const futureBoard=randomUUID(),futureQuote=randomUUID();
+ await q(`insert into sportsbook_boards(id,league_id,market_week,nfl_season,league_season,opens_at,closes_at,status,board_type)
+  values($1,$2,1,2026,1,now()-interval '1 hour',now()+interval '1 hour','published','future')`,[futureBoard,A]);
+ await q(`insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,line,odds,active,team_id)
+  values($1,$2,'fixture:future','future_win_total','Fixture season wins','Team','over',8.5,100,true,$3)`,[futureQuote,futureBoard,team]);
+ const futureRevision=(await q('select revision from sportsbook_boards where id=$1',[futureBoard]))[0].revision;
+ await act(primary);await q('select place_sportsbook_ticket($1,$2,$3::uuid[],80,$4)',[futureBoard,futureRevision,[futureQuote],randomUUID()]);
+ await act(owner);
+ await q('select set_user_wallet_balance($1,30,0,$2,$3)',[p.wallet_id,'Synthetic depletion before next week',randomUUID()]);
+ await q('select set_user_wallet_balance($1,100,0,$2,$3)',[c.wallet_id,'Synthetic depletion before next week',randomUUID()]);
+ await q('select replenish_weekly_balances($1,2026,6)',[A]);await q('select replenish_weekly_balances($1,2026,6)',[A]);
+ await db.exec('reset role');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[p.wallet_id]))[0].balance),25,'own futures floor');
+ assert.equal(Number((await q('select balance from user_wallets where id=$1',[c.wallet_id]))[0].balance),100,'co-owner futures do not reduce own allowance');
+ assert.equal(Number((await q('select balance from wallets where team_id=$1',[team]))[0].balance),0,'legacy wallet was never replenished by the new engine');
+
+ await db.exec("set request.jwt.claim.role='service_role';set role service_role");
+ const delivery=(await q('select financial_email_recipient($1) r',[coBet.ticket_id]))[0].r;
+ assert.equal(delivery.recipient,coowner+'@example.test');assert.equal(Number(delivery.accepted_balance),93);
+ await act(coowner);await assert.rejects(q('select financial_email_recipient($1)',[coBet.ticket_id]),/permission denied/);
+ await act(owner);assert.equal((await q("select set_user_wallet_status($1,1,'revoked','Synthetic financial access revocation') revision",[c.wallet_id]))[0].revision,2);
+ await assert.rejects(q("select set_user_wallet_status($1,1,'approved','Synthetic stale grant review')",[c.wallet_id]),/approval changed/);
+ await act(coowner);assert.equal((await q('select count(*)::int n from user_wallets'))[0].n,0);
+ await assert.rejects(q('select place_sportsbook_ticket($1,$2,$3::uuid[],7,$4)',[board,revision,[quote],randomUUID()]),/approved league account/);
+ await db.exec("reset role;set request.jwt.claim.role='service_role';set role service_role");
+ await assert.rejects(q('select financial_email_recipient($1)',[coBet.ticket_id]),/no longer approved/);
+ await act(owner);assert.equal((await q("select set_user_wallet_status($1,2,'approved','Synthetic verified restoration') revision",[c.wallet_id]))[0].revision,3);
+
+ await act(coowner);
+ const capabilities=(await q('select league_capabilities($1) r',[A]))[0].r;
+ assert.equal(capabilities.wallet_model,'user');assert.equal(capabilities.participant.wallet_id,c.wallet_id);assert.equal(capabilities.bet,true);
+ const personal=(await q('select account_ticket_page($1,$2,null,20) r',[A,JSON.stringify({personal:true})]))[0].r;
+ assert.equal(personal.total,1);assert.equal(personal.tickets[0].user_wallet_id,c.wallet_id);
+ const totals=(await q('select account_personal_totals($1,null,null) r',[A]))[0].r;
+ assert.equal(totals.length,1);assert.equal(totals[0].wallet_id,c.wallet_id);assert.equal(Number(totals[0].open_future),0);
+ const balancePage=(await q('select account_user_balance_page($1,$2,null,1) r',[A,c.wallet_id]))[0].r;
+ assert.equal(balancePage.entries.length,1);assert(balancePage.total>1);assert.equal(Number(balancePage.entries[0].balanceAfter),100);
+ await assert.rejects(q('select account_user_balance_page($1,$2,null,30)',[A,p.wallet_id]),/account access required/);
+ await assert.rejects(q('select account_user_balance_page($1,$2,$3,1)',[B,b.wallet_id,JSON.stringify(balancePage.next)]),/account access required/);
+ await act(primary);
+ assert.equal((await q('select account_ticket_page($1,$2,null,20) r',[A,JSON.stringify({personal:true})]))[0].r.total,2);
+ assert.equal(Number((await q('select account_personal_totals($1,null,null) r',[A]))[0].r[0].open_future),80);
+ await assert.rejects(q('select account_user_balance_page($1,$2,$3,1)',[A,p.wallet_id,JSON.stringify(balancePage.next)]),/Invalid financial balance cursor/);
+
+ await act(owner);
+ const audit=(await q('select account_wallet_report($1,null,null,40) r',[A]))[0].r;
+ assert(audit.rows.some(e=>e.source==='user_ledger'&&e.wallet_id===c.wallet_id));
+ const cash=audit.by_team.find(t=>t.team_id===team);assert.equal(Number(cash.credits)-Number(cash.debits),85,'internal cash transfers are not new inflow/outflow');
+ const weekly=(await q('select weekly_finance_wallets($1,2026,6) r',[A]))[0].r;
+ assert.equal(weekly.wallet_model,'user');assert.equal(weekly.wallets.length,2);assert(weekly.wallets.every(w=>w.processed));
+ assert.equal(weekly.wallets.find(w=>w.wallet_id===c.wallet_id).legacy_primary,false);
+ await act(coowner);await assert.rejects(q('select weekly_finance_wallets($1,2026,6)',[A]),/operator required/);
+ const standings=await q('select * from user_leaderboard($1)',[A]);assert.equal(standings.length,2);
+ assert.equal(standings.find(s=>s.wallet_id===p.wallet_id).current_balance,null);
+ assert.equal(standings.find(s=>s.wallet_id===p.wallet_id).balance_visible,false);
+ assert.equal(Number(standings.find(s=>s.wallet_id===c.wallet_id).current_balance),100);
+ assert.equal(Number(standings.find(s=>s.wallet_id===p.wallet_id).open_stakes),80);
+ await act(outsider);await assert.rejects(q('select * from user_leaderboard($1)',[A]),/league access required/);
+
+ await act(owner);await assert.rejects(q('select set_team_balance($1,100,$2,$3)',[team,'Wrong legacy cash action after cutover',randomUUID()]),/per-user financial accounts/);
+ await db.exec('reset role');await assert.rejects(q('update sportsbook_private.user_finance_modes set enabled=false where league_id=$1',[A]),/separately reviewed migration/);
+ await db.exec("reset role;alter table public.promo_images disable trigger storage_no_persistent_art");
+ await testWalletOffers(db,{owner,primary,coowner,outsider,A,team,board,p,c});
+ await db.exec("reset role;alter table public.promo_images enable trigger storage_no_persistent_art");
+ await testWalletCutover(db,{owner,primary,A,B});
+ const recovery=await testWalletRecovery(db,{outsider});
+ console.log(`v2 recovery passed: ${Object.keys(recovery.counts).length} relations, ${recovery.foreign_keys_checked} FKs, scoped Auth identities, financial conservation and duplicate user refund.`);
+ console.log('Passed independent co-owner and cross-league wallets, pending funding, explicit CAS legacy transfer once, zero co-owner funds, owner/verified/team scope, private reads and immutable identity/ledger; local engine proves wagers, duplicate-request isolation, confirmation scope, refunds/settlement once and independent futures/replenishment. Hosted routing remains inactive.');
+}finally{await db.close();}

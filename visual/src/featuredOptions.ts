@@ -1,0 +1,80 @@
+export const featureCatalog = {
+  championship: {
+    label: "Championship Rematch",
+    boost: 50,
+    market: "Either Moneyline",
+    color: "gold",
+    icon: "crown",
+    rule: "Last season's verified championship finalists meet.",
+  },
+  playoff: {
+    label: "Playoff Race",
+    boost: 35,
+    market: "Race / Spoiler Moneyline",
+    color: "sage",
+    icon: "flag",
+    rule: "Both teams in the race: both moneylines. One team in the race: only the opponent's spoiler moneyline.",
+  },
+  rivalry: {
+    label: "Rivalry",
+    boost: 35,
+    market: "Either Moneyline",
+    color: "clay",
+    icon: "rivalry",
+    rule: "A saved reciprocal team rivalry connects the opponents. Up to three rival teams per team.",
+  },
+  revenge: {
+    label: "Revenge Game",
+    boost: 35,
+    market: "Previous Loser's Moneyline",
+    color: "clay",
+    icon: "revenge",
+    rule: "A rematch after a close loss in the most recent earlier meeting this season.",
+  },
+  upset: {
+    label: "Upset Watch",
+    boost: 35,
+    market: "Underdog Moneyline",
+    color: "lavender",
+    icon: "target",
+    rule: "A lower-seeded moneyline underdog outside the configured top band faces an opponent in the leading band, with a close pre-scoring projection.",
+  },
+  streak: {
+    label: "Streak Breaker",
+    boost: 25,
+    market: "Opponent's Moneyline",
+    color: "sage",
+    icon: "broken-chain",
+    rule: "A team has a long winning streak. The opponent receives the boost, not the team on the streak.",
+  },
+  tank: {
+    label: "Tank Bowl",
+    boost: 25,
+    market: "Match-Total Over Only",
+    color: "bronze",
+    icon: "ball",
+    rule: "From the configured start week (default: after halfway), combined winning percentage is at or below the cutoff.",
+  },
+  game: {
+    label: "Game Of The Week",
+    boost: 25,
+    market: "Either Moneyline",
+    color: "gold",
+    icon: "trophy",
+    rule: "Highest-rated available matchup using the fixed record / points / spread / total ranking.",
+  },
+} as const;
+export type FeatureKind = keyof typeof featureCatalog;
+export const featurePriority: FeatureKind[] = [
+  "championship",
+  "playoff",
+  "rivalry",
+  "revenge",
+  "upset",
+  "streak",
+  "tank",
+  "game",
+];
+export const featuredOptions = featurePriority.map(
+  (k) => featureCatalog[k].label,
+);

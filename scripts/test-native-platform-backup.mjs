@@ -7,7 +7,20 @@ import { createHash } from "node:crypto";
 import {
   connectionEnvironment,
   encryptProcess,
+  preflightFailure,
 } from "./export-platform-backup.mjs";
+for (const [diagnostic, expected] of [
+  ["password authentication failed", /authentication failed/],
+  ["Tenant or user not found", /pooler could not find/],
+  ["certificate verify failed", /TLS verification failed/],
+  ["Network is unreachable", /host is unreachable/],
+  ["permission denied", /schema check failed/],
+  ["unexpected error", /unclassified/],
+]) {
+  const message = preflightFailure(diagnostic + " synthetic-secret");
+  assert.match(message, expected);
+  assert(!message.includes("synthetic-secret"));
+}
 const dir = await fs.mkdtemp(
   path.join(os.tmpdir(), "boff-native-backup-test-"),
 );

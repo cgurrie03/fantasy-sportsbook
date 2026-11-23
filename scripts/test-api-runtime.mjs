@@ -48,6 +48,7 @@ try {
   for (const file of [
     "_lib/league-intake",
     "_lib/notification-window",
+    "_lib/amp-mail",
     "_lib/routine-notifications",
     "_lib/editorial-stories",
     "_lib/opening-editorial",
@@ -1591,6 +1592,10 @@ try {
         ...emailDb,
         rpc: async (name, args) => {
           if (name === "claim_scoped_outbound_emails") return emailDb.rpc();
+          if (name === "dev_outbound_email_is_verified") {
+            assert.equal(args.p_email, "mail");
+            return { data: true, error: null };
+          }
           assert.equal(name, "capture_development_email");
           assert.equal(args.p_email, "mail");
           assert.deepEqual(args.p_payload, acceptedPayload);
@@ -1600,6 +1605,16 @@ try {
       });
       assert.deepEqual(result, { sent: 0, captured: 1 });
       assert.equal(capturedCalls, 1);
+      const unverified = await mail.deliverEmails({
+        ...emailDb,
+        rpc: async (name) => {
+          if(name==="claim_scoped_outbound_emails")return emailDb.rpc();
+          assert.equal(name,"dev_outbound_email_is_verified");
+          return {data:false,error:null};
+        },
+      });
+      assert.deepEqual(unverified,{sent:0,captured:0});
+      assert.ok(changes.some(c=>c.patch.status==="skipped"&&c.patch.last_error==="Email verification required."));
       // Frozen editorial payloads must pass current scope/window/minimum checks.
       // Receipts above deliberately have no window dependency or editorial cap.
       const promotionScope = {
@@ -1627,6 +1642,7 @@ try {
         routineFinalDeny = false,
         routineFailure = false,
         mergeWatch = false,
+        includeDetails = undefined,
         wrongRoutineScope = false,
       } = {}) {
         const scope = { ...promotionScope, p_kind: kind },
@@ -1657,6 +1673,7 @@ try {
           period_start: "2026-10-27",
           kind,
           merge_watch: mergeWatch,
+          include_details: includeDetails,
           open_ticket_count: mergeWatch ? 2 : 0,
           prepared_at: "2026-11-02T22:00:00Z",
         };
@@ -1670,6 +1687,8 @@ try {
           rpc(name, args) {
             if (name === "claim_scoped_outbound_emails")
               return Promise.resolve({ data: [row], error: null });
+            if (name === "dev_outbound_email_is_verified")
+              return Promise.resolve({ data: true, error: null });
             if (name === "routine_delivery_permission")
               return {
                 abortSignal: () => {
@@ -1791,6 +1810,25 @@ try {
       assert.equal(rendered.captures, 1);
       assert(rendered.updates.some((u) => u.payload));
       assert(!/tonight|last call/i.test(rendered.capturedPayloads[0].subject));
+
+      for (const includeDetails of [false, true]) {
+        const result = await promotionCase({
+          fresh: true,
+          mergeWatch: true,
+          includeDetails,
+        });
+        assert.equal(result.captures, 1);
+        const message = result.capturedPayloads[0];
+        for (const body of [message.html, message.text]) {
+          assert.equal(body.includes("Your balance at preparation"), includeDetails);
+          assert.equal(body.includes("Your Monday ticket watch:"), includeDetails);
+          assert(body.includes("Finish Your Picks"));
+        }
+        assert.equal(
+          result.updates.find((update) => update.payload).routine_context.include_details,
+          includeDetails,
+        );
+      }
       const closedDuringBuild = await promotionCase({
         fresh: true,
         changeAtDispatch: true,

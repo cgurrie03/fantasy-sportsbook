@@ -1,0 +1,40 @@
+/* Account and system states share the sportsbook's existing theme and type roles. */
+.boff-screen{width:min(100% - 40px,480px);min-height:100svh;margin:0 auto;display:flex;flex-direction:column;justify-content:center;padding:48px 0 32px;gap:24px;color:var(--text)}
+.boff-screen-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 4px}
+.boff-screen-brand{display:inline-flex;align-items:center;gap:10px}
+.boff-screen-brand>span{font-family:var(--font-display);font-size:38px;font-weight:500;letter-spacing:-.04em;line-height:1}
+.boff-screen-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:30px}
+.boff-screen-card h1{font-size:32px;line-height:1.15}
+.boff-screen-card .account-intro{margin-top:10px;color:var(--muted);font-size:14px;line-height:1.6}
+.boff-screen-footer{text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+.boff-screen .button{font-size:13px;line-height:1.4}
+.account-form{display:grid;gap:18px;margin-top:26px}
+.account-form label{display:grid;gap:8px;font-size:13px;font-weight:600;color:var(--text)}
+.account-form input{width:100%;min-width:0;min-height:46px;font-size:16px;background:var(--canvas);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:11px 12px}
+.account-form label>input{margin-top:0}
+.boff-screen-header>.dev-badge{font-family:var(--font-ui);font-size:11px;line-height:1.4;padding:4px 9px;border-radius:20px;border:1px solid var(--line);background:var(--raised);color:var(--muted)}
+.account-form .button,.account-link-button{width:100%;justify-content:center;min-height:44px}
+.account-link-button{margin-top:12px}
+.account-form .field-note,.account-link-note{font-size:12px;line-height:1.6;margin:12px 0 0;font-weight:400;color:var(--muted)}
+.account-message{display:flex;align-items:flex-start;gap:10px;background:var(--raised);border-radius:8px;margin-top:20px;padding:14px;font-size:13px;line-height:1.6;color:var(--text);overflow-wrap:anywhere}
+.account-message[data-error=true]{border-left:3px solid var(--red)}
+.account-message svg{margin-top:2px}
+.boff-state{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:clamp(28px,5vw,48px) 24px}
+.boff-state-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--raised);color:var(--muted)}
+.boff-state-error .boff-state-icon{color:var(--red)}
+.boff-state h1,.boff-state h2,.boff-state h3{font-family:var(--font-display);font-size:28px;font-weight:500;line-height:1.2;letter-spacing:-.025em}
+.boff-state-copy{max-width:48ch;color:var(--muted);font-size:14px;line-height:1.65;overflow-wrap:anywhere}
+.boff-state-copy p{color:inherit}
+.boff-state-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:6px}
+.boff-state-actions .button{min-height:44px}
+.boff-screen-card>.boff-state{border:0;padding:14px 0}
+.boff-state-progress{display:block;width:112px;height:3px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
+.boff-state-progress span{display:block;width:45%;height:100%;background:var(--gold);animation:boff-loading 1.7s ease-in-out infinite alternate}
+@keyframes boff-loading{from{transform:translateX(0)}to{transform:translateX(125%)}}
+.invitation-context{margin-top:24px;padding:16px;border-radius:8px;background:var(--raised);display:grid;gap:6px}
+.invitation-context h2{font-family:var(--font-ui);font-size:17px;line-height:1.4;letter-spacing:0}
+.invitation-context p{font-size:13px;color:var(--muted)}
+.account-signout{display:block;margin:22px auto 0;max-width:100%;white-space:normal}
+.account-signout>.button{width:100%;justify-content:center}
+@media(max-width:480px){.boff-screen{width:calc(100% - 32px);padding-top:32px;gap:20px}.boff-screen-card{padding:24px}.boff-screen-card h1{font-size:29px}.boff-state{padding:30px 20px}.boff-state-actions{width:100%}.boff-state-actions .button{flex:1 1 auto}.boff-screen-brand>span{font-size:35px}}
+@media(prefers-reduced-motion:reduce){.boff-state-progress span{animation:none;transform:translateX(60%)}}

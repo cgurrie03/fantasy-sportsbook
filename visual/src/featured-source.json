@@ -1,0 +1,115 @@
+{
+  "participants": [
+    {
+      "id": "1133609065776775168",
+      "name": "cgurrie",
+      "roster": 1,
+      "division": null,
+      "avatar": "15d7cf259bc30eab8f6120f45f652fb6"
+    },
+    {
+      "id": "1133611823862906880",
+      "name": "zachmerk",
+      "roster": 2,
+      "division": null,
+      "avatar": "4f4090e5e9c3941414db40a871e3e909"
+    },
+    {
+      "id": "1133613190589620224",
+      "name": "robthefob",
+      "roster": 3,
+      "division": null,
+      "avatar": "b3338675f635c2c1f42b469621d38ec6"
+    },
+    {
+      "id": "871223485299634176",
+      "name": "hardikb",
+      "roster": 4,
+      "division": null,
+      "avatar": "b3338675f635c2c1f42b469621d38ec6"
+    },
+    {
+      "id": "517080755628453888",
+      "name": "RJRJRJ123",
+      "roster": 5,
+      "division": null,
+      "avatar": "d55d1f7075eda01948318de4af616075"
+    },
+    {
+      "id": "1134015668774461440",
+      "name": "eyal0",
+      "roster": 6,
+      "division": null,
+      "avatar": "7572250c2fb084c434fed0e82229e183"
+    },
+    {
+      "id": "1133627015216979968",
+      "name": "phillipwood",
+      "roster": 7,
+      "division": null,
+      "avatar": "b3338675f635c2c1f42b469621d38ec6"
+    },
+    {
+      "id": "1134536386335371264",
+      "name": "Diabloo",
+      "roster": 8,
+      "division": null,
+      "avatar": "82aec8e811b839b8ec25d7b458afd57b"
+    },
+    {
+      "id": "1269136771011055616",
+      "name": "nellyknowsball",
+      "roster": 8,
+      "division": null,
+      "avatar": "dd1e47532992343f9f0c27ef3ac2cd39"
+    },
+    {
+      "id": "1135675664524394496",
+      "name": "bennnnnnnnn8",
+      "roster": 11,
+      "division": null,
+      "avatar": "f0edbf4278f53f9425db175073df6584"
+    },
+    {
+      "id": "1136098034934427648",
+      "name": "mschif",
+      "roster": 12,
+      "division": null,
+      "avatar": "f0edbf4278f53f9425db175073df6584"
+    },
+    {
+      "id": "733058271224672256",
+      "name": "jackbeauchamp",
+      "roster": 9,
+      "division": null,
+      "avatar": "81a7aefdb286765459b31f06c75536f6"
+    },
+    {
+      "id": "1135675561843716096",
+      "name": "freelanceyush",
+      "roster": 10,
+      "division": null,
+      "avatar": "15d7cf259bc30eab8f6120f45f652fb6"
+    }
+  ],
+  "divisions": {},
+  "playoffTeams": 7,
+  "previousFinalists": [
+    4,
+    6
+  ],
+  "sourceLeague": "1312126153980391424",
+  "previousLeague": "1256324642491072512",
+  "note": "Read-only Sleeper participants/divisions and owner-mapped prior championship finalists. No injury, score or roster history added.",
+  "previousChampionship": {
+    "season": 2025,
+    "champion": {
+      "roster": 6,
+      "name": "earkin"
+    },
+    "runnerUp": {
+      "roster": 4,
+      "name": "AJ Brown’s Twitter"
+    }
+  }
+}

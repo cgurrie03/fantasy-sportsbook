@@ -31,5 +31,6 @@ dist-ssr
 supabase/.temp
 coverage
 /work/
+/visual/test-results/
 stage1-*-review.html
 stage2-review.html

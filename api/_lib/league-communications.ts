@@ -131,7 +131,7 @@ export function validateCommunicationPayload(payload: any, league: any) {
   )
     throw Error("Frozen email sender no longer matches the configured league.");
   const origin = new URL(identity.url).origin;
-  for (const match of payload.html.matchAll(
+  for (const match of (payload.html+"\n"+(typeof payload.amp==="string"?payload.amp:"")).matchAll(
     /\bhref\s*=\s*["']([^"']*)["']/gi,
   )) {
     const url = new URL(match[1].replaceAll("&amp;", "&"));

@@ -1,0 +1,51 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import {webcrypto} from 'node:crypto';import ts from 'typescript';
+import {workerTarget} from '../server/runtime-target.ts';
+import {productionRunPolicy} from '../server/release-worker-policy.ts';
+const script=ts.transpile(fs.readFileSync('visual/server/live-refresh.ts','utf8').replace(/^import.*postseason.*;\n/,''),{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None});
+const bracketExports={};vm.runInNewContext(ts.transpile(fs.readFileSync('visual/server/postseason.ts','utf8'),{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}),{exports:bracketExports});
+const checks=[];function ok(name,value){assert(value,name);checks.push(name)}
+function context(){let handler;const sandbox={exports:{},require:()=>({...bracketExports,workerTarget,productionRunPolicy}),Deno:{env:{get:k=>({SUPABASE_URL:'https://whlcnlacueweaqpsupqs.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-service'})[k]},serve:h=>{handler=h}},fetch:()=>{throw Error('Unmocked fetch')},Response,Request,AbortSignal,URL,TextEncoder,Uint8Array,Date,Intl,crypto:webcrypto,console};const ctx=vm.createContext(sandbox);vm.runInContext(script,ctx);return {ctx,get handler(){return handler}}}
+const a=context(),now=Date.parse('2026-11-09T18:00:00-05:00');
+const run=(e)=>vm.runInContext(e,a.ctx);a.ctx.now=now;
+const sourceSharing = await run(`(async () => {
+ let calls = 0;
+ const fetchOnce = sharedSources(async path => {
+   calls++;
+   if (path === 'retry' && calls === 2) throw Error('temporary');
+   return path;
+ });
+ const left = fetchOnce('scores');
+ const right = fetchOnce('scores');
+ await Promise.all([left,right]);
+ await fetchOnce('retry').catch(() => null);
+ await fetchOnce('retry');
+ return left === right && calls === 3;
+})()`);
+ok('Same-run provider reads share an in-flight fetch and failures can retry',sourceSharing);
+ok('Next refresh aligns to cron boundary without timestamp drift',run("nextRefresh(Date.parse('2026-11-10T01:35:00.700Z'),5)")==='2026-11-10T01:40:00.000Z');
+ok('Active game uses one-minute cadence',run("cadence([{state:'in_progress'}],now)")===1);
+ok('Active game outranks final confirmation',run("cadence([{state:'in_progress'},{state:'final',finalObservedAt:new Date(now).toISOString()}],now)")===1);
+ok('New final uses fifteen-minute confirmation cadence',run("cadence([{state:'final',finalObservedAt:new Date(now).toISOString()}],now)")===15);
+ok('Off-day scheduled game uses hourly league cadence',run("cadence([{state:'scheduled',gameDate:'2026-11-12'}],now)")===60);
+ok('Game day uses fifteen minutes without invented kickoff time',run("cadence([{state:'scheduled',gameDate:'2026-11-09'}],now)")===15);
+ok('Unknown status uses conservative fifteen minutes',run("cadence([{state:'unknown'}],now)")===15);
+ok('Tuesday 00:59 ET stays open',run("isLoading(new Date('2026-11-10T00:59:00-05:00'))")===false);
+ok('Tuesday 01:00 ET has no scheduled closure',run("isLoading(new Date('2026-11-10T01:00:00-05:00'))")===false);
+ok('Wednesday 05:59 ET remains available',run("isLoading(new Date('2026-11-11T05:59:00-05:00'))")===false);
+ok('Wednesday 06:00 ET loading ends',run("isLoading(new Date('2026-11-11T06:00:00-05:00'))")===false);
+ok('No scheduled closure under daylight-saving time',run("isLoading(new Date('2027-09-14T01:00:00-04:00'))")===false);
+const compact=run("compactGames([{game_id:'1',date:'2026-11-09',week:9,status:'in_game',away:'BUF',home:'MIN'},{game_id:'2',date:'2026-11-12',week:10,status:'pre_game',away:'NYJ',home:'BUF'}],9)");ok('Only current-week schedule stored',compact.length===1&&compact[0].state==='in_progress');
+let calls=0;a.ctx.fetch=async()=>{calls++;throw Error('Should not fetch')};const unauth=await a.handler(new Request('https://test',{method:'POST'}));ok('Missing worker credential rejected before database/provider calls',unauth.status===401&&calls===0);
+const token='a'.repeat(64),hash=Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(token))).toString('hex');
+a.ctx.fetch=async u=>{calls++;if(String(u).includes('key=eq.control'))return Response.json([{payload:{tokenHash:hash}}]);throw Error('Should not call provider')};const wrong=await a.handler(new Request('https://test',{method:'POST',headers:{Authorization:'Bearer '+'b'.repeat(64)}}));ok('Wrong worker credential rejected',wrong.status===401&&calls===1);
+const b=context();let providerCalls=0;b.ctx.fetch=async (u,options)=>{u=String(u);if(u.includes('key=eq.control'))return Response.json([{payload:{tokenHash:hash}}]);if(u.includes('rpc/application_environment_identity'))return Response.json({environment:'development',project_ref:'whlcnlacueweaqpsupqs'});if(u.includes('key=eq.nfl'))return Response.json([]);providerCalls++;throw Error('Unexpected provider call')};const due=await b.handler(new Request('https://test',{method:'POST',headers:{Authorization:'Bearer '+token}}));ok('Unexpired due/lease gate skips provider work',due.status===200&&(await due.json()).status==='not_due'&&providerCalls===0);
+const c=context();const writes=[];c.ctx.fetch=async(u,o={})=>{u=String(u);if(u.includes('key=eq.control'))return Response.json([{payload:{tokenHash:hash}}]);if(u.includes('rpc/application_environment_identity'))return Response.json({environment:'development',project_ref:'whlcnlacueweaqpsupqs'});if(u.includes('key=eq.nfl')&&o.body&&JSON.parse(o.body).lease_until&&!JSON.parse(o.body).error_code)return Response.json([{refresh_count:3,payload:{}}]);if(u.includes('dev_live_cache')&&o.method==='PATCH'){writes.push(JSON.parse(o.body));return Response.json([])}if(u.includes('state/nfl'))return new Response('Unavailable',{status:503});throw Error('Unexpected request')};const failure=await c.handler(new Request('https://test',{method:'POST',headers:{Authorization:'Bearer '+token}}));ok('Failed source returns error and preserves last payload/fetched time',failure.status===503&&writes.length===2&&writes.every(x=>x.error_code&&!('payload'in x)&&!('fetched_at'in x)));
+ok('Same nested JSON with reordered keys omits payload rewrite',run("!('payload' in currentPatch({b:[{z:2,a:1}],a:null},{a:null,b:[{a:1,z:2}]},now,5,9))"));
+ok('Unchanged data still advances checked time, count and clears error',run("(()=>{const p=currentPatch({a:1},{a:1},now,5,9);return p.fetched_at===iso(now)&&p.refresh_count===10&&p.error_code===null&&p.lease_until===iso(0)})()"));
+ok('Array-order change writes new payload',run("'payload' in currentPatch({x:[1,2]},{x:[2,1]},now,5,0)"));
+ok('Changed score writes new payload',run("'payload' in currentPatch({score:20.5},{score:20},now,5,0)"));
+ok('Null is distinct from absent data',run("'payload' in currentPatch({score:null},{},now,5,0)"));
+ok('Omitted undefined JSON fields do not cause rewrites',run("!('payload' in currentPatch({score:1,extra:undefined},{score:1},now,5,0))"));
+ok('Payload budget applies even before comparing values',run("(()=>{try{currentPatch({x:'x'.repeat(120001)},{},now,5,0);return false}catch{return true}})()"));
+fs.mkdirSync('work/boff-visual-iteration20',{recursive:true});
+fs.writeFileSync('work/boff-visual-iteration20/backend-policy-results.json',JSON.stringify({passed:checks.length,checks},null,2));console.log(JSON.stringify({passed:checks.length}));

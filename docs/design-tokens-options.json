@@ -1,0 +1,62 @@
+{
+  "status": "Options, not an approved design",
+  "palettes": {
+    "atlantic": {
+      "name": "Atlantic",
+      "description": "Dark blue / sea blue / sand",
+      "base": "#142D40",
+      "surface": "#1D3B50",
+      "ink": "#EEF5F8",
+      "muted": "#A6BBC8",
+      "accent": "#70CEE0",
+      "offer": "#E8BA73",
+      "headline": "Barlow Condensed",
+      "geometry": "Blue surfaces, compact market rows, quiet warm offer strip."
+    },
+    "signal": {
+      "name": "Signal",
+      "description": "White / deep ink / royal blue",
+      "base": "#F1F4F7",
+      "surface": "#FFFFFF",
+      "ink": "#142C3D",
+      "muted": "#536777",
+      "accent": "#204FBC",
+      "offer": "#855018",
+      "headline": "Barlow Condensed",
+      "geometry": "Dark brand header, white market board, squared prices and a compact ticket."
+    },
+    "club": {
+      "name": "Club",
+      "description": "Cool white / plum / berry",
+      "base": "#F2F1F4",
+      "surface": "#FFFFFF",
+      "ink": "#2E2234",
+      "muted": "#655C6D",
+      "accent": "#7B2855",
+      "offer": "#855018",
+      "headline": "Archivo Narrow",
+      "geometry": "Side navigation, soft grouped matchups and a distinct berry identity."
+    }
+  },
+  "common": {
+    "body": "Public Sans",
+    "number_style": "tabular lining",
+    "spacing": [
+      4,
+      8,
+      12,
+      16,
+      24,
+      32
+    ],
+    "minimum_phone_target_px": 44,
+    "body_px": 15,
+    "body_line_height": 1.5,
+    "selected_state": "fill + border + checkmark",
+    "focus": "3px outline with 3px offset",
+    "motion": "state feedback only; respects reduced motion",
+    "content_alignment": "left; numeric columns aligned",
+    "mobile": "Compact slip trigger; bounded sheet; no large persistent block",
+    "navigation": "Product mark + league switcher; short primary navigation; category navigation separate"
+  }
+}

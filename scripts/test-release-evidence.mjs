@@ -34,6 +34,12 @@ try {
  const changed=sourceIdentity(root);assert.notDeepEqual(changed.migrations,current.migrations);
  assert.throws(()=>verifyEvidence(evidence,results,changed,suites),/exact clean commit/);
  assert.equal(createEvidence({...args,end:changed}).valid,false);
+ mkdirSync(path.join(root,'supabase/production/migrations'),{recursive:true});
+ writeFileSync(path.join(root,'supabase/production/migrations/20261120152909_fixture.sql'),'select 3;\n');
+ git('add','.');git('commit','-m','Production profile fixture');
+ const productionChanged=sourceIdentity(root);
+ assert(productionChanged.migrations.some(row=>row.file.startsWith('supabase/production/')),'Production migration profile missing from source evidence');
+ assert.notDeepEqual(productionChanged.migrations,changed.migrations);
  console.log('Passed clean-source evidence, dirty/untracked/commit/migration drift, suite/result tampering, expiry and unapproved review gates.');
 }finally{
  // This is a newly created fixture, never a user checkout.

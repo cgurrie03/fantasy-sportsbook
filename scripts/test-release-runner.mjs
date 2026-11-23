@@ -68,6 +68,11 @@ try {
     runSuitePlan({ suites: plan, concurrency: 3, commandFor: () => [] }),
     /one or two jobs/,
   );
+  const visualStarted=[];
+  const visualPlan=await runSuitePlan({suites:['lint','build:fixture','build:visual-release','visual-tests'],
+    commandFor:n=>[process.execPath,script,n==='build:visual-release'?'failure':n],onStart:n=>visualStarted.push(n)});
+  assert.equal(visualPlan[2].passed,false);assert.equal(visualPlan[3].passed,false);
+  assert(!visualStarted.includes('visual-tests'),'Visual checks ran after their build failed');
   console.log(
     "Release runner: build barrier, two-process ceiling, deterministic results, bounded logs, failure/timeout and prerequisite propagation.",
   );

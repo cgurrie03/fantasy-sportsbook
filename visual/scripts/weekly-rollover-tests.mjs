@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import ts from 'typescript';
+const exports={};vm.runInNewContext(ts.transpile(fs.readFileSync('visual/server/weekly-rollover.ts','utf8'),{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}),{exports,Intl,Date,Map});
+const schedule=[{week:10,date:'2026-11-12'},{week:11,date:'2026-11-19'}];
+assert.equal(exports.marketWeek([...schedule].reverse(),10,Date.parse('2026-11-17T05:00:00-05:00')),11,'schedule order does not change rollover');
+assert.equal(exports.marketWeek([...schedule,{week:12,date:'2026-11-26'}],10,Date.parse('2026-11-25T05:00:00-05:00')),11,'provider lag cannot jump over an unsupported week');
+assert.equal(exports.marketWeek(schedule,11,Date.parse('2026-11-18T12:00:00-05:00')),11,'repeated and delayed runs stay on the same ready week');
+assert.equal(exports.marketWeek(schedule,11,Date.parse('2026-11-17T04:59:59-05:00')),10);
+assert.equal(exports.marketWeek(schedule,11,Date.parse('2026-11-17T05:00:00-05:00')),11);
+assert.equal(exports.marketWeek(schedule,10,Date.parse('2026-11-17T05:00:00-05:00')),11,'provider week lag does not postpone a ready Tuesday board');
+assert.equal(exports.marketWeek(schedule,11,Date.parse('2026-11-16T23:00:00-05:00')),10,'provider advance cannot publish the next board early');
+assert.equal(new Date(exports.weekOpens('2026-09-10')).toISOString(),'2026-09-08T09:00:00.000Z');
+assert.equal(new Date(exports.weekOpens('2026-11-19')).toISOString(),'2026-11-17T10:00:00.000Z');
+console.log('PASS: Tuesday 5 AM boundary, early/late provider changes, and daylight-saving time');
+const pricing={};vm.runInNewContext(ts.transpile(fs.readFileSync('visual/server/dev-pricing.ts','utf8'),{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}),{exports:pricing,require:()=>({}),Intl,Date,Map,Set,AbortSignal});
+await assert.rejects(pricing.buildDevBook([{},{}],11,60,undefined,async url=>{
+ if(url.endsWith('state/nfl'))return {season:'2026',week:11};
+ if(url.endsWith('/league/1312126153980391424'))return {settings:{playoff_week_start:15}};
+ if(url.endsWith('/rosters'))return [{},{}];
+ if(url.endsWith('/matchups/11'))return [{matchup_id:null},{matchup_id:null}];
+ return [];
+}),/pricing_matchups_unavailable/);
+console.log('PASS: incomplete upcoming matchup pairings cannot replace the current board');

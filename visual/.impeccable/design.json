@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T03:06:04.604173+00:00",
+  "title": "Design System: boff",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface"
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text"
+      },
+      "body": {
+        "role": "neutral",
+        "displayName": "Body"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line"
+      },
+      "green": {
+        "role": "primary",
+        "displayName": "Green"
+      },
+      "sage": {
+        "role": "primary",
+        "displayName": "Sage"
+      },
+      "sage-ink": {
+        "role": "primary",
+        "displayName": "Sage Ink"
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Gold"
+      },
+      "gold-ink": {
+        "role": "secondary",
+        "displayName": "Gold Ink"
+      },
+      "red": {
+        "role": "secondary",
+        "displayName": "Red"
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Focus"
+      },
+      "rail": {
+        "role": "primary",
+        "displayName": "Rail"
+      },
+      "rail-text": {
+        "role": "neutral",
+        "displayName": "Rail Text"
+      },
+      "dark-canvas": {
+        "role": "neutral",
+        "displayName": "Dark Canvas"
+      },
+      "dark-surface": {
+        "role": "neutral",
+        "displayName": "Dark Surface"
+      },
+      "dark-raised": {
+        "role": "neutral",
+        "displayName": "Dark Raised"
+      },
+      "dark-text": {
+        "role": "neutral",
+        "displayName": "Dark Text"
+      },
+      "dark-body": {
+        "role": "neutral",
+        "displayName": "Dark Body"
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted"
+      },
+      "dark-line": {
+        "role": "neutral",
+        "displayName": "Dark Line"
+      },
+      "dark-green": {
+        "role": "neutral",
+        "displayName": "Dark Green"
+      },
+      "dark-sage": {
+        "role": "neutral",
+        "displayName": "Dark Sage"
+      },
+      "dark-sage-ink": {
+        "role": "neutral",
+        "displayName": "Dark Sage Ink"
+      },
+      "dark-gold": {
+        "role": "neutral",
+        "displayName": "Dark Gold"
+      },
+      "dark-gold-ink": {
+        "role": "neutral",
+        "displayName": "Dark Gold Ink"
+      },
+      "dark-red": {
+        "role": "neutral",
+        "displayName": "Dark Red"
+      },
+      "dark-focus": {
+        "role": "neutral",
+        "displayName": "Dark Focus"
+      },
+      "dark-rail": {
+        "role": "neutral",
+        "displayName": "Dark Rail"
+      },
+      "dark-rail-text": {
+        "role": "neutral",
+        "displayName": "Dark Rail Text"
+      },
+      "selected-border": {
+        "role": "neutral",
+        "displayName": "Selected Border"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page Heading",
+        "purpose": "Editorial page headings."
+      },
+      "odds": {
+        "displayName": "Price Emphasis",
+        "purpose": "Desktop market prices with tabular numerals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-light",
+        "value": "0 14px 40px #102d241a",
+        "purpose": "Light-theme dropdowns and toast."
+      },
+      {
+        "name": "ambient-dark",
+        "value": "0 14px 40px #0003",
+        "purpose": "Dark-theme dropdowns and toast."
+      },
+      {
+        "name": "dialog",
+        "value": "0 24px 100px #071d2440",
+        "purpose": "Native modal dialog."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "background-color .16s, color .16s, border-color .16s",
+        "purpose": "Control state transitions; disabled under reduced motion."
+      },
+      {
+        "name": "pressed",
+        "value": "translateY(1px)",
+        "purpose": "Enabled button press feedback."
+      },
+      {
+        "name": "focus",
+        "value": "3px solid var(--focus); outline-offset: 3px",
+        "purpose": "Visible keyboard focus."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1600px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1250px"
+      },
+      {
+        "name": "compact-slip",
+        "value": "1060px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "narrow-mobile",
+        "value": "390px"
+      }
+    ],
+    "ownerReviewIteration2": {
+      "copy": "Plain Title Case UI headings; no slogans; preserve source names and lowercase boff",
+      "navigation": "Continuous sticky market lists and mobile More",
+      "slip": "Group selections by fantasy matchup",
+      "identity": "Sleeper league avatar and read-only league identity",
+      "profile": "Browser-local display/betting/optional-communication defaults",
+      "metadata": "9\u201310px compact context; 8px compact panel radius; mobile review pending"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Standard primary action.",
+      "html": "<button class=\"ds-button-primary\">Continue</button>",
+      "css": ".ds-button-primary{font-family:'Public Sans',sans-serif;transition:background-color .16s,color .16s,border-color .16s;display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:11px 17px;border:1px solid transparent;border-radius:6px;font-size:12px;font-weight:500;line-height:1.4;background:var(--green);color:var(--canvas);cursor:pointer}.ds-button-primary:hover{filter:brightness(1.13)}.ds-button-primary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.ds-button-primary:active:not(:disabled){transform:translateY(1px)}.ds-button-primary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Standard secondary action.",
+      "html": "<button class=\"ds-button-secondary\">Continue</button>",
+      "css": ".ds-button-secondary{font-family:'Public Sans',sans-serif;transition:background-color .16s,color .16s,border-color .16s;display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:11px 17px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-weight:500;line-height:1.4;background:var(--surface);color:var(--text);cursor:pointer}.ds-button-secondary:hover{background:var(--raised)}.ds-button-secondary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.ds-button-secondary:active:not(:disabled){transform:translateY(1px)}.ds-button-secondary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none}}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Standard editable field.",
+      "html": "<input class=\"ds-field\" aria-label=\"Display name\" placeholder=\"Display name\">",
+      "css": ".ds-field{font-family:'Public Sans',sans-serif;transition:background-color .16s,color .16s,border-color .16s;min-height:44px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-size:14px}.ds-field::placeholder{color:var(--muted)}.ds-field:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Active market filter; no dedicated hover color in source.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">All markets</button>",
+      "css": ".ds-chip{font-family:'Public Sans',sans-serif;transition:background-color .16s,color .16s,border-color .16s;background:var(--sage);color:var(--sage-ink);border:1px solid #a7bfa5;border-radius:5px;font-size:11px;padding:8px 12px;cursor:pointer}.ds-chip:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.ds-chip:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat bordered content container.",
+      "html": "<section class=\"ds-panel\"><h3>League members</h3><p>Your league, together.</p></section>",
+      "css": ".ds-panel{font-family:'Public Sans',sans-serif;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;overflow:hidden;padding:23px}.ds-panel h3{margin:0;font-size:14px;font-weight:600}.ds-panel p{margin:12px 0 0;font-size:12px;color:var(--muted)}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "description": "Active desktop rail link.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-active\" href=\"#markets\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/></svg>Markets</a></nav>",
+      "css": ".ds-nav{background:var(--rail);padding:15px;width:210px;font-family:'Public Sans',sans-serif}.ds-nav a{display:flex;align-items:center;gap:13px;padding:12px 14px;min-height:46px;border-radius:7px;color:var(--rail-text);font-size:13px;text-decoration:none}.ds-nav a:hover{background:#ffffff0c;color:#fff}.ds-nav a.ds-active{background:#ffffff15;color:#fff}.ds-active svg{color:#e5c78d}.ds-nav a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}"
+    },
+    {
+      "name": "Selected Price",
+      "kind": "custom",
+      "refersTo": "odds-selected",
+      "description": "Selected stacked price with checkmark.",
+      "html": "<button class=\"ds-odds\" aria-pressed=\"true\"><span>Over 110.5</span><strong>\u2212110</strong><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\"><path d=\"m5 12 4 4L19 6\"/></svg></button>",
+      "css": ".ds-odds{font-family:'Public Sans',sans-serif;transition:background-color .16s,color .16s,border-color .16s;background:var(--sage);color:var(--sage-ink);border:1px solid #a7bfa5;border-radius:6px;min-height:47px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;font-variant-numeric:tabular-nums;padding:5px 10px;line-height:1.4;width:100px;cursor:pointer}.ds-odds span{font-size:11px}.ds-odds strong{font-size:13px;font-weight:600}.ds-odds svg{position:absolute;right:4px;top:4px}.ds-odds:hover{border-color:#a7bfa5;background:var(--sage)}.ds-odds:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.ds-odds:active{transform:translateY(1px)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Forest & Ivory",
+    "overview": "Forest & Ivory pairs a quiet off-white canvas and white panels with a persistent forest identity. Restrained Newsreader headings give league content an editorial character; Public Sans carries navigation, market labels, prices, and forms.\n\nThe identity is lowercase boff with the provisional serif B monogram. Market rows favor aligned prices, real team names, and compact borders. This records the visual frontend as implemented; desktop review precedes later owner mobile iteration.",
+    "keyCharacteristics": [
+      "Forest rail and off-white canvas.",
+      "Newsreader headings with Public Sans operations.",
+      "Sage selection plus a checkmark.",
+      "Flat bordered panels and contextual overlays."
+    ],
+    "rules": [
+      {
+        "name": "The Selection Rule",
+        "body": "Use sage with forest ink and a checkmark for selected prices, preserving the selection cue in both themes.",
+        "section": "colors"
+      },
+      {
+        "name": "The Operational Type Rule",
+        "body": "Use Public Sans for prices, navigation, labels, and controls; reserve Newsreader for editorial headings and the wordmark.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Panel Rule",
+        "body": "Keep market and form panels flat; use shadows for floating menus, dialogs, and feedback.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve lowercase boff and the provisional B identity.",
+      "Do align market prices and use tabular numerals for numeric controls.",
+      "Do allow long real team names to wrap.",
+      "Do preserve visible keyboard focus and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't substitute a system display font for Newsreader.",
+      "Don't use brass as the default selected-price fill.",
+      "Don't give ordinary market panels overlay shadows.",
+      "Don't present local preview actions as completed backend operations."
+    ]
+  }
+}

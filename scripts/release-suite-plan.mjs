@@ -1,4 +1,4 @@
-export const releaseSuites = ["lint", "build:fixture", "test:financial-recovery", "test:release-evidence", "test:user-wallets", "test:league-intake", "test:team-claims", "test:wallet-policy", "test:notifications", "test:environment", "test:board-cache",
+export const releaseSuites = ["lint", "build:fixture", "build:visual-release", "test:visual-release", "test:financial-recovery", "test:release-evidence", "test:user-wallets", "test:league-intake", "test:team-claims", "test:wallet-policy", "test:notifications", "test:environment", "test:board-cache",
   "test:refresh-retention", "test:routine-retention", "test:futures-edit", "test:accounts", "test:accounts:ux", "test:lines",
   "test:import", "test:refresh", "test:starters", "test:live", "test:weekly",
   "test:transitions", "test:futures", "test:reporting", "test:reopening",

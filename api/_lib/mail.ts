@@ -24,9 +24,10 @@ import {
   validateCommunicationPayload,
 } from "./league-communications.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { renderEmail, teamWatchText } from "./email-templates.js";
+import { renderEmail, summarizeRoutineEmail, teamWatchText } from "./email-templates.js";
 import type { EmailContent } from "./email-templates.ts";
 import { mondayEmail } from "./monday-watch.js";
+import {sendAmpMail} from "./amp-mail.js";
 const money = (v: unknown) => "$" + Number(v ?? 0).toFixed(2);
 const odds = (v: number) => (v > 0 ? "+" + v : String(v));
 const date = (v: string) =>
@@ -146,12 +147,19 @@ export async function buildEmail(
   if (!member || !league)
     throw new Error("League email membership unavailable.");
   const identity = communicationIdentity(league);
+  const devLeaguePath = process.env.BOFF_ENVIRONMENT === "development" &&
+    new URL(identity.url).origin === "https://dev.sportsbook.coopergurrie.com" &&
+    /^\d{1,32}$/.test(league.sleeper_league_id ?? "")
+    ? "/" + league.sleeper_league_id
+    : "";
+  const devPage = row.kind === "confirmation" || row.kind === "monday_watch" ? "my-bets"
+    : row.kind === "recap" ? "league" : row.kind === "attention" ? "commissioner" : "matchups";
   const balance = wallets[0]?.balance;
   const availableBalance =
     financialRecipient && balance === null ? "Funding pending" : money(balance);
   const base = {
     greeting: `Hi ${member.display_name},`,
-    url: identity.url,
+    url: devLeaguePath ? new URL(devLeaguePath + "/" + devPage, identity.url).href : identity.url,
     brand: identity.brand,
     paragraphs: [],
     details: [],
@@ -288,7 +296,7 @@ export async function buildEmail(
           "Eligible weekly selections are available now. Individual markets may lock earlier; check the sportsbook for current prices and availability.",
           ...(routine?.merge_watch
             ? [
-                `Your Monday ticket watch: at preparation on ${date(routine.prepared_at)}, you had ${routine.open_ticket_count >= 10000 ? "at least " : ""}${routine.open_ticket_count} open weekly ticket${routine.open_ticket_count === 1 ? "" : "s"}. Review your accepted selections and current progress in My Bets: ${new URL("#/bets", base.url).href}`,
+                `Your Monday ticket watch: at preparation on ${date(routine.prepared_at)}, you had ${routine.open_ticket_count >= 10000 ? "at least " : ""}${routine.open_ticket_count} open weekly ticket${routine.open_ticket_count === 1 ? "" : "s"}. Review your accepted selections and current progress in My Bets: ${new URL(devLeaguePath ? devLeaguePath + "/my-bets" : "#/bets", base.url).href}`,
               ]
             : []),
         ],
@@ -645,6 +653,17 @@ export async function deliverEmails(
   for (const row of claim.data ?? []) {
     try {
       await validateDeliveryScope(db, row);
+      if (capture && row.kind !== "signin") {
+        const verified = await db.rpc("dev_outbound_email_is_verified", {p_email:row.id});
+        if (verified.error) throw Error("Recipient verification could not be checked.");
+        if (verified.data !== true) {
+          const skipped=await db.from("outbound_emails").update({
+            status:"skipped",last_error:"Email verification required.",
+          }).eq("id",row.id);
+          if(skipped.error)throw Error("Unverified email retirement could not be recorded.");
+          continue;
+        }
+      }
       const routine = isRoutine(row.kind)
         ? await routinePermission(db, row, false)
         : null;
@@ -731,13 +750,68 @@ export async function deliverEmails(
       }
       let payload = row.payload;
       if (!payload) {
-        const c = await buildEmail(
+        const full = await buildEmail(
           db,
           row,
           promotion,
           routine?.allowed ? routine.context : undefined,
         );
-        if (routine?.allowed)
+        const c = routine?.allowed && routine.context.include_details === false
+          ? summarizeRoutineEmail(full)
+          : full;
+        let designed: {subject:string;html:string;text:string;amp?:string;leagues?:{id:string;details:boolean}[]}|undefined;
+        if(capture||process.env.BOFF_AMP_EMAIL_ENABLED==="true"){
+          const url=new URL(c.url);
+          let path=url.pathname.match(/^\/\d+(?=\/|$)/)?.[0];
+          if(!path&&row.kind==="attention"&&url.origin==="https://dev.sportsbook.coopergurrie.com"){
+            const league=await db.from("leagues").select("sleeper_league_id").eq("id",row.league_id).maybeSingle();
+            const sleeperId=league.data?.sleeper_league_id;
+            if(/^\d{1,32}$/.test(sleeperId??""))path="/"+sleeperId;
+          }
+          if(path){
+            const detailed=!routine?.allowed||routine.context.include_details===true;
+            const book=await db.from("dev_current_book").select("payload").eq("league_id",row.league_id).maybeSingle();
+            if(book.data?.payload){
+              const {createEmailBoard,renderEmailBoard,renderAccountEmail,renderNotificationEmail}=await import("../../visual/server/notification-templates.js");
+              const visual=createEmailBoard(book.data.payload,[],url.origin,path,row.kind==="attention"?undefined:row.team_id);
+              c.board=renderEmailBoard(visual,false);
+              if(["opening","recap","monday_watch","confirmation"].includes(row.kind)){
+                const member=await db.from("user_wallets").select("user_id").eq("league_id",row.league_id).eq("team_id",row.team_id)
+                  .eq("id",row.user_wallet_id??row.routine_context?.wallet_id??"00000000-0000-0000-0000-000000000000").maybeSingle();
+                let user=member.data?.user_id??(routine?.allowed?routine.context.user_id:undefined)??row.routine_context?.user_id;
+                if(!user&&row.ticket_id){
+                  const ticket=await db.from("tickets").select("user_wallet_id").eq("id",row.ticket_id).eq("league_id",row.league_id).maybeSingle();
+                  if(ticket.data?.user_wallet_id){
+                    const owner=await db.from("user_wallets").select("user_id").eq("id",ticket.data.user_wallet_id).eq("league_id",row.league_id).maybeSingle();
+                    user=owner.data?.user_id;
+                  }
+                }
+                if(user){
+                  const edition=await db.rpc("dev_email_edition",{p_league:row.league_id,p_user:user,p_kind:row.kind,p_week:row.market_week,p_ticket:row.ticket_id??null});
+                  if(edition.error)throw Error("Email edition could not be prepared.");
+                  visual.edition=edition.data;
+                }
+                if(row.kind==="confirmation")designed=renderAccountEmail("confirmation",visual,Object.fromEntries(c.details),visual.edition?.tickets?.[0]);
+                else {
+                  const {isSwitchableEmail,renderLeagueSwitcherEmail}=await import("../../visual/server/email-switcher.js");
+                  if(isSwitchableEmail(row.kind)&&user){
+                    const reports=await db.rpc("dev_email_switcher",{p_user:user,p_kind:row.kind,p_week:row.market_week,p_primary:row.league_id});
+                    if(reports.error)throw Error("League email reports could not be prepared.");
+                    if(reports.data?.length)designed=renderLeagueSwitcherEmail(reports.data,row.kind,url.origin,row.league_id);
+                  }
+                  designed??=renderNotificationEmail(row.kind,detailed,{Week:row.market_week},url.origin,path,visual.leagueName,visual);
+                }
+              }else if(row.kind==="attention"){
+                const job=await db.from("automation_jobs").select("status,last_error,summary")
+                  .eq("id",row.staff_context?.job_id).eq("league_id",row.league_id).maybeSingle();
+                if(job.error)throw Error("The admin issue could not be prepared.");
+                designed=renderAccountEmail("attention",{...visual,team:undefined},{...Object.fromEntries(c.details),
+                  Issue:job.data?.last_error??JSON.stringify(job.data?.summary??{}),Status:job.data?.status??"Needs Review"});
+              }
+            }
+          }
+        }
+        if (routine?.allowed && routine.context.include_details !== false)
           c.details.push([
             "Message prepared",
             date(routine.context.prepared_at),
@@ -763,6 +837,7 @@ export async function deliverEmails(
           ...(c.legs ?? []).map(
             (l) => `${l.matchup}: ${l.selection} (${l.type})`,
           ),
+          ...(c.board?.text ? [c.board.text] : []),
           c.button + ": " + c.url,
         ].join("\n\n");
         payload = {
@@ -772,9 +847,10 @@ export async function deliverEmails(
             )[0],
           ).from,
           to: [row.recipient],
-          subject: c.subject,
-          html: renderEmail(c),
-          text,
+          subject: designed?.subject??c.subject,
+          html: designed?.html??renderEmail(c),
+          text: designed?.text??text,
+          ...(designed?.amp?{amp:designed.amp,league_reports:designed.leagues}:{}),
         };
         const save = await db
           .from("outbound_emails")
@@ -788,6 +864,10 @@ export async function deliverEmails(
       validatePayloadRecipient(payload, row.recipient);
       // Authorization can change while the message is composed or frozen.
       await validateDeliveryScope(db, { ...row, payload });
+      if(payload.amp){
+        const scope=await db.rpc("dev_email_switcher_scope",{p_recipient:row.recipient,p_kind:row.kind,p_leagues:payload.league_reports});
+        if(scope.error||scope.data!==true)throw Error("League email permissions changed; rebuild the message before sending.");
+      }
       const configuredLeague = await db
         .from("leagues")
         .select("name,sportsbook_url,email_sender")
@@ -842,6 +922,11 @@ export async function deliverEmails(
         captured++;
         continue;
       }
+      let result:any;
+      if(payload.amp&&process.env.BOFF_AMP_EMAIL_ENABLED==="true"){
+        result=await sendAmpMail(payload,row.event_key);
+      }else{
+      const {amp,league_reports,...standardPayload}=payload;
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -849,14 +934,15 @@ export async function deliverEmails(
           "Content-Type": "application/json",
           "Idempotency-Key": row.event_key,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(standardPayload),
         signal: AbortSignal.timeout(8000),
       });
-      const result: any = await r.json();
+      result = await r.json();
       if (!r.ok)
         throw new Error(
           result.message ?? `Email provider returned ${r.status}`,
         );
+      }
       const save = await db
         .from("outbound_emails")
         .update({

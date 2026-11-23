@@ -109,6 +109,16 @@ export async function runSuitePlan({
     return results;
   }
   let next = 2;
+  if(suites[2]==='build:visual-release'){
+    await run(2);next=3;
+    if(!results[2].passed){
+      for(let i=3;i<suites.length;i++){
+        const entry={suite:suites[i],passed:false,seconds:0};results[i]=entry;
+        onResult(entry,'Visual build prerequisite failed; suite was not started.',results.filter(Boolean));
+      }
+      return results;
+    }
+  }
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       for (;;) {

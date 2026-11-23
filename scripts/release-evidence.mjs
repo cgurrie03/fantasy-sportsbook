@@ -9,7 +9,7 @@ export function sourceIdentity(cwd=process.cwd()) {
  const git=(...args)=>execFileSync('git',args,{cwd,encoding:'utf8',maxBuffer:16*1024*1024}).trimEnd();
  const sha=git('rev-parse','HEAD'),tree=git('rev-parse','HEAD^{tree}');
  const dirty=git('status','--porcelain=v1','--untracked-files=all').length>0;
- const migrations=git('ls-tree','-r','HEAD','--','supabase/migrations').split('\n').filter(Boolean).map(line=>{
+ const migrations=git('ls-tree','-r','HEAD','--','supabase/migrations','supabase/visual/migrations','supabase/production').split('\n').filter(Boolean).map(line=>{
   const [,blob,file]=/^\d+ blob ([a-f0-9]+)\t(.+)$/.exec(line)??[];
   if(!file?.endsWith('.sql'))throw Error('Unexpected migration entry.');
   return {file,blob};

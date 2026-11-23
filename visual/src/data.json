@@ -1,0 +1,929 @@
+{
+  "week": 8,
+  "teams": [
+    {
+      "id": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "name": "The 20 Year Rebuild",
+      "wins": 4,
+      "losses": 4,
+      "roster_id": 1,
+      "avatar": "https://sleepercdn.com/uploads/964be8b3957b1ce3d42b656f4d747c73.jpg",
+      "manager": "cgurrie",
+      "managers": [
+        "cgurrie"
+      ],
+      "pointsFor": 953.68,
+      "pointsAgainst": 1126.84,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1149.5,
+      "streak": "W2",
+      "managerProfiles": [
+        {
+          "name": "cgurrie",
+          "avatar": "15d7cf259bc30eab8f6120f45f652fb6"
+        }
+      ]
+    },
+    {
+      "id": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "name": "Puka’s rehab facility",
+      "wins": 4,
+      "losses": 4,
+      "roster_id": 2,
+      "avatar": "https://sleepercdn.com/uploads/6ad33d926d1604ec181dc27386067a2b.jpg",
+      "manager": "zachmerk",
+      "managers": [
+        "zachmerk"
+      ],
+      "pointsFor": 1084.76,
+      "pointsAgainst": 1100.08,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1254.42,
+      "streak": "W1",
+      "managerProfiles": [
+        {
+          "name": "zachmerk",
+          "avatar": "4f4090e5e9c3941414db40a871e3e909"
+        }
+      ]
+    },
+    {
+      "id": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "name": "Kis Emeka",
+      "wins": 4,
+      "losses": 4,
+      "roster_id": 3,
+      "avatar": "https://sleepercdn.com/uploads/6a828b4156fe9bbb529ead9ae03a7106.jpg",
+      "manager": "robthefob",
+      "managers": [
+        "robthefob"
+      ],
+      "pointsFor": 1032.88,
+      "pointsAgainst": 1079.88,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1249.26,
+      "streak": "L2",
+      "managerProfiles": [
+        {
+          "name": "robthefob",
+          "avatar": "b3338675f635c2c1f42b469621d38ec6"
+        }
+      ]
+    },
+    {
+      "id": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "name": "Nelson is fat and phat",
+      "wins": 1,
+      "losses": 7,
+      "roster_id": 4,
+      "avatar": "https://sleepercdn.com/uploads/fc5333840bf7c7c2df883c52cf8efd2d.jpg",
+      "manager": "hardikb",
+      "managers": [
+        "hardikb"
+      ],
+      "pointsFor": 1011.5,
+      "pointsAgainst": 1141.26,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1298.22,
+      "streak": "L3",
+      "managerProfiles": [
+        {
+          "name": "hardikb",
+          "avatar": "b3338675f635c2c1f42b469621d38ec6"
+        }
+      ]
+    },
+    {
+      "id": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "name": "Malik’s Magic Magnum",
+      "wins": 5,
+      "losses": 3,
+      "roster_id": 5,
+      "avatar": "https://sleepercdn.com/uploads/4c663dc933bb17dd52826c3d77b2173c.jpg",
+      "manager": "RJRJRJ123",
+      "managers": [
+        "RJRJRJ123"
+      ],
+      "pointsFor": 1257.38,
+      "pointsAgainst": 1119.08,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1449.38,
+      "streak": "L1",
+      "managerProfiles": [
+        {
+          "name": "RJRJRJ123",
+          "avatar": "d55d1f7075eda01948318de4af616075"
+        }
+      ]
+    },
+    {
+      "id": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "name": "earkin",
+      "wins": 1,
+      "losses": 7,
+      "roster_id": 6,
+      "avatar": "7572250c2fb084c434fed0e82229e183",
+      "manager": "eyal0",
+      "managers": [
+        "eyal0"
+      ],
+      "pointsFor": 1042.88,
+      "pointsAgainst": 1194.2,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1297.56,
+      "streak": "L4",
+      "managerProfiles": [
+        {
+          "name": "eyal0",
+          "avatar": "7572250c2fb084c434fed0e82229e183"
+        }
+      ]
+    },
+    {
+      "id": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "name": "Hellbean",
+      "wins": 7,
+      "losses": 1,
+      "roster_id": 7,
+      "avatar": "b3338675f635c2c1f42b469621d38ec6",
+      "manager": "phillipwood",
+      "managers": [
+        "phillipwood"
+      ],
+      "pointsFor": 1331.12,
+      "pointsAgainst": 1116.22,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1519.66,
+      "streak": "L1",
+      "managerProfiles": [
+        {
+          "name": "phillipwood",
+          "avatar": "b3338675f635c2c1f42b469621d38ec6"
+        }
+      ]
+    },
+    {
+      "id": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "name": "Diabloo",
+      "wins": 6,
+      "losses": 2,
+      "roster_id": 8,
+      "avatar": "82aec8e811b839b8ec25d7b458afd57b",
+      "manager": "Diabloo",
+      "managers": [
+        "Diabloo",
+        "nellyknowsball"
+      ],
+      "pointsFor": 1281.28,
+      "pointsAgainst": 1166.58,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1423.8,
+      "streak": "W1",
+      "managerProfiles": [
+        {
+          "name": "Diabloo",
+          "avatar": "82aec8e811b839b8ec25d7b458afd57b"
+        },
+        {
+          "name": "nellyknowsball",
+          "avatar": "dd1e47532992343f9f0c27ef3ac2cd39"
+        }
+      ]
+    },
+    {
+      "id": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "name": "Thank you josh allen",
+      "wins": 6,
+      "losses": 2,
+      "roster_id": 11,
+      "avatar": "f0edbf4278f53f9425db175073df6584",
+      "manager": "bennnnnnnnn8",
+      "managers": [
+        "bennnnnnnnn8"
+      ],
+      "pointsFor": 1296.92,
+      "pointsAgainst": 1095.24,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1438.96,
+      "streak": "W2",
+      "managerProfiles": [
+        {
+          "name": "bennnnnnnnn8",
+          "avatar": "f0edbf4278f53f9425db175073df6584"
+        }
+      ]
+    },
+    {
+      "id": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "name": "mschif",
+      "wins": 2,
+      "losses": 6,
+      "roster_id": 12,
+      "avatar": "f0edbf4278f53f9425db175073df6584",
+      "manager": "mschif",
+      "managers": [
+        "mschif"
+      ],
+      "pointsFor": 857.64,
+      "pointsAgainst": 1062.7,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 999.72,
+      "streak": "W1",
+      "managerProfiles": [
+        {
+          "name": "mschif",
+          "avatar": "f0edbf4278f53f9425db175073df6584"
+        }
+      ]
+    },
+    {
+      "id": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "name": "Team “the boy n shit”",
+      "wins": 3,
+      "losses": 5,
+      "roster_id": 9,
+      "avatar": "https://sleepercdn.com/uploads/4da6ae27116538f015fa93e3510c5e1e.jpg",
+      "manager": "jackbeauchamp",
+      "managers": [
+        "jackbeauchamp"
+      ],
+      "pointsFor": 1043.36,
+      "pointsAgainst": 1046.1,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1147.92,
+      "streak": "L1",
+      "managerProfiles": [
+        {
+          "name": "jackbeauchamp",
+          "avatar": "81a7aefdb286765459b31f06c75536f6"
+        }
+      ]
+    },
+    {
+      "id": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "name": "freelance yush",
+      "wins": 5,
+      "losses": 3,
+      "roster_id": 10,
+      "avatar": "15d7cf259bc30eab8f6120f45f652fb6",
+      "manager": "freelanceyush",
+      "managers": [
+        "freelanceyush"
+      ],
+      "pointsFor": 1202.2,
+      "pointsAgainst": 1147.42,
+      "ties": 0,
+      "games": 8,
+      "potentialPoints": 1447.18,
+      "streak": "W3",
+      "managerProfiles": [
+        {
+          "name": "freelanceyush",
+          "avatar": "15d7cf259bc30eab8f6120f45f652fb6"
+        }
+      ]
+    }
+  ],
+  "league": "goldy plays pretend with men",
+  "season": 2026,
+  "markets": [
+    {
+      "id": "23d8913c-ee46-4213-bc96-46ff1128751f",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "match_total",
+      "line": 252,
+      "odds": -110,
+      "side": "over",
+      "boost": 25,
+      "matchup": "sleeper-8-1-4",
+      "team_id": null,
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "525c79de-de05-4240-ac3c-4a0608cb8766",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "match_total",
+      "line": 252,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-1-4",
+      "team_id": null,
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "145d70cd-cd3f-4a93-bb6e-d9d76349d93d",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -280,
+      "side": "away",
+      "boost": 25,
+      "matchup": "sleeper-8-1-4",
+      "team_id": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "78be7c4c-8569-457d-a78c-30284c2a85f4",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 280,
+      "side": "home",
+      "boost": 25,
+      "matchup": "sleeper-8-1-4",
+      "team_id": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "60cb04ca-770e-48d7-9b60-ec0885937bd3",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "spread",
+      "line": -21,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-1-4",
+      "team_id": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "0c0fd260-8d72-488c-85d3-e508282b715f",
+      "away": "d88348e8-b7dc-45eb-a039-ed4b61a8f64b",
+      "home": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "kind": "spread",
+      "line": 21,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-1-4",
+      "team_id": "b848d5a3-d97a-4cde-87c7-49816a57178e",
+      "featured": "Tank Bowl",
+      "away_projection": 136.5,
+      "home_projection": 115.5
+    },
+    {
+      "id": "2e69ab53-390c-423b-a09e-2d976b2fed0c",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "match_total",
+      "line": 298,
+      "odds": -110,
+      "side": "over",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "437823e7-acc4-4522-b4b6-7528b15377af",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "match_total",
+      "line": 298,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "1df4c44a-4e3d-4089-8e19-96beccd5be6b",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -240,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "b48ebe12-5941-4a2b-9bf1-c552b946fc77",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 240,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "26c4896b-da5d-41eb-ba62-f2241bf04591",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "spread",
+      "line": -18,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "2b89f652-e887-4a9b-bb19-c32df65a0754",
+      "away": "6ce2381c-b426-4f4a-945a-7d596b8c9e06",
+      "home": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "kind": "spread",
+      "line": 18,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-2-7",
+      "team_id": "03304c7a-4625-4a37-81d3-04ab319b5037",
+      "featured": "",
+      "away_projection": 158,
+      "home_projection": 140
+    },
+    {
+      "id": "a1212684-6860-41ca-9ec0-921b933a67c9",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "match_total",
+      "line": 292,
+      "odds": -110,
+      "side": "over",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "dea0995a-efca-435e-a970-eede7bc2791d",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "match_total",
+      "line": 292,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "345fb2d4-c3c1-443a-b52c-aae639d8da4e",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -450,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "638bf3a8-8ba5-4f5d-babd-65fc4d0c11ef",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 450,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "702bed81-5758-4be2-b985-f837710c16e8",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "spread",
+      "line": -30,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "1e103c49-b51b-4e8c-b5e0-fecaa6bcbf07",
+      "away": "43aebaec-63a2-4fef-ad97-6d7172723594",
+      "home": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "kind": "spread",
+      "line": 30,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-3-11",
+      "team_id": "c402389e-59ac-402a-88ba-08f18c5744a2",
+      "featured": "",
+      "away_projection": 161,
+      "home_projection": 131
+    },
+    {
+      "id": "4678c1d1-2442-4214-aa34-8d0db9699276",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "match_total",
+      "line": 298,
+      "odds": -110,
+      "side": "over",
+      "boost": 0,
+      "matchup": "sleeper-8-5-10",
+      "team_id": null,
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "ca1f58eb-a557-4ecc-a65b-d42ba9e3723b",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "match_total",
+      "line": 298,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-5-10",
+      "team_id": null,
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "5abe9734-2d01-42f0-b466-e75688277108",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 120,
+      "side": "away",
+      "boost": 25,
+      "matchup": "sleeper-8-5-10",
+      "team_id": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "86f5e501-a8ec-4c28-a578-09730aaefb52",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -120,
+      "side": "home",
+      "boost": 25,
+      "matchup": "sleeper-8-5-10",
+      "team_id": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "5ad06a4c-a6b4-46c0-8d09-f702e9b30d20",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "spread",
+      "line": 4,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-5-10",
+      "team_id": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "748c7c8a-1428-475a-8546-7e400db78028",
+      "away": "81b1ac37-cfdd-4cee-a9f8-5f64143018a3",
+      "home": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "kind": "spread",
+      "line": -4,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-5-10",
+      "team_id": "0474241a-ee55-402c-8b69-3fa5eab580a8",
+      "featured": "Game of the Week",
+      "away_projection": 147,
+      "home_projection": 151
+    },
+    {
+      "id": "d4688c6e-0665-4513-b2ac-9eb55a5af559",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "match_total",
+      "line": 300.5,
+      "odds": -110,
+      "side": "over",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "b8143d66-c736-45ca-9a63-62a29e46e737",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "match_total",
+      "line": 300.5,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "09f69dbc-0cb4-4688-979b-81cef2c6e51a",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -290,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "2466adf3-b0bc-4abf-bbcc-93ccdd90edd6",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 290,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "3db0672d-4cbd-4463-b91c-e710054e1be5",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "spread",
+      "line": -33.5,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "e3480a9f-7357-4399-b574-2b43d1afa010",
+      "away": "cd1442f9-f2cf-46b0-b89d-c523928167da",
+      "home": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "kind": "spread",
+      "line": 33.5,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-6-8",
+      "team_id": "e62977cc-5a5d-4258-b96c-0b36eaeb19b7",
+      "featured": "",
+      "away_projection": 167,
+      "home_projection": 133.5
+    },
+    {
+      "id": "30839221-4778-452e-969d-3765f8a10705",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "match_total",
+      "line": 245,
+      "odds": -110,
+      "side": "over",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    },
+    {
+      "id": "f0854263-7d7b-4f2a-97ff-593b155fedeb",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "match_total",
+      "line": 245,
+      "odds": -110,
+      "side": "under",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": null,
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    },
+    {
+      "id": "b2564d62-0dec-4559-9412-84cd26de3645",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "moneyline",
+      "line": null,
+      "odds": 280,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    },
+    {
+      "id": "5706dded-3b4f-482e-91e4-7793b7704442",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "moneyline",
+      "line": null,
+      "odds": -280,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    },
+    {
+      "id": "9089f8fb-8bde-4872-8687-de305c094e4a",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "spread",
+      "line": 18,
+      "odds": -110,
+      "side": "away",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    },
+    {
+      "id": "37e3e714-2ae7-4057-ac47-0b07773e7918",
+      "away": "befa44c7-8ad9-4284-8fb2-4cf11e3360f1",
+      "home": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "kind": "spread",
+      "line": -18,
+      "odds": -110,
+      "side": "home",
+      "boost": 0,
+      "matchup": "sleeper-8-9-12",
+      "team_id": "6dbbd826-c72a-4929-b49d-fc7f25a23862",
+      "featured": "",
+      "away_projection": 113.5,
+      "home_projection": 131.5
+    }
+  ],
+  "leagueId": "1312126153980391424",
+  "provenance": "Owner league; archived Week 8 2026 markets. Manager associations read from Sleeper. Example credits, tickets and offers are visual fixtures, not account records.",
+  "avatar": "bac95664e269132b2a43e889f980a3e2",
+  "rosterSnapshot": "Sleeper roster/standing snapshot captured for archived Week 8 visual review",
+  "playerContext": {
+    "season": 2026,
+    "throughWeek": 7,
+    "scoring": "League scoring settings applied to Sleeper weekly statistics; games-played denominator excludes byes and nonparticipation.",
+    "gameContextWeek": 8
+  },
+  "offerCutoffs": {
+    "earliestGame": "2026-10-30T00:15Z",
+    "sundayGame": "2026-11-01T18:00Z"
+  },
+  "rosterPositions": [
+    "QB",
+    "RB",
+    "RB",
+    "WR",
+    "WR",
+    "TE",
+    "FLEX",
+    "FLEX",
+    "SUPER_FLEX",
+    "K",
+    "DEF",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN"
+  ],
+  "finalScores": [
+    {
+      "roster": 1,
+      "points": 132.68
+    },
+    {
+      "roster": 2,
+      "points": 156.3
+    },
+    {
+      "roster": 3,
+      "points": 102.88
+    },
+    {
+      "roster": 4,
+      "points": 107.58
+    },
+    {
+      "roster": 5,
+      "points": 144.58
+    },
+    {
+      "roster": 6,
+      "points": 134.46
+    },
+    {
+      "roster": 7,
+      "points": 144.18
+    },
+    {
+      "roster": 8,
+      "points": 158.64
+    },
+    {
+      "roster": 9,
+      "points": 122.4
+    },
+    {
+      "roster": 10,
+      "points": 151.48
+    },
+    {
+      "roster": 11,
+      "points": 148.06
+    },
+    {
+      "roster": 12,
+      "points": 129.62
+    }
+  ],
+  "regularSeasonWeeks": 14
+}

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-import { errorMessage } from "../lib/accounts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateCapabilityReport } from "../../api/_lib/league-intake";
+import {managerStatus} from '../../api/_lib/manager-status';
 import type {
   IntakeSource,
   CapabilityReport,
 } from "../../api/_lib/league-intake";
+const errorMessage=(error:unknown)=>error&&typeof error==='object'&&'message' in error?String(error.message):'League intake is unavailable. Please try again.';
 type Draft = {
   id: string;
   revision: number;
@@ -17,10 +18,15 @@ type Draft = {
   imported_league_id: string | null;
   source_league_id: string;
 };
+type LeagueChoice={id:string;name:string;season:number;teams:number;linked:boolean};
 export function LeagueIntake({
   onImported,
+  client,
+  discoverLeagues = false,
 }: {
   onImported?: () => Promise<void>;
+  client: SupabaseClient | null;
+  discoverLeagues?: boolean;
 }) {
   const [drafts, setDrafts] = useState<Draft[]>([]),
     [selected, setSelected] = useState(""),
@@ -35,10 +41,26 @@ export function LeagueIntake({
     null,
   );
   const [request, setRequest] = useState(() => crypto.randomUUID());
+  const [choices,setChoices]=useState<LeagueChoice[]>([]),[linked,setLinked]=useState<{sleeperId:string;name:string}[]>([]);
+  const [discovering,setDiscovering]=useState(false),[discoveryNote,setDiscoveryNote]=useState('');
   const alive = useRef(true);
   const current = drafts.find((d) => d.id === selected) ?? drafts[0];
+  const alreadyLinked=linked.some(row=>row.sleeperId===leagueId.trim());
+  async function discover(signal?:AbortSignal){
+    setDiscovering(true);setDiscoveryNote('');
+    try{
+      const session=await client!.auth.getSession();if(signal?.aborted)return;
+      if(!session.data.session)throw Error('Sign in as the platform owner.');
+      const response=await fetch('/api/league-intake',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.data.session.access_token},body:JSON.stringify({action:'discover'}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
+      const data=await response.json();if(!response.ok)throw Error(data.error??'Your Sleeper leagues could not be loaded.');
+      if(!alive.current||signal?.aborted)return;
+      setChoices(data.leagues??[]);setLinked(data.linked??[]);
+      setDiscoveryNote(!data.hasSleeperAccount?'No Sleeper account is linked to this Boff account yet. You can enter a league ID below.':!data.leagues.length?'No leagues were found for this season. You can still enter a league ID.':'');
+    }catch(error){if(alive.current&&!signal?.aborted)setDiscoveryNote(errorMessage(error));}
+    finally{if(alive.current&&!signal?.aborted)setDiscovering(false);}
+  }
   async function load(signal?: AbortSignal) {
-    const result = await supabase!
+    const result = await client!
       .from("league_intake_drafts")
       .select(
         "id,revision,state,source,capabilities,created_at,expires_at,imported_league_id,source_league_id",
@@ -83,6 +105,11 @@ export function LeagueIntake({
       controller.abort();
     };
   }, []);
+  useEffect(()=>{
+    if(!discoverLeagues)return;
+    const controller=new AbortController();void discover(controller.signal);
+    return()=>controller.abort();
+  },[discoverLeagues]);
   async function preview(fresh = false) {
     if (busy) return;
     const key = fresh ? crypto.randomUUID() : request;
@@ -90,9 +117,10 @@ export function LeagueIntake({
     setBusy(true);
     setNotice("");
     try {
-      if (!/^\d{1,32}$/.test(leagueId))
+      if(alreadyLinked)throw Error('This Sleeper league is already connected. Review its existing setup or renewal.');
+      if (!/^\d{1,32}$/.test(leagueId.trim()))
         throw Error("Enter the numeric Sleeper league ID.");
-      const session = await supabase!.auth.getSession();
+      const session = await client!.auth.getSession();
       if (!session.data.session) throw Error("Sign in as the platform owner.");
       const response = await fetch("/api/league-intake", {
         method: "POST",
@@ -100,7 +128,7 @@ export function LeagueIntake({
           "Content-Type": "application/json",
           Authorization: "Bearer " + session.data.session.access_token,
         },
-        body: JSON.stringify({ sleeper_league_id: leagueId, request_key: key }),
+        body: JSON.stringify({ sleeper_league_id: leagueId.trim(), request_key: key }),
         signal: AbortSignal.timeout(20000),
       });
       const data = await response.json();
@@ -125,7 +153,7 @@ export function LeagueIntake({
     setBusy(true);
     setNotice("");
     try {
-      const result = await supabase!
+      const result = await client!
         .from("leagues")
         .select("provider_contract")
         .eq("id", current.imported_league_id)
@@ -160,7 +188,7 @@ export function LeagueIntake({
         throw Error(
           "Enter a league season and a review reason of at least 8 characters.",
         );
-      const result = await supabase!
+      const result = await client!
         .rpc("import_league_intake_draft", {
           p_draft: current.id,
           p_expected: current.revision,
@@ -192,6 +220,15 @@ export function LeagueIntake({
         Preview Sleeper rules and real fantasy teams. Importing keeps operations
         paused and grants no participant or staff access.
       </p>
+      {discoverLeagues&&<section className="intake-discovery" aria-label="Your Sleeper Leagues">
+        <div className="intake-section-heading"><h3>Your Sleeper Leagues</h3><button type="button" className="button secondary" disabled={discovering||busy} onClick={()=>void discover()}>{discovering?'Loading…':'Refresh Leagues'}</button></div>
+        <p className="field-note">Choose a league from your linked Sleeper account, or enter its ID below.</p>
+        {choices.length>0&&<div className="intake-league-list">{choices.map(choice=><div className="intake-league-row" key={choice.id}>
+          <span><strong>{choice.name}</strong><small>{choice.season} · {choice.teams} Teams</small></span>
+          {choice.linked?<span className="badge">Already Connected</span>:<button type="button" className="button secondary" disabled={busy} onClick={()=>{setLeagueId(choice.id);setRequest(crypto.randomUUID());setNotice('League selected. Preview its rules and managers below.');}}>Select League</button>}
+        </div>)}</div>}
+        {discoveryNote&&<p role="status">{discoveryNote}</p>}
+      </section>}
       <label>
         Sleeper league ID
         <input
@@ -207,19 +244,20 @@ export function LeagueIntake({
         />
       </label>
       <button
-        className="secondary"
-        disabled={busy || !ready}
+        className="button secondary"
+        disabled={busy || !ready || alreadyLinked}
         onClick={() => void preview()}
       >
         Preview league import
       </button>
       <button
-        className="secondary"
-        disabled={busy || !ready || !/^\d{1,32}$/.test(leagueId)}
+        className="button secondary"
+        disabled={busy || !ready || alreadyLinked || !/^\d{1,32}$/.test(leagueId.trim())}
         onClick={() => void preview(true)}
       >
         Refresh provider preview
       </button>
+      {alreadyLinked&&<p role="status">This Sleeper league is already connected. Review its existing setup or renewal.</p>}
       {drafts.length > 0 && (
         <label>
           Saved intake draft
@@ -253,6 +291,14 @@ export function LeagueIntake({
                 {current.source.total_rosters} fantasy teams · provider contract{" "}
                 {current.source.contract} · activation review required
               </p>
+              <section className="intake-managers" aria-label="Sleeper Managers"><h3>Teams And Managers</h3>
+                <p className="field-note">Manager status comes from Sleeper. Linking a Boff account and granting commissioner permissions are separate steps.</p>
+                <div className="intake-manager-grid">{current.source.teams?.map(team=><section className="intake-team" key={team.roster_id}>
+                  <h4>{team.team_name}</h4>
+                  <div className="intake-manager-row"><strong>{team.owner_name}</strong><span className="badge">{managerStatus(false,team.co_owner_ids.length,!!team.owner_id)}</span></div>
+                  {team.co_owner_ids.map((id,index)=><div className="intake-manager-row" key={id}><strong>{team.co_owner_names[index]}</strong><span className="badge">Co-Manager</span></div>)}
+                </section>)}</div>
+              </section>
               <p>
                 Draft expires {new Date(current.expires_at).toLocaleString()}.
                 Public Sleeper owner names and IDs never prove a sportsbook
@@ -311,7 +357,7 @@ export function LeagueIntake({
                 and participant claims are approved.
               </label>
               <button
-                className="primary"
+                className="button primary"
                 disabled={busy || !ack || reason.trim().length < 8}
                 onClick={() => void importDraft()}
               >
@@ -327,7 +373,7 @@ export function LeagueIntake({
               </p>
               {current.state === "imported" && (
                 <button
-                  className="secondary"
+                  className="button secondary"
                   disabled={busy}
                   onClick={() => void readImportedReport()}
                 >

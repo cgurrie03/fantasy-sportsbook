@@ -38,6 +38,7 @@ export function reminderEligible(balance: number | string | null) {
 }
 export interface EmailContent {
   brand?: string;
+  board?: { identity: string; sections: string; text: string };
   subject: string;
   heading: string;
   greeting: string;
@@ -94,24 +95,37 @@ function renderTeamWatch(teams: EmailTeamWatch[] = []) {
   return teams
     .map(
       (t) =>
-        `<div style="margin:9px 0;padding:10px 12px;background:${t.leader ? "#fff7df" : "#f3f6fb"};border-left:3px solid ${t.leader ? "#e5b73e" : "#dce3ed"};border-radius:6px;font-size:13px;line-height:1.6"><strong style="color:#182640">${escape(t.name)}</strong>${t.leader || t.selected ? `<div style="font-size:11px;color:#745100;font-weight:bold">${[t.leader ? "Current Leader" : "", t.selected ? "Your Pick" : ""].filter(Boolean).join(" · ")}</div>` : ""}<div style="color:#42516a">${t.finished ? `<strong>Likely final: ${t.current.toFixed(1)} points</strong>` : `Current: <strong>${t.current.toFixed(1)}</strong> · Projected finish: <strong>${t.projected === null ? "Unavailable" : t.projected.toFixed(1)}</strong>`}</div>${!t.finished && t.remaining.length ? `<div style="color:#52617a;font-size:12px;margin-top:4px">Remaining starters: ${escape(t.remaining.join(", "))}</div>` : ""}</div>`,
+        `<div style="margin:9px 0;padding:10px 12px;background:${t.leader ? "#2d4b3e" : "#214438"};border-left:3px solid ${t.leader ? "#e5b73e" : "#dce3ed"};border-radius:6px;font-size:13px;line-height:1.6"><strong style="color:#f1f4ee">${escape(t.name)}</strong>${t.leader || t.selected ? `<div style="font-size:11px;color:#e5c78d;font-weight:bold">${[t.leader ? "Current Leader" : "", t.selected ? "Your Pick" : ""].filter(Boolean).join(" · ")}</div>` : ""}<div style="color:#e2e9df">${t.finished ? `<strong>Likely final: ${t.current.toFixed(1)} points</strong>` : `Current: <strong>${t.current.toFixed(1)}</strong> · Projected finish: <strong>${t.projected === null ? "Unavailable" : t.projected.toFixed(1)}</strong>`}</div>${!t.finished && t.remaining.length ? `<div style="color:#b2c4b7;font-size:12px;margin-top:4px">Remaining starters: ${escape(t.remaining.join(", "))}</div>` : ""}</div>`,
     )
     .join("");
 }
+export function summarizeRoutineEmail(content: EmailContent): EmailContent {
+  return {
+    ...content,
+    paragraphs: content.paragraphs.slice(0, 1),
+    details: [],
+    compactDetails: false,
+    tickets: undefined,
+    legs: undefined,
+    featured: undefined,
+    stories: undefined,
+  };
+}
+
 export function renderEmail(content: EmailContent) {
   const safeUrl = /^https:\/\//.test(content.url) ? content.url : "";
   const stories =
     content.stories
       ?.map(
         (s) =>
-          `<div style="margin:16px 0;padding:18px;background:#f3f6fb;border-left:4px solid #f3c85f;border-radius:10px"><h2 style="font-size:17px;margin:0 0 9px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#42516a;margin:0">${escape(s.text).replace(/\n/g, "<br>")}</p></div>`,
+          `<div style="margin:16px 0;padding:18px;background:#214438;color:#f1f4ee;border-left:4px solid #e5c78d;border-radius:10px"><h2 style="font-size:17px;margin:0 0 9px">${escape(s.title)}</h2><p style="font-size:14px;line-height:1.6;color:#e2e9df;margin:0">${escape(s.text).replace(/\n/g, "<br>")}</p></div>`,
       )
       .join("") ?? "";
   const featured =
     content.featured
       ?.map(
         (f) =>
-          `<table role="presentation" style="width:100%;margin-top:14px;border-spacing:0;border:1px solid #e5be53;border-radius:12px;overflow:hidden;background:#102038;color:#fff"><tr><td colspan="2" style="padding:10px 12px;background:#f3c85f;color:#14233c"><strong style="font-size:17px">${f.title === "Game of the Week" ? "★" : ""} ${escape(f.title)}</strong><div style="font-weight:800;font-size:12px;letter-spacing:1px;margin-top:4px">25% PROFIT BOOST</div></td></tr><tr>${f.teams
+          `<table role="presentation" style="width:100%;margin-top:14px;border-spacing:0;border:1px solid #e5be53;border-radius:12px;overflow:hidden;background:#102b24;color:#f1f4ee"><tr><td colspan="2" style="padding:10px 12px;background:#f3c85f;color:#14233c"><strong style="font-size:17px">${f.title === "Game of the Week" ? "★" : ""} ${escape(f.title)}</strong><div style="font-weight:800;font-size:12px;letter-spacing:1px;margin-top:4px">25% PROFIT BOOST</div></td></tr><tr>${f.teams
             .map((t) => {
               const avatar =
                 t.avatarUrl &&
@@ -119,36 +133,39 @@ export function renderEmail(content: EmailContent) {
                   t.avatarUrl,
                 )
                   ? `<img src="${escape(t.avatarUrl)}" alt="${escape(t.name)} profile picture" width="36" height="36" style="display:block;width:36px;height:36px;border-radius:50%;margin:0 auto 6px;border:2px solid #f3c85f">`
-                  : `<div style="width:36px;height:36px;line-height:36px;background:#263b58;border-radius:50%;margin:0 auto 6px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
-              return `<td style="width:50%;padding:12px 10px 10px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.3">${escape(t.name)}</div>${t.record ? `<div style="font-size:12px;color:#cbd6e9;margin-top:5px">${escape(t.record)}</div>` : ""}<p style="color:#cbd6e9;font-size:12px;margin:7px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:8px 6px;background:#20314b"><div style="font-size:11px;color:#f3d477;margin-bottom:4px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:20px">${escape(t.boostedOdds)}</strong></div></td>`;
+                  : `<div style="width:36px;height:36px;line-height:36px;background:#214438;border-radius:50%;margin:0 auto 6px;font-weight:bold">${escape(t.name.slice(0, 1))}</div>`;
+              return `<td style="width:50%;padding:12px 10px 10px;text-align:center;vertical-align:top">${avatar}<div style="font-size:14px;font-weight:bold;line-height:1.3">${escape(t.name)}</div>${t.record ? `<div style="font-size:12px;color:#cbd6e9;margin-top:5px">${escape(t.record)}</div>` : ""}<p style="color:#cbd6e9;font-size:12px;margin:7px 0">Spread <strong style="color:#fff">${escape(t.spread)}</strong></p><div style="border:1px solid #f3c85f;border-radius:9px;padding:8px 6px;background:#17392f"><div style="font-size:11px;color:#f3d477;margin-bottom:4px">Boosted Moneyline</div><span style="font-size:13px;color:#b8c3d6;text-decoration:line-through;margin-right:8px">${escape(t.originalOdds)}</span><strong style="color:#ffe08a;font-size:20px">${escape(t.boostedOdds)}</strong></div></td>`;
             })
             .join(
               "",
-            )}</tr><tr><td colspan="2" style="padding:0 12px 10px;text-align:center"><div style="padding:8px;border-radius:9px;background:#263b58;font-size:13px">Match Total <strong>${escape(f.total)}</strong>${f.boostedOver ? `<div style="margin-top:5px;color:#ffe08a;font-weight:bold;font-size:15px">⚡ Boosted Over ${escape(f.total)} · ${escape(f.boostedOver)}</div>` : ""}</div></td></tr></table>`,
+            )}</tr><tr><td colspan="2" style="padding:0 12px 10px;text-align:center"><div style="padding:8px;border-radius:9px;background:#214438;font-size:13px">Match Total <strong>${escape(f.total)}</strong>${f.boostedOver ? `<div style="margin-top:5px;color:#ffe08a;font-weight:bold;font-size:15px">⚡ Boosted Over ${escape(f.total)} · ${escape(f.boostedOver)}</div>` : ""}</div></td></tr></table>`,
       )
       .join("") ?? "";
   const groups = new Map<string, NonNullable<EmailContent["legs"]>>();
   const tickets = (content.tickets ?? [])
     .map((t, index, all) => {
       const color = {
-        watch: "#926000",
-        won: "#087248",
-        lost: "#ad3030",
-        neutral: "#52617a",
+        watch: "#e5c78d",
+        won: "#a9d5b0",
+        lost: "#f4a295",
+        neutral: "#b2c4b7",
       }[t.tone];
       const section =
         index === 0 || all[index - 1].tone !== t.tone
-          ? `<h2 style="font-size:17px;margin:24px 0 10px;color:#182640">${{ watch: "Tonight’s Watch", won: "Wins &amp; Likely Wins", lost: "Losses &amp; Eliminated Tickets", neutral: "Pushes, Voids &amp; Review" }[t.tone]}</h2>`
+          ? `<h2 style="font-size:17px;margin:24px 0 10px;color:#f1f4ee">${{ watch: "Tonight’s Watch", won: "Wins &amp; Likely Wins", lost: "Losses &amp; Eliminated Tickets", neutral: "Pushes, Voids &amp; Review" }[t.tone]}</h2>`
           : "";
-      return `${section}<table role="presentation" style="width:100%;margin:18px 0;border-collapse:collapse;border:1px solid #dce3ed"><tr><td style="padding:14px;background:#f3f6fb"><strong style="color:${color};font-size:15px">${escape(t.status)}</strong><div style="font-size:12px;color:#52617a;margin-top:6px">Ticket ${escape(t.id)} · ${escape(t.summary)}</div></td></tr><tr><td style="padding:14px"><div style="font-weight:bold;font-size:14px;margin-bottom:12px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:#f3c85f;text-align:center;margin-right:7px">${t.legs.length}</span>${t.legs.length === 1 ? "Single" : "Leg Parlay"}</div>${t.legs.map((l) => `<div style="margin:12px 0 12px 12px;border-left:2px solid #dce3ed;padding-left:10px"><strong style="font-size:14px">${escape(l.selection)}</strong><p style="font-size:12px;line-height:1.6;color:#52617a;margin:5px 0">${escape(l.detail).replace(/\n/g, "<br>")}</p>${renderTeamWatch(l.teams)}</div>`).join("")}</td></tr></table>`;
+      return `${section}<table role="presentation" style="width:100%;margin:18px 0;border-collapse:collapse;border:1px solid #dce3ed"><tr><td style="padding:14px;background:#214438"><strong style="color:${color};font-size:15px">${escape(t.status)}</strong><div style="font-size:12px;color:#b2c4b7;margin-top:6px">Ticket ${escape(t.id)} · ${escape(t.summary)}</div></td></tr><tr><td style="padding:14px"><div style="font-weight:bold;font-size:14px;margin-bottom:12px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:#f3c85f;text-align:center;margin-right:7px">${t.legs.length}</span>${t.legs.length === 1 ? "Single" : "Leg Parlay"}</div>${t.legs.map((l) => `<div style="margin:12px 0 12px 12px;border-left:2px solid #dce3ed;padding-left:10px"><strong style="font-size:14px">${escape(l.selection)}</strong><p style="font-size:12px;line-height:1.6;color:#b2c4b7;margin:5px 0">${escape(l.detail).replace(/\n/g, "<br>")}</p>${renderTeamWatch(l.teams)}</div>`).join("")}</td></tr></table>`;
     })
     .join("");
   for (const leg of content.legs ?? [])
     groups.set(leg.matchup, [...(groups.get(leg.matchup) ?? []), leg]);
   const legs = content.legs?.length
-    ? `<h2 style="font-size:16px;margin:24px 0 16px"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#f3c85f;color:#14233c;margin-right:8px">${content.legs.length}</span> Bet Slip</h2>${[...groups].map(([matchup, picks]) => `<p style="font-size:14px;font-weight:bold;margin:16px 0 8px">${escape(matchup)}</p>${picks.map((p) => `<div style="margin:8px 0 12px 16px;padding-left:10px"><strong style="font-size:14px">${escape(p.selection)}</strong><p style="font-size:12px;color:#52617a;margin:4px 0">${escape(p.type)} · Open</p></div>`).join("")}`).join("")}`
+    ? `<h2 style="font-size:16px;margin:24px 0 16px"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:50%;background:#f3c85f;color:#14233c;margin-right:8px">${content.legs.length}</span> Bet Slip</h2>${[...groups].map(([matchup, picks]) => `<p style="font-size:14px;font-weight:bold;margin:16px 0 8px">${escape(matchup)}</p>${picks.map((p) => `<div style="margin:8px 0 12px 16px;padding-left:10px"><strong style="font-size:14px">${escape(p.selection)}</strong><p style="font-size:12px;color:#b2c4b7;margin:4px 0">${escape(p.type)} · Open</p></div>`).join("")}`).join("")}`
     : "";
-  return `<!doctype html><html lang="en"><head><style>@media only screen and (max-width:480px){.email-body{padding:18px!important}.email-header{padding:20px 18px!important}}td,p,div{overflow-wrap:anywhere}</style><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"></head><body style="margin:0;padding:24px 12px;background:#edf1f7;color:#182640;font-family:Arial,sans-serif"><table role="presentation" style="max-width:580px;width:100%;margin:auto;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden"><tr><td class="email-header" style="background:#102038;color:#fff;padding:26px 28px"><div style="color:#f4cb63;font-size:24px;font-weight:800">${escape((content.brand ?? "Fantasy Sportsbook").slice(0, 1))}</div><p style="margin:12px 0 4px;font-weight:bold;font-size:18px">${escape(content.brand ?? "Fantasy Sportsbook")}</p><p style="margin:0;color:#d1dbee;font-size:13px">Fake Football. Fake Betting.</p></td></tr><tr><td class="email-body" style="padding:28px"><h1 style="font-size:25px;line-height:1.25;margin:0 0 20px">${escape(content.heading)}</h1><p style="line-height:1.6">${escape(content.greeting)}</p>${content.paragraphs.map((p) => `<p style="line-height:1.6;color:#42516a">${escape(p)}</p>`).join("")}${stories}${content.compactDetails ? '<h2 style="font-size:16px;margin:26px 0 12px">Your Week</h2>' : ""}<table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f6fb;border-radius:10px">${content.details.map(([k, v]) => `<tr><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};color:#52617a;font-size:13px">${escape(k)}</td><td style="padding:${content.compactDetails ? "7px 12px" : "12px 14px"};font-weight:bold;text-align:right;font-size:13px">${escape(v)}</td></tr>`).join("")}</table>${featured}${legs}${tickets}<p style="margin:26px 0 18px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#f3c85f;color:#14233c;font-weight:bold;text-decoration:none">${escape(content.button)}</a></p><p style="font-size:12px;line-height:1.5;color:#65748c">All times Eastern. This league uses pretend money.</p>${content.sample ? '<p style="font-size:12px;color:#65748c">Sample preview — figures, picks, and results are illustrative. No email has been sent.</p>' : ""}</td></tr></table></body></html>`;
+  const detailTable = content.details.length ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#102b24;color:#f1f4ee;border-left:3px solid #a9d5b0;border-radius:4px">${content.details.map(([label, value]) => `<tr><td style="padding:7px 12px;color:#b2c4b7;font-size:13px">${escape(label)}</td><td align="right" style="padding:7px 12px;font-size:14px;font-weight:bold">${escape(value)}</td></tr>`).join("")}</table>` : "";
+  const action = safeUrl ? `<table role="presentation" cellspacing="0" cellpadding="0"><tr><td bgcolor="#dfbd73" style="border-radius:6px"><a href="${escape(safeUrl)}" style="display:inline-block;padding:11px 16px;color:#17392f;font-size:14px;font-weight:bold;text-decoration:none">${escape(content.button)} &rarr;</a></td></tr></table>` : "";
+  const paragraphs = content.paragraphs.map((p) => `<p style="margin:0 0 9px;font-size:14px;line-height:1.5">${escape(p)}</p>`).join("");
+  return `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>${escape(content.subject)}</title>${safeUrl?`<style>@font-face{font-family:Public Sans;src:url('${escape(new URL("/fonts/public-sans.woff2",safeUrl).href)}') format('woff2');font-weight:400 700;font-display:swap}</style>`:""}</head><body style="margin:0;padding:12px;background:#102b24;color:#f1f4ee;font-family:Public Sans,Arial,sans-serif"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;margin:auto;background:#17392f;border:1px solid #345046;color:#f1f4ee;border-radius:8px;overflow:hidden;overflow-wrap:anywhere"><tr><td style="background:#0d251e;color:#f1f4ee;padding:15px 22px 19px;border-top:4px solid #dfbd73"><p style="margin:0 0 9px;color:#dfbd73;font:bold 24px Public Sans,Arial,sans-serif">boff</p>${!content.board && content.brand ? `<p style="margin:0 0 4px;color:#e7efdf;font-size:12px">${escape(content.brand)}</p>` : ""}<h1 style="margin:0;font:bold 28px/1.13 Public Sans,Arial,sans-serif">${escape(content.heading)}</h1></td></tr><tr><td style="padding:15px 22px">${content.board?.identity??""}<p style="margin:0 0 9px;font-size:14px">${escape(content.greeting)}</p>${paragraphs}${action}${stories}${content.compactDetails && detailTable ? '<h2 style="font-size:16px;margin:16px 0 8px">Your Week</h2>' : ""}${detailTable && !content.compactDetails ? `<div style="margin-top:12px">${detailTable}</div>` : detailTable}${featured}${legs}${tickets}${content.board?.sections??""}</td></tr><tr><td style="padding:10px 22px;border-top:1px solid #345046;font-size:12px;color:#b2c4b7">All times Eastern. Boff uses virtual credits.${content.sample ? "<br>Template preview with sample data." : ""}</td></tr></table></body></html>`;
 }
 // Use the published board snapshot so email highlights agree with accepted markets.
 export function openingWeekStories(

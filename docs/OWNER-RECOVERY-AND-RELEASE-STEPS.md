@@ -1,12 +1,14 @@
 # Owner recovery and release steps
 
-These are the remaining owner-controlled steps, not a request to repeat completed key custody. Your password-manager import and phone access are recorded; the full computer restore drill remains deferred at your request.
+These are the remaining owner-controlled steps, not a request to repeat completed key custody. Your password-manager import and phone access are recorded. See the November 19 migration runbook for the current release scope and gates; older observations below are not current-state verification.
 
 ## Full-platform checkpoint (milestone 20)
 
-**Owner deferred the actual export November4 to continue independent development.** Keep the prepared setup for later; do not repeat credential/certificate prompts. Recovery remains a gate for historical production cleanup and material production database changes.
+**November 20:** a fresh encrypted Production export and bounded local application-schema/financial-data restore check succeeded. See `PRODUCTION-MIGRATION-PREPARATION-2026-11-19.md` for the exact checkpoint and coverage. Auth credential/session/runtime/external configuration recovery and the actual application upgrade rehearsal are not verified by that financial check. The previous secure backup connection request is resolved; no password was retained.
 
-The owner selected free client-only setup here on November 3. Portable PostgreSQL 17.11 clients are prepared and verified, with no server, service, Docker or global PATH change. Follow [the exact Development export steps](CLIENT-BACKUP-SETUP.md). The launcher uses a hidden local password prompt, verified TLS, read-only sessions and direct-to-encryption streaming. No actual database/Auth export has run yet; the owner must enter credentials locally. Never send them in chat.
+**Updated November 19:** an encrypted native Production export succeeded November 5–6 (`production-2026-11-05T23-57-37-993Z-fd7cc94f-4a96-462c-8c70-952777de5ff3`). Its manifest has `restore_verified:false` and `full_platform_complete:false`. A fresh checkpoint and isolated restore/upgrade rehearsal remain gates for the material Production migration. This supersedes the November 4 export deferral.
+
+The owner selected free client-only setup here on November 3. Portable PostgreSQL 17.11 clients are prepared and verified, with no server, service, Docker or global PATH change. Follow [the client export steps](CLIENT-BACKUP-SETUP.md), explicitly selecting Production for this release. The launcher uses a hidden local password prompt, verified TLS, read-only sessions and direct-to-encryption streaming. Native export covered the readable database/Auth schemas; external configuration and a successful restore still need independent verification. Never send credentials in chat.
 
 Before an export, confirm its project name and reference: development `whlcnlacueweaqpsupqs`; production `bmvjcdgxwxqalaohpsnw`. Use the supported Supabase logical backup procedure for that project. Cover schema, roles, data and Auth records explicitly, record tool versions and permissions, and keep all plaintext exports private. A generic public-schema `db dump` alone is not full coverage. Record Auth/site URL/redirect/signup/email configuration separately, plus Vercel settings/domains/schedules, private secret recovery locations and object-storage inventory. Never put credentials in Markdown/Git. Current production Storage has no objects, but recheck at backup time.
 

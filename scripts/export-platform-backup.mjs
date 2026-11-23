@@ -174,6 +174,20 @@ export async function verifyClient() {
   return bin;
 }
 
+export function preflightFailure(stderr) {
+  if (/password authentication failed|no password supplied/i.test(stderr))
+    return "Database authentication failed. Check the selected project database password and the user shown in Connect.";
+  if (/tenant or user not found/i.test(stderr))
+    return "Session pooler could not find the project or user. Copy both values from the selected project Connect panel.";
+  if (/certificate|ssl error|ssl syscall/i.test(stderr))
+    return "TLS verification failed. Check the connection host and certificate for that connection.";
+  if (/could not translate host|network is unreachable|no route to host|timeout expired|connection timed out|connection refused/i.test(stderr))
+    return "Database host is unreachable. If using Direct connection, try the selected project Session pooler on port 5432.";
+  if (/permission denied|does not exist/i.test(stderr))
+    return "Connected, but the backup schema check failed. Verify the selected project and database role.";
+  return "Backup connection check failed for an unclassified reason. No backup was exported.";
+}
+
 async function preflight(bin, env) {
   const sql =
     "select json_build_object('server_version_num',current_setting('server_version_num')::int,'database',current_database(),'auth_present',to_regclass('auth.users')is not null,'application_present',to_regclass('public.leagues')is not null,'migration_history_present',to_regclass('supabase_migrations.schema_migrations')is not null,'storage_objects',(select count(*)from storage.objects),'storage_buckets',(select count(*)from storage.buckets))";
@@ -197,14 +211,16 @@ async function preflight(bin, env) {
       out += b;
       if (out.length > 16384) p.kill();
     });
-    p.stderr.on("data", () => {});
+    let diagnostic = "";
+    p.stderr.on("data", (chunk) => {
+      if (diagnostic.length < 8192)
+        diagnostic += chunk.toString().slice(0, 8192 - diagnostic.length);
+    });
     p.once("error", () => reject(Error("Preflight client could not start.")));
     p.once("close", (code) => {
       try {
         if (code !== 0)
-          throw Error(
-            "Preflight failed. Verify the source host/user/password and CA certificate locally.",
-          );
+          throw Error(preflightFailure(diagnostic));
         const v = JSON.parse(out);
         if (
           v.database !== "postgres" ||

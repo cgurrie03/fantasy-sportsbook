@@ -283,7 +283,7 @@ export function LeagueSettings({
       )}
       {canConfigure && (
         <Suspense fallback={<p role="status">Loading league intake…</p>}>
-          <LeagueIntake key={leagueId} onImported={onChanged} />
+          <LeagueIntake key={leagueId} client={supabase} onImported={onChanged} />
         </Suspense>
       )}
     </section>

@@ -16,6 +16,7 @@ export interface RoutineContext {
   period_start: string;
   kind: string;
   merge_watch: boolean;
+  include_details?: boolean;
   open_ticket_count: number;
   prepared_at: string;
   recap?: RecapSnapshot;
@@ -115,6 +116,7 @@ export async function routinePermission(
     c.nfl_season > 2200 ||
     !/^\d{4}-\d{2}-\d{2}$/.test(c.period_start) ||
     typeof c.merge_watch !== "boolean" ||
+    (c.include_details !== undefined && typeof c.include_details !== "boolean") ||
     !Number.isInteger(c.open_ticket_count) ||
     c.open_ticket_count < 0 ||
     c.open_ticket_count > 10000 ||
