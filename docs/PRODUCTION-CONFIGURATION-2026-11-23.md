@@ -9,7 +9,7 @@ Read-only review. No deployment, settings, credential, billing, scheduled job or
 | Supabase | `bmvjcdgxwxqalaohpsnw`, ACTIVE_HEALTHY, PostgreSQL 17.11, SSL and row security on |
 | Canonical domain | `sportsbook.coopergurrie.com`, verified, assigned to the existing Production project |
 | Rollback deployment | `dpl_6pkZ3DcTCUEHiWrUBKa6Rt9wevKZ`, READY, source `d1ea6c98d200326156aef76f8a8a6318b743f897` on `main` |
-| Hosting | Node 24.x; canonical domain and immutable rollback URL respond HTTP 200 with HSTS |
+| Hosting | Node 24.x; canonical application responds HTTP 200 with HSTS. The immutable rollback application was verified through the authenticated Vercel connector; ordinary requests redirect to Vercel login. |
 | Existing environment names | SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, RESEND_API_KEY, WEEKLY_WORKER_SECRET; values masked and not exported |
 | Supabase Auth | Email enabled, automatic email confirmation off, signup enabled, phone disabled |
 | Auth site URL | `https://sportsbook.coopergurrie.com` |
@@ -25,7 +25,7 @@ Credential presence is not proof of successful transport or correct masked value
 1. Set `BOFF_RELEASE_TARGET=production` and `BOFF_RELEASE_SCHEMA=boff-person-wallets-2026-11` on the new Production API deployment. They are absent today. Reuse the existing server-only Supabase credential; verify it against the expected project through runtime identity checks. `visual/production.env.example` records the non-secret values.
 2. Supabase Auth has **no redirect allow-list entries**. Add the trusted Production-origin application routes required for `/join` invitation acceptance and sign-in continuation, preserving query parameters. A Production-origin-only `https://sportsbook.coopergurrie.com/**` entry supports these routes; do not add Development, arbitrary hosts or an unrestricted host wildcard. Verify the actual returned link redirects during hosted acceptance. Existing site URL remains correct.
 3. Auth SMTP sender name is still **Goldy Fantasy Sportsbook**. Change its display name to **Boff**, preserving the existing authorized sender address and encrypted Resend SMTP credential. No credential rotation is necessary merely for branding.
-4. Deploy only the explicit Production candidate/config, not a root-app or Development build. The new Vercel configuration carries the reviewed security headers. The canonical old site did not return CSP on this read, while its immutable rollback URL did; verify the exact canonical response after deployment rather than relying on the preview URL's headers.
+4. Deploy only the explicit Production candidate/config, not a root-app or Development build. The new Vercel configuration carries the reviewed security headers. Neither the canonical old application nor the authenticated immutable rollback application returned CSP. An ordinary request to the protected immutable URL follows a Vercel login page, whose headers are not application evidence. Verify the exact canonical response after deployment.
 5. Generate the dedicated refresh credential inside Vault using the reviewed cutover helper, stage the new cron disabled and keep old/new writers mutually exclusive. Routine notifications remain off until their separate delivery acceptance.
 
 These are concrete pending live changes, not reported as already configured. Applying them remains part of the coordinated cutover so the old application is not mixed with the new runtime.
