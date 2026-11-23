@@ -28,6 +28,9 @@ for(const kind of Object.keys(catalogs[0])){
 const candidates=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{encoding:'utf8'}).split('\0').filter(Boolean);
 const sources=[];
 for(const name of candidates){
+ if(/^supabase\/visual\/migrations\/[a-zA-Z0-9_-]+\.sql$/.test(name)){
+  sources.push({path:name,sha256:createHash('sha256').update(await fs.readFile(name)).digest('hex')});continue;
+ }
  if(!/^(?:visual\/(?:src|server|api|lib|public)\/|visual\/scripts\/test-production-runtime\.py$|visual\/(?:package(?:-lock)?\.json|vite\.config\.ts|tsconfig\.json|build-league-intake\.mjs|index\.html|vercel\.json)$|supabase\/(?:migrations|production)\/|api\/_lib\/league-intake\.ts$|scripts\/(?:lib\/(?:production-migration|rehearse-production-(?:upgrade|wallets|runtime|browser)|offline-production-gateway|load-offline-worker|sql-statements|sql-tokens)|(?:build-production-upgrade|package-production-upgrade|prepare-production-(?:migration|worker|candidate)|rehearse-native-production-backup|test-production-(?:package|migration|worker)))\.mjs$)/.test(name))continue;
  if(/(?:^|\/)(?:\.env[^/]*|node_modules|dist|\.vercel)(?:\/|$)|\.(?:pem|pfx|p12|key)$/i.test(name))throw Error('Forbidden release path');
  try{sources.push({path:name,sha256:createHash('sha256').update(await fs.readFile(name)).digest('hex')});}catch(e){if(e.code!=='ENOENT')throw e;}

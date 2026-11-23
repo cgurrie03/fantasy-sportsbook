@@ -171,7 +171,7 @@ const { setup, A } = require("./test-ux.cjs");
         .getByLabel("Email template", { exact: true })
         .selectOption("opening");
       const opening = p.frameLocator('iframe[title="Opening Email sample"]');
-      await opening.getByText(/Sample preview — figures/).waitFor();
+      await opening.getByText('Template preview with sample data.',{exact:false}).waitFor();
       const storyText = await opening.locator("body").innerText();
       assert.match(storyText, /Saved championship prices/);
       assert(!/Top 3 Projected|Bottom 3 Projected/.test(storyText));
