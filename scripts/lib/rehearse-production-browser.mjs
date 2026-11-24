@@ -5,7 +5,9 @@ import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 export async function rehearseProductionBrowser(gateway,identities,api,handlers,roles){
  const manifest=JSON.parse(await fs.readFile('work/production-migration/candidate-manifest.json','utf8'));
- const candidate=path.resolve(manifest.candidate_directory);assert(candidate.startsWith(path.resolve('work/production-migration')+path.sep));
+ const deployment=path.resolve(manifest.candidate_directory);assert(deployment.startsWith(path.resolve('work/production-migration')+path.sep));
+ const config=JSON.parse(await fs.readFile(path.join(deployment,'vercel.json'),'utf8'));
+ const candidate=path.resolve(deployment,config.outputDirectory??'.');assert(candidate.startsWith(deployment+path.sep),'Static output must exclude server source');
  const server=http.createServer(async(req,res)=>{
   try{
    const chunks=[];for await(const chunk of req)chunks.push(chunk);

@@ -16,9 +16,16 @@ for(const [script,args] of [[path.join(path.dirname(require.resolve('typescript/
   env:{...process.env,BOFF_BUILD_TARGET:'production'},stdio:'inherit',windowsHide:true});
 // Exclusive directory prevents a second run from mixing old release files.
 const output=await fs.mkdtemp(path.join(base,'candidate-'));
-for(const entry of await fs.readdir(path.resolve('visual/dist')))
- await fs.cp(path.resolve('visual/dist',entry),path.join(output,entry),{recursive:true,errorOnExist:true,force:false});
+const staticRoot=path.join(output,'public');
+await fs.mkdir(staticRoot);
+for(const entry of await fs.readdir(path.resolve('visual/dist'))){
+ if(entry==='vercel.json')continue;
+ // Functions and their relative server dependencies are deployment inputs, never CDN assets.
+ const destination=entry==='api'||entry==='lib'?output:staticRoot;
+ await fs.cp(path.resolve('visual/dist',entry),path.join(destination,entry),{recursive:true,errorOnExist:true,force:false});
+}
 const config=targetHeaders(JSON.parse(await fs.readFile('visual/vercel.json','utf8')),target);
+config.outputDirectory='public';
 // The new refresh worker lives in Supabase; do not silently retain the old
 // Vercel worker route in this candidate. Scheduled job replacement is a gate.
 delete config.functions['api/weekly-worker.mjs'];
@@ -29,7 +36,7 @@ async function walk(dir){for(const item of await fs.readdir(dir,{withFileTypes:t
   const relative=path.relative(output,full).replaceAll('\\','/');
   if(/(?:^|\/)(?:\.env[^/]*|\.vercel|work|node_modules)(?:\/|$)|\.(?:pem|key|pgp|dump)$/i.test(relative))throw Error('Private file in build');
   const data=await fs.readFile(full);
-  if(relative.startsWith('assets/')&&relative.endsWith('.js')){
+  if(relative.startsWith('public/assets/')&&relative.endsWith('.js')){
    if(data.includes(Buffer.from(targets.development.projectRef)))throw Error('Development backend in Production browser bundle');
    if(data.includes(Buffer.from(targets.development.publishableKey)))throw Error('Development auth key in Production browser bundle');
   }
@@ -37,6 +44,7 @@ async function walk(dir){for(const item of await fs.readdir(dir,{withFileTypes:t
  }
 }}
 await walk(output);publicFiles.sort((a,b)=>a.path.localeCompare(b.path));
+if(publicFiles.some(file=>/^public\/(api|lib)\//.test(file.path)))throw Error('Server source in public output');
 const metadata={format:'boff-production-candidate-v1',built_at:new Date().toISOString(),candidate_directory:output,target:target.name,
  project_ref:target.projectRef,vercel_project:target.vercelProject,origin:target.origin,
  deployable:false,reason:'Hosted Auth, worker/source/IO acceptance, final source freeze, recovery checkpoint and release approval remain required.',files:publicFiles};
