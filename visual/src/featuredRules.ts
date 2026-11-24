@@ -442,6 +442,8 @@ export function selectFeatureAssignments(
 ): Map<string, Assignment> {
   const out = new Map<string, Assignment>();
   const used = new Set<FeatureKind>();
+  const rankedMatches=matches.slice().sort((a,b)=>b.rankScore-a.rankScore||a.id.localeCompare(b.id));
+  const gameOfTheWeek=rankedMatches[0]?.id;
   const sorted = allTeams
     .slice()
     .sort(
@@ -620,7 +622,7 @@ export function selectFeatureAssignments(
         break;
       }
       case "game":
-        reason = "Highest Available Matchup Rating";
+        reason = "Highest Matchup Rating";
         break;
     }
     return {
@@ -636,12 +638,10 @@ export function selectFeatureAssignments(
   };
   for (const kind of featurePriority) {
     if (!settings.enabled[kind]) continue;
-    for (const m of matches
-      .slice()
-      .sort((a, b) => b.rankScore - a.rankScore || a.id.localeCompare(b.id))) {
+    for (const m of rankedMatches) {
       if (
         out.has(m.id) ||
-        (kind === "game" && used.has(kind))
+        (kind === "game" && (m.id !== gameOfTheWeek || used.has(kind)))
       )
         continue;
       const a = assignment(kind, m);

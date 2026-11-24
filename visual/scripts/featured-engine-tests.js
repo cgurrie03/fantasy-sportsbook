@@ -7,6 +7,9 @@ async () => {
  assert('Exact owner priority order',featurePriority.join(',')==='championship,playoff,rivalry,revenge,upset,streak,tank,game');
  assert('Removed categories absent',!Object.values(featureCatalog).some(c=>/Closest|High-Scoring|Winning Streak Clash/.test(c.label)));
  assert('No forced featured game when categories disabled',run().size===0);
+ const rankedGames=[{...copy(M[0]),id:'top-ranked',rankScore:1},{...copy(M[1]),id:'next-ranked',rankScore:.5}];
+ const gotwOnly=run([...rankedGames].reverse(),T,config('game'),E);assert('Game of the Week picks the highest rating regardless of input order',gotwOnly.size===1&&gotwOnly.get('top-ranked')?.kind==='game');
+ const blockedTop=config('championship','game');const topFinalists={...copy(E),finalists:[rankedGames[0].away.roster_id,rankedGames[0].home.roster_id]};const blocked=run(rankedGames,T,blockedTop,topFinalists);assert('A higher-priority boost on the best matchup suppresses Game of the Week without fallback',blocked.get('top-ranked')?.kind==='championship'&&![...blocked.values()].some(a=>a.kind==='game'));
  for(const games of [1,2,3,4,5,6,7,8]) {
   const ms=Array.from({length:games},(_,i)=>({...copy(M[i%M.length]),id:'quota-'+i,away:{...copy(M[i%M.length].away),wins:0,losses:8,games:8,ties:0},home:{...copy(M[i%M.length].home),wins:0,losses:8,games:8,ties:0}}));const s=config('tank');s.cutoffs.tankStart=1;
   assert(games+' qualifying matchups all receive automatic boosts',run(ms,T,s,E).size===games);

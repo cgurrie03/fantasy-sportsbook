@@ -61,7 +61,7 @@ export const featureCatalog = {
     market: "Either Moneyline",
     color: "gold",
     icon: "trophy",
-    rule: "Highest-rated available matchup using the fixed record / points / spread / total ranking.",
+    rule: "The highest-rated matchup using the fixed record / points / spread / total ranking. If it already receives another boost, Game of the Week is omitted instead of moving to another matchup.",
   },
 } as const;
 export type FeatureKind = keyof typeof featureCatalog;
