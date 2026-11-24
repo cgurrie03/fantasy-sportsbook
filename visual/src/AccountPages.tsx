@@ -450,6 +450,8 @@ export function ProfilePage({
               <ParticipantAvatar
                 name={account?.name || name}
                 team={profileTeam}
+                sleeperId={live()?.user.sleeperId}
+                preferTeam
               />
               <div>
                 <h2>{name || account?.name}</h2>

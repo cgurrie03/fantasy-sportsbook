@@ -4,9 +4,11 @@ import { Icon } from "./ui";
 export function FeatureBadge({
   kind,
   label,
+  boost,
 }: {
   kind: FeatureKind;
   label?: string;
+  boost?: number;
 }) {
   const c = featureCatalog[kind];
   return (
@@ -16,7 +18,7 @@ export function FeatureBadge({
     >
       <Icon name={c.icon} size={14} />
       <strong>{label || c.label}</strong>
-      <small>{c.boost}% Profit Boost</small>
+      <small>{boost ?? c.boost}% Profit Boost</small>
     </span>
   );
 }

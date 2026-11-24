@@ -91,18 +91,22 @@ export function ParticipantAvatar({
   name,
   team,
   sleeperId,
+  preferTeam = false,
 }: {
   name: string;
   team: Team;
   sleeperId?: string;
+  preferTeam?: boolean;
 }) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const profiles: {name:string;avatar?:string|null;sleeperId?:string}[]=team.managerProfiles;
   const profile = sleeperId
     ? profiles.find((p) => p.sleeperId === sleeperId)
     : profiles.find((p) => p.name === name);
-  const source=profile?.avatar
-    ? (/^https:\/\//.test(profile.avatar)?profile.avatar:"https://sleepercdn.com/avatars/thumbs/"+profile.avatar)
+  const avatar = preferTeam && sleeperId && profiles[0]?.sleeperId === sleeperId
+    ? team.avatar || profile?.avatar : profile?.avatar;
+  const source=avatar
+    ? (/^https:\/\//.test(avatar)?avatar:"https://sleepercdn.com/avatars/thumbs/"+avatar)
     : null;
   return (
     <span className="avatar small participant-avatar">
@@ -236,7 +240,7 @@ function Match({
         <span>
           <span className="matchup-time">Week {league.week}</span>
           {feature && (
-            <FeatureBadge kind={feature.kind} label={feature.label} />
+            <FeatureBadge kind={feature.kind} label={feature.label} boost={feature.boost} />
           )}
         </span>
         <span className="matchup-actions">

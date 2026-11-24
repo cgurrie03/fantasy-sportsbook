@@ -1,5 +1,6 @@
 import {useEffect,useState,type SyntheticEvent} from "react";
 import {auth,live} from "./live";
+import {isDevelopment} from "./environment";
 import {Badge} from "./ui";
 import {routeUrl} from "./routing";
 import {createEmailBoard,emailTypeLabels,renderAccountEmail,renderNotificationEmail,renderSignInPrototype,renderLeagueInvitation,type NotificationEvent,type EmailType,type EmailTicket} from "../server/notification-templates";
@@ -190,7 +191,7 @@ export function OwnerEmailCommunications(){
   </section>
   <section className="panel form-panel">
    <div className="split"><h2>Email Sending Log</h2><button className="button secondary" disabled={loading||!leagueId} onClick={()=>setRefresh(value=>value+1)}>Refresh Log</button></div>
-   <p className="field-note">Dev captures messages for preview. Queued messages are awaiting the mail worker.</p>
+   <p className="field-note">{isDevelopment ? "Development captures messages for preview." : "Delivery history for this league. Production delivery is subject to the active release controls."} Queued messages are awaiting the mail worker.</p>
    <div className="owner-email-toolbar owner-email-filters">
     <label>League<select aria-label="League" value={leagueId} onChange={e=>{setMember("");setMembers([]);setLeagueId(e.target.value);}}>
      {leagues.map(league=><option key={league.id} value={league.id}>{league.name} · {league.season}</option>)}

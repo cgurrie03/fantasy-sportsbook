@@ -347,7 +347,7 @@ export function FeaturedCommissioner({
             <div className="feature-assignment-summary" title={a?.reason}>
               {a || (pending && !(live() && isCurrent)) ? (
                 <>
-                  <FeatureBadge kind={a?.kind || pending!} label={a?.label} />
+                  <FeatureBadge kind={a?.kind || pending!} label={a?.label} boost={a?.boost} />
                   <small>
                     {isPast
                       ? "Saved Preset"

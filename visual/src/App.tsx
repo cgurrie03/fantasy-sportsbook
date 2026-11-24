@@ -961,6 +961,7 @@ export default function App() {
                   name={live()?.user.name || profileTeam.manager}
                   team={profileTeam}
                   sleeperId={live()?.user.sleeperId}
+                  preferTeam
                 />
               </a>
             </div>
