@@ -217,8 +217,7 @@ export function FeaturedCommissioner({
   const active = isCurrent
     ? live() ? new Map(matchups.map(m => [m.id, featuredAssignment(m)])) : selectFeatureAssignments(matchups, teams, weekly)
     : new Map(games.map((m) => [m.id, plannedFeature(m, week, settings)]));
-  const cap = Math.floor(games.length / 2),
-    presets = Object.keys(weekly.overrides).length;
+  const presets = Object.keys(weekly.overrides).length;
   const updatePlan = (transform: (p: WeekPlan) => WeekPlan) =>
     setSettings((s) => {
       const local = featureSettingsForWeek(s, week);
@@ -308,9 +307,7 @@ export function FeaturedCommissioner({
             ? [...active.values()].filter(
                 (a) => a?.source === "Automatic" && a.kind !== "rivalry",
               ).length +
-              " / " +
-              cap +
-              " Non-Rivalry Auto"
+              " Automatic · Unlimited"
             : presets + " Saved Presets"}
         </span>
       </div>
@@ -452,7 +449,7 @@ export function FeaturedCommissioner({
       )}
       <div className="feature-planner-footer">
         <small>
-          Rivalries Exempt From Auto Cap · Manual Assignments Can Exceed It
+          No Weekly Boost Limit · Eligibility And Priority Rules Apply
         </small>
         <button
           className="button primary compact-button"
@@ -717,8 +714,7 @@ export function RivalriesPanel({ notify }: { notify: (s: string) => void }) {
         <Modal title="Rivalry Boosts" onClose={() => setShowHelp(false)}>
           <p>
             When rival teams meet, both moneylines automatically receive a 35%
-            Profit Boost. Rivalries are exempt from the default 50% automatic
-            featured-matchup cap.
+            Profit Boost. There is no weekly featured-matchup limit.
           </p>
           <p>
             Each team can have up to three reciprocal rivals. Auto-Populate

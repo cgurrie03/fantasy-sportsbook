@@ -13,6 +13,8 @@
   font-display: swap;
 }
 :root {
+  --environment-bar-height: 0px;
+  --app-header-height: 82px;
   font-family: var(--font-ui);
   font-synthesis: weight;
   color: #173d32;
@@ -218,7 +220,7 @@ label > select {
   transform: none;
 }
 .preview-bar {
-  height: 28px;
+  height: var(--environment-bar-height);
   padding: 0 28px;
   background: #e8eddf;
   color: #405342;
@@ -241,13 +243,13 @@ label > select {
   vertical-align: middle;
 }
 .app-header {
-  height: 82px;
+  height: var(--app-header-height);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   position: sticky;
-  top: 28px;
+  top: var(--environment-bar-height);
   z-index: 35;
   padding: 0 30px 0 25px;
   gap: 28px;
@@ -395,7 +397,7 @@ label > select {
 }
 .sidebar {
   position: fixed;
-  top: 110px;
+  top: var(--header-offset);
   bottom: 0;
   width: 210px;
   background: var(--rail);
@@ -525,7 +527,7 @@ label > select {
 .workspace {
   margin-left: 210px;
   padding: 34px 34px 0;
-  min-height: calc(100vh - 110px);
+  min-height: calc(100vh - var(--header-offset));
   max-width: 1900px;
   display: grid;
   gap: 30px;
@@ -938,7 +940,7 @@ main {
   border-radius: 10px;
   overflow: hidden;
   position: sticky;
-  top: 133px;
+  top: calc(var(--header-offset) + 23px);
 }
 .slip-title {
   display: flex;
@@ -2674,18 +2676,19 @@ tr:last-child td {
 @media (max-width: 760px) {
   :root {
     font-size: 14px;
+    --app-header-height: 69px;
   }
   .preview-bar {
     padding: 0 16px;
     font-size: 8px;
-    height: 25px;
+    height: var(--environment-bar-height);
   }
   .preview-detail {
     display: none;
   }
   .app-header {
-    height: 69px;
-    top: 25px;
+    height: var(--app-header-height);
+    top: var(--environment-bar-height);
     padding: 0 16px;
     gap: 16px;
   }
@@ -2740,7 +2743,7 @@ tr:last-child td {
   .workspace {
     margin-left: 0;
     padding: 25px 18px 115px;
-    min-height: calc(100vh - 94px);
+    min-height: calc(100vh - var(--header-offset));
     gap: 0;
   }
   .page-heading {

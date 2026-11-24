@@ -960,6 +960,7 @@ export default function App() {
                 <ParticipantAvatar
                   name={live()?.user.name || profileTeam.manager}
                   team={profileTeam}
+                  sleeperId={live()?.user.sleeperId}
                 />
               </a>
             </div>

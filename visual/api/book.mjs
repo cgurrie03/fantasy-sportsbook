@@ -52,7 +52,7 @@ export default async function handler(req,res){
  try{
   const user=await read('auth/v1/user','GET',undefined,true);
   if(!user.id||!user.email_confirmed_at)return res.status(401).json({error:'Verified sign-in required'});
-  const members=await read(`rest/v1/league_memberships?league_id=eq.${LEAGUE}&user_id=eq.${user.id}&select=id,team_id,display_name,role`);
+  const members=await read(`rest/v1/league_memberships?league_id=eq.${LEAGUE}&user_id=eq.${user.id}&select=id,team_id,display_name,role,sleeper_user_id`);
   const member=members[0]??await read('rest/v1/rpc/dev_co_manager_account','POST',{p_league:LEAGUE,p_user:user.id});
   if(!member)return res.status(403).json({error:'Your account is not mapped to this league'});
   if(params.get('archive')==='1')return res.status(200).json(await loadArchive(read,LEAGUE));
@@ -120,6 +120,6 @@ export default async function handler(req,res){
   const rewardFeed=await read('rest/v1/rpc/dev_reward_feed','POST',{p_league:LEAGUE,p_season:board.nfl_season,p_week:board.market_week-1}).catch(()=>[]);
   const feed=cache[0]?.feed;
   if(feed?.week===board.market_week&&Number(feed.season)===board.nfl_season)feedArchive.push(...(feed.news??[]),...(feed.history??[]));
-  return res.status(200).json({book,board,quotes,version:current.version,mode:current.mode??"snapshot",changes:current.changes,offerUpdate,futuresBoard,futuresQuotes,teams,tickets,feedPreferences,feedArchive,rewardFeed,standingsWallets,ledger:entries,balance:wallet[0]?.balance??null,user:{id:user.id,email:user.email,walletId:wallet[0]?.id,name:member.display_name,teamId:member.team_id,role:member.role,platformOwner:capabilities?.platform_owner===true,commissioner:member.role==='admin'||capabilities?.platform_owner===true},leagueId:LEAGUE});
+  return res.status(200).json({book,board,quotes,version:current.version,mode:current.mode??"snapshot",changes:current.changes,offerUpdate,futuresBoard,futuresQuotes,teams,tickets,feedPreferences,feedArchive,rewardFeed,standingsWallets,ledger:entries,balance:wallet[0]?.balance??null,user:{id:user.id,email:user.email,walletId:wallet[0]?.id,name:member.display_name,sleeperId:member.sleeper_user_id,teamId:member.team_id,role:member.role,platformOwner:capabilities?.platform_owner===true,commissioner:member.role==='admin'||capabilities?.platform_owner===true},leagueId:LEAGUE});
  }catch(e){const message=e.message||'Dev service unavailable';return res.status(e.status===401?401:e.status===403?403:e.status>=500?503:/changed|expired|available|suspended|selection|market|balance|wager|pick/i.test(message)?409:e.status===400?400:503).json({error:message})}
 }

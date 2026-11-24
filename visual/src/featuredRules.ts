@@ -441,8 +441,6 @@ export function selectFeatureAssignments(
   evidence: FeatureEvidence = featureEvidence,
 ): Map<string, Assignment> {
   const out = new Map<string, Assignment>();
-  const cap = Math.floor(matches.length / 2);
-  let nonRival = 0;
   const used = new Set<FeatureKind>();
   const sorted = allTeams
     .slice()
@@ -646,15 +644,13 @@ export function selectFeatureAssignments(
       .sort((a, b) => b.rankScore - a.rankScore || a.id.localeCompare(b.id))) {
       if (
         out.has(m.id) ||
-        (kind !== "rivalry" &&
-          (nonRival >= cap || (kind === "game" && used.has(kind))))
+        (kind === "game" && used.has(kind))
       )
         continue;
       const a = assignment(kind, m);
       if (!a) continue;
       out.set(m.id, a);
       if (kind !== "rivalry") {
-        nonRival++;
         used.add(kind);
       }
     }

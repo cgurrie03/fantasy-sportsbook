@@ -8,6 +8,7 @@ import "./styles.css";
 import "./refinements.css";
 import "./brand.css";
 import {BoffScreen,StatusPanel} from "./BrandedState";
+document.documentElement.dataset.environment=isDevelopment?"development":"production";
 try{document.documentElement.dataset.theme=localStorage.getItem("boff-visual-theme")==="dark"?"dark":"light";}catch{}
 const root=createRoot(document.getElementById("root")!);
 async function start(){

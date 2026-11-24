@@ -90,19 +90,27 @@ export function Avatar({
 export function ParticipantAvatar({
   name,
   team,
+  sleeperId,
 }: {
   name: string;
   team: Team;
+  sleeperId?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  const profile = team.managerProfiles.find((p) => p.name === name);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const profiles: {name:string;avatar?:string|null;sleeperId?:string}[]=team.managerProfiles;
+  const profile = sleeperId
+    ? profiles.find((p) => p.sleeperId === sleeperId)
+    : profiles.find((p) => p.name === name);
+  const source=profile?.avatar
+    ? (/^https:\/\//.test(profile.avatar)?profile.avatar:"https://sleepercdn.com/avatars/thumbs/"+profile.avatar)
+    : null;
   return (
     <span className="avatar small participant-avatar">
-      {profile?.avatar && !failed ? (
+      {source && source !== failedSource ? (
         <img
-          src={"https://sleepercdn.com/avatars/thumbs/" + profile.avatar}
+          src={source}
           alt=""
-          onError={() => setFailed(true)}
+          onError={() => setFailedSource(source)}
         />
       ) : (
         name.slice(0, 2).toUpperCase()

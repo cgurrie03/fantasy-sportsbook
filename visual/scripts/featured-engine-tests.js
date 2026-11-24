@@ -9,7 +9,7 @@ async () => {
  assert('No forced featured game when categories disabled',run().size===0);
  for(const games of [1,2,3,4,5,6,7,8]) {
   const ms=Array.from({length:games},(_,i)=>({...copy(M[i%M.length]),id:'quota-'+i,away:{...copy(M[i%M.length].away),wins:0,losses:8,games:8,ties:0},home:{...copy(M[i%M.length].home),wins:0,losses:8,games:8,ties:0}}));const s=config('tank');s.cutoffs.tankStart=1;
-  assert(games+' matchups use floor(games/2) automatic cap',run(ms,T,s,E).size===Math.floor(games/2));
+  assert(games+' qualifying matchups all receive automatic boosts',run(ms,T,s,E).size===games);
  }
  const pairs=M.map(m=>[E.people.find(p=>p.roster===m.away.roster_id).id,E.people.find(p=>p.roster===m.home.roster_id).id]);const rivals=config('rivalry');rivals.rivals=pairs;
  assert('Week of all rivals is valid',r.validRivals(pairs));const allRivals=run(M,T,rivals,E);assert('All rivalry matches bypass ordinary cap',allRivals.size===M.length&&[...allRivals.values()].every(a=>a.kind==='rivalry'&&a.boost===35));

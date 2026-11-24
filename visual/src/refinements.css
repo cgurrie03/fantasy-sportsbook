@@ -1,7 +1,8 @@
 /* Owner desktop review: markets first, compact context, no promotional slogans. */
 :root {
-  --header-offset: 110px;
+  --header-offset: calc(var(--environment-bar-height) + var(--app-header-height));
 }
+:root[data-environment="development"] { --environment-bar-height: 28px; }
 .page-heading {
   margin: 0 0 20px;
 }
@@ -928,9 +929,7 @@ html:has(.market-page) { scrollbar-gutter: stable; }
   }
 }
 @media (max-width: 760px) {
-  :root {
-    --header-offset: 94px;
-  }
+  :root[data-environment="development"] { --environment-bar-height: 25px; }
   .page-heading {
     margin-bottom: 17px;
   }
@@ -1828,7 +1827,7 @@ th[aria-sort]:not([aria-sort="none"]) .sort-direction {
   }
   .notification-popover {
     position: fixed;
-    top: 105px;
+    top: calc(var(--header-offset) + 11px);
     left: 12px;
     right: 12px;
     width: auto;
