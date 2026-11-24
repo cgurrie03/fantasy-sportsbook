@@ -428,10 +428,10 @@ export function FeaturedCommissioner({
                   <option value="auto">Decide At Week Opening</option>
                   <option value="both">Both Teams In Race</option>
                   <option value="away-racing">
-                    {m.away.name} In Race · Opponent Boosted
+                    {m.away.name} In Race · Team Boosted
                   </option>
                   <option value="home-racing">
-                    {m.home.name} In Race · Opponent Boosted
+                    {m.home.name} In Race · Team Boosted
                   </option>
                 </select>
               )}

@@ -79,8 +79,8 @@ export function plannedFeature(
     } else if (mode !== "auto") {
       const racing = mode === "away-racing" ? m.away : m.home;
       raceTeams = [racing.id];
-      targets = [racing.id === m.away.id ? m.home.id : m.away.id];
-      label = "Playoff Spoiler";
+      targets = [racing.id];
+      label = "Playoff Race";
     }
   }
   return {

@@ -610,8 +610,8 @@ export function selectFeatureAssignments(
         }
         raceTeams = contenders.map((t) => t.id);
         if (contenders.length === 1) {
-          targets = [contenders[0].id === a.id ? b.id : a.id];
-          reason = `${contenders[0].name} Is Fighting For Qualification · Opponent Boosted`;
+          targets = [contenders[0].id];
+          reason = `${contenders[0].name} Is Fighting For Qualification · Contender Boosted`;
         } else if (contenders.length === 2) {
           reason = "Both Teams Fighting For Qualification";
         } else {
@@ -625,10 +625,7 @@ export function selectFeatureAssignments(
     }
     return {
       kind,
-      label:
-        kind === "playoff" && raceTeams.length === 1
-          ? "Playoff Spoiler"
-          : featureCatalog[kind].label,
+      label: featureCatalog[kind].label,
       boost: featureCatalog[kind].boost,
       market,
       targets,

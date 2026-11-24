@@ -10,10 +10,10 @@ export const featureCatalog = {
   playoff: {
     label: "Playoff Race",
     boost: 35,
-    market: "Race / Spoiler Moneyline",
+    market: "Playoff Contender Moneyline",
     color: "sage",
     icon: "flag",
-    rule: "Both teams in the race: both moneylines. One team in the race: only the opponent's spoiler moneyline.",
+    rule: "Boost the moneyline of the team trying to qualify for the playoffs. If both teams are in the race, boost both moneylines.",
   },
   rivalry: {
     label: "Rivalry",
