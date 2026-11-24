@@ -1,5 +1,7 @@
 # Remaining Round Items — November 18, 2026
 
+November 24 release: the Production cutover is complete for the app, schema, person-wallet migration and new refresh worker. See `docs/PRODUCTION-RELEASE-2026-11-24.md`. Older preparation-only statuses below are superseded. Routine delivery activation, the pending futures rules/readiness choice, remaining identity verification, future Git deployment integration and sustained IO/game-day/rollover acceptance remain open.
+
 November 20 runtime update: steps 1 and 2 now have implemented worker cutover tooling and restored-backup API/browser tests. See `docs/PRODUCTION-RUNTIME-PREPARATION-2026-11-20.md` for completed isolated coverage versus hosted activation/acceptance remaining at the approved cutover. No live changes.
 
 November 20 update: Production schema expansion, person-bound pending credits and legacy futures payout routing are implemented and locally upgrade-tested against the fresh backup. See `docs/PRODUCTION-UPGRADE-REHEARSAL-2026-11-20.md`. Hosted runtime/worker activation, current-board warmup, source freeze/approval and IO/transport acceptance remain; neither live environment was modified.

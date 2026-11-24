@@ -1,5 +1,9 @@
 # BOFF continuation checkpoint
 
+## Production Released — November 24, 2026
+
+The owner authorized the full Production transfer. The new app, atomic schema/person-wallet bridge and dedicated refresh worker are now live. See `docs/PRODUCTION-RELEASE-2026-11-24.md` for exact deployment/source, reconciliation, live checks and remaining gates. Earlier preparation-only/no-push restrictions below are historical and superseded. Routine delivery remains off; new futures publication awaits the owner's pending rules answer. Do not reactivate the old worker or blindly restore old balances. The source branch is pushed; use the explicit Production candidate packager for future releases.
+
 ## Source Freeze And Configuration Review — November 23, 2026
 
 - User requested preparation items 1 and 2: freeze an exact release source and verify Production configuration, without cutover. Current branch remains local; do not push/promote, change live settings or send mail as part of this preparation.
