@@ -53,3 +53,7 @@ The old worker added twelve zero-amount Week 12 ledger entries before the cutove
 Detailed private execution receipts, SQL checksums, HTTP checks and rehearsal logs are in ignored `work/production-cutover-20261124/`. The secure operator connection is closed at the end of the cutover; the database password is not persisted.
 
 Rollback must respect new person-wallet activity. Do not blindly promote the legacy financial writer or restore the pre-cutover database after new claims, bets or settlements; fence writes and reconcile subsequent records first.
+
+## Production parity audit follow-up
+
+Audit report: `docs/PRODUCTION-PARITY-AUDIT-2026-11-24.md`. Source `5f5022f`, deployment `dpl_2kfjEFe9kgCnpkfWUKUzgXm7mWxV`. Primary-manager header and Account now use the custom Sleeper team picture; co-manager avatars stay independent. Published feature badges use actual quote percentages, and the owner mail log no longer describes Production as Development. Build and final 42-case isolated browser/runtime rehearsal passed; live avatar and 25% badges verified. Outstanding gates include absent Production maintenance cron, disabled routine communications, unpublished new futures, historical names in membership rows and Development synchronization. This supersedes the earlier assertion that loading the orange account avatar fully solved the owner's image issue.
