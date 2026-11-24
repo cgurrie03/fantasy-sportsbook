@@ -2,6 +2,14 @@
 
 The owner explicitly requested the full Production transfer. This supersedes the preparation-only restrictions in earlier checkpoints.
 
+## Post-release header, avatar and featured-limit fix
+
+Latest app deployment: `dpl_87diphhqRAysPm3egVja2vfkSsZG`, source `c86afb5f0933396becae37fc0865ad0fe1bae5dc`. Production migration `header_profile_and_unlimited_features` is applied. Production's missing Development banner now contributes zero height to the shared header/sidebar/sticky-tab offsets; mobile uses the same shared variables. Live desktop checks measured header top 0, bottom 82 and scrolled tabs top 82. The header avatar now resolves the authenticated manager's linked Sleeper ID, including independent co-manager identity; the live image loaded successfully.
+
+The owner clarified that unlimited refers to the featured-matchup count, not Fantasy Rewards recipient caps. Removed the half-of-matchups automatic cap in the server and frontend planner; eligibility, category priority and one Game of the Week remain. A rolled-back hosted scenario awarded all six qualifying matchups, and the real current board had five featured matchups after refresh. No accepted tickets were changed by this configuration correction. TypeScript/Production build, API history/access regressions and 42 restored-backup browser checks passed. Private detailed evidence is in `work/production-fixes-20261124/`.
+
+Playoff Race recipient logic is unchanged: boost the moneyline opposing a team still in the playoff race; boost both moneylines when both teams qualify. The default category profit boost is 35% and is available to league bettors, not awarded exclusively to a team's manager.
+
 ## Released
 
 - Public app: https://sportsbook.coopergurrie.com — Vercel deployment `dpl_4N48384WXHdjjoaBHwjMK8FSy5dd`.
