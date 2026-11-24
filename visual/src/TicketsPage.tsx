@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import {isDevelopment} from './environment';
 import {bookSection,live,receipt} from './live';
 import { Badge, PageHeading, Icon, Empty } from "./ui";
 import { GroupedPicks } from "./GroupedPicks";
@@ -125,7 +126,7 @@ export function TicketsPage({
           <span>Tickets</span>
           <strong>{live()?page.summary.count:tickets.length}</strong>
         </div>
-        <Badge>{live()?"Dev Credits":"Example Data"}</Badge>
+        <Badge>{live()?(isDevelopment?"Dev Credits":"Virtual Credits"):"Example Data"}</Badge>
       </div>
       <div className={"ticket-tools " + (all ? "all-bets-tools" : "")}>
         <div className="segmented" aria-label="Ticket Status">

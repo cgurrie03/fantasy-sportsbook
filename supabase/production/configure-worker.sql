@@ -13,7 +13,7 @@ BEGIN
  IF credential IS NULL OR NOT EXISTS(SELECT FROM sportsbook_private.production_worker_runtime r WHERE singleton AND r.token_hash=encode(extensions.digest(credential,'sha256'),'hex')) THEN RAISE EXCEPTION 'Production worker credential mismatch';END IF;
  SELECT net.http_post(url:='https://bmvjcdgxwxqalaohpsnw.supabase.co/functions/v1/boff-production-live-refresh',
   headers:=jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||credential),
-  body:=jsonb_build_object('action',CASE WHEN p_warmup THEN 'warmup' ELSE 'scheduled' END),timeout_milliseconds:=10000) INTO request_id;
+  body:=jsonb_build_object('action',CASE WHEN p_warmup THEN 'warmup' ELSE 'scheduled' END),timeout_milliseconds:=60000) INTO request_id;
  RETURN request_id;
 END $$;
 CREATE OR REPLACE FUNCTION sportsbook_private.configure_production_worker(p_season integer,p_week integer) RETURNS jsonb

@@ -1147,7 +1147,7 @@ export default function App() {
                   className="text-button"
                   onClick={() => setModal("about")}
                 >
-                  About This Preview
+                  {isDevelopment?"About This Preview":"About Boff"}
                 </button>
               </footer>
             </main>
@@ -1226,7 +1226,7 @@ export default function App() {
                             ? "Ticket Details"
                             : modal === "updates"
                               ? "Notifications"
-                              : "About This Preview"
+                              : isDevelopment?"About This Preview":"About Boff"
           }
           wide={modal === "guide"}
           className={
@@ -1449,6 +1449,12 @@ export default function App() {
               onTicket={viewTicket}
               onClose={() => setModal(null)}
             />
+          ) : !isDevelopment ? (
+            <div className="prose">
+              <p>Boff brings your fantasy league’s matchups, player markets, season futures and standings together using virtual credits.</p>
+              <p>Your accepted tickets, odds and results are saved to your account. Your commissioner manages league rules, featured matchups and rewards.</p>
+              <p>Use the Guide &amp; Walkthrough for help with markets, credit claims and sharing tickets.</p>
+            </div>
           ) : (
             <div className="prose">
               <p>

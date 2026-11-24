@@ -1,4 +1,5 @@
 import {live,bookSection} from "./live";
+import {isDevelopment} from './environment';
 import { useEffect, useRef, useState } from "react";
 import {
   members,
@@ -75,7 +76,7 @@ export function BalanceHistory({
     <section className="panel balance-history">
       <div className="panel-heading">
         <h3>Balance History</h3>
-        <Badge>{live()?"Dev Credits":"Example Credits"}</Badge>
+        <Badge>{live()?(isDevelopment?"Dev Credits":"Virtual Credits"):"Example Credits"}</Badge>
       </div>
       {owner && !live() && (
         <label className="balance-user">
