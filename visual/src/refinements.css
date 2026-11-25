@@ -6447,7 +6447,7 @@ h4 {
 .reward-recipient-cap > label > input {width:auto!important;min-height:0;margin:0;flex:none;}
 @media (max-width: 600px) {
  .fantasy-reward-settings .reward-rule-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px;padding-block:12px;align-items:start;}
- .fantasy-reward-settings .reward-rule-row > .toggle-row {grid-column:1/-1;min-width:0;font-size:12px;}
+ .fantasy-reward-settings .reward-rule-row > .toggle-row {grid-column:1/-1;min-width:0;min-height:28px;font-size:12px;}
  .fantasy-reward-settings .reward-rule-header {display:flex;justify-content:flex-end;}
  .fantasy-reward-settings .reward-rule-header > span:not(:last-child) {display:none;}
  .reward-input-label {display:block;font-size:10px;line-height:1.4;white-space:nowrap;color:var(--muted);margin-bottom:4px;}
@@ -6458,8 +6458,11 @@ h4 {
  .feature-cutoff-modal .feature-rule-description {grid-column:1;grid-row:1;}
  .feature-cutoff-modal .compact-cutoffs .feature-enabled {grid-column:1;grid-row:2;justify-self:end;}
  .feature-cutoff-modal .feature-cutoff-inputs {grid-column:1;grid-row:3;}
- .feature-cutoff-modal .feature-rule-title {flex-wrap:nowrap;}
- .feature-cutoff-modal .feature-rule-title .feature-badge {flex-wrap:wrap;white-space:normal;}
+ .feature-cutoff-modal .feature-rule-title {display:grid;grid-template-columns:14px minmax(0,1fr) 28px;gap:5px;}
+ .feature-cutoff-modal .feature-rule-title .feature-badge {width:100%;min-width:0;max-width:100%;flex-shrink:1;flex-wrap:wrap;white-space:normal;}
+ .feature-cutoff-modal .feature-rule-title .feature-badge strong {white-space:normal;}
+ .feature-cutoff-modal .feature-rule-title > .futures-rule-info {min-width:28px;width:28px;min-height:28px;padding:3px;}
+ .feature-cutoff-modal .feature-enabled .toggle-row {min-height:30px;}
  .feature-cutoff-modal .championship-rule-context {display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
  .championship-person > span {min-width:0;overflow-wrap:anywhere;}
 }
@@ -6516,7 +6519,7 @@ h4 {
 .offer-summary-footer {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;}
 .offer-summary-footer .offer-summary-value {color:var(--boost-price);font-size:13px;font-weight:700;white-space:nowrap;}
 .fantasy-reward-settings .reward-group h3 {color:var(--boost-price);}
-.weekly-offer-modal .offer-odds strong {color:var(--boost-price);}
+.weekly-offer-modal .weekly-offer-details .offer-price-row .offer-odds strong {color:var(--boost-price);}
 @media (max-width:600px) {
  .credit-claim-panel {position:fixed;left:12px;right:12px;top:calc(var(--app-header-height) + var(--environment-bar-height) + 6px);width:auto;min-width:0;max-width:none;}
  .weekly-offer-modal > .modal-heading h2 {font-size:24px;line-height:1.15;}
