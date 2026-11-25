@@ -35,3 +35,9 @@ Production automatic domain assignment remains disabled until the safe packaging
 - Production still has 90 tickets and 261 legs. Development has 91 test/history tickets and 261 legs; environments intentionally do not share wallet activity.
 - No Production push devices are registered. Push sending is enabled for future opted-in subscriptions, but delivery to a physical iPhone is not verified. Email provider acceptance is not proof of inbox placement or rendering on a user's device.
 - The Supabase connector temporarily failed for both projects, then recovered; all remaining hosted operations used the restored connector. No passwords or provider keys were copied into chat or source.
+
+## Final live delivery receipt
+
+At 9:35 AM Eastern, all eight newly generated Production New Weekly Markets messages had `sent` status and a provider receipt; the queue had no failed, pending or sending rows. The final retry returned HTTP 200 with three sent and zero failed. These are real new weekly messages from the activated service, not a replay of historical outbox rows. Inbox placement and physical-device rendering still require recipient verification. The final sender deployment had no captured error/fatal runtime logs in the checked window.
+
+The live Guide, The Scoreboard Sprint detail popup and Commissioner Members were visually/semantically checked after deployment. Development retains Vercel authentication; unauthenticated HTTP probes reach its login gate, so they are not described as an authenticated Development smoke test. Its frontend build, backend environment exclusion, alias, worker bundle and database feature predicates were verified separately.
