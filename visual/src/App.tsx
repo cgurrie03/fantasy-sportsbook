@@ -1179,11 +1179,12 @@ export default function App() {
             )}
             <nav aria-label="Mobile Navigation">
               {nav
-                .filter((n) => ["matchups", "my-bets"].includes(n[0]))
+                .filter((n) => ["matchups", "futures", "my-bets"].includes(n[0]))
                 .map(([path, icon, label]) => (
                   <a
                     href={routeUrl(path)}
                     className={route === path ? "active" : ""}
+                    aria-current={route === path ? "page" : undefined}
                     key={path}
                   >
                     <Icon name={icon} size={20} />

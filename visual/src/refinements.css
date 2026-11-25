@@ -5714,9 +5714,10 @@ h4 {
   .header-account .header-balance {
     display: inline-grid;
     gap: 0;
+    min-width: 0;
   }
   .header-balance strong {
-    font-size: 12px;
+    font-size: 15px;
     white-space: nowrap;
   }
   .header-balance small {
@@ -5978,7 +5979,8 @@ h4 {
 }
 .credit-claim summary {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: max-content max-content;
+  justify-content: end;
   gap: 2px 5px;
   align-items: center;
   list-style: none;
