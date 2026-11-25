@@ -24,5 +24,10 @@ Its 8/10-team leagues use fake provider IDs, unfunded wallets, disabled operatio
 and disabled automation. It never copies production records or creates Auth users.
 
 Owner sign-in and redirect verification are separate from the schema checks.
+Hosted visual-app follow-up migrations live in this directory's `migrations/`
+folder. They depend on the installed visual-app schema and its Development
+environment marker; they must not be placed in the shared root migration chain.
+The root migrations are replayed by isolated core-schema tests and do not have
+the hosted visual-app environment.
 Use Preview-only development credentials, captured mail and manual automation.
 No real provider refresh or betting should be enabled for these fixtures.

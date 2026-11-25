@@ -39,6 +39,18 @@ with sync_playwright() as p:
       raise
      assert not errors,identity['name']+' '+route+' script errors: '+str(errors)
      assert page.locator('.dev-badge:visible,.environment-badge:visible,.preview-bar:visible').count()==0
+     if route=='matchups':
+      slip=page.locator('.mobile-slip-handle' if width==390 else '.slip-panel')
+      light_slip=slip.evaluate('(e)=>getComputedStyle(e).backgroundColor')
+      feed=page.locator('.slate-ticker')
+      light_feed=feed.evaluate('(e)=>getComputedStyle(e).backgroundColor') if feed.count() else None
+      page.get_by_role('button',name='Switch to dark mode',exact=True).click()
+      page.wait_for_function('document.documentElement.dataset.theme === "dark"')
+      assert slip.evaluate('(e)=>getComputedStyle(e).backgroundColor')!=light_slip,'Bet slip must change with theme'
+      if light_feed is not None:
+       assert feed.evaluate('(e)=>getComputedStyle(e).backgroundColor')!=light_feed,'League feed must change with theme'
+      page.get_by_role('button',name='Switch to light mode',exact=True).click()
+      page.wait_for_function('document.documentElement.dataset.theme === "light"')
      if route=='profile':
       page.get_by_role('tab',name='Communications',exact=True).click()
       page.get_by_role('button',name='Save Preferences',exact=True).click()

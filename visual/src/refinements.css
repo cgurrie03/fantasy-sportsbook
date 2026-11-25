@@ -5881,8 +5881,8 @@ h4 {
   overflow: hidden;
   border: 1px solid #a38344;
   border-radius: 9px;
-  background: #102b23;
-  color: #fbf5e6;
+  background: var(--raised);
+  color: var(--text);
   font-size: 12px;
 }
 .slate-ticker-label {
@@ -5915,12 +5915,12 @@ h4 {
   align-items: center;
   gap: 8px;
   padding-inline: 4px 14px;
-  border-inline-end: 1px solid #52665b;
+  border-inline-end: 1px solid var(--line);
   color: inherit;
   white-space: nowrap;
 }
 .slate-headline[aria-hidden="true"]:last-child { margin-inline-end: 100%; }
-.slate-headline > span:last-child { color: #d4e2d9; }
+.slate-headline > span:last-child { color: var(--muted); }
 .slate-headline-category {
   padding: 3px 6px;
   border-radius: 4px;
@@ -5933,7 +5933,7 @@ h4 {
 .slate-headline-category[data-category="Featured"] { background: #eed094; color: #33270d; }
 .slate-headline-category[data-category="Underdog Watch"],
 .slate-headline-category[data-category="Live Score"] { background: #b8dfc4; color: #143421; }
-.slate-ticker button { padding-inline: 7px; color: #fbf5e6; }
+.slate-ticker button { padding-inline: 7px; color: var(--text); }
 .upset-badge {
   display: block;
   width: fit-content;

@@ -2916,15 +2916,16 @@ tr:last-child td {
     min-height: 46px;
     padding: 9px 20px;
     font-size: 11px;
-    background: var(--sage);
-    color: var(--sage-ink);
+    background: var(--raised);
+    color: var(--text);
   }
   .mobile-slip-handle > span:last-child {
-    color: #42604b;
+    color: var(--muted);
     font-size: 9px;
   }
   .mobile-slip-handle b {
-    background: #c4d8c1;
+    background: var(--surface);
+    color: var(--text);
   }
   .mobile-slip-handle > span {
     gap: 8px;
