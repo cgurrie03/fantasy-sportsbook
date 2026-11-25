@@ -13,6 +13,7 @@
   font-display: swap;
 }
 :root {
+  scrollbar-gutter: stable;
   --environment-bar-height: 0px;
   --app-header-height: 82px;
   font-family: var(--font-ui);
@@ -67,7 +68,7 @@
 }
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
 }
 button,
 input,

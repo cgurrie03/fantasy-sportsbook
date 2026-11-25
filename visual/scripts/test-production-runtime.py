@@ -8,7 +8,7 @@ with sync_playwright() as p:
  browser=p.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe')
  try:
   for identity in config['sessions']:
-   for width in [1440,390]:
+   for width in [1440,320,390,430]:
     context=browser.new_context(viewport={'width':width,'height':950},reduced_motion='reduce')
     context.add_init_script('localStorage.setItem("sb-bmvjcdgxwxqalaohpsnw-auth-token",'+json.dumps(json.dumps(identity['session']))+');')
     def route_request(route):
@@ -38,6 +38,9 @@ with sync_playwright() as p:
       (out/'page-failure.txt').write_text(page.locator('body').inner_text()+'\nScript errors: '+str(errors),encoding='utf-8')
       raise
      assert not errors,identity['name']+' '+route+' script errors: '+str(errors)
+     if width<700:
+      assert page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1'),identity['name']+' '+route+' horizontal page overflow at '+str(width)
+      if width in [320,390]:page.screenshot(path=str(out/(identity['name']+'-'+str(width)+'-'+route+'.png')),full_page=True)
      assert page.locator('.dev-badge:visible,.environment-badge:visible,.preview-bar:visible').count()==0
      if route=='matchups':
       slip=page.locator('.mobile-slip-handle' if width==390 else '.slip-panel')
@@ -60,6 +63,9 @@ with sync_playwright() as p:
        page.get_by_role('tab',name=tab,exact=True).click()
        page.wait_for_timeout(150)
        assert not errors,identity['name']+' '+tab+' script errors'
+       if width<700:
+        assert page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1'),tab+' horizontal page overflow at '+str(width)
+        if identity['name']=='owner' and width in [320,390]:page.screenshot(path=str(out/('owner-'+str(width)+'-commissioner-'+tab.replace(' ','-')+'.png')),full_page=True)
      if route=='platform' and identity['name']=='owner':
       for tab in ['Result Review','Operations','Communications','Support Inbox','User Balances','Overview']:
        page.get_by_role('tab',name=tab,exact=True).click()
@@ -68,6 +74,6 @@ with sync_playwright() as p:
      results.append({'role':identity['name'],'width':width,'page':route,'passed':True})
     context.close()
  finally:browser.close()
-receipt={'checks':len(results),'roles':3,'widths':[1440,390],'actual_production_candidate':True,'sql_backed_responses':True,'communications_saved':True,'commissioner_and_owner_tabs_exercised':True,'auth_and_external_transport_simulated':True,'results':results}
+receipt={'checks':len(results),'roles':3,'widths':[1440,320,390,430],'actual_production_candidate':True,'sql_backed_responses':True,'communications_saved':True,'commissioner_and_owner_tabs_exercised':True,'auth_and_external_transport_simulated':True,'results':results}
 (out/'results.json').write_text(json.dumps(receipt,indent=2))
 print(json.dumps(receipt))

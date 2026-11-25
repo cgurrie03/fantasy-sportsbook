@@ -127,9 +127,11 @@ export function FantasyRewardsSettings() {
                     <label className="toggle-row"><input type="checkbox" checked={draft.enabled?.[key] ?? percent>0}
                       onChange={event=>setDraft({...draft,enabled:{...draft.enabled,[key]:event.target.checked},
                         boost:{...draft.boost,[key]:percent || reward.percent}})} /><span className="switch" aria-hidden="true" />{reward.label}</label>
+                    <label className="reward-boost-field"><span className="reward-input-label" aria-hidden="true">Boost %</span>
                     <input aria-label={reward.label+" profit boost percent"} type="number" min={1} max={100} step={0.01}
-                      required value={percent || reward.percent} onChange={event=>setDraft({...draft,boost:{...draft.boost,[key]:event.target.valueAsNumber}})} />
+                      required value={percent || reward.percent} onChange={event=>setDraft({...draft,boost:{...draft.boost,[key]:event.target.valueAsNumber}})} /></label>
                     <div className="reward-recipient-cap">
+                      <span className="reward-input-label" aria-hidden="true">Max Users / Week</span>
                       <input aria-label={reward.label+" maximum weekly users"} type="number" min={1} max={128} step={1}
                         required disabled={cap===0} value={cap===0?"":cap} placeholder={cap===0?"All":undefined}
                         onChange={event=>setDraft({...draft,maxRecipients:{...draft.maxRecipients,[key]:event.target.valueAsNumber}})} />

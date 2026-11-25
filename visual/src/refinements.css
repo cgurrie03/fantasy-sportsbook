@@ -6440,9 +6440,29 @@ h4 {
 @media(max-width:640px){.intake-manager-grid{grid-template-columns:1fr}.intake-league-row{flex-wrap:wrap}.intake-manager-row{flex-wrap:wrap}}
 /* Weekly summary cards use their own layout, independent of legacy offer details. */
 .reward-recipient-cap {display:grid;gap:5px;align-items:start;}
+.reward-input-label {display:none;}
+.reward-rule-row .reward-boost-field {display:block;min-width:0;margin:0;}
 .reward-recipient-cap > input {width:100%;min-width:0;}
 .reward-recipient-cap > label {display:flex!important;align-items:center;gap:5px;font-size:11px;white-space:nowrap;margin:0;}
 .reward-recipient-cap > label > input {width:auto!important;min-height:0;margin:0;flex:none;}
+@media (max-width: 600px) {
+ .fantasy-reward-settings .reward-rule-row {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px;padding-block:12px;align-items:start;}
+ .fantasy-reward-settings .reward-rule-row > .toggle-row {grid-column:1/-1;min-width:0;font-size:12px;}
+ .fantasy-reward-settings .reward-rule-header {display:flex;justify-content:flex-end;}
+ .fantasy-reward-settings .reward-rule-header > span:not(:last-child) {display:none;}
+ .reward-input-label {display:block;font-size:10px;line-height:1.4;white-space:nowrap;color:var(--muted);margin-bottom:4px;}
+ .reward-rule-row .reward-boost-field {display:grid;gap:5px;}
+ .reward-rule-row .reward-boost-field .reward-input-label,.reward-recipient-cap .reward-input-label {margin:0;}
+ .fantasy-reward-settings .reward-group {padding:12px;}
+ .feature-cutoff-modal .compact-cutoffs .feature-rule-editor {grid-template-columns:minmax(0,1fr);gap:8px;padding-block:12px;}
+ .feature-cutoff-modal .feature-rule-description {grid-column:1;grid-row:1;}
+ .feature-cutoff-modal .compact-cutoffs .feature-enabled {grid-column:1;grid-row:2;justify-self:end;}
+ .feature-cutoff-modal .feature-cutoff-inputs {grid-column:1;grid-row:3;}
+ .feature-cutoff-modal .feature-rule-title {flex-wrap:nowrap;}
+ .feature-cutoff-modal .feature-rule-title .feature-badge {flex-wrap:wrap;white-space:normal;}
+ .feature-cutoff-modal .championship-rule-context {display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
+ .championship-person > span {min-width:0;overflow-wrap:anywhere;}
+}
 .history-pagination {display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0;}
 .activity-filters,.support-filters {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0;}
 .commissioner-activity {padding:18px;}
@@ -6494,7 +6514,13 @@ h4 {
 }
 .weekly-offer-summary > span {font-size:12px;line-height:1.4;color:var(--muted);}
 .offer-summary-footer {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;}
-.offer-summary-footer .offer-summary-value {color:var(--gold);font-size:13px;font-weight:700;white-space:nowrap;}
+.offer-summary-footer .offer-summary-value {color:var(--boost-price);font-size:13px;font-weight:700;white-space:nowrap;}
+.fantasy-reward-settings .reward-group h3 {color:var(--boost-price);}
+.weekly-offer-modal .offer-odds strong {color:var(--boost-price);}
+@media (max-width:600px) {
+ .credit-claim-panel {position:fixed;left:12px;right:12px;top:calc(var(--app-header-height) + var(--environment-bar-height) + 6px);width:auto;min-width:0;max-width:none;}
+ .weekly-offer-modal > .modal-heading h2 {font-size:24px;line-height:1.15;}
+}
 .offer-summary-footer .button {min-height:32px;padding:6px 10px;font-size:11px;line-height:1.4;white-space:nowrap;}
 @media(max-width:760px){
  .weekly-offer-summaries {grid-auto-columns:100%;gap:8px;scroll-snap-type:x mandatory;}

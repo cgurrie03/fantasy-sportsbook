@@ -33,7 +33,10 @@ function spreadRecord(roster: number) {
     pushes: margins.filter((margin) => margin === 0).length,
   };
 }
-const games = (t: Team) => context.rows.filter((r) => r.roster === t.roster_id);
+const games = (t: Team): typeof context.rows =>
+  (live() ? live().matchupHistory ?? [] : context.rows)
+    .filter((r: {roster:number;week:number}) => r.roster === t.roster_id && (!live() || r.week < league.week))
+    .sort((a: {week:number},b: {week:number}) => a.week-b.week);
 const outcome = (r: (typeof context.rows)[number]) =>
   r.points > r.against ? "W" : r.points < r.against ? "L" : "T";
 export function ordinalSeed(n: number) {
@@ -348,8 +351,10 @@ export function MatchupCarousel({ m }: { m: Matchup }) {
       rank: live() ? 0 : metricRank(t, (x) => exampleATS(x.roster_id).rate),
     },
   ];
+  const byePlayers: {roster:number;name:string}[] = live()
+    ? live().book.payload.players.filter((p: {opponent:string}) => p.opponent === "Bye") : context.byePlayers;
   const earlier = games(m.away).filter(
-    (r) => r.opponent === m.home.roster_id && r.week < context.throughWeek,
+    (r) => r.opponent === m.home.roster_id && r.week < (live() ? league.week : context.throughWeek),
   );
   return (
     <section
@@ -429,13 +434,13 @@ export function MatchupCarousel({ m }: { m: Matchup }) {
                       <h4>Current Streak</h4>
                       <b>{t.streak}</b>
                     </div>
-                    {context.byePlayers.some(
+                    {byePlayers.some(
                       (p) => p.roster === t.roster_id,
                     ) && (
                       <div className="availability-section">
-                        <h4>Week {context.throughWeek} Byes</h4>
+                        <h4>Week {live() ? league.week : context.throughWeek} Byes</h4>
                         <p tabIndex={0} aria-label="Bye Players">
-                          {context.byePlayers
+                          {byePlayers
                             .filter((p) => p.roster === t.roster_id)
                             .map((p) => p.name)
                             .join(", ")}

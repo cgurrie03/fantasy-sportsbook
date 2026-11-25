@@ -46,6 +46,7 @@ export async function rehearseProductionUpgrade(db){
  const {rehearseProductionWallets}=await import('./rehearse-production-wallets.mjs');
  await db.exec(await fs.readFile('visual/server/current-book-acceptance.sql','utf8'));
  await db.exec(await fs.readFile('visual/server/current-book-acceptance.sql','utf8'));
+ await db.exec(await fs.readFile('visual/server/player-parlay-conflicts.sql','utf8'));
  const walletRouting=await rehearseProductionWallets(db);
  let runtime;
  if(process.argv.includes('--runtime')){
