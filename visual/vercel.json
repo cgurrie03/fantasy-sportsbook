@@ -60,6 +60,7 @@
     }
   ],
   "functions": {
+    "api/notification-delivery.mjs": {"maxDuration":120},
     "api/league-intake.mjs": {
       "maxDuration": 45
     },

@@ -7,6 +7,7 @@ const steps = [
   "Tickets",
   "Projections",
   "Offers",
+  "Credit Claims",
   "Preferences",
 ];
 export function Guide({ onComplete }: { onComplete: () => void }) {
@@ -115,6 +116,17 @@ export function Guide({ onComplete }: { onComplete: () => void }) {
               tickets return the stake.
             </p>
           </>
+        ) : step === 5 ? (
+          <>
+            <p>Tap your balance at the top of Boff to open your claim menu. The balance shown in the header is your available spending balance.</p>
+            <div className="guide-credit-timeline">
+              <article><span className="guide-credit-amount">+10</span><div><h4>Every 2 Hours</h4><p>Claim 10 free credits when the countdown reaches zero. Each successful claim starts a new two-hour timer.</p></div></article>
+              <article><span className="guide-credit-amount">+50</span><div><h4>After 24 Hours Away</h4><p>If you haven’t claimed for a full day, claim 50 instead of 10. This replaces the smaller claim and restarts the two-hour timer.</p></div></article>
+            </div>
+            <aside className="guide-credit-eligibility"><h4>When Can I Claim?</h4><p>Your available balance plus open non-future stakes must be below 100. Open futures stakes are excluded. A claim can take you over 100; further claims pause until you’re below the threshold again.</p></aside>
+            <p className="guide-credit-example"><strong>Example</strong> A balance of 75 plus 20 in open weekly bets totals 95, so you can claim when your timer is ready. With 30 in open weekly bets, the total is 105 and claims are unavailable.</p>
+            <p>The menu shows your next claim countdown and separate open weekly and futures stakes. The progress bar fills over two hours. At the Tuesday 5:00 AM Eastern weekly refresh, an eligible account can claim 50; it is not an automatic reset of your balance.</p>
+          </>
         ) : (
           <>
             <p>
@@ -127,8 +139,7 @@ export function Guide({ onComplete }: { onComplete: () => void }) {
               messages remain separate.
             </p>
             <p>
-              Preference changes in this preview are stored in this browser
-              only.
+              Communication choices are saved to your account. Device appearance preferences apply in this browser.
             </p>
           </>
         )}

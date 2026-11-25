@@ -6485,3 +6485,14 @@ h4 {
 @media(max-width:760px){
  .weekly-offer-summaries {grid-auto-columns:100%;gap:8px;scroll-snap-type:x mandatory;}
 }
+.guide-credit-timeline { display:grid; gap:14px; margin:22px 0; }
+.guide-credit-timeline article { display:flex; gap:18px; align-items:flex-start; padding:18px; border-radius:10px; background:var(--surface-raised,rgba(255,255,255,.055)); border:1px solid var(--line); }
+.guide-credit-amount { flex:0 0 62px; padding:12px 6px; text-align:center; background:#ead397; color:#173e32; font-size:24px; font-weight:700; border-radius:8px; font-variant-numeric:tabular-nums; }
+.guide-credit-timeline h4, .guide-credit-eligibility h4 { margin:0 0 8px; }
+.guide-credit-timeline p { margin:0; }
+.guide-credit-eligibility { padding:18px; border-inline-start:4px solid #b8d6c1; background:rgba(121,163,135,.12); border-radius:6px; }
+.guide-credit-eligibility p { margin:0; }
+.guide-credit-example { padding:16px 0; }
+.guide-credit-example strong { display:block; color:var(--gold); margin-bottom:6px; }
+.offer-matchup-context { display:block; margin-top:6px; color:var(--text); line-height:1.5; }
+@media(max-width:480px) { .guide-credit-timeline article { gap:12px; padding:14px; } .guide-credit-amount { flex-basis:52px; font-size:22px; } }

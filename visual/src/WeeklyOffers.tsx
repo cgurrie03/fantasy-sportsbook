@@ -45,6 +45,7 @@ const marketNames: Record<string,string> = {
 
 type OfferQuote = {
   id: string;
+  matchup_key?: string;
   home_projection?: number | string | null;
   away_projection?: number | string | null;
   metadata?: {
@@ -71,6 +72,10 @@ function OfferLeg({ pick }: { pick: WeeklyOffer["picks"][number] }) {
   const meta = quote?.metadata;
   const slot = meta?.slot?.replaceAll("_"," ");
   const type = marketNames[pick.kind] ?? pick.kind.replaceAll("_"," ");
+  const teams = book?.book.payload.teams ?? [];
+  const matchupKey = quote?.matchup_key ?? pick.matchup;
+  const opponents = teams.filter((team: {matchupId?: number | string}) => String(team.matchupId) === String(matchupKey));
+  const matchup = opponents.length === 2 ? opponents.map((team: {name: string}) => team.name).join(" vs. ") : pick.subject.includes(" vs ") || pick.subject.includes(" vs. ") ? pick.subject : undefined;
   let label = pick.label.replace(/\u00c2(?=\u00b7)/g,"");
   let participants: string | undefined;
   if (pick.kind === "player_h2h") {
@@ -97,6 +102,7 @@ function OfferLeg({ pick }: { pick: WeeklyOffer["picks"][number] }) {
   return <li>
     <span><strong>{label}</strong>
       <small className="offer-player-context">{[type,slot].filter(Boolean).join(" · ")}</small>
+      {matchup && <small className="offer-matchup-context">{matchup}</small>}
       {participants && <small className="offer-player-context">{participants}</small>}
     </span>
     <b>{price(pick.odds)}</b>

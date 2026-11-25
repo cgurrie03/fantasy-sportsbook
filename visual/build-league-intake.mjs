@@ -15,6 +15,7 @@ await copyFile(local("api/league-intake.mjs"), local("dist/api/league-intake.mjs
 await copyFile(local("api/membership.mjs"), local("dist/api/membership.mjs"));
 await copyFile(local("api/book.mjs"), local("dist/api/book.mjs"));
 await copyFile(local("api/live-book.mjs"), local("dist/api/live-book.mjs"));
+await copyFile(local("api/notification-delivery.mjs"), local("dist/api/notification-delivery.mjs"));
 await copyFile(local("lib/release-target.mjs"), local("dist/lib/release-target.mjs"));
 await copyFile(local("lib/book-archive.mjs"), local("dist/lib/book-archive.mjs"));
 const invitation=await rolldown({input:fileURLToPath(local('server/notification-templates.ts')),platform:'node'});

@@ -1,5 +1,5 @@
 import {deliverPush,ensurePushKeys,type PushDevice} from "./notification-push.ts";
-import {createEmailBoard,renderNotificationEmail,notificationKinds,type NotificationEvent} from "./notification-templates.ts";
+import {createEmailBoard,renderNotificationEmail,renderAccountEmail,notificationKinds,type NotificationEvent} from "./notification-templates.ts";
 import {isSwitchableEmail,renderLeagueSwitcherEmail} from "./email-switcher.ts";
 import {settleDevWeeks} from "./dev-results.ts";
 import {buildDevBook} from "./dev-pricing.ts";
@@ -279,20 +279,24 @@ Deno.serve(async(req:Request)=>{
    [],
   ]):null;
   for(const event of events){
-   if(!notificationKinds.includes(event.kind))continue;
+   if(!notificationKinds.includes(event.kind)&&event.kind!=="confirmation")continue;
    let details=event.details;
    let edition;
-   if(event.email&&event.withDetails===true&&!isSwitchableEmail(event.kind)){
-    const keyTicket=event.kind==="settled"?event.key.split(":")[1]:null;
+   if(event.email&&(event.withDetails===true||event.kind==="confirmation")&&!isSwitchableEmail(event.kind)){
+    const keyTicket=["settled","confirmation"].includes(event.kind)?event.key.split(":")[1]:null;
     edition=await db("rpc/dev_email_edition","POST",{p_league:leagueId,p_user:event.userId,p_kind:event.kind,
-     p_week:state.week,p_ticket:keyTicket}).catch(()=>undefined);
+     p_week:Number(event.details?.Week??state.week),p_ticket:keyTicket});
    }
    const visual=emailBoard?createEmailBoard(emailBoard[0],emailBoard[1],origin,path,event.teamId,futuresCache.payload.metadata?.leagueName):undefined;
    if(visual)visual.edition=edition;
-   let message=renderNotificationEmail(event.kind as NotificationEvent,event.withDetails===true,details,
+   let message;
+   if(event.kind==="confirmation"){
+    if(!visual?.edition?.tickets?.[0])throw Error('confirmation_ticket_unavailable');
+    message=renderAccountEmail('confirmation',visual,details,visual.edition.tickets[0]);
+   }else message=renderNotificationEmail(event.kind as NotificationEvent,event.withDetails===true,details,
     origin,path,futuresCache.payload.metadata?.leagueName,visual);
    if(event.email&&isSwitchableEmail(event.kind)){
-    const reports=await db("rpc/dev_email_switcher","POST",{p_user:event.userId,p_kind:event.kind,p_week:state.week,p_primary:leagueId});
+    const reports=await db("rpc/dev_email_switcher","POST",{p_user:event.userId,p_kind:event.kind,p_week:Number(event.details?.Week??state.week),p_primary:leagueId});
     if(reports.length)message=renderLeagueSwitcherEmail(reports,event.kind,origin,leagueId);
    }
    if(event.email)await db("rpc/dev_capture_notification","POST",{p_league:leagueId,p_user:event.userId,p_key:event.key,
