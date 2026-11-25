@@ -9,7 +9,9 @@ export default async function handler(req,res){
  if(!/^[a-f0-9]{64}$/.test(token))return res.status(401).json({error:'Worker authorization required'});
  const db=async(path,body)=>{
   const r=await fetch(url+'/rest/v1/'+path,{method:body===undefined?'GET':'POST',headers:{apikey:key,Authorization:'Bearer '+key,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
-  if(!r.ok)throw Error('delivery_database_unavailable');return r.json();
+  if(!r.ok)throw Error('delivery_database_unavailable');
+  if(r.status===204)return null;
+  const text=await r.text();return text?JSON.parse(text):null;
  };
  try{
   const runtime=await db('rpc/production_refresh_runtime',{});

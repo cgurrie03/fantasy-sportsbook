@@ -10,7 +10,7 @@ globalThis.fetch=async(url,options)=>{
  if(String(url).endsWith('/production_refresh_runtime'))return Response.json({tokenHash:createHash('sha256').update(token).digest('hex'),notificationsEnabled:true});
  if(String(url).endsWith('/production_claim_communications')){claims.push(body);return Response.json([{id:'test-id',sender:'sender@example.invalid',recipient:'verified@example.invalid',subject:'Test',html:'<p>Test</p>',plain_text:'Test'}]);}
  if(String(url)==='https://api.resend.com/emails'){sent.push(options);return Response.json(providerFailure?{message:'private provider detail'}:{id:'provider-id'},{status:providerFailure?429:200});}
- if(String(url).endsWith('/production_finish_communication')){completed.push(body);return Response.json(null);}
+ if(String(url).endsWith('/production_finish_communication')){completed.push(body);return new Response(null,{status:204});}
  throw Error('Unexpected network request');
 };
 async function run(authorization,body={}){const result={headers:{},statusCode:0};const res={setHeader(k,v){result.headers[k]=v},status(code){result.statusCode=code;return this},json(data){result.data=data;return result}};return handler({method:'POST',headers:{authorization},body},res);}
