@@ -252,7 +252,7 @@ export default function App() {
       const newFeature=next.quotes.find((q:any)=>q.boost_pct>0&&!oldFeatures.has(q.matchup_key+":"+q.featured));
       if(newFeature)sendBrowserNotification("featured",`Boff · ${newFeature.featured}`,`feature:${next.board.market_week}:${newFeature.matchup_key}:${newFeature.featured}`);
       if(!account){next.tickets=before.tickets;next.ledger=before.ledger;next.user=before.user;
-       next.spreadHistory=before.spreadHistory;next.feedRecap=before.feedRecap;}
+       next.spreadHistory=before.spreadHistory;next.matchupHistory=before.matchupHistory;next.feedRecap=before.feedRecap;}
       else{lastAccountRefresh.current=Date.now();setTickets(next.tickets.map((t:any)=>receipt(t,next)));window.dispatchEvent(new Event('boff-account-refreshed'));}
       (window as any).__boffLive=next;
       if (offersMutation===offerMutation.current && response.offerUpdate) {

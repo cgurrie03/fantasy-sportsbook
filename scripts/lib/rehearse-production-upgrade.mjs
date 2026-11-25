@@ -44,6 +44,8 @@ export async function rehearseProductionUpgrade(db){
  'dev_commissioner_members(uuid)','read_dev_futures(uuid,integer)'];
  for(const root of roots)assert((await q('select to_regprocedure($1) fn',['public.'+root]))[0].fn,'Required runtime function missing: '+root);
  const {rehearseProductionWallets}=await import('./rehearse-production-wallets.mjs');
+ await db.exec(await fs.readFile('visual/server/current-book-acceptance.sql','utf8'));
+ await db.exec(await fs.readFile('visual/server/current-book-acceptance.sql','utf8'));
  const walletRouting=await rehearseProductionWallets(db);
  let runtime;
  if(process.argv.includes('--runtime')){

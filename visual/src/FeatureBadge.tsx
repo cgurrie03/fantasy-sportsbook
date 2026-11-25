@@ -10,9 +10,9 @@ import history from "./season-context.json";
 function FeatureExplanation({ matchup, assignment }: { matchup: Matchup; assignment: Assignment }) {
   const { kind, boost, source, targets } = assignment;
   const opponents = [matchup.away, matchup.home];
-  const recipients = opponents.filter(team => targets.includes(team.id)).map(team => team.name);
+  const recipients = opponents.filter(team => targets.includes(team.id)).map(team => team.name.trim());
   const rows: { week: number; roster: number; opponent: number; points: number; against: number }[] =
-    (live() ? live().spreadHistory ?? [] : history.rows).filter((row: { week: number }) => row.week < league.week);
+    (live() ? live().matchupHistory ?? live().spreadHistory ?? [] : history.rows).filter((row: { week: number }) => row.week < league.week);
   const prior = rows.filter(row => row.roster === matchup.away.roster_id && row.opponent === matchup.home.roster_id).sort((a,b) => b.week-a.week)[0];
   const benefit = kind === "tank" ? "the match-total Over" : recipients.length ? `${recipients.join(" and ")}'s moneyline${recipients.length > 1 ? "s" : ""}` : featureCatalog[kind].market;
   const facts: string[] = [];

@@ -96,13 +96,14 @@ export async function rehearseProductionRuntime(db){
      boost_pct:0,featured:null,team_id:kind==='match_total'?null:team.id,home_team_id:a.id,away_team_id:b.id,home_projection:110+i,away_projection:111+i,metadata:{cutoff:end}});
    }
   }
+  for (const [index,team] of [teams[0],teams[2]].entries()) quotes.push({ui_id:`offline-prop-${index}`,ui_group:`offline-player-${index}`,matchup_key:String(index+1),kind:'player_points',side:'over',label:`Offline Player ${index+1} Over 10.5`,subject:'Fantasy Points',line:10.5,odds:-110,boost_pct:0,featured:null,team_id:team.id,home_team_id:teams[index*2].id,away_team_id:teams[index*2+1].id,home_projection:110,away_projection:111,metadata:{player_id:`offline-${index}`,cutoff:end}});
   const book={season:2026,week:11,observed_at:new Date().toISOString(),valid_until:new Date(Date.now()+3600000).toISOString(),closes_at:end,quotes,
    payload:{leagueName:'Offline Production Rehearsal',leagueAvatar:null,teams:payloadTeams,players:[],positions:['QB','RB','WR','TE','FLEX'],
     regularSeasonWeeks:14,firstGame:null,gamesActive:false,scoringStarted:false,cadenceMinutes:60,openingTargets:Object.fromEntries(payloadTeams.map(t=>[t.id,t.projection]))}};
   const metadata={season:2026,leagueName:book.payload.leagueName,teams:teams.map(t=>({rosterId:t.roster_id,name:t.team_name,ownerId:t.sleeper_owner_id,coManagers:[]})),settings:{playoffWeekStart:15,playoffTeams:7,roundType:0}};
   await q("update public.dev_live_cache set payload=$1,fetched_at=clock_timestamp(),error_code=null where key=$2",[{metadata,week:11,matchups:payloadTeams.map(t=>({rosterId:t.roster_id,matchupId:t.matchupId,points:0})),cadenceMinutes:60},'league:'+sleeper]);
   await db.exec("set request.jwt.claim.role='service_role'");
-  const published=(await q('select public.publish_dev_book($1,$2) r',[league,book]))[0].r;assert.equal(published.quotes,36);
+  const published=(await q('select public.publish_dev_book($1,$2) r',[league,book]))[0].r;assert.equal(published.quotes,38);
   const beforeActivation=await api(bookHandler,'/api/book');assert.equal(beforeActivation.status,200,'API snapshot: '+JSON.stringify(beforeActivation.data));
   const pick=beforeActivation.data.quotes.find(t=>t.kind==='moneyline');assert(pick);
   const place={boardId:published.board_id,revision:published.revision,picks:[pick.id],stake:5,requestId:randomUUID()};
@@ -123,6 +124,25 @@ export async function rehearseProductionRuntime(db){
   assert.equal((await api(bookHandler,'/api/book','offline-unverified')).status,401);
   assert.equal((await api(bookHandler,'/api/book','offline-outsider')).status,403);
   const snapshot=await api(bookHandler,'/api/book');assert.equal(snapshot.status,200);
+  phase='authoritative acceptance freshness';
+  await q("update public.line_refresh_runtime set market_week=11,observed_at=clock_timestamp()-interval '1 day',week_started=true,last_error='Retired worker fixture' where league_id=$1",[league]);
+  const props=snapshot.data.quotes.filter(t=>t.kind==='player_points').map(t=>t.id);assert.equal(props.length,2);
+  const propsBet={...place,picks:props,stake:1,requestId:randomUUID()};
+  await db.exec('savepoint player_parlay_acceptance');
+  const propAccepted=await api(bookHandler,'/api/book',member.id,'POST',propsBet);
+  assert.equal(propAccepted.status,200,'Fresh player-points parlay rejected by retired worker: '+JSON.stringify(propAccepted.data));
+  await db.exec('rollback to player_parlay_acceptance;release player_parlay_acceptance');
+  for(const [name,change] of [
+   ['expired',"valid_until=clock_timestamp()-interval '1 second'"],
+   ['failed',"last_error='Source unavailable'"],
+   ['mismatched',"observed_at=observed_at-interval '1 minute'"]
+  ]) {
+   await db.exec('savepoint invalid_acceptance_lease');
+   await q(`update public.dev_current_book set ${change} where league_id=$1`,[league]);
+   assert.notEqual((await api(bookHandler,'/api/book',member.id,'POST',{...propsBet,requestId:randomUUID()})).status,200,name+' current book accepted a parlay');
+   await db.exec('rollback to invalid_acceptance_lease;release invalid_acceptance_lease');
+  }
+  assert.notEqual((await api(bookHandler,'/api/book',member.id,'POST',{...propsBet,revision:published.revision-1,requestId:randomUUID()})).status,200,'Stale revision accepted');
   const feedResponse=await api(liveHandler,'/api/live-book');assert.equal(feedResponse.status,200,'Feed: '+JSON.stringify(feedResponse.data));
   assert.equal((await api(liveHandler,'/api/live-book','offline-outsider')).status,403);
   const accepted=await api(bookHandler,'/api/book',member.id,'POST',place);assert.equal(accepted.status,200,'Placement: '+JSON.stringify(accepted.data));

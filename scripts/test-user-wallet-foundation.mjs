@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {testWalletRecovery} from './lib/test-wallet-recovery.mjs';
 import {testWalletOffers} from './lib/test-wallet-offers.mjs';
 import {testWalletCutover} from './lib/test-wallet-cutover.mjs';
+import {testCurrentBookAcceptance} from './lib/test-current-book-acceptance.mjs';
 const db=new PGlite(),q=async(sql,args=[])=>(await db.query(sql,args)).rows;
 const owner=randomUUID(),primary=randomUUID(),coowner=randomUUID(),outsider=randomUUID(),unverified=randomUUID();
 const A=randomUUID(),B=randomUUID(),team=randomUUID(),foreignTeam=randomUUID(),request=randomUUID();
@@ -77,6 +78,7 @@ try {
  await q(`insert into sportsbook_markets(id,board_id,market_key,kind,label,subject,side,odds,active)
   values($1,$2,'fixture:high','weekly_high','Fixture high scorer','League','yes',100,true)`,[quote,board]);
  const revision=(await q('select revision from sportsbook_boards where id=$1',[board]))[0].revision;
+ await testCurrentBookAcceptance(db,{league:A,board,user:primary,quote});
  const betRequest=randomUUID();await act(primary);
  const bet=(await q('select place_sportsbook_ticket($1,$2,$3::uuid[],10,$4) r',[board,revision,[quote],betRequest]))[0].r;
  assert.equal(Number(bet.balance),90);
