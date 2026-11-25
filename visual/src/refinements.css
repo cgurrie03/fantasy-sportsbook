@@ -6521,6 +6521,8 @@ h4 {
 .fantasy-reward-settings .reward-group h3 {color:var(--boost-price);}
 .weekly-offer-modal .weekly-offer-details .offer-price-row .offer-odds strong {color:var(--boost-price);}
 @media (max-width:600px) {
+ .page-heading {flex-wrap:wrap;}
+ .page-heading > .badge {margin-inline-start:auto;}
  .credit-claim-panel {position:fixed;left:12px;right:12px;top:calc(var(--app-header-height) + var(--environment-bar-height) + 6px);width:auto;min-width:0;max-width:none;}
  .weekly-offer-modal > .modal-heading h2 {font-size:24px;line-height:1.15;}
 }

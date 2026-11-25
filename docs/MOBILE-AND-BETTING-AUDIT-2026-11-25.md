@@ -17,6 +17,7 @@ The prior stale-worker acceptance incident is separately documented in `ACCEPTAN
 | P1 | Reward award text overlapped percentage inputs at 320px | Mobile awards occupy a full row, with labeled percentage and recipient fields below. Desktop retains its compact grid. |
 | P1 | Credit dropdown extended beyond the left edge at narrow widths | Mobile dropdown anchors within viewport margins below the header. |
 | P2 | A 320px body minimum forced horizontal page scrolling when a classic scrollbar reduced usable width | Removed the body minimum; scroll gutters stay stable as content loads. Deliberately scrolling tables and offer rails remain contained. |
+| P2 | Commissioner heading plus its role badge could slightly exceed the narrow page width | Mobile heading actions and badges wrap to another line when needed. |
 | P1 | Championship rule badge could push its help icon outside the narrow dialog; participants crowded adjacent columns | Constrained the badge/help grid and stacked mobile automatic toggles, inputs, and finalist details independently. |
 | P2 | Gold offer prices and reward headings had insufficient contrast in light mode | Reused the existing theme-aware boosted-price color token. |
 | P2 | Long offer modal headings consumed three lines on narrow screens | Reduced only the mobile offer heading size. |
