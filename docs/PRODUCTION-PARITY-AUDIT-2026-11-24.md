@@ -46,3 +46,7 @@ Production has the Development application feature set, with explicit difference
 Audit fixes deployed to Production as `dpl_2kfjEFe9kgCnpkfWUKUzgXm7mWxV`, source `5f5022f`. Canonical domain assignment and new frontend assets verified. Authenticated live browser confirmed the header and Profile Account image both load the custom Sleeper upload, and all four published feature badges display 25%. Header bottom was 82px and the page heading began below it at 118px. Anonymous API/source-path probes returned 401 JSON and private/no-store; server library URLs returned SPA HTML, not server JavaScript.
 
 TypeScript/Production build passed. Final restored-backup regression completed at 3:40 PM Eastern: 42 browser checks across member, commissioner and owner roles at 1440px/390px passed, along with application upgrade, ticket/claim/reward transaction and access-boundary checks. Hosted external transports are not covered by this isolated suite. No Production schema or league-setting mutations were made in this audit.
+
+## November 25 completion
+
+The five requested gaps and follow-up guide/offer changes are implemented. See `docs/PRODUCTION-PARITY-COMPLETION-2026-11-25.md` for deployments, migrations, activation controls, live checks and physical-device limits. This supersedes the November 24 pending statuses for scheduled cleanup, routine delivery activation, new futures readiness, management names and Development synchronization.
