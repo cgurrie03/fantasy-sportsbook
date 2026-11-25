@@ -4080,6 +4080,18 @@ article.ticket-card {
   font-size: 10px;
   line-height: 1.3;
 }
+.feature-badge-button {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.feature-badge-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .feature-badge strong {
   font-weight: 600;
 }

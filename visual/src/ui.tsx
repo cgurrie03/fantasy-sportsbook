@@ -330,10 +330,15 @@ export function PageHeading({
   );
 }
 
-export function InfoPopover({ title, children, label }: { title: string; children: ReactNode; label?: string }) {
+export function InfoPopover({ title, children, label, triggerContent, triggerClassName, hover = false }: { title: string; children: ReactNode; label?: string; triggerContent?: ReactNode; triggerClassName?: string; hover?: boolean }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const cancelClose = () => { if (closeTimer.current) clearTimeout(closeTimer.current); };
+  const closeOnLeave = () => { if (hover) { cancelClose(); closeTimer.current = setTimeout(() => panel.current?.hidePopover(), 180); } };
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   useEffect(() => {
     const position = () => {
       const button = trigger.current;
@@ -363,9 +368,11 @@ export function InfoPopover({ title, children, label }: { title: string; childre
     };
   }, []);
   return <>
-    <button ref={trigger} className={label?"button secondary compact-button":"icon-button futures-rule-info"} type="button" popoverTarget={id}
-      aria-label={`About ${title}`}>{label ?? <Icon name="info" size={16} />}</button>
-    <div ref={panel} id={id} popover="auto" className="futures-rule-help" role="region" aria-label={title}>
+    <button ref={trigger} className={triggerClassName ?? (label?"button secondary compact-button":"icon-button futures-rule-info")} type="button" popoverTarget={id}
+      aria-expanded={expanded} aria-controls={id} onPointerEnter={event => { if (hover && event.pointerType === "mouse") { cancelClose(); if (!panel.current?.matches(":popover-open")) panel.current?.showPopover(); } }} onPointerLeave={closeOnLeave}
+      aria-label={`About ${title}`}>{triggerContent ?? label ?? <Icon name="info" size={16} />}</button>
+    <div ref={panel} id={id} popover="auto" className="futures-rule-help" role="region" aria-label={title}
+      onToggle={event => setExpanded(event.newState === "open")} onPointerEnter={cancelClose} onPointerLeave={closeOnLeave}>
       <strong>{title}</strong>
       {children}
     </div>

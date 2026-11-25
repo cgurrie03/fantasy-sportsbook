@@ -240,7 +240,7 @@ function Match({
         <span>
           <span className="matchup-time">Week {league.week}</span>
           {feature && (
-            <FeatureBadge kind={feature.kind} label={feature.label} boost={feature.boost} />
+            <FeatureBadge kind={feature.kind} label={feature.label} boost={feature.boost} matchup={m} assignment={feature} />
           )}
         </span>
         <span className="matchup-actions">
