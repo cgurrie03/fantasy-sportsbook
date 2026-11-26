@@ -5,7 +5,7 @@ const inks:Record<string,string>={"#f1f4ee":"#173d32","#e2e9df":"#273e34","#b2c4
 const className=(property:string,color:string)=>'boff-'+property+'-'+color.slice(1);
 const rule=(property:string,color:string)=>'.'+className(property,color)+'{'+property+':'+color+'!important}';
 export function emailTheme(html:string,includeHead=true){
- const themed=html.replace(/<([a-z][\w:-]*)([^<>]*)>/gi,(whole,tag:string,attributes:string)=>{
+ const themed=html.replace(/<([a-z][\w:-]*)([^<>]*)>/gi,(_whole,tag:string,attributes:string)=>{
   const classes:string[]=[];
   let attrs=attributes.replace(/\bbgcolor="(#[a-f\d]{6})"/gi,(value:string,color:string)=>{
    const key=color.toLowerCase();if(!surfaces[key])return value;
