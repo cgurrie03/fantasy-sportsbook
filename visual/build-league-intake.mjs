@@ -18,6 +18,7 @@ await copyFile(local("api/live-book.mjs"), local("dist/api/live-book.mjs"));
 await copyFile(local("api/notification-delivery.mjs"), local("dist/api/notification-delivery.mjs"));
 await copyFile(local("lib/release-target.mjs"), local("dist/lib/release-target.mjs"));
 await copyFile(local("lib/book-archive.mjs"), local("dist/lib/book-archive.mjs"));
+await copyFile(local("lib/confirmation-capture.mjs"), local("dist/lib/confirmation-capture.mjs"));
 const invitation=await rolldown({input:fileURLToPath(local('server/notification-templates.ts')),platform:'node'});
 try {await invitation.write({file:fileURLToPath(local('dist/lib/invitation-email.mjs')),format:'esm',codeSplitting:false,minify:true});}
 finally {await invitation.close();}

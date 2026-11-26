@@ -1,4 +1,5 @@
 import {createEmailBoard,renderNotificationEmail,type EmailBoard,type EmailEdition} from "./notification-templates.ts";
+import {emailTheme} from './email-theme.ts';
 
 export const switchableEmailKinds=["opening","recap","monday_watch","credit"] as const;
 export type SwitchableEmailKind=typeof switchableEmailKinds[number];
@@ -22,7 +23,7 @@ export function renderLeagueReport(row:LeagueEmail,kind:SwitchableEmailKind,orig
 }
 export function readerDropdown(html:string,options:LeagueEmailOption[],selected:string){
  const select=`<label style="display:block;font-size:11px;color:#b2c4b7;margin-bottom:4px" for="league-focus">League</label><select id="league-focus" aria-label="League Of Focus" style="box-sizing:border-box;width:100%;max-width:100%;padding:8px 28px 8px 10px;border:1px solid #527364;border-radius:6px;background:#17392f;color:#f1f4ee;font:700 14px Public Sans,Arial,sans-serif">${options.map(option=>`<option value="${escape(option.id)}"${option.id===selected?" selected":""}>${escape(option.name)}</option>`).join("")}</select>`;
- return html.replace("<head>",'<head><base target="_top">').replace(/<!--league-focus-->[\s\S]*?<!--\/league-focus-->/,select);
+ return html.replace("<head>",'<head><base target="_top">').replace(/<!--league-focus-->[\s\S]*?<!--\/league-focus-->/,emailTheme(select,false));
 }
 function ampBody(html:string){
  return html.match(/<body[^>]*>([\s\S]*)<\/body>/i)![1]

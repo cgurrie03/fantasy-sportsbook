@@ -1,4 +1,5 @@
 import {featureCatalog} from "../src/featuredOptions.ts";
+import {emailTheme} from './email-theme.ts';
 export const notificationEvents = {
  opening: {label:"New Weekly Markets", subject:"The weekly slate is open", message:"This week’s markets are ready to browse.", action:"Open Weekly Slate", page:"matchups"},
  reminder: {label:"Weekly Reminder", subject:"Your weekly slate reminder", message:"Check the slate and any offers before kickoff.", action:"Open Weekly Slate", page:"matchups"},
@@ -120,6 +121,7 @@ type PrototypeContent = {
  sections?:string; sectionText?:string;
  accent:string; tint:string; ink:string; rows:[string,string|number][];
  footerHeading:string; footerText:string; footerLink:string; footerHref:string;
+ hideAction?:boolean;
 };
 
 function emailAction(label:string,href:string){
@@ -156,7 +158,7 @@ function renderPrototype(content:PrototypeContent){
      ${content.message?`<p style="margin:0 0 20px;font-size:14px;line-height:1.6">${escape(content.message)}</p>`:""}
      ${details}
      ${content.sections??""}
-     ${emailAction(content.action,content.href)}
+     ${content.hideAction?"":emailAction(content.action,content.href)}
     </td></tr>
     ${footer}
    </table>
@@ -165,7 +167,7 @@ function renderPrototype(content:PrototypeContent){
  </body></html>`;
  const text=[content.heading,content.context,content.message,...content.rows.map(([k,v])=>k+": "+v),content.action+": "+content.href,
   content.sectionText,board?.text,content.footerHeading,content.footerText,content.footerLink+": "+content.footerHref].filter(Boolean).join("\n\n");
- return {subject:content.subject,html,text};
+ return {subject:content.subject,html:emailTheme(html),text};
 }
 
 const formatOdds=(value:number)=>(value>0?"+":"")+value;
@@ -193,7 +195,7 @@ function ticketLegResult(leg:EmailTicket["legs"][number],hideTeams=false){
  if(scores&&hideTeams)return "";
  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px">${result.current&&scores?`<tr><td colspan="3" style="padding:0 0 4px;color:#b2c4b7;font-size:11px">Current ${scores?"Scores":escape(result.label)}</td></tr>`:""}${teams.map(team=>`<tr><td width="26" style="padding:4px 6px 4px 0">${avatarHtml(team.name,team.avatar,20)}</td><td style="padding:4px 0;font-size:12px;color:#b2c4b7">${escape(team.name)}</td>${scores&&team.score!=null?`<td align="right" style="padding:4px 0 4px 8px;font-size:14px;font-weight:bold;color:#f1f4ee">${Number(team.score).toFixed(2)}</td>`:""}</tr>`).join("")}${!scores&&result.value!=null?`<tr><td colspan="2" style="padding-top:5px;font-size:12px;color:#b2c4b7">${escape((result.current?"Current ":"")+result.label)}</td><td align="right" style="padding:5px 0 0 8px;font-size:14px;font-weight:bold;color:#f1f4ee">${Number(result.value).toFixed(2)}</td></tr>`:""}</table>`;
 }
-export function renderEmailTicket(ticket:EmailTicket,board?:EmailBoard,showAction=true){
+export function renderEmailTicket(ticket:EmailTicket,board?:EmailBoard,showAction=true,showProgress=true){
  const state=(value:string)=>value.toLowerCase();
  const tones:Record<string,string>={won:"#e5c78d",lost:"#f4a295",push:"#e5c78d",voided:"#b2c4b7",open:"#b2c4b7"};
  const status=state(ticket.status);
@@ -207,14 +209,14 @@ export function renderEmailTicket(ticket:EmailTicket,board?:EmailBoard,showActio
   group.legs.push(leg);groups.set(key,group);
  }
  const legs=[...groups.values()].map(group=>{
-  const header=group.game?`<tr><td colspan="2" style="padding:12px;background:#102b24;border-bottom:1px solid #345046"><div style="font-size:11px;color:#b2c4b7;margin-bottom:6px">${group.game.current?"Current Scores":"Final Scores"}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${group.game.teams.map(team=>`<tr><td width="28" style="padding:4px 6px 4px 0">${avatarHtml(team.name,team.avatar,22)}</td><td style="padding:4px 0;font-size:13px;color:#f1f4ee;font-weight:bold">${escape(team.name)}</td><td align="right" style="padding:4px 0 4px 8px;font-size:14px;color:#f1f4ee;font-weight:bold">${team.score!=null?Number(team.score).toFixed(2):"—"}</td></tr>`).join("")}</table></td></tr>`:groups.size>1?`<tr><td colspan="2" style="padding:10px 12px;background:#214438;font-size:13px;font-weight:bold">Other Markets</td></tr>`:"";
+  const header=group.game?`<tr><td colspan="2" style="padding:12px;background:#102b24;border-bottom:1px solid #345046"><div style="font-size:11px;color:#b2c4b7;margin-bottom:6px">${showProgress?(group.game.current?"Current Scores":"Final Scores"):"Matchup"}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${group.game.teams.map(team=>`<tr><td width="28" style="padding:4px 6px 4px 0">${avatarHtml(team.name,team.avatar,22)}</td><td style="padding:4px 0;font-size:13px;color:#f1f4ee;font-weight:bold">${escape(team.name)}</td>${showProgress?`<td align="right" style="padding:4px 0 4px 8px;font-size:14px;color:#f1f4ee;font-weight:bold">${team.score!=null?Number(team.score).toFixed(2):"—"}</td>`:""}</tr>`).join("")}</table></td></tr>`:groups.size>1?`<tr><td colspan="2" style="padding:10px 12px;background:#214438;font-size:13px;font-weight:bold">Other Markets</td></tr>`:"";
   return header+group.legs.map(leg=>{
    const status=state(leg.status);
    const sameTeams=["Spread","Moneyline","Match Total","Team Total","Team Milestone","Winning Margin"].includes(leg.market??"")&&!!group.game&&!!leg.result?.teams?.length&&leg.result.teams.every(team=>group.game!.teams.some(member=>member.name===team.name&&member.score===team.score));
    return `<tr><td width="28" valign="top" style="padding:14px 10px 14px 12px;color:${tones[status]??"#b2c4b7"};font-size:18px"><span role="img" aria-label="${escape(capitalizeEmail(status))} Leg">${emailIcon("leg-"+(["won","lost","open","push","voided"].includes(status)?status:"open"),24,board?.origin)}</span></td><td style="padding:14px 12px 14px 0;border-bottom:1px solid #345046;font-size:14px;line-height:1.5">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="font-weight:bold">${escape(leg.selection)}</td><td align="right" valign="top" style="padding-left:10px;white-space:nowrap">${formatOdds(leg.odds)}</td></tr></table>
     ${leg.market?`<div style="color:#b2c4b7;margin-top:4px">${escape(capitalizeEmail(leg.market.replaceAll("_"," ")))}</div>`:""}
-    ${ticketLegResult(leg,sameTeams)}
+    ${showProgress?ticketLegResult(leg,sameTeams):""}
    </td></tr>`;
   }).join("");
  }).join("");
@@ -254,7 +256,7 @@ function matchupEmail(pair:[EmailTeam,EmailTeam],board:EmailBoard,quotes:EmailQu
      (team.observed+opponent.observed-Number(quote.line))*(quote.side==="over"?1:-1);
     outcome=Math.abs(difference)<0.001?"push":difference>0?"won":"lost";
    }
-   return `<td width="33.33%" valign="top" style="padding:0 3px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#17392f" style="border:1px solid ${outcome==="won"?"#e5c78d":"#345046"};border-radius:6px"><tr><td align="center" valign="middle" height="50" style="height:50px;padding:5px 2px;font-size:12px;line-height:1.45;color:#f1f4ee"><span style="color:#b2c4b7">${escape(title)}</span><br>${quote?.boost?`<del style="color:#b2c4b7;margin-right:4px">${formatOdds(quote.odds)}</del>`:""}<strong style="color:${quote?.boost||outcome==="won"?"#e5c78d":"#f1f4ee"}">${quote?escape(quote.boost?quotedOdds(quote).split(" (")[0]:formatOdds(quote.odds)):"—"}</strong>${quote?.boost?`<div style="margin-top:3px;font-size:10px;color:#e5c78d">${quote.boost}% Profit Boost</div>`:""}${outcome?`<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td style="padding-top:4px;font-size:11px;color:${outcome==="won"?"#e5c78d":"#b2c4b7"}">${capitalizeEmail(outcome)}</td></tr></table>`:""}</td></tr></table></td>`;
+   return `<td width="33.33%" valign="top" style="padding:0 3px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" bgcolor="#17392f" style="border:1px solid ${outcome==="won"?"#e5c78d":"#345046"};border-radius:6px"><tr><td align="center" valign="middle" height="50" style="height:50px;padding:5px 2px;font-size:12px;line-height:1.45;color:#f1f4ee"><span style="color:#b2c4b7">${escape(title)}</span><br>${quote?.boost?`<del style="color:#b2c4b7;margin-right:4px">${formatOdds(quote.odds)}</del>`:""}<strong style="color:${quote?.boost||outcome==="won"?"#e5c78d":"#f1f4ee"}">${quote?escape(quote.boost?quotedOdds(quote).split(" (")[0]:formatOdds(quote.odds)):"—"}</strong>${quote?.boost?`<div style="margin-top:3px;font-size:10px;color:#e5c78d">${quote.boost}% Boost</div>`:""}${outcome?`<table role="presentation" align="center" cellspacing="0" cellpadding="0"><tr><td style="padding-top:4px;font-size:11px;color:${outcome==="won"?"#e5c78d":"#b2c4b7"}">${capitalizeEmail(outcome)}</td></tr></table>`:""}</td></tr></table></td>`;
   };
   const projection=mode==="opening"?team.pregameProjection??team.projection:team.currentProjection??team.projection;
   return `<tr><td style="padding:12px 10px 7px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
@@ -521,9 +523,10 @@ export function renderAccountEmail(kind:"confirmation"|"attention",board:EmailBo
   ...palettes[admin?"loss":"results"],subject:(admin?"Admin Review Needed":"Bet Confirmation")+" · "+board.leagueName,
   preview:admin?"An issue in your league needs review.":"Your ticket has been accepted.",
   label:"",heading:admin?"Admin Review Needed":"Bet Confirmation",message:admin?String(details.Context??details.Issue??""):"",board:identity,
-  action:admin?"Review Issue":"View Your Bet",href,
+  action:admin?"Review Issue":"View Your Bet",href,context:details.Week!=null?`Week ${details.Week}`:undefined,
+  hideAction:!admin&&!!ticket,
   rows:ticket?[]:Object.entries(details).filter(([key])=>!["Context","Issue"].includes(key)),
-  sections:ticket?renderEmailTicket(ticket,board,false):"",
+  sections:ticket?renderEmailTicket(ticket,board,!admin,admin):"",
   sectionText:ticket?[ticket.id,...ticket.legs.map(l=>emailLegText(l))].join("\n"):undefined,
   footerHeading:board.leagueName,footerText:"Boff uses virtual credits.",
   footerLink:"Open League",footerHref:new URL(board.path+"/league",board.origin).href,

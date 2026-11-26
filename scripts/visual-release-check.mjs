@@ -4,7 +4,7 @@ const scripts=['scripts/release-source-scan.mjs','scripts/test-production-worker
  'visual/scripts/intake-api-tests.mjs','visual/scripts/member-invitation-api-tests.mjs','visual/scripts/refresh-push-tests.mjs',
  'visual/scripts/live-policy-tests.mjs','visual/scripts/weekly-rollover-tests.mjs','visual/scripts/fantasy-rewards-tests.mjs',
  'visual/scripts/weekly-reward-results-tests.mjs','visual/scripts/playoff-timing-tests.mjs','scripts/test-email-switcher.mjs',
- 'visual/scripts/storage-run.mjs'];
+ 'scripts/test-production-communications.mjs','scripts/test-email-template-review.mjs','visual/scripts/storage-run.mjs'];
 for(const script of scripts){
  await new Promise((resolve,reject)=>{
   const child=spawn(process.execPath,[script],{windowsHide:true,stdio:'inherit'});

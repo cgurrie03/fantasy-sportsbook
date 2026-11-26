@@ -8,6 +8,7 @@ let providerFailure=false;
 globalThis.fetch=async(url,options)=>{
  const body=options.body?JSON.parse(options.body):null;
  if(String(url).endsWith('/production_refresh_runtime'))return Response.json({tokenHash:createHash('sha256').update(token).digest('hex'),notificationsEnabled:true});
+ if(String(url).endsWith('/production_confirmation_contexts'))return Response.json([]);
  if(String(url).endsWith('/production_claim_communications')){claims.push(body);return Response.json([{id:'test-id',sender:'sender@example.invalid',recipient:'verified@example.invalid',subject:'Test',html:'<p>Test</p>',plain_text:'Test'}]);}
  if(String(url)==='https://api.resend.com/emails'){sent.push(options);return Response.json(providerFailure?{message:'private provider detail'}:{id:'provider-id'},{status:providerFailure?429:200});}
  if(String(url).endsWith('/production_finish_communication')){completed.push(body);return new Response(null,{status:204});}
@@ -18,6 +19,8 @@ try{
  assert.equal((await run('Bearer invalid')).statusCode,401);assert.equal(claims.length,0);
  assert.equal((await run('Bearer '+'b'.repeat(64))).statusCode,401);assert.equal(claims.length,0);
  assert.equal((await run('Bearer '+token,{action:'health'})).data.status,'ready');assert.equal(claims.length,0);
+ assert.equal((await run('Bearer '+token,{action:'confirmation',ticketId:'invalid'})).statusCode,400);assert.equal(claims.length,0);
+ assert.equal((await run('Bearer '+token,{action:'unknown'})).statusCode,400);assert.equal(claims.length,0);
  const good=await run('Bearer '+token);assert.equal(good.data.sent,1);assert.equal(sent[0].headers['Idempotency-Key'],'boff-communication-test-id');assert.equal(completed[0].p_provider,'provider-id');
  providerFailure=true;const retry=await run('Bearer '+token);assert.equal(retry.data.failed,1);assert.equal(completed[1].p_error,'provider_http_429');assert.equal(completed[1].p_provider,null);
  assert.equal(sent[1].headers['Idempotency-Key'],sent[0].headers['Idempotency-Key']);

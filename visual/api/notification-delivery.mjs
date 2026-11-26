@@ -1,5 +1,6 @@
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {serverTarget} from '../lib/release-target.mjs';
+import {prepareConfirmations} from '../lib/confirmation-capture.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');
  if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
@@ -19,6 +20,13 @@ export default async function handler(req,res){
   if(typeof runtime.tokenHash!=='string'||runtime.tokenHash.length!==64||!timingSafeEqual(Buffer.from(hash),Buffer.from(runtime.tokenHash)))return res.status(401).json({error:'Worker authorization required'});
   if(req.body?.action==='health')return res.status(200).json({status:'ready',providerConfigured:true});
   if(!runtime.notificationsEnabled)return res.status(200).json({status:'disabled'});
+  const action=req.body?.action??'deliver';
+  if(!['deliver','confirmation'].includes(action)||action==='confirmation'&&!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(req.body?.ticketId??''))return res.status(400).json({error:'Invalid delivery request'});
+  const contexts=await db('rpc/production_confirmation_contexts',{p_ticket:action==='confirmation'?req.body.ticketId:null});
+  if(contexts.length){
+   const renderers=await import('../lib/invitation-email.mjs');
+   await prepareConfirmations(db,contexts,renderers,target.origin);
+  }
   const messages=await db('rpc/production_claim_communications',{p_limit:4});let sent=0,failed=0;
   for(const m of messages){
    let providerId=null,error=null;
