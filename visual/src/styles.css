@@ -36,8 +36,8 @@
   --gold-ink: #58401b;
   --red: #a23e34;
   --focus: #a06d20;
-  --rail: #173d32;
-  --rail-text: #d7e2d8;
+  --rail: var(--surface);
+  --rail-text: var(--text);
   --shadow: 0 14px 40px #102d241a;
   color-scheme: light;
 }
@@ -403,6 +403,7 @@ label > select {
   width: 210px;
   background: var(--rail);
   color: var(--rail-text);
+  border-right: 1px solid var(--line);
   padding: 28px 15px 16px;
   display: flex;
   flex-direction: column;
@@ -425,15 +426,15 @@ label > select {
   color: var(--rail-text);
 }
 .sidebar a:hover {
-  background: #ffffff0c;
-  color: #fff;
+  background: var(--raised);
+  color: var(--text);
 }
 .sidebar a.active {
-  color: #fff;
-  background: #ffffff15;
+  color: var(--text);
+  background: var(--raised);
 }
 .sidebar a.active svg {
-  color: #e5c78d;
+  color: var(--boost-price);
 }
 .nav-count {
   margin-left: auto;
@@ -463,17 +464,17 @@ label > select {
   font-family: var(--font-display);
   font-size: 27px;
   line-height: 1.08;
-  color: #f4f6ee;
+  color: var(--text);
   letter-spacing: -0.015em;
 }
 .league-note small {
   display: block;
   margin-top: 10px;
   font-size: 10px;
-  color: #9db5a6;
+  color: var(--muted);
 }
 .sidebar .menu-label {
-  color: #8eaa99;
+  color: var(--muted);
   margin-left: 14px;
 }
 .sidebar-bottom > a {
@@ -512,7 +513,7 @@ label > select {
 .sidebar-end {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid #ffffff18;
+  border-top: 1px solid var(--line);
   margin: 12px 10px 0;
   padding-top: 8px;
 }
@@ -523,7 +524,7 @@ label > select {
 }
 .sidebar-end > span {
   font-size: 9px;
-  color: #8eaa99;
+  color: var(--muted);
 }
 .workspace {
   margin-left: 210px;
@@ -1110,6 +1111,14 @@ main {
   padding: 0 10px;
   margin-top: 7px;
 }
+.stake-input:focus-within {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.stake-input input:focus-visible {
+  outline: none;
+}
 .stake-input input {
   border: 0;
   background: none;
@@ -1119,6 +1128,11 @@ main {
   font-size: 16px;
   min-height: 44px;
   -moz-appearance: textfield;
+}
+.stake-input input::-webkit-inner-spin-button,
+.stake-input input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .stake-input span {
   font-size: 10px;
